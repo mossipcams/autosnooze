@@ -1,0 +1,70 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Set up AutoSnooze",
+        "description": "Configure AutoSnooze to temporarily pause automations."
+      }
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "AutoSnooze Options"
+      }
+    }
+  },
+  "entity": {
+    "sensor": {
+      "snoozed_count": {
+        "name": "Snoozed Automations"
+      }
+    }
+  },
+  "services": {
+    "pause": {
+      "name": "Snooze",
+      "description": "Snooze automation(s) for a specified duration.",
+      "fields": {
+        "entity_id": {
+          "name": "Automation",
+          "description": "Automation(s) to snooze."
+        },
+        "days": {
+          "name": "Days",
+          "description": "Number of days to snooze."
+        },
+        "hours": {
+          "name": "Hours",
+          "description": "Number of hours to snooze."
+        },
+        "minutes": {
+          "name": "Minutes",
+          "description": "Number of minutes to snooze."
+        }
+      }
+    },
+    "cancel": {
+      "name": "Wake",
+      "description": "Wake snoozed automation(s) immediately.",
+      "fields": {
+        "entity_id": {
+          "name": "Automation",
+          "description": "Automation(s) to wake."
+        }
+      }
+    },
+    "cancel_all": {
+      "name": "Wake All",
+      "description": "Wake all snoozed automations immediately."
+    }
+  },
+  "exceptions": {
+    "invalid_duration": {
+      "message": "Duration must be greater than zero"
+    },
+    "not_automation": {
+      "message": "{entity_id} is not an automation"
+    }
+  }
+}
