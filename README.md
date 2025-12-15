@@ -95,12 +95,6 @@ condition:
 - Home Assistant 2024.1+
 - Areas/Labels configured (optional, enables filtering)
 
-## Upgrading from v1.x
-
-Domain changed: `automation_pause` → `autosnooze`
-
-See [docs/MIGRATION.md](docs/MIGRATION.md) for instructions.
-
 ## Support
 
 [Open an issue](https://github.com/mossipcams/autosnooze/issues)
