@@ -22,21 +22,23 @@ Snooze automations for a set time. They'll wake up automatically when the timer 
 - **Survives restarts** - Timers persist through reboots and power outages
 - **Quick wake** - Re-enable individual automations or everything at once
 
-## Installation
+## Install
 
-### HACS
+**HACS:**
+1. Add custom repo: `https://github.com/mossipcams/autosnooze`
+2. Install + restart
+3. Add integration in Settings
 
-1. HACS → Integrations → ⋮ → Custom repositories
-2. Add: `https://github.com/mossipcams/autosnooze`
-3. Install "AutoSnooze"
-4. Restart Home Assistant
-5. Settings → Devices & Services → Add "AutoSnooze"
+**⚠️ Card requires manual installation:**
+HACS only installs the integration, not the frontend card.
 
-### Manual
+4. Download [autosnooze-card.js](https://github.com/mossipcams/autosnooze/raw/main/www/autosnooze-card.js)
+5. Save to `config/www/autosnooze-card.js`
+6. Settings → Dashboards → Resources → Add resource
+   - URL: `/local/autosnooze-card.js`
+   - Type: JavaScript module
+7. Hard refresh browser (Ctrl+Shift+R)
 
-1. Copy `custom_components/autosnooze/` to `config/custom_components/`
-2. Copy `www/autosnooze-card.js` to `config/www/`
-3. Restart and add integration
 
 ## Dashboard Card
 
@@ -94,12 +96,6 @@ condition:
 
 - Home Assistant 2024.1+
 - Areas/Labels configured (optional, enables filtering)
-
-## Upgrading from v1.x
-
-Domain changed: `automation_pause` → `autosnooze`
-
-See [docs/MIGRATION.md](docs/MIGRATION.md) for instructions.
 
 ## Support
 
