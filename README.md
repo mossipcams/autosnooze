@@ -4,7 +4,6 @@
 [![GitHub Release](https://img.shields.io/github/release/mossipcams/autosnooze.svg)](https://github.com/mossipcams/autosnooze/releases)
 [![License](https://img.shields.io/github/license/mossipcams/autosnooze.svg)](LICENSE)
 
-> **⚠️ Version 2.0 Breaking Change**: The integration domain has been renamed from `automation_pause` to `autosnooze`. See [docs/MIGRATION.md](docs/MIGRATION.md) for upgrade instructions.
 
 Temporarily pause Home Assistant automations for a set duration. Perfect for guests, parties, vacations, or maintenance.
 
