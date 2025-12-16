@@ -24,7 +24,7 @@
   "services": {
     "pause": {
       "name": "Snooze",
-      "description": "Snooze automation(s) for a specified duration.",
+      "description": "Snooze automation(s) for a specified duration or until a specific time.",
       "fields": {
         "entity_id": {
           "name": "Automation",
@@ -41,6 +41,14 @@
         "minutes": {
           "name": "Minutes",
           "description": "Number of minutes to snooze."
+        },
+        "disable_at": {
+          "name": "Disable At",
+          "description": "Schedule when to disable the automation (future datetime)."
+        },
+        "resume_at": {
+          "name": "Resume At",
+          "description": "Specific datetime when to re-enable the automation."
         }
       }
     },
@@ -57,6 +65,76 @@
     "cancel_all": {
       "name": "Wake All",
       "description": "Wake all snoozed automations immediately."
+    },
+    "pause_by_area": {
+      "name": "Snooze by Area",
+      "description": "Snooze all automations in a specific area.",
+      "fields": {
+        "area_id": {
+          "name": "Area",
+          "description": "Area(s) containing automations to snooze."
+        },
+        "days": {
+          "name": "Days",
+          "description": "Number of days to snooze."
+        },
+        "hours": {
+          "name": "Hours",
+          "description": "Number of hours to snooze."
+        },
+        "minutes": {
+          "name": "Minutes",
+          "description": "Number of minutes to snooze."
+        },
+        "disable_at": {
+          "name": "Disable At",
+          "description": "Schedule when to disable the automations."
+        },
+        "resume_at": {
+          "name": "Resume At",
+          "description": "Specific datetime when to re-enable the automations."
+        }
+      }
+    },
+    "pause_by_label": {
+      "name": "Snooze by Label",
+      "description": "Snooze all automations with a specific label.",
+      "fields": {
+        "label_id": {
+          "name": "Label",
+          "description": "Label(s) to match for automations to snooze."
+        },
+        "days": {
+          "name": "Days",
+          "description": "Number of days to snooze."
+        },
+        "hours": {
+          "name": "Hours",
+          "description": "Number of hours to snooze."
+        },
+        "minutes": {
+          "name": "Minutes",
+          "description": "Number of minutes to snooze."
+        },
+        "disable_at": {
+          "name": "Disable At",
+          "description": "Schedule when to disable the automations."
+        },
+        "resume_at": {
+          "name": "Resume At",
+          "description": "Specific datetime when to re-enable the automations."
+        }
+      }
+    },
+    "cancel_scheduled": {
+      "name": "Cancel Scheduled Snooze",
+      "description": "Cancel a scheduled snooze before it activates.",
+      "fields": {
+        "entity_id": {
+          "name": "Automation",
+          "description": "Automation(s) with scheduled snoozes to cancel."
+        }
+      }
     }
   },
   "exceptions": {
