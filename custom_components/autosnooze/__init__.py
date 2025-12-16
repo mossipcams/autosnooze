@@ -33,8 +33,9 @@ with open(MANIFEST_PATH, encoding="utf-8") as manifest_file:
 VERSION = MANIFEST.get("version", "0.0.0")
 
 CARD_PATH = Path(__file__).parent / "www" / "autosnooze-card.js"
-CARD_URL = f"/{DOMAIN}/autosnooze-card.js"
-CARD_URL_VERSIONED = f"/{DOMAIN}/autosnooze-card.js?v={VERSION}"
+# Use version in path (not query param) to force CDN cache invalidation
+CARD_URL_BASE = f"/{DOMAIN}/autosnooze-card.js"
+CARD_URL = f"/{DOMAIN}/autosnooze-card-{VERSION}.js"
 
 
 @dataclass
@@ -217,22 +218,22 @@ async def _async_register_lovelace_resource(hass: HomeAssistant) -> None:
         _LOGGER.debug("Lovelace resources not available (YAML mode?)")
         return
 
-    # Check if already registered (with or without version parameter)
+    # Check if already registered (any version)
     existing_resource = None
     for resource in resources.async_items():
         url = resource.get("url", "")
-        # Match any autosnooze card URL (with or without version query param)
-        if url.startswith(CARD_URL):
+        # Match any autosnooze card URL (any version in path)
+        if f"/{DOMAIN}/autosnooze-card" in url:
             existing_resource = resource
             break
 
     if existing_resource:
         # Update existing resource if URL changed (new version)
-        if existing_resource.get("url") != CARD_URL_VERSIONED:
+        if existing_resource.get("url") != CARD_URL:
             try:
                 await resources.async_update_item(
                     existing_resource["id"],
-                    {"url": CARD_URL_VERSIONED, "res_type": "module"}
+                    {"url": CARD_URL, "res_type": "module"}
                 )
                 _LOGGER.info("Updated AutoSnooze card resource to v%s", VERSION)
             except Exception as err:
@@ -244,7 +245,7 @@ async def _async_register_lovelace_resource(hass: HomeAssistant) -> None:
     # Add new resource
     try:
         await resources.async_create_item({
-            "url": CARD_URL_VERSIONED,
+            "url": CARD_URL,
             "res_type": "module"
         })
         _LOGGER.info("Registered AutoSnooze card as Lovelace resource (v%s)", VERSION)
