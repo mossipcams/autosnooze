@@ -1,6 +1,6 @@
 pause:
   name: Snooze
-  description: Snooze automation(s) for a specified duration. They will automatically wake up when the time expires.
+  description: Snooze automation(s) for a specified duration or until a specific time. They will automatically wake up when the time expires.
   fields:
     entity_id:
       name: Automation
@@ -9,6 +9,72 @@ pause:
       selector:
         entity:
           domain: automation
+          multiple: true
+    days:
+      name: Days
+      description: Number of days to snooze (used with duration-based scheduling).
+      default: 0
+      selector:
+        number:
+          min: 0
+          max: 365
+          mode: box
+    hours:
+      name: Hours
+      description: Number of hours to snooze (used with duration-based scheduling).
+      default: 0
+      selector:
+        number:
+          min: 0
+          max: 23
+          mode: box
+    minutes:
+      name: Minutes
+      description: Number of minutes to snooze (used with duration-based scheduling).
+      default: 0
+      selector:
+        number:
+          min: 0
+          max: 59
+          mode: box
+    disable_at:
+      name: Disable At
+      description: Schedule when to disable the automation (future datetime). If not set, disables immediately.
+      selector:
+        datetime:
+    resume_at:
+      name: Resume At
+      description: Specific datetime when to re-enable the automation. Overrides duration fields if set.
+      selector:
+        datetime:
+
+cancel:
+  name: Wake
+  description: Wake up snoozed automation(s) and re-enable them immediately.
+  fields:
+    entity_id:
+      name: Automation
+      description: Automation(s) to wake.
+      required: true
+      selector:
+        entity:
+          domain: automation
+          multiple: true
+
+cancel_all:
+  name: Wake All
+  description: Wake all snoozed automations and re-enable them immediately.
+
+pause_by_area:
+  name: Snooze by Area
+  description: Snooze all automations in a specific area.
+  fields:
+    area_id:
+      name: Area
+      description: Area(s) containing automations to snooze.
+      required: true
+      selector:
+        area:
           multiple: true
     days:
       name: Days
@@ -37,20 +103,75 @@ pause:
           min: 0
           max: 59
           mode: box
+    disable_at:
+      name: Disable At
+      description: Schedule when to disable the automations (future datetime).
+      selector:
+        datetime:
+    resume_at:
+      name: Resume At
+      description: Specific datetime when to re-enable the automations.
+      selector:
+        datetime:
 
-cancel:
-  name: Wake
-  description: Wake up snoozed automation(s) and re-enable them immediately.
+pause_by_label:
+  name: Snooze by Label
+  description: Snooze all automations with a specific label.
+  fields:
+    label_id:
+      name: Label
+      description: Label(s) to match for automations to snooze.
+      required: true
+      selector:
+        label:
+          multiple: true
+    days:
+      name: Days
+      description: Number of days to snooze.
+      default: 0
+      selector:
+        number:
+          min: 0
+          max: 365
+          mode: box
+    hours:
+      name: Hours
+      description: Number of hours to snooze.
+      default: 0
+      selector:
+        number:
+          min: 0
+          max: 23
+          mode: box
+    minutes:
+      name: Minutes
+      description: Number of minutes to snooze.
+      default: 0
+      selector:
+        number:
+          min: 0
+          max: 59
+          mode: box
+    disable_at:
+      name: Disable At
+      description: Schedule when to disable the automations (future datetime).
+      selector:
+        datetime:
+    resume_at:
+      name: Resume At
+      description: Specific datetime when to re-enable the automations.
+      selector:
+        datetime:
+
+cancel_scheduled:
+  name: Cancel Scheduled Snooze
+  description: Cancel a scheduled snooze before it activates.
   fields:
     entity_id:
       name: Automation
-      description: Automation(s) to wake.
+      description: Automation(s) with scheduled snoozes to cancel.
       required: true
       selector:
         entity:
           domain: automation
           multiple: true
-
-cancel_all:
-  name: Wake All
-  description: Wake all snoozed automations and re-enable them immediately.
