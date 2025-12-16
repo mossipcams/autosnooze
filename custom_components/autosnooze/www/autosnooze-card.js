@@ -1,44 +1,37 @@
-const LitElement = Object.getPrototypeOf(customElements.get("ha-panel-lovelace"));
-const html = LitElement.prototype.html;
-const css = LitElement.prototype.css;
+import { LitElement, html, css } from "https://unpkg.com/lit@3/element/lit-element.js?module";
+import { property, state } from "https://unpkg.com/lit@3/decorators.js?module";
 
 // ============================================================================
 // CARD EDITOR
 // ============================================================================
 class AutomationPauseCardEditor extends LitElement {
-  static get properties() {
-    return {
-      hass: { type: Object },
-      _config: { type: Object },
-    };
-  }
+  @property({ type: Object }) hass = {};
+  @state() private _config = {};
 
-  static get styles() {
-    return css`
-      .row {
-        margin-bottom: 12px;
-      }
-      .row label {
-        display: block;
-        margin-bottom: 4px;
-        font-weight: 500;
-      }
-      input[type="text"] {
-        width: 100%;
-        padding: 8px;
-        border: 1px solid var(--divider-color);
-        border-radius: 4px;
-        background: var(--card-background-color);
-        color: var(--primary-text-color);
-        box-sizing: border-box;
-      }
-      .help {
-        font-size: 0.85em;
-        color: var(--secondary-text-color);
-        margin-top: 4px;
-      }
-    `;
-  }
+  static styles = css`
+    .row {
+      margin-bottom: 12px;
+    }
+    .row label {
+      display: block;
+      margin-bottom: 4px;
+      font-weight: 500;
+    }
+    input[type="text"] {
+      width: 100%;
+      padding: 8px;
+      border: 1px solid var(--divider-color);
+      border-radius: 4px;
+      background: var(--card-background-color);
+      color: var(--primary-text-color);
+      box-sizing: border-box;
+    }
+    .help {
+      font-size: 0.85em;
+      color: var(--secondary-text-color);
+      margin-top: 4px;
+    }
+  `;
 
   setConfig(config) {
     this._config = config;
@@ -48,17 +41,17 @@ class AutomationPauseCardEditor extends LitElement {
     if (!this._config) return;
 
     const newConfig = { ...this._config, [key]: value };
-    
     if (value === "" || value === null || value === undefined) {
       delete newConfig[key];
     }
 
-    const event = new CustomEvent("config-changed", {
-      detail: { config: newConfig },
-      bubbles: true,
-      composed: true,
-    });
-    this.dispatchEvent(event);
+    this.dispatchEvent(
+      new CustomEvent("config-changed", {
+        detail: { config: newConfig },
+        bubbles: true,
+        composed: true,
+      })
+    );
   }
 
   render() {
@@ -84,46 +77,34 @@ customElements.define("autosnooze-card-editor", AutomationPauseCardEditor);
 // MAIN CARD
 // ============================================================================
 class AutomationPauseCard extends LitElement {
-  static get properties() {
-    return {
-      hass: { type: Object },
-      config: { type: Object },
-      _selected: { type: Array },
-      _duration: { type: Number },
-      _customDuration: { type: Object },
-      _loading: { type: Boolean },
-      _search: { type: String },
-      _filterTab: { type: String },
-      _expandedGroups: { type: Object },
-      _scheduleMode: { type: Boolean },
-      _disableAt: { type: String },
-      _resumeAt: { type: String },
-    };
-  }
+  @property({ type: Object }) hass = {};
+  @property({ type: Object }) config = {};
+
+  @state() private _selected: string[] = [];
+  @state() private _duration = 1800000; // 30 minutes default
+  @state() private _customDuration = { days: 0, hours: 0, minutes: 30 };
+  @state() private _loading = false;
+  @state() private _search = "";
+  @state() private _filterTab = "all";
+  @state() private _expandedGroups: Record<string, boolean> = {};
+  @state() private _scheduleMode = false;
+  @state() private _disableAt = "";
+  @state() private _resumeAt = "";
+
+  private _interval: number | null = null;
 
   constructor() {
     super();
-    this._selected = [];
-    this._duration = 1800000; // 30 minutes default
-    this._customDuration = { days: 0, hours: 0, minutes: 30 };
-    this._loading = false;
-    this._search = "";
-    this._filterTab = "all";
-    this._expandedGroups = {};
-    this._interval = null;
-    this._scheduleMode = false;
-    this._disableAt = "";
-    this._resumeAt = "";
   }
 
   connectedCallback() {
     super.connectedCallback();
-    this._interval = setInterval(() => this.requestUpdate(), 1000);
+    this._interval = window.setInterval(() => this.requestUpdate(), 1000);
   }
 
   disconnectedCallback() {
     super.disconnectedCallback();
-    if (this._interval) {
+    if (this._interval !== null) {
       clearInterval(this._interval);
       this._interval = null;
     }
@@ -134,469 +115,465 @@ class AutomationPauseCard extends LitElement {
   }
 
   static getStubConfig() {
-    return {
-      title: "AutoSnooze",
-    };
+    return { title: "AutoSnooze" };
   }
 
-  static get styles() {
-    return css`
-      :host {
-        display: block;
-      }
-      ha-card {
-        padding: 16px;
-      }
+  static styles = css`
+    :host {
+      display: block;
+    }
+    ha-card {
+      padding: 16px;
+    }
 
-      /* Header */
-      .header {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        margin-bottom: 16px;
-        font-size: 1.2em;
-        font-weight: 500;
-      }
-      .header ha-icon {
-        color: var(--primary-color);
-      }
-      .status-summary {
-        margin-left: auto;
-        font-size: 0.85em;
-        color: var(--secondary-text-color);
-      }
+    /* Header */
+    .header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 16px;
+      font-size: 1.2em;
+      font-weight: 500;
+    }
+    .header ha-icon {
+      color: var(--primary-color);
+    }
+    .status-summary {
+      margin-left: auto;
+      font-size: 0.85em;
+      color: var(--secondary-text-color);
+    }
 
-      /* Section A: Snooze Setup */
-      .snooze-setup {
-        margin-bottom: 20px;
-      }
+    /* Section A: Snooze Setup */
+    .snooze-setup {
+      margin-bottom: 20px;
+    }
 
-      /* Filter Tabs */
-      .filter-tabs {
-        display: flex;
-        gap: 8px;
-        margin-bottom: 12px;
-        border-bottom: 1px solid var(--divider-color);
-        padding-bottom: 8px;
-      }
-      .tab {
-        padding: 6px 16px;
-        border-radius: 16px;
-        cursor: pointer;
-        font-size: 0.9em;
-        background: transparent;
-        border: 1px solid var(--divider-color);
-        color: var(--primary-text-color);
-        transition: all 0.2s;
-      }
-      .tab:hover {
-        background: var(--primary-color);
-        color: var(--text-primary-color);
-        opacity: 0.8;
-      }
-      .tab.active {
-        background: var(--primary-color);
-        color: var(--text-primary-color);
-        border-color: var(--primary-color);
-      }
+    /* Filter Tabs */
+    .filter-tabs {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 12px;
+      border-bottom: 1px solid var(--divider-color);
+      padding-bottom: 8px;
+    }
+    .tab {
+      padding: 6px 16px;
+      border-radius: 16px;
+      cursor: pointer;
+      font-size: 0.9em;
+      background: transparent;
+      border: 1px solid var(--divider-color);
+      color: var(--primary-text-color);
+      transition: all 0.2s;
+    }
+    .tab:hover {
+      background: var(--primary-color);
+      color: var(--text-primary-color);
+      opacity: 0.8;
+    }
+    .tab.active {
+      background: var(--primary-color);
+      color: var(--text-primary-color);
+      border-color: var(--primary-color);
+    }
 
-      /* Search */
-      .search-box {
-        margin-bottom: 12px;
-      }
-      .search-box input {
-        width: 100%;
-        padding: 10px 12px;
-        border: 1px solid var(--divider-color);
-        border-radius: 8px;
-        background: var(--card-background-color);
-        color: var(--primary-text-color);
-        box-sizing: border-box;
-        font-size: 0.95em;
-      }
-      .search-box input:focus {
-        outline: none;
-        border-color: var(--primary-color);
-      }
+    /* Search */
+    .search-box {
+      margin-bottom: 12px;
+    }
+    .search-box input {
+      width: 100%;
+      padding: 10px 12px;
+      border: 1px solid var(--divider-color);
+      border-radius: 8px;
+      background: var(--card-background-color);
+      color: var(--primary-text-color);
+      box-sizing: border-box;
+      font-size: 0.95em;
+    }
+    .search-box input:focus {
+      outline: none;
+      border-color: var(--primary-color);
+    }
 
-      /* Selection List */
-      .selection-list {
-        max-height: 300px;
-        overflow-y: auto;
-        border: 1px solid var(--divider-color);
-        border-radius: 8px;
-        margin-bottom: 12px;
-      }
-      .list-empty {
-        padding: 20px;
-        text-align: center;
-        color: var(--secondary-text-color);
-        font-size: 0.9em;
-      }
-      .list-item {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        padding: 12px;
-        cursor: pointer;
-        border-bottom: 1px solid var(--divider-color);
-        transition: background 0.2s;
-        min-height: 48px;
-      }
-      .list-item:last-child {
-        border-bottom: none;
-      }
-      .list-item:hover {
-        background: var(--secondary-background-color);
-      }
-      .list-item.selected {
-        background: rgba(var(--rgb-primary-color), 0.1);
-      }
-      .list-item ha-icon {
-        color: var(--primary-color);
-        flex-shrink: 0;
-      }
-      .list-item-name {
-        flex: 1;
-        font-size: 0.95em;
-      }
+    /* Selection List */
+    .selection-list {
+      max-height: 300px;
+      overflow-y: auto;
+      border: 1px solid var(--divider-color);
+      border-radius: 8px;
+      margin-bottom: 12px;
+    }
+    .list-empty {
+      padding: 20px;
+      text-align: center;
+      color: var(--secondary-text-color);
+      font-size: 0.9em;
+    }
+    .list-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 12px;
+      cursor: pointer;
+      border-bottom: 1px solid var(--divider-color);
+      transition: background 0.2s;
+      min-height: 48px;
+    }
+    .list-item:last-child {
+      border-bottom: none;
+    }
+    .list-item:hover {
+      background: var(--secondary-background-color);
+    }
+    .list-item.selected {
+      background: rgba(var(--rgb-primary-color), 0.1);
+    }
+    .list-item ha-icon {
+      color: var(--primary-color);
+      flex-shrink: 0;
+    }
+    .list-item-name {
+      flex: 1;
+      font-size: 0.95em;
+    }
 
-      /* Group Headers */
-      .group-header {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        padding: 10px 12px;
-        background: var(--secondary-background-color);
-        cursor: pointer;
-        font-weight: 500;
-        font-size: 0.9em;
-        border-bottom: 1px solid var(--divider-color);
-      }
-      .group-header:hover {
-        background: var(--divider-color);
-      }
-      .group-header ha-icon {
-        transition: transform 0.2s;
-      }
-      .group-header.expanded ha-icon {
-        transform: rotate(90deg);
-      }
-      .group-badge {
-        margin-left: auto;
-        padding: 2px 8px;
-        background: var(--primary-color);
-        color: var(--text-primary-color);
-        border-radius: 12px;
-        font-size: 0.8em;
-      }
+    /* Group Headers */
+    .group-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 12px;
+      background: var(--secondary-background-color);
+      cursor: pointer;
+      font-weight: 500;
+      font-size: 0.9em;
+      border-bottom: 1px solid var(--divider-color);
+    }
+    .group-header:hover {
+      background: var(--divider-color);
+    }
+    .group-header ha-icon {
+      transition: transform 0.2s;
+    }
+    .group-header.expanded ha-icon {
+      transform: rotate(90deg);
+    }
+    .group-badge {
+      margin-left: auto;
+      padding: 2px 8px;
+      background: var(--primary-color);
+      color: var(--text-primary-color);
+      border-radius: 12px;
+      font-size: 0.8em;
+    }
 
-      /* Duration Pills */
-      .duration-selector {
-        margin-bottom: 12px;
-      }
-      .duration-pills {
-        display: flex;
-        gap: 8px;
-        flex-wrap: wrap;
-        margin-bottom: 8px;
-      }
-      .pill {
-        padding: 8px 16px;
-        border-radius: 20px;
-        border: 1px solid var(--divider-color);
-        background: var(--card-background-color);
-        cursor: pointer;
-        font-size: 0.9em;
-        transition: all 0.2s;
-      }
-      .pill:hover {
-        border-color: var(--primary-color);
-      }
-      .pill.active {
-        background: var(--primary-color);
-        color: var(--text-primary-color);
-        border-color: var(--primary-color);
-      }
+    /* Duration Pills */
+    .duration-selector {
+      margin-bottom: 12px;
+    }
+    .duration-pills {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-bottom: 8px;
+    }
+    .pill {
+      padding: 8px 16px;
+      border-radius: 20px;
+      border: 1px solid var(--divider-color);
+      background: var(--card-background-color);
+      cursor: pointer;
+      font-size: 0.9em;
+      transition: all 0.2s;
+    }
+    .pill:hover {
+      border-color: var(--primary-color);
+    }
+    .pill.active {
+      background: var(--primary-color);
+      color: var(--text-primary-color);
+      border-color: var(--primary-color);
+    }
 
-      /* Custom Duration */
-      .custom-duration {
-        display: flex;
-        gap: 8px;
-        padding: 12px;
-        background: var(--secondary-background-color);
-        border-radius: 8px;
-        margin-top: 8px;
-      }
-      .duration-field {
-        flex: 1;
-        display: flex;
-        flex-direction: column;
-        gap: 4px;
-      }
-      .duration-field label {
-        font-size: 0.8em;
-        color: var(--secondary-text-color);
-      }
-      .duration-field input {
-        padding: 8px;
-        border: 1px solid var(--divider-color);
-        border-radius: 4px;
-        background: var(--card-background-color);
-        color: var(--primary-text-color);
-        text-align: center;
-      }
+    /* Custom Duration */
+    .custom-duration {
+      display: flex;
+      gap: 8px;
+      padding: 12px;
+      background: var(--secondary-background-color);
+      border-radius: 8px;
+      margin-top: 8px;
+    }
+    .duration-field {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .duration-field label {
+      font-size: 0.8em;
+      color: var(--secondary-text-color);
+    }
+    .duration-field input {
+      padding: 8px;
+      border: 1px solid var(--divider-color);
+      border-radius: 4px;
+      background: var(--card-background-color);
+      color: var(--primary-text-color);
+      text-align: center;
+    }
 
-      /* Snooze Button */
-      .snooze-btn {
-        width: 100%;
-        padding: 14px;
-        border: none;
-        border-radius: 8px;
-        background: var(--primary-color);
-        color: var(--text-primary-color);
-        font-size: 1em;
-        font-weight: 500;
-        cursor: pointer;
-        transition: opacity 0.2s;
-      }
-      .snooze-btn:hover:not(:disabled) {
-        opacity: 0.9;
-      }
-      .snooze-btn:disabled {
-        opacity: 0.4;
-        cursor: not-allowed;
-      }
+    /* Snooze Button */
+    .snooze-btn {
+      width: 100%;
+      padding: 14px;
+      border: none;
+      border-radius: 8px;
+      background: var(--primary-color);
+      color: var(--text-primary-color);
+      font-size: 1em;
+      font-weight: 500;
+      cursor: pointer;
+      transition: opacity 0.2s;
+    }
+    .snooze-btn:hover:not(:disabled) {
+      opacity: 0.9;
+    }
+    .snooze-btn:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
 
-      /* Section B: Active Snoozes */
-      .snooze-list {
-        border: 2px solid #ff9800;
-        border-radius: 8px;
-        background: rgba(255, 152, 0, 0.05);
-        padding: 12px;
-        margin-top: 20px;
-      }
-      .list-header {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        font-weight: 500;
-        margin-bottom: 12px;
-        font-size: 1em;
-      }
-      .list-header ha-icon {
-        color: #ff9800;
-      }
+    /* Section B: Active Snoozes */
+    .snooze-list {
+      border: 2px solid #ff9800;
+      border-radius: 8px;
+      background: rgba(255, 152, 0, 0.05);
+      padding: 12px;
+      margin-top: 20px;
+    }
+    .list-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-weight: 500;
+      margin-bottom: 12px;
+      font-size: 1em;
+    }
+    .list-header ha-icon {
+      color: #ff9800;
+    }
 
-      /* Paused Item */
-      .paused-item {
-        display: flex;
-        align-items: center;
-        gap: 12px;
-        padding: 12px;
-        background: var(--card-background-color);
-        border-radius: 8px;
-        margin-bottom: 8px;
-      }
-      .paused-item:last-of-type {
-        margin-bottom: 12px;
-      }
-      .paused-icon {
-        color: var(--secondary-text-color);
-        opacity: 0.6;
-      }
-      .paused-info {
-        flex: 1;
-      }
-      .paused-name {
-        font-weight: 500;
-        margin-bottom: 4px;
-      }
-      .paused-time {
-        font-size: 0.85em;
-        color: var(--secondary-text-color);
-      }
-      .countdown {
-        font-size: 0.9em;
-        color: #ff9800;
-        font-weight: 500;
-        white-space: nowrap;
-      }
-      .wake-btn {
-        padding: 6px 12px;
-        border: 1px solid var(--divider-color);
-        border-radius: 6px;
-        background: var(--card-background-color);
-        color: var(--primary-text-color);
-        cursor: pointer;
-        font-size: 0.85em;
-        transition: all 0.2s;
-      }
-      .wake-btn:hover {
-        background: var(--primary-color);
-        color: var(--text-primary-color);
-        border-color: var(--primary-color);
-      }
+    /* Paused Item */
+    .paused-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px;
+      background: var(--card-background-color);
+      border-radius: 8px;
+      margin-bottom: 8px;
+    }
+    .paused-item:last-of-type {
+      margin-bottom: 12px;
+    }
+    .paused-icon {
+      color: var(--secondary-text-color);
+      opacity: 0.6;
+    }
+    .paused-info {
+      flex: 1;
+    }
+    .paused-name {
+      font-weight: 500;
+      margin-bottom: 4px;
+    }
+    .paused-time {
+      font-size: 0.85em;
+      color: var(--secondary-text-color);
+    }
+    .countdown {
+      font-size: 0.9em;
+      color: #ff9800;
+      font-weight: 500;
+      white-space: nowrap;
+    }
+    .wake-btn {
+      padding: 6px 12px;
+      border: 1px solid var(--divider-color);
+      border-radius: 6px;
+      background: var(--card-background-color);
+      color: var(--primary-text-color);
+      cursor: pointer;
+      font-size: 0.85em;
+      transition: all 0.2s;
+    }
+    .wake-btn:hover {
+      background: var(--primary-color);
+      color: var(--text-primary-color);
+      border-color: var(--primary-color);
+    }
 
-      /* Wake All Button */
-      .wake-all {
-        width: 100%;
-        padding: 10px;
-        border: 1px solid #ff9800;
-        border-radius: 6px;
-        background: transparent;
-        color: #ff9800;
-        cursor: pointer;
-        font-size: 0.9em;
-        font-weight: 500;
-        transition: all 0.2s;
-      }
-      .wake-all:hover {
-        background: #ff9800;
-        color: white;
-      }
+    /* Wake All Button */
+    .wake-all {
+      width: 100%;
+      padding: 10px;
+      border: 1px solid #ff9800;
+      border-radius: 6px;
+      background: transparent;
+      color: #ff9800;
+      cursor: pointer;
+      font-size: 0.9em;
+      font-weight: 500;
+      transition: all 0.2s;
+    }
+    .wake-all:hover {
+      background: #ff9800;
+      color: white;
+    }
 
-      /* Empty State */
-      .empty {
-        padding: 20px;
-        text-align: center;
-        color: var(--secondary-text-color);
-        font-size: 0.9em;
-      }
+    /* Empty State */
+    .empty {
+      padding: 20px;
+      text-align: center;
+      color: var(--secondary-text-color);
+      font-size: 0.9em;
+    }
 
-      /* Schedule Mode Toggle */
-      .schedule-toggle {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        margin-bottom: 12px;
-        padding: 8px 12px;
-        background: var(--secondary-background-color);
-        border-radius: 8px;
-        cursor: pointer;
-      }
-      .schedule-toggle label {
-        flex: 1;
-        cursor: pointer;
-        font-size: 0.9em;
-      }
-      .schedule-toggle input[type="checkbox"] {
-        width: 18px;
-        height: 18px;
-        cursor: pointer;
-      }
+    /* Schedule Mode Toggle */
+    .schedule-toggle {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 12px;
+      padding: 8px 12px;
+      background: var(--secondary-background-color);
+      border-radius: 8px;
+      cursor: pointer;
+    }
+    .schedule-toggle label {
+      flex: 1;
+      cursor: pointer;
+      font-size: 0.9em;
+    }
+    .schedule-toggle input[type="checkbox"] {
+      width: 18px;
+      height: 18px;
+      cursor: pointer;
+    }
 
-      /* Schedule Datetime Inputs */
-      .schedule-inputs {
-        display: flex;
-        flex-direction: column;
-        gap: 12px;
-        padding: 12px;
-        background: var(--secondary-background-color);
-        border-radius: 8px;
-        margin-bottom: 12px;
-      }
-      .datetime-field {
-        display: flex;
-        flex-direction: column;
-        gap: 4px;
-      }
-      .datetime-field label {
-        font-size: 0.85em;
-        color: var(--secondary-text-color);
-        font-weight: 500;
-      }
-      .datetime-field input[type="datetime-local"] {
-        padding: 10px 12px;
-        border: 1px solid var(--divider-color);
-        border-radius: 6px;
-        background: var(--card-background-color);
-        color: var(--primary-text-color);
-        font-size: 0.95em;
-      }
-      .datetime-field input:focus {
-        outline: none;
-        border-color: var(--primary-color);
-      }
+    /* Schedule Datetime Inputs */
+    .schedule-inputs {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      padding: 12px;
+      background: var(--secondary-background-color);
+      border-radius: 8px;
+      margin-bottom: 12px;
+    }
+    .datetime-field {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .datetime-field label {
+      font-size: 0.85em;
+      color: var(--secondary-text-color);
+      font-weight: 500;
+    }
+    .datetime-field input[type="datetime-local"] {
+      padding: 10px 12px;
+      border: 1px solid var(--divider-color);
+      border-radius: 6px;
+      background: var(--card-background-color);
+      color: var(--primary-text-color);
+      font-size: 0.95em;
+    }
+    .datetime-field input:focus {
+      outline: none;
+      border-color: var(--primary-color);
+    }
 
-      /* Scheduled Snoozes Section */
-      .scheduled-list {
-        border: 2px solid #2196f3;
-        border-radius: 8px;
-        background: rgba(33, 150, 243, 0.05);
-        padding: 12px;
-        margin-top: 12px;
-      }
-      .scheduled-list .list-header ha-icon {
-        color: #2196f3;
-      }
-      .scheduled-item {
-        display: flex;
-        align-items: center;
-        gap: 12px;
-        padding: 12px;
-        background: var(--card-background-color);
-        border-radius: 8px;
-        margin-bottom: 8px;
-      }
-      .scheduled-item:last-of-type {
-        margin-bottom: 12px;
-      }
-      .scheduled-icon {
-        color: #2196f3;
-        opacity: 0.8;
-      }
-      .scheduled-time {
-        font-size: 0.85em;
-        color: #2196f3;
-        font-weight: 500;
-      }
-      .cancel-scheduled-btn {
-        padding: 6px 12px;
-        border: 1px solid var(--divider-color);
-        border-radius: 6px;
-        background: var(--card-background-color);
-        color: var(--primary-text-color);
-        cursor: pointer;
-        font-size: 0.85em;
-        transition: all 0.2s;
-      }
-      .cancel-scheduled-btn:hover {
-        background: #f44336;
-        color: white;
-        border-color: #f44336;
-      }
+    /* Scheduled Snoozes Section */
+    .scheduled-list {
+      border: 2px solid #2196f3;
+      border-radius: 8px;
+      background: rgba(33, 150, 243, 0.05);
+      padding: 12px;
+      margin-top: 12px;
+    }
+    .scheduled-list .list-header ha-icon {
+      color: #2196f3;
+    }
+    .scheduled-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px;
+      background: var(--card-background-color);
+      border-radius: 8px;
+      margin-bottom: 8px;
+    }
+    .scheduled-item:last-of-type {
+      margin-bottom: 12px;
+    }
+    .scheduled-icon {
+      color: #2196f3;
+      opacity: 0.8;
+    }
+    .scheduled-time {
+      font-size: 0.85em;
+      color: #2196f3;
+      font-weight: 500;
+    }
+    .cancel-scheduled-btn {
+      padding: 6px 12px;
+      border: 1px solid var(--divider-color);
+      border-radius: 6px;
+      background: var(--card-background-color);
+      color: var(--primary-text-color);
+      cursor: pointer;
+      font-size: 0.85em;
+      transition: all 0.2s;
+    }
+    .cancel-scheduled-btn:hover {
+      background: #f44336;
+      color: white;
+      border-color: #f44336;
+    }
 
-      /* Toast */
-      .toast {
-        position: fixed;
-        bottom: 20px;
-        left: 50%;
-        transform: translateX(-50%);
-        padding: 12px 20px;
-        background: var(--primary-color);
-        color: var(--text-primary-color);
-        border-radius: 8px;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-        z-index: 1000;
-        animation: slideUp 0.3s ease-out;
+    /* Toast */
+    .toast {
+      position: fixed;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      padding: 12px 20px;
+      background: var(--primary-color);
+      color: var(--text-primary-color);
+      border-radius: 8px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+      z-index: 1000;
+      animation: slideUp 0.3s ease-out;
+    }
+    @keyframes slideUp {
+      from {
+        transform: translateX(-50%) translateY(100px);
+        opacity: 0;
       }
-      @keyframes slideUp {
-        from {
-          transform: translateX(-50%) translateY(100px);
-          opacity: 0;
-        }
-        to {
-          transform: translateX(-50%) translateY(0);
-          opacity: 1;
-        }
+      to {
+        transform: translateX(-50%) translateY(0);
+        opacity: 1;
       }
-    `;
-  }
+    }
+  `;
 
-  _getAutomations() {
+  private _getAutomations() {
     if (!this.hass?.states) return [];
-    
+
     return Object.keys(this.hass.states)
       .filter((id) => id.startsWith("automation."))
       .map((id) => {
@@ -611,7 +588,7 @@ class AutomationPauseCard extends LitElement {
       .sort((a, b) => a.name.localeCompare(b.name));
   }
 
-  _getFilteredAutomations() {
+  private _getFilteredAutomations() {
     const automations = this._getAutomations();
     const search = this._search.toLowerCase();
 
@@ -627,31 +604,30 @@ class AutomationPauseCard extends LitElement {
     return filtered;
   }
 
-  _getGroupedByArea() {
+  private _getGroupedByArea() {
     const automations = this._getFilteredAutomations();
-    const groups = {};
-    
+    const groups: Record<string, typeof automations> = {};
+
     automations.forEach((auto) => {
       const areaId = auto.area_id || "_unassigned";
-      const areaName = areaId === "_unassigned" 
-        ? "Unassigned" 
-        : this.hass.areas?.[areaId]?.name || areaId;
-      
-      if (!groups[areaName]) {
-        groups[areaName] = [];
-      }
+      const areaName =
+        areaId === "_unassigned"
+          ? "Unassigned"
+          : this.hass.areas?.[areaId]?.name || areaId;
+
+      if (!groups[areaName]) groups[areaName] = [];
       groups[areaName].push(auto);
     });
 
-    return Object.entries(groups).sort((a, b) => 
+    return Object.entries(groups).sort((a, b) =>
       a[0] === "Unassigned" ? 1 : b[0] === "Unassigned" ? -1 : a[0].localeCompare(b[0])
     );
   }
 
-  _getGroupedByLabel() {
+  private _getGroupedByLabel() {
     const automations = this._getFilteredAutomations();
-    const groups = {};
-    
+    const groups: Record<string, typeof automations> = {};
+
     automations.forEach((auto) => {
       if (!auto.labels || auto.labels.length === 0) {
         if (!groups["Unlabeled"]) groups["Unlabeled"] = [];
@@ -666,22 +642,22 @@ class AutomationPauseCard extends LitElement {
       }
     });
 
-    return Object.entries(groups).sort((a, b) => 
+    return Object.entries(groups).sort((a, b) =>
       a[0] === "Unlabeled" ? 1 : b[0] === "Unlabeled" ? -1 : a[0].localeCompare(b[0])
     );
   }
 
-  _getPaused() {
+  private _getPaused() {
     const entity = this.hass?.states["sensor.autosnooze_snoozed_automations"];
     return entity?.attributes?.paused_automations || {};
   }
 
-  _getScheduled() {
+  private _getScheduled() {
     const entity = this.hass?.states["sensor.autosnooze_snoozed_automations"];
     return entity?.attributes?.scheduled_snoozes || {};
   }
 
-  _formatDateTime(isoString) {
+  private _formatDateTime(isoString: string) {
     const date = new Date(isoString);
     return date.toLocaleString(undefined, {
       month: "short",
@@ -691,8 +667,8 @@ class AutomationPauseCard extends LitElement {
     });
   }
 
-  _formatCountdown(resumeAt) {
-    const diff = new Date(resumeAt) - Date.now();
+  private _formatCountdown(resumeAt: string) {
+    const diff = new Date(resumeAt).getTime() - Date.now();
     if (diff <= 0) return "Waking up...";
 
     const d = Math.floor(diff / 86400000);
@@ -705,7 +681,7 @@ class AutomationPauseCard extends LitElement {
     return `${m}m ${s}s`;
   }
 
-  _toggleSelection(id) {
+  private _toggleSelection(id: string) {
     if (this._selected.includes(id)) {
       this._selected = this._selected.filter((s) => s !== id);
     } else {
@@ -713,17 +689,17 @@ class AutomationPauseCard extends LitElement {
     }
   }
 
-  _toggleGroupExpansion(group) {
+  private _toggleGroupExpansion(group: string) {
     this._expandedGroups = {
       ...this._expandedGroups,
       [group]: !this._expandedGroups[group],
     };
   }
 
-  _selectGroup(items) {
+  private _selectGroup(items: Array<{ id: string }>) {
     const ids = items.map((i) => i.id);
     const allSelected = ids.every((id) => this._selected.includes(id));
-    
+
     if (allSelected) {
       this._selected = this._selected.filter((id) => !ids.includes(id));
     } else {
@@ -731,39 +707,37 @@ class AutomationPauseCard extends LitElement {
     }
   }
 
-  _setDuration(minutes) {
+  private _setDuration(minutes: number) {
     this._duration = minutes * 60000;
-    
-    // Update custom fields
+
     const days = Math.floor(minutes / 1440);
     const hours = Math.floor((minutes % 1440) / 60);
     const mins = minutes % 60;
-    
+
     this._customDuration = { days, hours, minutes: mins };
   }
 
-  _updateCustomDuration() {
+  private _updateCustomDuration() {
     const { days, hours, minutes } = this._customDuration;
     const totalMinutes = days * 1440 + hours * 60 + minutes;
     this._duration = totalMinutes * 60000;
   }
 
-  _showToast(message) {
+  private _showToast(message: string) {
     const toast = document.createElement("div");
     toast.className = "toast";
     toast.textContent = message;
-    this.shadowRoot.appendChild(toast);
-    
+    this.shadowRoot?.appendChild(toast);
+
     setTimeout(() => {
       toast.style.animation = "slideUp 0.3s ease-out reverse";
       setTimeout(() => toast.remove(), 300);
     }, 3000);
   }
 
-  async _snooze() {
+  private async _snooze() {
     if (this._selected.length === 0 || this._loading) return;
 
-    // Validate inputs based on mode
     if (this._scheduleMode) {
       if (!this._resumeAt) {
         this._showToast("Please set a resume time");
@@ -776,11 +750,10 @@ class AutomationPauseCard extends LitElement {
     this._loading = true;
     try {
       const count = this._selected.length;
-      let toastMessage;
+      let toastMessage: string;
 
       if (this._scheduleMode) {
-        // Schedule mode - use datetime values
-        const serviceData = {
+        const serviceData: any = {
           entity_id: this._selected,
           resume_at: this._resumeAt,
         };
@@ -797,7 +770,6 @@ class AutomationPauseCard extends LitElement {
           toastMessage = `Paused ${count} automation${count !== 1 ? "s" : ""} until ${this._formatDateTime(this._resumeAt)}`;
         }
       } else {
-        // Duration mode - existing behavior
         const { days, hours, minutes } = this._customDuration;
 
         await this.hass.callService("autosnooze", "pause", {
@@ -822,7 +794,7 @@ class AutomationPauseCard extends LitElement {
     this._loading = false;
   }
 
-  _formatDuration(days, hours, minutes) {
+  private _formatDuration(days: number, hours: number, minutes: number) {
     const parts = [];
     if (days > 0) parts.push(`${days} day${days !== 1 ? "s" : ""}`);
     if (hours > 0) parts.push(`${hours} hour${hours !== 1 ? "s" : ""}`);
@@ -830,7 +802,7 @@ class AutomationPauseCard extends LitElement {
     return parts.join(", ");
   }
 
-  async _wake(entityId) {
+  private async _wake(entityId: string) {
     try {
       await this.hass.callService("autosnooze", "cancel", {
         entity_id: entityId,
@@ -842,7 +814,7 @@ class AutomationPauseCard extends LitElement {
     }
   }
 
-  async _wakeAll() {
+  private async _wakeAll() {
     try {
       await this.hass.callService("autosnooze", "cancel_all", {});
       this._showToast("All automations resumed");
@@ -852,7 +824,7 @@ class AutomationPauseCard extends LitElement {
     }
   }
 
-  async _cancelScheduled(entityId) {
+  private async _cancelScheduled(entityId: string) {
     try {
       await this.hass.callService("autosnooze", "cancel_scheduled", {
         entity_id: entityId,
@@ -864,7 +836,7 @@ class AutomationPauseCard extends LitElement {
     }
   }
 
-  _renderSelectionList() {
+  private _renderSelectionList() {
     const filtered = this._getFilteredAutomations();
 
     if (this._filterTab === "all") {
@@ -900,7 +872,7 @@ class AutomationPauseCard extends LitElement {
     return grouped.map(([groupName, items]) => {
       const expanded = this._expandedGroups[groupName] !== false;
       const groupSelected = items.every((i) => this._selected.includes(i.id));
-      
+
       return html`
         <div
           class="group-header ${expanded ? "expanded" : ""}"
@@ -913,7 +885,7 @@ class AutomationPauseCard extends LitElement {
             icon=${groupSelected
               ? "mdi:checkbox-marked"
               : "mdi:checkbox-blank-outline"}
-            @click=${(e) => {
+            @click=${(e: Event) => {
               e.stopPropagation();
               this._selectGroup(items);
             }}
@@ -1005,7 +977,7 @@ class AutomationPauseCard extends LitElement {
               type="text"
               placeholder="Search automations..."
               .value=${this._search}
-              @input=${(e) => (this._search = e.target.value)}
+              @input=${(e: Event) => (this._search = (e.target as HTMLInputElement).value)}
             />
           </div>
 
@@ -1013,14 +985,14 @@ class AutomationPauseCard extends LitElement {
           <div class="selection-list">${this._renderSelectionList()}</div>
 
           <!-- Schedule Mode Toggle -->
-          <div class="schedule-toggle" @click=${() => this._scheduleMode = !this._scheduleMode}>
+          <div class="schedule-toggle" @click=${() => (this._scheduleMode = !this._scheduleMode)}>
             <ha-icon icon=${this._scheduleMode ? "mdi:calendar-clock" : "mdi:timer-outline"}></ha-icon>
             <label>${this._scheduleMode ? "Schedule Mode" : "Duration Mode"}</label>
             <input
               type="checkbox"
               .checked=${this._scheduleMode}
-              @click=${(e) => e.stopPropagation()}
-              @change=${(e) => this._scheduleMode = e.target.checked}
+              @click=${(e: Event) => e.stopPropagation()}
+              @change=${(e: Event) => (this._scheduleMode = (e.target as HTMLInputElement).checked)}
             />
           </div>
 
@@ -1033,7 +1005,7 @@ class AutomationPauseCard extends LitElement {
                     <input
                       type="datetime-local"
                       .value=${this._disableAt}
-                      @input=${(e) => this._disableAt = e.target.value}
+                      @input=${(e: Event) => (this._disableAt = (e.target as HTMLInputElement).value)}
                     />
                   </div>
                   <div class="datetime-field">
@@ -1041,7 +1013,7 @@ class AutomationPauseCard extends LitElement {
                     <input
                       type="datetime-local"
                       .value=${this._resumeAt}
-                      @input=${(e) => this._resumeAt = e.target.value}
+                      @input=${(e: Event) => (this._resumeAt = (e.target as HTMLInputElement).value)}
                     />
                   </div>
                 </div>
@@ -1075,11 +1047,9 @@ class AutomationPauseCard extends LitElement {
                               min="0"
                               max="365"
                               .value=${this._customDuration.days}
-                              @input=${(e) => {
-                                this._customDuration = {
-                                  ...this._customDuration,
-                                  days: +e.target.value || 0,
-                                };
+                              @input=${(e: Event) => {
+                                const val = Number((e.target as HTMLInputElement).value) || 0;
+                                this._customDuration = { ...this._customDuration, days: val };
                                 this._updateCustomDuration();
                               }}
                             />
@@ -1091,11 +1061,9 @@ class AutomationPauseCard extends LitElement {
                               min="0"
                               max="23"
                               .value=${this._customDuration.hours}
-                              @input=${(e) => {
-                                this._customDuration = {
-                                  ...this._customDuration,
-                                  hours: +e.target.value || 0,
-                                };
+                              @input=${(e: Event) => {
+                                const val = Number((e.target as HTMLInputElement).value) || 0;
+                                this._customDuration = { ...this._customDuration, hours: val };
                                 this._updateCustomDuration();
                               }}
                             />
@@ -1107,11 +1075,9 @@ class AutomationPauseCard extends LitElement {
                               min="0"
                               max="59"
                               .value=${this._customDuration.minutes}
-                              @input=${(e) => {
-                                this._customDuration = {
-                                  ...this._customDuration,
-                                  minutes: +e.target.value || 0,
-                                };
+                              @input=${(e: Event) => {
+                                const val = Number((e.target as HTMLInputElement).value) || 0;
+                                this._customDuration = { ...this._customDuration, minutes: val };
                                 this._updateCustomDuration();
                               }}
                             />
@@ -1149,12 +1115,9 @@ class AutomationPauseCard extends LitElement {
                 </div>
 
                 ${Object.entries(paused).map(
-                  ([id, data]) => html`
+                  ([id, data]: [string, any]) => html`
                     <div class="paused-item">
-                      <ha-icon
-                        class="paused-icon"
-                        icon="mdi:sleep"
-                      ></ha-icon>
+                      <ha-icon class="paused-icon" icon="mdi:sleep"></ha-icon>
                       <div class="paused-info">
                         <div class="paused-name">
                           ${data.friendly_name || id}
@@ -1191,18 +1154,15 @@ class AutomationPauseCard extends LitElement {
                 </div>
 
                 ${Object.entries(scheduled).map(
-                  ([id, data]) => html`
+                  ([id, data]: [string, any]) => html`
                     <div class="scheduled-item">
-                      <ha-icon
-                        class="scheduled-icon"
-                        icon="mdi:clock-outline"
-                      ></ha-icon>
+                      <ha-icon class="scheduled-icon" icon="mdi:clock-outline"></ha-icon>
                       <div class="paused-info">
                         <div class="paused-name">
                           ${data.friendly_name || id}
                         </div>
                         <div class="scheduled-time">
-                          Disables: ${this._formatDateTime(data.disable_at)}
+                          Disables: ${this._formatDateTime(data.disable_at || "now")}
                         </div>
                         <div class="paused-time">
                           Resumes: ${this._formatDateTime(data.resume_at)}
@@ -1234,10 +1194,15 @@ class AutomationPauseCard extends LitElement {
 
 customElements.define("autosnooze-card", AutomationPauseCard);
 
-window.customCards = window.customCards || [];
-window.customCards.push({
-  type: "autosnooze-card",
-  name: "AutoSnooze Card",
-  description: "Temporarily pause automations with area and label filtering",
-  preview: true,
-});
+// Register for the manual card picker
+try {
+  window.customCards = window.customCards || [];
+  window.customCards.push({
+    type: "autosnooze-card",
+    name: "AutoSnooze Card",
+    description: "Temporarily pause automations with area and label filtering",
+    preview: true,
+  });
+} catch (e) {
+  console.warn("customCards registration failed", e);
+}
