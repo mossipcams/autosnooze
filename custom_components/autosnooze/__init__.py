@@ -223,12 +223,12 @@ async def _async_register_lovelace_resource(hass: HomeAssistant) -> None:
         _LOGGER.debug("Lovelace resources not available (YAML mode?)")
         return
 
-    # Check if already registered (with or without version query param)
+    # Check if already registered (any format: query param, path-based, or base URL)
     existing_resource = None
     for resource in resources.async_items():
         url = resource.get("url", "")
-        # Match any autosnooze card URL (base path, ignoring query params)
-        if url.startswith(CARD_URL):
+        # Match any autosnooze card URL (handles both old path-based and new query-param formats)
+        if f"/{DOMAIN}/autosnooze-card" in url:
             existing_resource = resource
             break
 
