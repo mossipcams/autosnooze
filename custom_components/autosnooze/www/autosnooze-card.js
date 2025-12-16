@@ -1,6 +1,9 @@
 import { LitElement, html, css } from "https://unpkg.com/lit@3/element/lit-element.js?module";
 import { property, state } from "https://unpkg.com/lit@3/decorators.js?module";
 
+// Version 2.1.0 - Duration input + Area/Label fixes
+const CARD_VERSION = "2.1.0";
+
 // ============================================================================
 // CARD EDITOR
 // ============================================================================
@@ -582,11 +585,30 @@ class AutomationPauseCard extends LitElement {
   private _getAutomations() {
     if (!this.hass?.states) return [];
 
+    // Debug: log available hass properties on first call
+    if (!this._debugLogged) {
+      this._debugLogged = true;
+      console.log("[AutoSnooze] Card version:", CARD_VERSION);
+      console.log("[AutoSnooze] hass.entities available:", !!this.hass.entities);
+      console.log("[AutoSnooze] hass.areas available:", !!this.hass.areas);
+      console.log("[AutoSnooze] hass.labels available:", !!this.hass.labels);
+      if (this.hass.entities) {
+        const sampleEntity = Object.keys(this.hass.entities).find(k => k.startsWith("automation."));
+        if (sampleEntity) {
+          console.log("[AutoSnooze] Sample entity registry entry:", this.hass.entities[sampleEntity]);
+        }
+      }
+      if (this.hass.areas) {
+        console.log("[AutoSnooze] Areas registry sample:", Object.entries(this.hass.areas).slice(0, 2));
+      }
+    }
+
     return Object.keys(this.hass.states)
       .filter((id) => id.startsWith("automation."))
       .map((id) => {
         const state = this.hass.states[id];
-        // Get area_id and labels from entity registry (hass.entities) instead of state attributes
+        // Get area_id and labels from entity registry (hass.entities)
+        // Note: hass.entities is keyed by entity_id and contains area_id and labels
         const entityEntry = this.hass.entities?.[id];
         return {
           id,
@@ -597,6 +619,8 @@ class AutomationPauseCard extends LitElement {
       })
       .sort((a, b) => a.name.localeCompare(b.name));
   }
+
+  private _debugLogged = false;
 
   private _getFilteredAutomations() {
     const automations = this._getAutomations();
@@ -614,17 +638,36 @@ class AutomationPauseCard extends LitElement {
     return filtered;
   }
 
+  private _getAreaName(areaId: string | null): string {
+    if (!areaId) return "Unassigned";
+
+    // Try to get area name from hass.areas registry
+    const area = this.hass.areas?.[areaId];
+    if (area?.name) return area.name;
+
+    // Fallback: convert area_id to readable name (e.g., "living_room" -> "Living Room")
+    return areaId
+      .replace(/_/g, " ")
+      .replace(/\b\w/g, (c) => c.toUpperCase());
+  }
+
+  private _getLabelName(labelId: string): string {
+    // Try to get label name from hass.labels registry
+    const label = this.hass.labels?.[labelId];
+    if (label?.name) return label.name;
+
+    // Fallback: convert label_id to readable name
+    return labelId
+      .replace(/_/g, " ")
+      .replace(/\b\w/g, (c) => c.toUpperCase());
+  }
+
   private _getGroupedByArea() {
     const automations = this._getFilteredAutomations();
     const groups: Record<string, typeof automations> = {};
 
     automations.forEach((auto) => {
-      const areaId = auto.area_id || "_unassigned";
-      const areaName =
-        areaId === "_unassigned"
-          ? "Unassigned"
-          : this.hass.areas?.[areaId]?.name || areaId;
-
+      const areaName = this._getAreaName(auto.area_id);
       if (!groups[areaName]) groups[areaName] = [];
       groups[areaName].push(auto);
     });
@@ -643,9 +686,8 @@ class AutomationPauseCard extends LitElement {
         if (!groups["Unlabeled"]) groups["Unlabeled"] = [];
         groups["Unlabeled"].push(auto);
       } else {
-        auto.labels.forEach((labelId) => {
-          const label = this.hass.labels?.[labelId];
-          const labelName = label?.name || labelId;
+        auto.labels.forEach((labelId: string) => {
+          const labelName = this._getLabelName(labelId);
           if (!groups[labelName]) groups[labelName] = [];
           groups[labelName].push(auto);
         });
@@ -1231,9 +1273,10 @@ try {
   window.customCards.push({
     type: "autosnooze-card",
     name: "AutoSnooze Card",
-    description: "Temporarily pause automations with area and label filtering",
+    description: `Temporarily pause automations with area and label filtering (v${CARD_VERSION})`,
     preview: true,
   });
+  console.log(`[AutoSnooze] Card registered, version ${CARD_VERSION}`);
 } catch (e) {
   console.warn("customCards registration failed", e);
 }
