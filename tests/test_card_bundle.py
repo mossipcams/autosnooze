@@ -414,3 +414,60 @@ class TestBuildProcessWorks:
         assert "from 'lit'" not in content, (
             "REGRESSION: Fresh build contains bare \"from 'lit'\" import"
         )
+
+
+class TestCDNCacheBusting:
+    """Tests that verify cache busting is properly implemented.
+
+    Uses query parameter versioning (?v=VERSION) - the standard approach
+    in the Home Assistant ecosystem used by HACS and most community cards.
+    """
+
+    INIT_PATH = PROJECT_ROOT / "custom_components" / "autosnooze" / "__init__.py"
+    MANIFEST_PATH = PROJECT_ROOT / "custom_components" / "autosnooze" / "manifest.json"
+
+    def test_card_url_uses_query_param_versioning(self) -> None:
+        """Test that cache busting uses query param versioning.
+
+        Query param versioning (?v=VERSION) is the Home Assistant standard:
+        - Used by HACS (?hacstag=TIMESTAMP)
+        - Used by card-mod, mini-graph-card, and most community cards
+        - No URL path changes = no backwards compatibility issues
+        """
+        content = self.INIT_PATH.read_text()
+
+        # Base URL should not include version
+        assert 'CARD_URL = f"/{DOMAIN}/autosnooze-card.js"' in content, (
+            "REGRESSION: CARD_URL should be the base path without version. "
+            "Version should be in query param via CARD_URL_VERSIONED."
+        )
+
+        # Should have versioned URL with query param
+        assert 'CARD_URL_VERSIONED = f"/{DOMAIN}/autosnooze-card.js?v={VERSION}"' in content, (
+            "REGRESSION: CARD_URL_VERSIONED should use ?v= query param. "
+            "This is the HA ecosystem standard for cache busting."
+        )
+
+    def test_version_matches_across_files(self) -> None:
+        """Test that version is consistent across manifest, init, and source."""
+        manifest = json.loads(self.MANIFEST_PATH.read_text())
+        manifest_version = manifest.get("version")
+
+        source_content = SOURCE_CARD_PATH.read_text()
+        source_match = re.search(r'CARD_VERSION\s*=\s*["\']([^"\']+)["\']', source_content)
+        source_version = source_match.group(1) if source_match else None
+
+        assert manifest_version == source_version, (
+            f"Version mismatch: manifest.json has {manifest_version}, "
+            f"source has {source_version}. These must match for cache busting."
+        )
+
+    def test_lovelace_resource_uses_versioned_url(self) -> None:
+        """Test that Lovelace resource registration uses the versioned URL."""
+        content = self.INIT_PATH.read_text()
+
+        # The resource should use CARD_URL_VERSIONED (with query param)
+        assert '"url": CARD_URL_VERSIONED' in content or "'url': CARD_URL_VERSIONED" in content, (
+            "REGRESSION: Lovelace resource should use CARD_URL_VERSIONED (with ?v=). "
+            "This ensures browsers fetch the new version on updates."
+        )
