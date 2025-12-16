@@ -1,7 +1,7 @@
 import { LitElement, html, css } from "lit";
 
-// Version 2.8.1 - Add cache-busting for CDN compatibility
-const CARD_VERSION = "2.8.1";
+// Version 2.9.0 - Custom pill, Categories tab, cleaner metadata
+const CARD_VERSION = "2.9.0";
 
 // ============================================================================
 // CARD EDITOR
