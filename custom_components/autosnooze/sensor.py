@@ -57,4 +57,7 @@ class AutoSnoozeCountSensor(SensorEntity):
     @property
     def extra_state_attributes(self) -> dict:
         """Return snoozed automations details."""
-        return {"paused_automations": self._entry.runtime_data.get_paused_dict()}
+        return {
+            "paused_automations": self._entry.runtime_data.get_paused_dict(),
+            "scheduled_snoozes": self._entry.runtime_data.get_scheduled_dict(),
+        }
