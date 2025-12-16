@@ -1,0 +1,21 @@
+{
+  "name": "autosnooze",
+  "version": "2.7.0",
+  "description": "AutoSnooze - Temporarily pause Home Assistant automations",
+  "main": "custom_components/autosnooze/www/autosnooze-card.js",
+  "scripts": {
+    "build": "rollup -c",
+    "watch": "rollup -c -w"
+  },
+  "keywords": ["home-assistant", "lovelace", "custom-card"],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "lit": "^2.8.0"
+  },
+  "devDependencies": {
+    "@rollup/plugin-node-resolve": "^15.2.3",
+    "@rollup/plugin-terser": "^0.4.4",
+    "rollup": "^4.9.6"
+  }
+}
