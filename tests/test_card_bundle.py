@@ -434,42 +434,40 @@ class TestCDNCacheBusting:
         - Used by card-mod, mini-graph-card, and most community cards
         - No URL path changes = no backwards compatibility issues
 
-        Uses /api/ prefix for reverse proxy compatibility (Cloudflare, Nginx, etc.)
+        Uses root-level path (like browser_mod) for reverse proxy compatibility.
         """
         content = self.INIT_PATH.read_text()
 
-        # Base URL should use /api/ prefix for reverse proxy compatibility
-        assert 'CARD_URL = f"/api/{DOMAIN}/static/autosnooze-card.js"' in content, (
-            "REGRESSION: CARD_URL should use /api/ prefix for reverse proxy compatibility. "
+        # Base URL should be root-level (like browser_mod) for proxy compatibility
+        assert 'CARD_URL = "/autosnooze-card.js"' in content, (
+            "REGRESSION: CARD_URL should be root-level path like browser_mod uses. "
             "Version should be in query param via CARD_URL_VERSIONED."
         )
 
         # Should have versioned URL with query param
-        assert 'CARD_URL_VERSIONED = f"/api/{DOMAIN}/static/autosnooze-card.js?v={VERSION}"' in content, (
+        assert 'CARD_URL_VERSIONED = f"/autosnooze-card.js?v={VERSION}"' in content, (
             "REGRESSION: CARD_URL_VERSIONED should use ?v= query param. "
             "This is the HA ecosystem standard for cache busting."
         )
 
-    def test_card_url_uses_reverse_proxy_safe_prefix(self) -> None:
-        """Test that card URL uses /api/ prefix for reverse proxy compatibility.
+    def test_card_url_uses_root_level_path(self) -> None:
+        """Test that card URL uses root-level path for reverse proxy compatibility.
 
-        Reverse proxies (Cloudflare Tunnel, Nginx, Traefik, etc.) only forward
-        known Home Assistant paths by default. Custom paths like /autosnooze/
-        will return 404 when accessed through these proxies.
+        Root-level paths (like /autosnooze-card.js) work reliably through
+        reverse proxies because they're handled the same as other HA static
+        assets. This matches the pattern used by browser_mod (/browser_mod.js).
 
-        The /api/ prefix is ALWAYS forwarded because it's required for HA's
-        core REST API and WebSocket functionality.
+        Subdirectory paths like /autosnooze/card.js may not be forwarded
+        by some proxy configurations.
 
-        This test prevents regression to a non-proxy-safe URL path.
+        This test prevents regression to a non-working URL path.
         """
         content = self.INIT_PATH.read_text()
 
-        # Verify /api/ prefix is used in CARD_URL definition
-        assert '"/api/' in content and "CARD_URL" in content, (
-            "REGRESSION: CARD_URL must use /api/ prefix. "
-            "Paths like /autosnooze/ are NOT forwarded by reverse proxies "
-            "(Cloudflare Tunnel, Nginx, etc.) and will return 404. "
-            "The /api/ prefix is always forwarded since it's required for HA's core API."
+        # Verify root-level path is used (no subdirectory)
+        assert 'CARD_URL = "/autosnooze-card.js"' in content, (
+            "REGRESSION: CARD_URL must use root-level path like browser_mod. "
+            "Subdirectory paths may not work through reverse proxies."
         )
 
     def test_version_matches_across_files(self) -> None:
