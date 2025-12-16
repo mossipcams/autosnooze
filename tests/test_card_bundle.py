@@ -417,33 +417,35 @@ class TestBuildProcessWorks:
 
 
 class TestCDNCacheBusting:
-    """Tests that verify CDN cache busting is properly implemented.
+    """Tests that verify cache busting is properly implemented.
 
-    Issue: Cloudflare/CDN caches JS files by URL. Query params (?v=X) may be
-    ignored by CDN. Using version in the path forces cache invalidation.
+    Uses query parameter versioning (?v=VERSION) - the standard approach
+    in the Home Assistant ecosystem used by HACS and most community cards.
     """
 
     INIT_PATH = PROJECT_ROOT / "custom_components" / "autosnooze" / "__init__.py"
     MANIFEST_PATH = PROJECT_ROOT / "custom_components" / "autosnooze" / "manifest.json"
 
-    def test_card_url_contains_version_in_path(self) -> None:
-        """Test that CARD_URL uses version in path, not query param.
+    def test_card_url_uses_query_param_versioning(self) -> None:
+        """Test that cache busting uses query param versioning.
 
-        REGRESSION: Query param caching issue - CDNs may ignore ?v=X
-        FIX: Use /autosnooze/autosnooze-card-{VERSION}.js
+        Query param versioning (?v=VERSION) is the Home Assistant standard:
+        - Used by HACS (?hacstag=TIMESTAMP)
+        - Used by card-mod, mini-graph-card, and most community cards
+        - No URL path changes = no backwards compatibility issues
         """
         content = self.INIT_PATH.read_text()
 
-        # Should have version in path
-        assert 'CARD_URL = f"/{DOMAIN}/autosnooze-card-{VERSION}.js"' in content, (
-            "REGRESSION: CARD_URL should include version in path, not query param. "
-            "CDNs may cache by base URL and ignore query params."
+        # Base URL should not include version
+        assert 'CARD_URL = f"/{DOMAIN}/autosnooze-card.js"' in content, (
+            "REGRESSION: CARD_URL should be the base path without version. "
+            "Version should be in query param via CARD_URL_VERSIONED."
         )
 
-        # Should NOT use query param for versioning
-        assert "?v={VERSION}" not in content, (
-            "REGRESSION: Using query param ?v= for cache busting. "
-            "CDNs may ignore query params. Use version in path instead."
+        # Should have versioned URL with query param
+        assert 'CARD_URL_VERSIONED = f"/{DOMAIN}/autosnooze-card.js?v={VERSION}"' in content, (
+            "REGRESSION: CARD_URL_VERSIONED should use ?v= query param. "
+            "This is the HA ecosystem standard for cache busting."
         )
 
     def test_version_matches_across_files(self) -> None:
@@ -464,8 +466,8 @@ class TestCDNCacheBusting:
         """Test that Lovelace resource registration uses the versioned URL."""
         content = self.INIT_PATH.read_text()
 
-        # The resource should use CARD_URL (which includes version in path)
-        assert '"url": CARD_URL' in content or "'url': CARD_URL" in content, (
-            "REGRESSION: Lovelace resource should use CARD_URL (versioned path). "
-            "Found hardcoded URL or CARD_URL_VERSIONED (query param version)."
+        # The resource should use CARD_URL_VERSIONED (with query param)
+        assert '"url": CARD_URL_VERSIONED' in content or "'url': CARD_URL_VERSIONED" in content, (
+            "REGRESSION: Lovelace resource should use CARD_URL_VERSIONED (with ?v=). "
+            "This ensures browsers fetch the new version on updates."
         )
