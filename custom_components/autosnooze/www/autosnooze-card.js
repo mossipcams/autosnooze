@@ -1,12 +1,17 @@
 import { LitElement, html, css } from "https://unpkg.com/lit@3/element/lit-element.js?module";
 import { property, state } from "https://unpkg.com/lit@3/decorators.js?module";
 
+// Version 2.3.0 - Fixed JavaScript syntax (removed TypeScript)
+const CARD_VERSION = "2.3.0";
+
 // ============================================================================
 // CARD EDITOR
 // ============================================================================
 class AutomationPauseCardEditor extends LitElement {
-  @property({ type: Object }) hass = {};
-  @state() private _config = {};
+  static properties = {
+    hass: { type: Object },
+    _config: { state: true },
+  };
 
   static styles = css`
     .row {
@@ -32,6 +37,12 @@ class AutomationPauseCardEditor extends LitElement {
       margin-top: 4px;
     }
   `;
+
+  constructor() {
+    super();
+    this.hass = {};
+    this._config = {};
+  }
 
   setConfig(config) {
     this._config = config;
@@ -77,30 +88,78 @@ customElements.define("autosnooze-card-editor", AutomationPauseCardEditor);
 // MAIN CARD
 // ============================================================================
 class AutomationPauseCard extends LitElement {
-  @property({ type: Object }) hass = {};
-  @property({ type: Object }) config = {};
-
-  @state() private _selected: string[] = [];
-  @state() private _duration = 1800000; // 30 minutes default
-  @state() private _customDuration = { days: 0, hours: 0, minutes: 30 };
-  @state() private _customDurationInput = "30m"; // Text input for duration
-  @state() private _loading = false;
-  @state() private _search = "";
-  @state() private _filterTab = "all";
-  @state() private _expandedGroups: Record<string, boolean> = {};
-  @state() private _scheduleMode = false;
-  @state() private _disableAt = "";
-  @state() private _resumeAt = "";
-
-  private _interval: number | null = null;
+  static properties = {
+    hass: { type: Object },
+    config: { type: Object },
+    _selected: { state: true },
+    _duration: { state: true },
+    _customDuration: { state: true },
+    _customDurationInput: { state: true },
+    _loading: { state: true },
+    _search: { state: true },
+    _filterTab: { state: true },
+    _expandedGroups: { state: true },
+    _scheduleMode: { state: true },
+    _disableAt: { state: true },
+    _resumeAt: { state: true },
+    _labelRegistry: { state: true },
+  };
 
   constructor() {
     super();
+    this.hass = {};
+    this.config = {};
+    this._selected = [];
+    this._duration = 1800000; // 30 minutes default
+    this._customDuration = { days: 0, hours: 0, minutes: 30 };
+    this._customDurationInput = "30m";
+    this._loading = false;
+    this._search = "";
+    this._filterTab = "all";
+    this._expandedGroups = {};
+    this._scheduleMode = false;
+    this._disableAt = "";
+    this._resumeAt = "";
+    this._labelRegistry = {};
+    this._interval = null;
+    this._labelsFetched = false;
+    this._debugLogged = false;
   }
 
   connectedCallback() {
     super.connectedCallback();
     this._interval = window.setInterval(() => this.requestUpdate(), 1000);
+    this._fetchLabelRegistry();
+  }
+
+  async _fetchLabelRegistry() {
+    if (this._labelsFetched || !this.hass?.connection) return;
+
+    try {
+      const labels = await this.hass.connection.sendMessagePromise({
+        type: "config/label_registry/list",
+      });
+
+      const labelMap = {};
+      if (Array.isArray(labels)) {
+        labels.forEach((label) => {
+          labelMap[label.label_id] = label;
+        });
+      }
+
+      this._labelRegistry = labelMap;
+      this._labelsFetched = true;
+      console.log("[AutoSnooze] Label registry fetched:", Object.keys(labelMap).length, "labels");
+    } catch (err) {
+      console.warn("[AutoSnooze] Failed to fetch label registry:", err);
+    }
+  }
+
+  updated(changedProps) {
+    super.updated(changedProps);
+    if (changedProps.has("hass") && !this._labelsFetched && this.hass?.connection) {
+      this._fetchLabelRegistry();
+    }
   }
 
   disconnectedCallback() {
@@ -579,14 +638,31 @@ class AutomationPauseCard extends LitElement {
     }
   `;
 
-  private _getAutomations() {
+  _getAutomations() {
     if (!this.hass?.states) return [];
+
+    // Debug: log available hass properties on first call
+    if (!this._debugLogged) {
+      this._debugLogged = true;
+      console.log("[AutoSnooze] Card version:", CARD_VERSION);
+      console.log("[AutoSnooze] hass.entities available:", !!this.hass.entities, "count:", this.hass.entities ? Object.keys(this.hass.entities).length : 0);
+      console.log("[AutoSnooze] hass.areas available:", !!this.hass.areas, "count:", this.hass.areas ? Object.keys(this.hass.areas).length : 0);
+      console.log("[AutoSnooze] Label registry (fetched separately):", Object.keys(this._labelRegistry).length, "labels");
+      if (this.hass.entities) {
+        const sampleEntity = Object.keys(this.hass.entities).find(k => k.startsWith("automation."));
+        if (sampleEntity) {
+          console.log("[AutoSnooze] Sample automation entity:", sampleEntity, this.hass.entities[sampleEntity]);
+        }
+      }
+      if (this.hass.areas && Object.keys(this.hass.areas).length > 0) {
+        console.log("[AutoSnooze] Areas:", Object.entries(this.hass.areas).map(([id, a]) => `${id}: ${a.name}`).join(", "));
+      }
+    }
 
     return Object.keys(this.hass.states)
       .filter((id) => id.startsWith("automation."))
       .map((id) => {
         const state = this.hass.states[id];
-        // Get area_id and labels from entity registry (hass.entities) instead of state attributes
         const entityEntry = this.hass.entities?.[id];
         return {
           id,
@@ -598,7 +674,7 @@ class AutomationPauseCard extends LitElement {
       .sort((a, b) => a.name.localeCompare(b.name));
   }
 
-  private _getFilteredAutomations() {
+  _getFilteredAutomations() {
     const automations = this._getAutomations();
     const search = this._search.toLowerCase();
 
@@ -614,17 +690,32 @@ class AutomationPauseCard extends LitElement {
     return filtered;
   }
 
-  private _getGroupedByArea() {
+  _getAreaName(areaId) {
+    if (!areaId) return "Unassigned";
+
+    const area = this.hass.areas?.[areaId];
+    if (area?.name) return area.name;
+
+    return areaId
+      .replace(/_/g, " ")
+      .replace(/\b\w/g, (c) => c.toUpperCase());
+  }
+
+  _getLabelName(labelId) {
+    const label = this._labelRegistry[labelId];
+    if (label?.name) return label.name;
+
+    return labelId
+      .replace(/_/g, " ")
+      .replace(/\b\w/g, (c) => c.toUpperCase());
+  }
+
+  _getGroupedByArea() {
     const automations = this._getFilteredAutomations();
-    const groups: Record<string, typeof automations> = {};
+    const groups = {};
 
     automations.forEach((auto) => {
-      const areaId = auto.area_id || "_unassigned";
-      const areaName =
-        areaId === "_unassigned"
-          ? "Unassigned"
-          : this.hass.areas?.[areaId]?.name || areaId;
-
+      const areaName = this._getAreaName(auto.area_id);
       if (!groups[areaName]) groups[areaName] = [];
       groups[areaName].push(auto);
     });
@@ -634,9 +725,9 @@ class AutomationPauseCard extends LitElement {
     );
   }
 
-  private _getGroupedByLabel() {
+  _getGroupedByLabel() {
     const automations = this._getFilteredAutomations();
-    const groups: Record<string, typeof automations> = {};
+    const groups = {};
 
     automations.forEach((auto) => {
       if (!auto.labels || auto.labels.length === 0) {
@@ -644,8 +735,7 @@ class AutomationPauseCard extends LitElement {
         groups["Unlabeled"].push(auto);
       } else {
         auto.labels.forEach((labelId) => {
-          const label = this.hass.labels?.[labelId];
-          const labelName = label?.name || labelId;
+          const labelName = this._getLabelName(labelId);
           if (!groups[labelName]) groups[labelName] = [];
           groups[labelName].push(auto);
         });
@@ -657,17 +747,17 @@ class AutomationPauseCard extends LitElement {
     );
   }
 
-  private _getPaused() {
+  _getPaused() {
     const entity = this.hass?.states["sensor.autosnooze_snoozed_automations"];
     return entity?.attributes?.paused_automations || {};
   }
 
-  private _getScheduled() {
+  _getScheduled() {
     const entity = this.hass?.states["sensor.autosnooze_snoozed_automations"];
     return entity?.attributes?.scheduled_snoozes || {};
   }
 
-  private _formatDateTime(isoString: string) {
+  _formatDateTime(isoString) {
     const date = new Date(isoString);
     return date.toLocaleString(undefined, {
       month: "short",
@@ -677,7 +767,7 @@ class AutomationPauseCard extends LitElement {
     });
   }
 
-  private _formatCountdown(resumeAt: string) {
+  _formatCountdown(resumeAt) {
     const diff = new Date(resumeAt).getTime() - Date.now();
     if (diff <= 0) return "Waking up...";
 
@@ -691,7 +781,7 @@ class AutomationPauseCard extends LitElement {
     return `${m}m ${s}s`;
   }
 
-  private _toggleSelection(id: string) {
+  _toggleSelection(id) {
     if (this._selected.includes(id)) {
       this._selected = this._selected.filter((s) => s !== id);
     } else {
@@ -699,14 +789,14 @@ class AutomationPauseCard extends LitElement {
     }
   }
 
-  private _toggleGroupExpansion(group: string) {
+  _toggleGroupExpansion(group) {
     this._expandedGroups = {
       ...this._expandedGroups,
       [group]: !this._expandedGroups[group],
     };
   }
 
-  private _selectGroup(items: Array<{ id: string }>) {
+  _selectGroup(items) {
     const ids = items.map((i) => i.id);
     const allSelected = ids.every((id) => this._selected.includes(id));
 
@@ -717,7 +807,7 @@ class AutomationPauseCard extends LitElement {
     }
   }
 
-  private _setDuration(minutes: number) {
+  _setDuration(minutes) {
     this._duration = minutes * 60000;
 
     const days = Math.floor(minutes / 1440);
@@ -726,7 +816,6 @@ class AutomationPauseCard extends LitElement {
 
     this._customDuration = { days, hours, minutes: mins };
 
-    // Update the input text to match
     const parts = [];
     if (days > 0) parts.push(`${days}d`);
     if (hours > 0) parts.push(`${hours}h`);
@@ -734,14 +823,13 @@ class AutomationPauseCard extends LitElement {
     this._customDurationInput = parts.join(" ") || "30m";
   }
 
-  private _updateCustomDuration() {
+  _updateCustomDuration() {
     const { days, hours, minutes } = this._customDuration;
     const totalMinutes = days * 1440 + hours * 60 + minutes;
     this._duration = totalMinutes * 60000;
   }
 
-  private _parseDurationInput(input: string): { days: number; hours: number; minutes: number } | null {
-    // Parse duration strings like "30m", "1h", "4h", "1d", "2h30m", "1d2h", "1d 2h 30m"
+  _parseDurationInput(input) {
     const cleaned = input.toLowerCase().replace(/\s+/g, "");
     if (!cleaned) return null;
 
@@ -749,7 +837,6 @@ class AutomationPauseCard extends LitElement {
     let hours = 0;
     let minutes = 0;
 
-    // Match patterns like 1d, 2h, 30m
     const dayMatch = cleaned.match(/(\d+)\s*d/);
     const hourMatch = cleaned.match(/(\d+)\s*h/);
     const minMatch = cleaned.match(/(\d+)\s*m/);
@@ -758,7 +845,6 @@ class AutomationPauseCard extends LitElement {
     if (hourMatch) hours = parseInt(hourMatch[1], 10);
     if (minMatch) minutes = parseInt(minMatch[1], 10);
 
-    // Also support plain numbers as minutes
     if (!dayMatch && !hourMatch && !minMatch) {
       const plainNum = parseInt(cleaned, 10);
       if (!isNaN(plainNum) && plainNum > 0) {
@@ -773,7 +859,7 @@ class AutomationPauseCard extends LitElement {
     return { days, hours, minutes };
   }
 
-  private _handleDurationInput(value: string) {
+  _handleDurationInput(value) {
     this._customDurationInput = value;
     const parsed = this._parseDurationInput(value);
     if (parsed) {
@@ -782,17 +868,17 @@ class AutomationPauseCard extends LitElement {
     }
   }
 
-  private _getDurationPreview(): string {
+  _getDurationPreview() {
     const parsed = this._parseDurationInput(this._customDurationInput);
     if (!parsed) return "";
     return this._formatDuration(parsed.days, parsed.hours, parsed.minutes);
   }
 
-  private _isDurationValid(): boolean {
+  _isDurationValid() {
     return this._parseDurationInput(this._customDurationInput) !== null;
   }
 
-  private _showToast(message: string) {
+  _showToast(message) {
     const toast = document.createElement("div");
     toast.className = "toast";
     toast.textContent = message;
@@ -804,7 +890,7 @@ class AutomationPauseCard extends LitElement {
     }, 3000);
   }
 
-  private async _snooze() {
+  async _snooze() {
     if (this._selected.length === 0 || this._loading) return;
 
     if (this._scheduleMode) {
@@ -819,10 +905,10 @@ class AutomationPauseCard extends LitElement {
     this._loading = true;
     try {
       const count = this._selected.length;
-      let toastMessage: string;
+      let toastMessage;
 
       if (this._scheduleMode) {
-        const serviceData: any = {
+        const serviceData = {
           entity_id: this._selected,
           resume_at: this._resumeAt,
         };
@@ -863,7 +949,7 @@ class AutomationPauseCard extends LitElement {
     this._loading = false;
   }
 
-  private _formatDuration(days: number, hours: number, minutes: number) {
+  _formatDuration(days, hours, minutes) {
     const parts = [];
     if (days > 0) parts.push(`${days} day${days !== 1 ? "s" : ""}`);
     if (hours > 0) parts.push(`${hours} hour${hours !== 1 ? "s" : ""}`);
@@ -871,7 +957,7 @@ class AutomationPauseCard extends LitElement {
     return parts.join(", ");
   }
 
-  private async _wake(entityId: string) {
+  async _wake(entityId) {
     try {
       await this.hass.callService("autosnooze", "cancel", {
         entity_id: entityId,
@@ -883,7 +969,7 @@ class AutomationPauseCard extends LitElement {
     }
   }
 
-  private async _wakeAll() {
+  async _wakeAll() {
     try {
       await this.hass.callService("autosnooze", "cancel_all", {});
       this._showToast("All automations resumed");
@@ -893,7 +979,7 @@ class AutomationPauseCard extends LitElement {
     }
   }
 
-  private async _cancelScheduled(entityId: string) {
+  async _cancelScheduled(entityId) {
     try {
       await this.hass.callService("autosnooze", "cancel_scheduled", {
         entity_id: entityId,
@@ -905,7 +991,7 @@ class AutomationPauseCard extends LitElement {
     }
   }
 
-  private _renderSelectionList() {
+  _renderSelectionList() {
     const filtered = this._getFilteredAutomations();
 
     if (this._filterTab === "all") {
@@ -954,7 +1040,7 @@ class AutomationPauseCard extends LitElement {
             icon=${groupSelected
               ? "mdi:checkbox-marked"
               : "mdi:checkbox-blank-outline"}
-            @click=${(e: Event) => {
+            @click=${(e) => {
               e.stopPropagation();
               this._selectGroup(items);
             }}
@@ -1047,7 +1133,7 @@ class AutomationPauseCard extends LitElement {
               type="text"
               placeholder="Search automations..."
               .value=${this._search}
-              @input=${(e: Event) => (this._search = (e.target as HTMLInputElement).value)}
+              @input=${(e) => (this._search = e.target.value)}
             />
           </div>
 
@@ -1061,8 +1147,8 @@ class AutomationPauseCard extends LitElement {
             <input
               type="checkbox"
               .checked=${this._scheduleMode}
-              @click=${(e: Event) => e.stopPropagation()}
-              @change=${(e: Event) => (this._scheduleMode = (e.target as HTMLInputElement).checked)}
+              @click=${(e) => e.stopPropagation()}
+              @change=${(e) => (this._scheduleMode = e.target.checked)}
             />
           </div>
 
@@ -1075,7 +1161,7 @@ class AutomationPauseCard extends LitElement {
                     <input
                       type="datetime-local"
                       .value=${this._disableAt}
-                      @input=${(e: Event) => (this._disableAt = (e.target as HTMLInputElement).value)}
+                      @input=${(e) => (this._disableAt = e.target.value)}
                     />
                   </div>
                   <div class="datetime-field">
@@ -1083,7 +1169,7 @@ class AutomationPauseCard extends LitElement {
                     <input
                       type="datetime-local"
                       .value=${this._resumeAt}
-                      @input=${(e: Event) => (this._resumeAt = (e.target as HTMLInputElement).value)}
+                      @input=${(e) => (this._resumeAt = e.target.value)}
                     />
                   </div>
                 </div>
@@ -1110,7 +1196,7 @@ class AutomationPauseCard extends LitElement {
                       class="duration-input ${!durationValid ? "invalid" : ""}"
                       placeholder="e.g. 2h30m, 1d, 45m"
                       .value=${this._customDurationInput}
-                      @input=${(e: Event) => this._handleDurationInput((e.target as HTMLInputElement).value)}
+                      @input=${(e) => this._handleDurationInput(e.target.value)}
                     />
                   </div>
                   ${durationPreview && durationValid
@@ -1146,7 +1232,7 @@ class AutomationPauseCard extends LitElement {
                 </div>
 
                 ${Object.entries(paused).map(
-                  ([id, data]: [string, any]) => html`
+                  ([id, data]) => html`
                     <div class="paused-item">
                       <ha-icon class="paused-icon" icon="mdi:sleep"></ha-icon>
                       <div class="paused-info">
@@ -1185,7 +1271,7 @@ class AutomationPauseCard extends LitElement {
                 </div>
 
                 ${Object.entries(scheduled).map(
-                  ([id, data]: [string, any]) => html`
+                  ([id, data]) => html`
                     <div class="scheduled-item">
                       <ha-icon class="scheduled-icon" icon="mdi:clock-outline"></ha-icon>
                       <div class="paused-info">
@@ -1231,9 +1317,10 @@ try {
   window.customCards.push({
     type: "autosnooze-card",
     name: "AutoSnooze Card",
-    description: "Temporarily pause automations with area and label filtering",
+    description: `Temporarily pause automations with area and label filtering (v${CARD_VERSION})`,
     preview: true,
   });
+  console.log(`[AutoSnooze] Card registered, version ${CARD_VERSION}`);
 } catch (e) {
   console.warn("customCards registration failed", e);
 }
