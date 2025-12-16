@@ -33,6 +33,7 @@ with open(MANIFEST_PATH, encoding="utf-8") as manifest_file:
 VERSION = MANIFEST.get("version", "0.0.0")
 
 CARD_PATH = Path(__file__).parent / "www" / "autosnooze-card.js"
+# Query param versioning - standard approach in HA ecosystem
 CARD_URL = f"/{DOMAIN}/autosnooze-card.js"
 CARD_URL_VERSIONED = f"/{DOMAIN}/autosnooze-card.js?v={VERSION}"
 
@@ -217,11 +218,11 @@ async def _async_register_lovelace_resource(hass: HomeAssistant) -> None:
         _LOGGER.debug("Lovelace resources not available (YAML mode?)")
         return
 
-    # Check if already registered (with or without version parameter)
+    # Check if already registered (with or without version query param)
     existing_resource = None
     for resource in resources.async_items():
         url = resource.get("url", "")
-        # Match any autosnooze card URL (with or without version query param)
+        # Match any autosnooze card URL (base path, ignoring query params)
         if url.startswith(CARD_URL):
             existing_resource = resource
             break
