@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
+import json
 from pathlib import Path
 from typing import Any
 import logging
@@ -24,8 +25,16 @@ _LOGGER = logging.getLogger(__name__)
 DOMAIN = "autosnooze"
 PLATFORMS = ["sensor"]
 STORAGE_VERSION = 2
-CARD_URL = f"/{DOMAIN}/autosnooze-card.js"
+
+# Read version from manifest for cache-busting
+MANIFEST_PATH = Path(__file__).parent / "manifest.json"
+with open(MANIFEST_PATH, encoding="utf-8") as manifest_file:
+    MANIFEST = json.load(manifest_file)
+VERSION = MANIFEST.get("version", "0.0.0")
+
 CARD_PATH = Path(__file__).parent / "www" / "autosnooze-card.js"
+CARD_URL = f"/{DOMAIN}/autosnooze-card.js"
+CARD_URL_VERSIONED = f"/{DOMAIN}/autosnooze-card.js?v={VERSION}"
 
 
 @dataclass
@@ -208,19 +217,37 @@ async def _async_register_lovelace_resource(hass: HomeAssistant) -> None:
         _LOGGER.debug("Lovelace resources not available (YAML mode?)")
         return
 
-    # Check if already registered
+    # Check if already registered (with or without version parameter)
+    existing_resource = None
     for resource in resources.async_items():
-        if resource.get("url") == CARD_URL:
-            _LOGGER.debug("AutoSnooze card already registered")
-            return
+        url = resource.get("url", "")
+        # Match any autosnooze card URL (with or without version query param)
+        if url.startswith(CARD_URL):
+            existing_resource = resource
+            break
 
-    # Add the resource
+    if existing_resource:
+        # Update existing resource if URL changed (new version)
+        if existing_resource.get("url") != CARD_URL_VERSIONED:
+            try:
+                await resources.async_update_item(
+                    existing_resource["id"],
+                    {"url": CARD_URL_VERSIONED, "res_type": "module"}
+                )
+                _LOGGER.info("Updated AutoSnooze card resource to v%s", VERSION)
+            except Exception as err:
+                _LOGGER.warning("Failed to update Lovelace resource: %s", err)
+        else:
+            _LOGGER.debug("AutoSnooze card already registered with current version")
+        return
+
+    # Add new resource
     try:
         await resources.async_create_item({
-            "url": CARD_URL,
+            "url": CARD_URL_VERSIONED,
             "res_type": "module"
         })
-        _LOGGER.info("Registered AutoSnooze card as Lovelace resource")
+        _LOGGER.info("Registered AutoSnooze card as Lovelace resource (v%s)", VERSION)
     except Exception as err:
         _LOGGER.warning("Failed to register Lovelace resource: %s", err)
 
