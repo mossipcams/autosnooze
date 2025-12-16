@@ -1,7 +1,7 @@
 import { LitElement, html, css } from "lit";
 
-// Version 2.7.0 - Bundled with Lit (no external CDN dependencies)
-const CARD_VERSION = "2.7.0";
+// Version 2.8.0 - Improved duration input and Areas/Labels tabs
+const CARD_VERSION = "2.8.0";
 
 // ============================================================================
 // CARD EDITOR
@@ -213,6 +213,7 @@ class AutomationPauseCard extends LitElement {
       margin-bottom: 12px;
       border-bottom: 1px solid var(--divider-color);
       padding-bottom: 8px;
+      flex-wrap: wrap;
     }
     .tab {
       padding: 6px 16px;
@@ -223,6 +224,9 @@ class AutomationPauseCard extends LitElement {
       border: 1px solid var(--divider-color);
       color: var(--primary-text-color);
       transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      gap: 6px;
     }
     .tab:hover {
       background: var(--primary-color);
@@ -233,6 +237,15 @@ class AutomationPauseCard extends LitElement {
       background: var(--primary-color);
       color: var(--text-primary-color);
       border-color: var(--primary-color);
+    }
+    .tab-count {
+      background: rgba(0, 0, 0, 0.2);
+      padding: 2px 6px;
+      border-radius: 10px;
+      font-size: 0.8em;
+    }
+    .tab.active .tab-count {
+      background: rgba(255, 255, 255, 0.2);
     }
 
     /* Search */
@@ -291,9 +304,28 @@ class AutomationPauseCard extends LitElement {
       color: var(--primary-color);
       flex-shrink: 0;
     }
-    .list-item-name {
+    .list-item-content {
       flex: 1;
+      min-width: 0;
+    }
+    .list-item-name {
       font-size: 0.95em;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .list-item-meta {
+      font-size: 0.8em;
+      color: var(--secondary-text-color);
+      margin-top: 2px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .list-item-meta ha-icon {
+      --mdc-icon-size: 12px;
+      margin-right: 4px;
+      vertical-align: middle;
     }
 
     /* Group Headers */
@@ -324,6 +356,45 @@ class AutomationPauseCard extends LitElement {
       color: var(--text-primary-color);
       border-radius: 12px;
       font-size: 0.8em;
+    }
+
+    /* Selection Actions */
+    .selection-actions {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 8px;
+      padding: 8px 12px;
+      background: var(--secondary-background-color);
+      border-radius: 8px;
+      align-items: center;
+      font-size: 0.9em;
+    }
+    .selection-actions span {
+      flex: 1;
+      color: var(--secondary-text-color);
+    }
+    .select-all-btn {
+      padding: 4px 12px;
+      border: 1px solid var(--divider-color);
+      border-radius: 6px;
+      background: var(--card-background-color);
+      color: var(--primary-text-color);
+      cursor: pointer;
+      font-size: 0.85em;
+      transition: all 0.2s;
+    }
+    .select-all-btn:hover {
+      background: var(--primary-color);
+      color: var(--text-primary-color);
+      border-color: var(--primary-color);
+    }
+
+    /* Duration Section */
+    .duration-section-header {
+      font-size: 0.9em;
+      font-weight: 500;
+      margin-bottom: 8px;
+      color: var(--secondary-text-color);
     }
 
     /* Duration Pills */
@@ -744,6 +815,44 @@ class AutomationPauseCard extends LitElement {
     );
   }
 
+  _getAreaCount() {
+    const automations = this._getAutomations();
+    const areas = new Set();
+    automations.forEach((auto) => {
+      if (auto.area_id) {
+        areas.add(auto.area_id);
+      }
+    });
+    return areas.size;
+  }
+
+  _getLabelCount() {
+    const automations = this._getAutomations();
+    const labels = new Set();
+    automations.forEach((auto) => {
+      if (auto.labels && auto.labels.length > 0) {
+        auto.labels.forEach((l) => labels.add(l));
+      }
+    });
+    return labels.size;
+  }
+
+  _selectAllVisible() {
+    const filtered = this._getFilteredAutomations();
+    const allIds = filtered.map((a) => a.id);
+    const allSelected = allIds.every((id) => this._selected.includes(id));
+
+    if (allSelected) {
+      this._selected = this._selected.filter((id) => !allIds.includes(id));
+    } else {
+      this._selected = [...new Set([...this._selected, ...allIds])];
+    }
+  }
+
+  _clearSelection() {
+    this._selected = [];
+  }
+
   _getPaused() {
     const entity = this.hass?.states["sensor.autosnooze_snoozed_automations"];
     return entity?.attributes?.paused_automations || {};
@@ -995,8 +1104,14 @@ class AutomationPauseCard extends LitElement {
       if (filtered.length === 0) {
         return html`<div class="list-empty">No automations found</div>`;
       }
-      return filtered.map(
-        (a) => html`
+      return filtered.map((a) => {
+        const areaName = a.area_id ? this._getAreaName(a.area_id) : null;
+        const labelNames = a.labels && a.labels.length > 0
+          ? a.labels.map((l) => this._getLabelName(l)).join(", ")
+          : null;
+        const metaInfo = [areaName, labelNames].filter(Boolean).join(" • ");
+
+        return html`
           <div
             class="list-item ${this._selected.includes(a.id) ? "selected" : ""}"
             @click=${() => this._toggleSelection(a.id)}
@@ -1006,10 +1121,19 @@ class AutomationPauseCard extends LitElement {
                 ? "mdi:checkbox-marked"
                 : "mdi:checkbox-blank-outline"}
             ></ha-icon>
-            <span class="list-item-name">${a.name}</span>
+            <div class="list-item-content">
+              <div class="list-item-name">${a.name}</div>
+              ${metaInfo
+                ? html`<div class="list-item-meta">
+                    ${areaName ? html`<ha-icon icon="mdi:home-outline"></ha-icon>${areaName}` : ""}
+                    ${areaName && labelNames ? " • " : ""}
+                    ${labelNames ? html`<ha-icon icon="mdi:label-outline"></ha-icon>${labelNames}` : ""}
+                  </div>`
+                : ""}
+            </div>
           </div>
-        `
-      );
+        `;
+      });
     }
 
     const grouped =
@@ -1024,6 +1148,7 @@ class AutomationPauseCard extends LitElement {
     return grouped.map(([groupName, items]) => {
       const expanded = this._expandedGroups[groupName] !== false;
       const groupSelected = items.every((i) => this._selected.includes(i.id));
+      const someSelected = items.some((i) => this._selected.includes(i.id)) && !groupSelected;
 
       return html`
         <div
@@ -1036,7 +1161,9 @@ class AutomationPauseCard extends LitElement {
           <ha-icon
             icon=${groupSelected
               ? "mdi:checkbox-marked"
-              : "mdi:checkbox-blank-outline"}
+              : someSelected
+                ? "mdi:checkbox-intermediate"
+                : "mdi:checkbox-blank-outline"}
             @click=${(e) => {
               e.stopPropagation();
               this._selectGroup(items);
@@ -1044,12 +1171,19 @@ class AutomationPauseCard extends LitElement {
           ></ha-icon>
         </div>
         ${expanded
-          ? items.map(
-              (a) => html`
+          ? items.map((a) => {
+              // Show complementary info: in Areas tab show labels, in Labels tab show area
+              const showLabels = this._filterTab === "areas" && a.labels && a.labels.length > 0;
+              const showArea = this._filterTab === "labels" && a.area_id;
+              const metaInfo = showLabels
+                ? a.labels.map((l) => this._getLabelName(l)).join(", ")
+                : showArea
+                  ? this._getAreaName(a.area_id)
+                  : null;
+
+              return html`
                 <div
-                  class="list-item ${this._selected.includes(a.id)
-                    ? "selected"
-                    : ""}"
+                  class="list-item ${this._selected.includes(a.id) ? "selected" : ""}"
                   @click=${() => this._toggleSelection(a.id)}
                 >
                   <ha-icon
@@ -1057,10 +1191,19 @@ class AutomationPauseCard extends LitElement {
                       ? "mdi:checkbox-marked"
                       : "mdi:checkbox-blank-outline"}
                   ></ha-icon>
-                  <span class="list-item-name">${a.name}</span>
+                  <div class="list-item-content">
+                    <div class="list-item-name">${a.name}</div>
+                    ${metaInfo
+                      ? html`<div class="list-item-meta">
+                          ${showLabels ? html`<ha-icon icon="mdi:label-outline"></ha-icon>` : ""}
+                          ${showArea ? html`<ha-icon icon="mdi:home-outline"></ha-icon>` : ""}
+                          ${metaInfo}
+                        </div>`
+                      : ""}
+                  </div>
                 </div>
-              `
-            )
+              `;
+            })
           : ""}
       `;
     });
@@ -1109,18 +1252,21 @@ class AutomationPauseCard extends LitElement {
               @click=${() => (this._filterTab = "all")}
             >
               All
+              <span class="tab-count">${this._getAutomations().length}</span>
             </button>
             <button
               class="tab ${this._filterTab === "areas" ? "active" : ""}"
               @click=${() => (this._filterTab = "areas")}
             >
               Areas
+              <span class="tab-count">${this._getAreaCount()}</span>
             </button>
             <button
               class="tab ${this._filterTab === "labels" ? "active" : ""}"
               @click=${() => (this._filterTab = "labels")}
             >
               Labels
+              <span class="tab-count">${this._getLabelCount()}</span>
             </button>
           </div>
 
@@ -1133,6 +1279,23 @@ class AutomationPauseCard extends LitElement {
               @input=${(e) => (this._search = e.target.value)}
             />
           </div>
+
+          <!-- Selection Actions -->
+          ${this._getFilteredAutomations().length > 0
+            ? html`
+                <div class="selection-actions">
+                  <span>${this._selected.length} of ${this._getFilteredAutomations().length} selected</span>
+                  <button class="select-all-btn" @click=${() => this._selectAllVisible()}>
+                    ${this._getFilteredAutomations().every((a) => this._selected.includes(a.id))
+                      ? "Deselect All"
+                      : "Select All"}
+                  </button>
+                  ${this._selected.length > 0
+                    ? html`<button class="select-all-btn" @click=${() => this._clearSelection()}>Clear</button>`
+                    : ""}
+                </div>
+              `
+            : ""}
 
           <!-- Selection List -->
           <div class="selection-list">${this._renderSelectionList()}</div>
@@ -1174,6 +1337,7 @@ class AutomationPauseCard extends LitElement {
             : html`
                 <!-- Duration Selector -->
                 <div class="duration-selector">
+                  <div class="duration-section-header">Snooze Duration</div>
                   <div class="duration-pills">
                     ${durations.map(
                       (d) => html`
@@ -1191,14 +1355,14 @@ class AutomationPauseCard extends LitElement {
                     <input
                       type="text"
                       class="duration-input ${!durationValid ? "invalid" : ""}"
-                      placeholder="e.g. 2h30m, 1d, 45m"
+                      placeholder="Custom: 2h30m, 1d, 45m..."
                       .value=${this._customDurationInput}
                       @input=${(e) => this._handleDurationInput(e.target.value)}
                     />
                   </div>
                   ${durationPreview && durationValid
                     ? html`<div class="duration-preview">Duration: ${durationPreview}</div>`
-                    : html`<div class="duration-help">Format: 30m, 1h, 4h, 1d, 2h30m, 1d2h</div>`}
+                    : html`<div class="duration-help">Enter custom duration: 30m, 2h, 4h30m, 1d, 1d2h</div>`}
                 </div>
               `}
 
