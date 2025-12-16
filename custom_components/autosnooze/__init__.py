@@ -193,12 +193,8 @@ async def _async_register_frontend(hass: HomeAssistant) -> None:
         StaticPathConfig(CARD_URL, str(CARD_PATH), cache_headers=True)
     ])
 
-    # Disable automatic Lovelace registration to prevent breaking other cards
-    # if this card fails to load due to CDN issues.
-    # Users should manually add the resource in Lovelace settings:
-    # URL: /autosnooze/autosnooze-card.js
-    # Type: JavaScript Module
-    # await _async_register_lovelace_resource(hass)
+    # Register as Lovelace resource
+    await _async_register_lovelace_resource(hass)
 
 
 async def _async_register_lovelace_resource(hass: HomeAssistant) -> None:
