@@ -1,8 +1,8 @@
 import { LitElement, html, css } from "https://unpkg.com/lit@3/element/lit-element.js?module";
 import { property, state } from "https://unpkg.com/lit@3/decorators.js?module";
 
-// Version 2.1.0 - Duration input + Area/Label fixes
-const CARD_VERSION = "2.1.0";
+// Version 2.2.0 - Fixed label registry fetching
+const CARD_VERSION = "2.2.0";
 
 // ============================================================================
 // CARD EDITOR
@@ -94,8 +94,10 @@ class AutomationPauseCard extends LitElement {
   @state() private _scheduleMode = false;
   @state() private _disableAt = "";
   @state() private _resumeAt = "";
+  @state() private _labelRegistry: Record<string, { label_id: string; name: string; color?: string }> = {};
 
   private _interval: number | null = null;
+  private _labelsFetched = false;
 
   constructor() {
     super();
@@ -104,6 +106,39 @@ class AutomationPauseCard extends LitElement {
   connectedCallback() {
     super.connectedCallback();
     this._interval = window.setInterval(() => this.requestUpdate(), 1000);
+    this._fetchLabelRegistry();
+  }
+
+  private async _fetchLabelRegistry() {
+    if (this._labelsFetched || !this.hass?.connection) return;
+
+    try {
+      const labels = await this.hass.connection.sendMessagePromise({
+        type: "config/label_registry/list",
+      });
+
+      // Convert array to record keyed by label_id
+      const labelMap: Record<string, { label_id: string; name: string; color?: string }> = {};
+      if (Array.isArray(labels)) {
+        labels.forEach((label: any) => {
+          labelMap[label.label_id] = label;
+        });
+      }
+
+      this._labelRegistry = labelMap;
+      this._labelsFetched = true;
+      console.log("[AutoSnooze] Label registry fetched:", Object.keys(labelMap).length, "labels");
+    } catch (err) {
+      console.warn("[AutoSnooze] Failed to fetch label registry:", err);
+    }
+  }
+
+  updated(changedProps: Map<string, unknown>) {
+    super.updated(changedProps);
+    // Retry fetching labels when hass becomes available
+    if (changedProps.has("hass") && !this._labelsFetched && this.hass?.connection) {
+      this._fetchLabelRegistry();
+    }
   }
 
   disconnectedCallback() {
@@ -589,17 +624,17 @@ class AutomationPauseCard extends LitElement {
     if (!this._debugLogged) {
       this._debugLogged = true;
       console.log("[AutoSnooze] Card version:", CARD_VERSION);
-      console.log("[AutoSnooze] hass.entities available:", !!this.hass.entities);
-      console.log("[AutoSnooze] hass.areas available:", !!this.hass.areas);
-      console.log("[AutoSnooze] hass.labels available:", !!this.hass.labels);
+      console.log("[AutoSnooze] hass.entities available:", !!this.hass.entities, "count:", this.hass.entities ? Object.keys(this.hass.entities).length : 0);
+      console.log("[AutoSnooze] hass.areas available:", !!this.hass.areas, "count:", this.hass.areas ? Object.keys(this.hass.areas).length : 0);
+      console.log("[AutoSnooze] Label registry (fetched separately):", Object.keys(this._labelRegistry).length, "labels");
       if (this.hass.entities) {
         const sampleEntity = Object.keys(this.hass.entities).find(k => k.startsWith("automation."));
         if (sampleEntity) {
-          console.log("[AutoSnooze] Sample entity registry entry:", this.hass.entities[sampleEntity]);
+          console.log("[AutoSnooze] Sample automation entity:", sampleEntity, this.hass.entities[sampleEntity]);
         }
       }
-      if (this.hass.areas) {
-        console.log("[AutoSnooze] Areas registry sample:", Object.entries(this.hass.areas).slice(0, 2));
+      if (this.hass.areas && Object.keys(this.hass.areas).length > 0) {
+        console.log("[AutoSnooze] Areas:", Object.entries(this.hass.areas).map(([id, a]: [string, any]) => `${id}: ${a.name}`).join(", "));
       }
     }
 
@@ -652,8 +687,8 @@ class AutomationPauseCard extends LitElement {
   }
 
   private _getLabelName(labelId: string): string {
-    // Try to get label name from hass.labels registry
-    const label = this.hass.labels?.[labelId];
+    // Try to get label name from fetched label registry
+    const label = this._labelRegistry[labelId];
     if (label?.name) return label.name;
 
     // Fallback: convert label_id to readable name
