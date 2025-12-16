@@ -198,10 +198,14 @@ async def async_setup_entry(
 
 async def _async_register_frontend(hass: HomeAssistant) -> None:
     """Register the frontend card."""
-    # Register static path to serve the JS file
-    await hass.http.async_register_static_paths([
-        StaticPathConfig(CARD_URL, str(CARD_PATH), cache_headers=True)
-    ])
+    # Register static path to serve the JS file (skip if already registered on reload)
+    try:
+        await hass.http.async_register_static_paths([
+            StaticPathConfig(CARD_URL, str(CARD_PATH), cache_headers=True)
+        ])
+    except RuntimeError:
+        # Path already registered (happens on integration reload)
+        pass
 
     # Register as Lovelace resource
     await _async_register_lovelace_resource(hass)
@@ -213,7 +217,8 @@ async def _async_register_lovelace_resource(hass: HomeAssistant) -> None:
     if lovelace_data is None:
         return
 
-    resources = lovelace_data.get("resources")
+    # Use attribute access (not .get()) per HA 2026.2 deprecation warning
+    resources = getattr(lovelace_data, "resources", None)
     if resources is None:
         _LOGGER.debug("Lovelace resources not available (YAML mode?)")
         return

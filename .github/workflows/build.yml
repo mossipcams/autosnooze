@@ -6,17 +6,12 @@ on:
     paths:
       - 'src/**'
       - 'tests/**'
+      - 'custom_components/**'
       - 'package.json'
       - 'package-lock.json'
       - 'rollup.config.mjs'
   pull_request:
-    branches: [main, dev]
-    paths:
-      - 'src/**'
-      - 'tests/**'
-      - 'package.json'
-      - 'package-lock.json'
-      - 'rollup.config.mjs'
+    branches: [main]
   workflow_dispatch:
 
 jobs:
