@@ -1,8 +1,41 @@
-import { LitElement, html, css } from "https://unpkg.com/lit@2.8.0/index.js?module";
+// Version 2.6.0 - Safe loading with fallbacks to prevent breaking other cards
+const CARD_VERSION = "2.6.0";
 
-// Version 2.5.0 - Disabled auto-registration to prevent breaking other cards
-const CARD_VERSION = "2.5.0";
+// Use dynamic import with multiple CDN fallbacks to prevent cascade failures
+let LitElement, html, css;
 
+(async () => {
+  const cdnOptions = [
+    "https://cdn.jsdelivr.net/npm/lit@2.8.0/+esm",
+    "https://unpkg.com/lit@2.8.0/index.js?module",
+    "https://esm.sh/lit@2.8.0"
+  ];
+
+  let loaded = false;
+  for (const cdn of cdnOptions) {
+    try {
+      const module = await import(cdn);
+      LitElement = module.LitElement;
+      html = module.html;
+      css = module.css;
+      loaded = true;
+      console.log(`[AutoSnooze] Loaded Lit from ${cdn}`);
+      break;
+    } catch (err) {
+      console.warn(`[AutoSnooze] Failed to load from ${cdn}:`, err.message);
+    }
+  }
+
+  if (!loaded) {
+    console.error("[AutoSnooze] Failed to load Lit from all CDN sources. Card will not function.");
+    return;
+  }
+
+  // Define card classes after successful Lit import
+  defineCardClasses();
+})();
+
+function defineCardClasses() {
 // ============================================================================
 // CARD EDITOR
 // ============================================================================
@@ -80,8 +113,6 @@ class AutomationPauseCardEditor extends LitElement {
     `;
   }
 }
-
-customElements.define("autosnooze-card-editor", AutomationPauseCardEditor);
 
 // ============================================================================
 // MAIN CARD
@@ -1308,6 +1339,8 @@ class AutomationPauseCard extends LitElement {
   }
 }
 
+// Register custom elements
+customElements.define("autosnooze-card-editor", AutomationPauseCardEditor);
 customElements.define("autosnooze-card", AutomationPauseCard);
 
 // Register for the manual card picker
@@ -1323,3 +1356,5 @@ try {
 } catch (e) {
   console.warn("customCards registration failed", e);
 }
+
+} // End of defineCardClasses()
