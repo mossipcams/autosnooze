@@ -83,6 +83,7 @@ class AutomationPauseCard extends LitElement {
   @state() private _selected: string[] = [];
   @state() private _duration = 1800000; // 30 minutes default
   @state() private _customDuration = { days: 0, hours: 0, minutes: 30 };
+  @state() private _customDurationInput = "30m"; // Text input for duration
   @state() private _loading = false;
   @state() private _search = "";
   @state() private _filterTab = "all";
@@ -297,32 +298,39 @@ class AutomationPauseCard extends LitElement {
       border-color: var(--primary-color);
     }
 
-    /* Custom Duration */
-    .custom-duration {
+    /* Duration Input */
+    .duration-input-container {
       display: flex;
+      align-items: center;
       gap: 8px;
-      padding: 12px;
-      background: var(--secondary-background-color);
-      border-radius: 8px;
       margin-top: 8px;
     }
-    .duration-field {
+    .duration-input {
       flex: 1;
-      display: flex;
-      flex-direction: column;
-      gap: 4px;
-    }
-    .duration-field label {
-      font-size: 0.8em;
-      color: var(--secondary-text-color);
-    }
-    .duration-field input {
-      padding: 8px;
+      padding: 10px 12px;
       border: 1px solid var(--divider-color);
-      border-radius: 4px;
+      border-radius: 8px;
       background: var(--card-background-color);
       color: var(--primary-text-color);
-      text-align: center;
+      font-size: 0.95em;
+    }
+    .duration-input:focus {
+      outline: none;
+      border-color: var(--primary-color);
+    }
+    .duration-input.invalid {
+      border-color: #f44336;
+    }
+    .duration-help {
+      font-size: 0.8em;
+      color: var(--secondary-text-color);
+      margin-top: 4px;
+    }
+    .duration-preview {
+      font-size: 0.85em;
+      color: var(--primary-color);
+      font-weight: 500;
+      margin-top: 4px;
     }
 
     /* Snooze Button */
@@ -578,11 +586,13 @@ class AutomationPauseCard extends LitElement {
       .filter((id) => id.startsWith("automation."))
       .map((id) => {
         const state = this.hass.states[id];
+        // Get area_id and labels from entity registry (hass.entities) instead of state attributes
+        const entityEntry = this.hass.entities?.[id];
         return {
           id,
           name: state.attributes.friendly_name || id.replace("automation.", ""),
-          area_id: state.attributes.area_id || null,
-          labels: state.attributes.labels || [],
+          area_id: entityEntry?.area_id || null,
+          labels: entityEntry?.labels || [],
         };
       })
       .sort((a, b) => a.name.localeCompare(b.name));
@@ -715,12 +725,71 @@ class AutomationPauseCard extends LitElement {
     const mins = minutes % 60;
 
     this._customDuration = { days, hours, minutes: mins };
+
+    // Update the input text to match
+    const parts = [];
+    if (days > 0) parts.push(`${days}d`);
+    if (hours > 0) parts.push(`${hours}h`);
+    if (mins > 0) parts.push(`${mins}m`);
+    this._customDurationInput = parts.join(" ") || "30m";
   }
 
   private _updateCustomDuration() {
     const { days, hours, minutes } = this._customDuration;
     const totalMinutes = days * 1440 + hours * 60 + minutes;
     this._duration = totalMinutes * 60000;
+  }
+
+  private _parseDurationInput(input: string): { days: number; hours: number; minutes: number } | null {
+    // Parse duration strings like "30m", "1h", "4h", "1d", "2h30m", "1d2h", "1d 2h 30m"
+    const cleaned = input.toLowerCase().replace(/\s+/g, "");
+    if (!cleaned) return null;
+
+    let days = 0;
+    let hours = 0;
+    let minutes = 0;
+
+    // Match patterns like 1d, 2h, 30m
+    const dayMatch = cleaned.match(/(\d+)\s*d/);
+    const hourMatch = cleaned.match(/(\d+)\s*h/);
+    const minMatch = cleaned.match(/(\d+)\s*m/);
+
+    if (dayMatch) days = parseInt(dayMatch[1], 10);
+    if (hourMatch) hours = parseInt(hourMatch[1], 10);
+    if (minMatch) minutes = parseInt(minMatch[1], 10);
+
+    // Also support plain numbers as minutes
+    if (!dayMatch && !hourMatch && !minMatch) {
+      const plainNum = parseInt(cleaned, 10);
+      if (!isNaN(plainNum) && plainNum > 0) {
+        minutes = plainNum;
+      } else {
+        return null;
+      }
+    }
+
+    if (days === 0 && hours === 0 && minutes === 0) return null;
+
+    return { days, hours, minutes };
+  }
+
+  private _handleDurationInput(value: string) {
+    this._customDurationInput = value;
+    const parsed = this._parseDurationInput(value);
+    if (parsed) {
+      this._customDuration = parsed;
+      this._updateCustomDuration();
+    }
+  }
+
+  private _getDurationPreview(): string {
+    const parsed = this._parseDurationInput(this._customDurationInput);
+    if (!parsed) return "";
+    return this._formatDuration(parsed.days, parsed.hours, parsed.minutes);
+  }
+
+  private _isDurationValid(): boolean {
+    return this._parseDurationInput(this._customDurationInput) !== null;
   }
 
   private _showToast(message: string) {
@@ -925,7 +994,6 @@ class AutomationPauseCard extends LitElement {
       { label: "1h", minutes: 60 },
       { label: "4h", minutes: 240 },
       { label: "1 day", minutes: 1440 },
-      { label: "Custom", minutes: -1 },
     ];
 
     const currentDuration =
@@ -934,6 +1002,8 @@ class AutomationPauseCard extends LitElement {
       this._customDuration.minutes;
 
     const selectedDuration = durations.find((d) => d.minutes === currentDuration);
+    const durationPreview = this._getDurationPreview();
+    const durationValid = this._isDurationValid();
 
     return html`
       <ha-card>
@@ -1026,10 +1096,7 @@ class AutomationPauseCard extends LitElement {
                       (d) => html`
                         <button
                           class="pill ${selectedDuration === d ? "active" : ""}"
-                          @click=${() =>
-                            d.minutes === -1
-                              ? this._updateCustomDuration()
-                              : this._setDuration(d.minutes)}
+                          @click=${() => this._setDuration(d.minutes)}
                         >
                           ${d.label}
                         </button>
@@ -1037,54 +1104,18 @@ class AutomationPauseCard extends LitElement {
                     )}
                   </div>
 
-                  ${selectedDuration?.label === "Custom" || !selectedDuration
-                    ? html`
-                        <div class="custom-duration">
-                          <div class="duration-field">
-                            <label>Days</label>
-                            <input
-                              type="number"
-                              min="0"
-                              max="365"
-                              .value=${this._customDuration.days}
-                              @input=${(e: Event) => {
-                                const val = Number((e.target as HTMLInputElement).value) || 0;
-                                this._customDuration = { ...this._customDuration, days: val };
-                                this._updateCustomDuration();
-                              }}
-                            />
-                          </div>
-                          <div class="duration-field">
-                            <label>Hours</label>
-                            <input
-                              type="number"
-                              min="0"
-                              max="23"
-                              .value=${this._customDuration.hours}
-                              @input=${(e: Event) => {
-                                const val = Number((e.target as HTMLInputElement).value) || 0;
-                                this._customDuration = { ...this._customDuration, hours: val };
-                                this._updateCustomDuration();
-                              }}
-                            />
-                          </div>
-                          <div class="duration-field">
-                            <label>Minutes</label>
-                            <input
-                              type="number"
-                              min="0"
-                              max="59"
-                              .value=${this._customDuration.minutes}
-                              @input=${(e: Event) => {
-                                const val = Number((e.target as HTMLInputElement).value) || 0;
-                                this._customDuration = { ...this._customDuration, minutes: val };
-                                this._updateCustomDuration();
-                              }}
-                            />
-                          </div>
-                        </div>
-                      `
-                    : ""}
+                  <div class="duration-input-container">
+                    <input
+                      type="text"
+                      class="duration-input ${!durationValid ? "invalid" : ""}"
+                      placeholder="e.g. 2h30m, 1d, 45m"
+                      .value=${this._customDurationInput}
+                      @input=${(e: Event) => this._handleDurationInput((e.target as HTMLInputElement).value)}
+                    />
+                  </div>
+                  ${durationPreview && durationValid
+                    ? html`<div class="duration-preview">Duration: ${durationPreview}</div>`
+                    : html`<div class="duration-help">Format: 30m, 1h, 4h, 1d, 2h30m, 1d2h</div>`}
                 </div>
               `}
 
@@ -1092,7 +1123,7 @@ class AutomationPauseCard extends LitElement {
           <button
             class="snooze-btn"
             ?disabled=${this._selected.length === 0 ||
-            (!this._scheduleMode && this._duration === 0) ||
+            (!this._scheduleMode && !this._isDurationValid()) ||
             (this._scheduleMode && !this._resumeAt) ||
             this._loading}
             @click=${this._snooze}
