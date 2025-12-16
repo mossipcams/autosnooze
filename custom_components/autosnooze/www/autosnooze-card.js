@@ -1,8 +1,7 @@
-import { LitElement, html, css } from "https://unpkg.com/lit@3/element/lit-element.js?module";
-import { property, state } from "https://unpkg.com/lit@3/decorators.js?module";
+import { LitElement, html, css } from "https://unpkg.com/lit@2.8.0/index.js?module";
 
-// Version 2.3.0 - Fixed JavaScript syntax (removed TypeScript)
-const CARD_VERSION = "2.3.0";
+// Version 2.4.0 - Fixed Lit imports
+const CARD_VERSION = "2.4.0";
 
 // ============================================================================
 // CARD EDITOR
