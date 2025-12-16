@@ -414,3 +414,58 @@ class TestBuildProcessWorks:
         assert "from 'lit'" not in content, (
             "REGRESSION: Fresh build contains bare \"from 'lit'\" import"
         )
+
+
+class TestCDNCacheBusting:
+    """Tests that verify CDN cache busting is properly implemented.
+
+    Issue: Cloudflare/CDN caches JS files by URL. Query params (?v=X) may be
+    ignored by CDN. Using version in the path forces cache invalidation.
+    """
+
+    INIT_PATH = PROJECT_ROOT / "custom_components" / "autosnooze" / "__init__.py"
+    MANIFEST_PATH = PROJECT_ROOT / "custom_components" / "autosnooze" / "manifest.json"
+
+    def test_card_url_contains_version_in_path(self) -> None:
+        """Test that CARD_URL uses version in path, not query param.
+
+        REGRESSION: Query param caching issue - CDNs may ignore ?v=X
+        FIX: Use /autosnooze/autosnooze-card-{VERSION}.js
+        """
+        content = self.INIT_PATH.read_text()
+
+        # Should have version in path
+        assert 'CARD_URL = f"/{DOMAIN}/autosnooze-card-{VERSION}.js"' in content, (
+            "REGRESSION: CARD_URL should include version in path, not query param. "
+            "CDNs may cache by base URL and ignore query params."
+        )
+
+        # Should NOT use query param for versioning
+        assert "?v={VERSION}" not in content, (
+            "REGRESSION: Using query param ?v= for cache busting. "
+            "CDNs may ignore query params. Use version in path instead."
+        )
+
+    def test_version_matches_across_files(self) -> None:
+        """Test that version is consistent across manifest, init, and source."""
+        manifest = json.loads(self.MANIFEST_PATH.read_text())
+        manifest_version = manifest.get("version")
+
+        source_content = SOURCE_CARD_PATH.read_text()
+        source_match = re.search(r'CARD_VERSION\s*=\s*["\']([^"\']+)["\']', source_content)
+        source_version = source_match.group(1) if source_match else None
+
+        assert manifest_version == source_version, (
+            f"Version mismatch: manifest.json has {manifest_version}, "
+            f"source has {source_version}. These must match for cache busting."
+        )
+
+    def test_lovelace_resource_uses_versioned_url(self) -> None:
+        """Test that Lovelace resource registration uses the versioned URL."""
+        content = self.INIT_PATH.read_text()
+
+        # The resource should use CARD_URL (which includes version in path)
+        assert '"url": CARD_URL' in content or "'url': CARD_URL" in content, (
+            "REGRESSION: Lovelace resource should use CARD_URL (versioned path). "
+            "Found hardcoded URL or CARD_URL_VERSIONED (query param version)."
+        )
