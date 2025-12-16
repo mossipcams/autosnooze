@@ -1,5 +1,4 @@
 node_modules/
 package-lock.json
-deploy.sh
 __pycache__/
 *.pyc
