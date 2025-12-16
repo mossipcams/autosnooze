@@ -1001,7 +1001,7 @@ class AutomationPauseCard extends LitElement {
                 <!-- Schedule Datetime Inputs -->
                 <div class="schedule-inputs">
                   <div class="datetime-field">
-                    <label>Disable At (optional - leave empty to disable now)</label>
+                    <label>Snooze Start (optional - leave empty to disable now)</label>
                     <input
                       type="datetime-local"
                       .value=${this._disableAt}
@@ -1009,7 +1009,7 @@ class AutomationPauseCard extends LitElement {
                     />
                   </div>
                   <div class="datetime-field">
-                    <label>Resume At (required)</label>
+                    <label>Snooze End (required)</label>
                     <input
                       type="datetime-local"
                       .value=${this._resumeAt}
