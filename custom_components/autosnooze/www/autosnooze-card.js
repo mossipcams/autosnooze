@@ -1,7 +1,7 @@
-import { LitElement, html, css } from "https://cdn.jsdelivr.net/npm/lit@2.8.0/+esm";
+import { LitElement, html, css } from "https://unpkg.com/lit@2.8.0/index.js?module";
 
-// Version 2.4.1 - Use jsDelivr CDN for better reliability
-const CARD_VERSION = "2.4.1";
+// Version 2.5.0 - Disabled auto-registration to prevent breaking other cards
+const CARD_VERSION = "2.5.0";
 
 // ============================================================================
 // CARD EDITOR
