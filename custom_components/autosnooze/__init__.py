@@ -33,9 +33,9 @@ with open(MANIFEST_PATH, encoding="utf-8") as manifest_file:
 VERSION = MANIFEST.get("version", "0.0.0")
 
 CARD_PATH = Path(__file__).parent / "www" / "autosnooze-card.js"
-# Use /api/ prefix for compatibility with reverse proxies (Cloudflare, Nginx, etc.)
-CARD_URL = f"/api/{DOMAIN}/static/autosnooze-card.js"
-CARD_URL_VERSIONED = f"/api/{DOMAIN}/static/autosnooze-card.js?v={VERSION}"
+# Root-level path like browser_mod uses - avoids /api/ conflicts and works with proxies
+CARD_URL = "/autosnooze-card.js"
+CARD_URL_VERSIONED = f"/autosnooze-card.js?v={VERSION}"
 
 
 @dataclass
