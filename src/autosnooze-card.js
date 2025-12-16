@@ -100,6 +100,7 @@ class AutomationPauseCard extends LitElement {
     _disableAt: { state: true },
     _resumeAt: { state: true },
     _labelRegistry: { state: true },
+    _showCustomInput: { state: true },
   };
 
   constructor() {
@@ -118,6 +119,7 @@ class AutomationPauseCard extends LitElement {
     this._disableAt = "";
     this._resumeAt = "";
     this._labelRegistry = {};
+    this._showCustomInput = false;
     this._interval = null;
     this._labelsFetched = false;
     this._debugLogged = false;
@@ -426,20 +428,18 @@ class AutomationPauseCard extends LitElement {
     }
 
     /* Duration Input */
-    .duration-input-container {
-      display: flex;
-      align-items: center;
-      gap: 8px;
+    .custom-duration-input {
       margin-top: 8px;
     }
     .duration-input {
-      flex: 1;
+      width: 100%;
       padding: 10px 12px;
       border: 1px solid var(--divider-color);
       border-radius: 8px;
       background: var(--card-background-color);
       color: var(--primary-text-color);
       font-size: 0.95em;
+      box-sizing: border-box;
     }
     .duration-input:focus {
       outline: none;
@@ -837,6 +837,45 @@ class AutomationPauseCard extends LitElement {
     return labels.size;
   }
 
+  _getCategoryName(categoryId) {
+    if (!categoryId) return "Uncategorized";
+
+    return categoryId
+      .replace(/_/g, " ")
+      .replace(/\b\w/g, (c) => c.toUpperCase());
+  }
+
+  _getGroupedByCategory() {
+    const automations = this._getFilteredAutomations();
+    const groups = {};
+
+    automations.forEach((auto) => {
+      // Get category from automation state attributes
+      const state = this.hass.states?.[auto.id];
+      const category = state?.attributes?.category || null;
+      const categoryName = this._getCategoryName(category);
+      if (!groups[categoryName]) groups[categoryName] = [];
+      groups[categoryName].push({ ...auto, category });
+    });
+
+    return Object.entries(groups).sort((a, b) =>
+      a[0] === "Uncategorized" ? 1 : b[0] === "Uncategorized" ? -1 : a[0].localeCompare(b[0])
+    );
+  }
+
+  _getCategoryCount() {
+    const automations = this._getAutomations();
+    const categories = new Set();
+    automations.forEach((auto) => {
+      const state = this.hass.states?.[auto.id];
+      const category = state?.attributes?.category;
+      if (category) {
+        categories.add(category);
+      }
+    });
+    return categories.size;
+  }
+
   _selectAllVisible() {
     const filtered = this._getFilteredAutomations();
     const allIds = filtered.map((a) => a.id);
@@ -1105,11 +1144,8 @@ class AutomationPauseCard extends LitElement {
         return html`<div class="list-empty">No automations found</div>`;
       }
       return filtered.map((a) => {
+        // All tab: only show area, not labels
         const areaName = a.area_id ? this._getAreaName(a.area_id) : null;
-        const labelNames = a.labels && a.labels.length > 0
-          ? a.labels.map((l) => this._getLabelName(l)).join(", ")
-          : null;
-        const metaInfo = [areaName, labelNames].filter(Boolean).join(" • ");
 
         return html`
           <div
@@ -1123,11 +1159,9 @@ class AutomationPauseCard extends LitElement {
             ></ha-icon>
             <div class="list-item-content">
               <div class="list-item-name">${a.name}</div>
-              ${metaInfo
+              ${areaName
                 ? html`<div class="list-item-meta">
-                    ${areaName ? html`<ha-icon icon="mdi:home-outline"></ha-icon>${areaName}` : ""}
-                    ${areaName && labelNames ? " • " : ""}
-                    ${labelNames ? html`<ha-icon icon="mdi:label-outline"></ha-icon>${labelNames}` : ""}
+                    <ha-icon icon="mdi:home-outline"></ha-icon>${areaName}
                   </div>`
                 : ""}
             </div>
@@ -1136,10 +1170,13 @@ class AutomationPauseCard extends LitElement {
       });
     }
 
+    // Grouped views: areas, categories, labels
     const grouped =
       this._filterTab === "areas"
         ? this._getGroupedByArea()
-        : this._getGroupedByLabel();
+        : this._filterTab === "categories"
+          ? this._getGroupedByCategory()
+          : this._getGroupedByLabel();
 
     if (grouped.length === 0) {
       return html`<div class="list-empty">No automations found</div>`;
@@ -1172,14 +1209,11 @@ class AutomationPauseCard extends LitElement {
         </div>
         ${expanded
           ? items.map((a) => {
-              // Show complementary info: in Areas tab show labels, in Labels tab show area
-              const showLabels = this._filterTab === "areas" && a.labels && a.labels.length > 0;
-              const showArea = this._filterTab === "labels" && a.area_id;
-              const metaInfo = showLabels
-                ? a.labels.map((l) => this._getLabelName(l)).join(", ")
-                : showArea
-                  ? this._getAreaName(a.area_id)
-                  : null;
+              // Areas tab: no metadata (area is the group header, no labels per requirements)
+              // Categories tab: show area as complementary info
+              // Labels tab: show area as complementary info
+              const showArea = (this._filterTab === "labels" || this._filterTab === "categories") && a.area_id;
+              const metaInfo = showArea ? this._getAreaName(a.area_id) : null;
 
               return html`
                 <div
@@ -1195,9 +1229,7 @@ class AutomationPauseCard extends LitElement {
                     <div class="list-item-name">${a.name}</div>
                     ${metaInfo
                       ? html`<div class="list-item-meta">
-                          ${showLabels ? html`<ha-icon icon="mdi:label-outline"></ha-icon>` : ""}
-                          ${showArea ? html`<ha-icon icon="mdi:home-outline"></ha-icon>` : ""}
-                          ${metaInfo}
+                          <ha-icon icon="mdi:home-outline"></ha-icon>${metaInfo}
                         </div>`
                       : ""}
                   </div>
@@ -1220,6 +1252,7 @@ class AutomationPauseCard extends LitElement {
       { label: "1h", minutes: 60 },
       { label: "4h", minutes: 240 },
       { label: "1 day", minutes: 1440 },
+      { label: "Custom", minutes: null },
     ];
 
     const currentDuration =
@@ -1260,6 +1293,13 @@ class AutomationPauseCard extends LitElement {
             >
               Areas
               <span class="tab-count">${this._getAreaCount()}</span>
+            </button>
+            <button
+              class="tab ${this._filterTab === "categories" ? "active" : ""}"
+              @click=${() => (this._filterTab = "categories")}
+            >
+              Categories
+              <span class="tab-count">${this._getCategoryCount()}</span>
             </button>
             <button
               class="tab ${this._filterTab === "labels" ? "active" : ""}"
@@ -1342,8 +1382,17 @@ class AutomationPauseCard extends LitElement {
                     ${durations.map(
                       (d) => html`
                         <button
-                          class="pill ${selectedDuration === d ? "active" : ""}"
-                          @click=${() => this._setDuration(d.minutes)}
+                          class="pill ${d.minutes === null
+                            ? this._showCustomInput ? "active" : ""
+                            : selectedDuration === d ? "active" : ""}"
+                          @click=${() => {
+                            if (d.minutes === null) {
+                              this._showCustomInput = !this._showCustomInput;
+                            } else {
+                              this._showCustomInput = false;
+                              this._setDuration(d.minutes);
+                            }
+                          }}
                         >
                           ${d.label}
                         </button>
@@ -1351,18 +1400,20 @@ class AutomationPauseCard extends LitElement {
                     )}
                   </div>
 
-                  <div class="duration-input-container">
-                    <input
-                      type="text"
-                      class="duration-input ${!durationValid ? "invalid" : ""}"
-                      placeholder="Custom: 2h30m, 1d, 45m..."
-                      .value=${this._customDurationInput}
-                      @input=${(e) => this._handleDurationInput(e.target.value)}
-                    />
-                  </div>
-                  ${durationPreview && durationValid
-                    ? html`<div class="duration-preview">Duration: ${durationPreview}</div>`
-                    : html`<div class="duration-help">Enter custom duration: 30m, 2h, 4h30m, 1d, 1d2h</div>`}
+                  ${this._showCustomInput ? html`
+                    <div class="custom-duration-input">
+                      <input
+                        type="text"
+                        class="duration-input ${!durationValid ? "invalid" : ""}"
+                        placeholder="e.g. 2h30m, 1d, 45m"
+                        .value=${this._customDurationInput}
+                        @input=${(e) => this._handleDurationInput(e.target.value)}
+                      />
+                      ${durationPreview && durationValid
+                        ? html`<div class="duration-preview">Duration: ${durationPreview}</div>`
+                        : html`<div class="duration-help">Enter duration: 30m, 2h, 4h30m, 1d, 1d2h</div>`}
+                    </div>
+                  ` : ""}
                 </div>
               `}
 
