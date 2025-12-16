@@ -100,6 +100,7 @@ class AutomationPauseCard extends LitElement {
     _disableAt: { state: true },
     _resumeAt: { state: true },
     _labelRegistry: { state: true },
+    _categoryRegistry: { state: true },
     _showCustomInput: { state: true },
   };
 
@@ -119,9 +120,11 @@ class AutomationPauseCard extends LitElement {
     this._disableAt = "";
     this._resumeAt = "";
     this._labelRegistry = {};
+    this._categoryRegistry = {};
     this._showCustomInput = false;
     this._interval = null;
     this._labelsFetched = false;
+    this._categoriesFetched = false;
     this._debugLogged = false;
   }
 
@@ -129,6 +132,7 @@ class AutomationPauseCard extends LitElement {
     super.connectedCallback();
     this._interval = window.setInterval(() => this.requestUpdate(), 1000);
     this._fetchLabelRegistry();
+    this._fetchCategoryRegistry();
   }
 
   async _fetchLabelRegistry() {
@@ -154,10 +158,39 @@ class AutomationPauseCard extends LitElement {
     }
   }
 
+  async _fetchCategoryRegistry() {
+    if (this._categoriesFetched || !this.hass?.connection) return;
+
+    try {
+      const categories = await this.hass.connection.sendMessagePromise({
+        type: "config/category_registry/list",
+        scope: "automation",
+      });
+
+      const categoryMap = {};
+      if (Array.isArray(categories)) {
+        categories.forEach((category) => {
+          categoryMap[category.category_id] = category;
+        });
+      }
+
+      this._categoryRegistry = categoryMap;
+      this._categoriesFetched = true;
+      console.log("[AutoSnooze] Category registry fetched:", Object.keys(categoryMap).length, "categories");
+    } catch (err) {
+      console.warn("[AutoSnooze] Failed to fetch category registry:", err);
+    }
+  }
+
   updated(changedProps) {
     super.updated(changedProps);
-    if (changedProps.has("hass") && !this._labelsFetched && this.hass?.connection) {
-      this._fetchLabelRegistry();
+    if (changedProps.has("hass") && this.hass?.connection) {
+      if (!this._labelsFetched) {
+        this._fetchLabelRegistry();
+      }
+      if (!this._categoriesFetched) {
+        this._fetchCategoryRegistry();
+      }
     }
   }
 
@@ -732,10 +765,14 @@ class AutomationPauseCard extends LitElement {
       .map((id) => {
         const state = this.hass.states[id];
         const entityEntry = this.hass.entities?.[id];
+        // Get category from entity registry (categories object with scope keys)
+        const categories = entityEntry?.categories || {};
+        const category_id = categories.automation || null;
         return {
           id,
           name: state.attributes.friendly_name || id.replace("automation.", ""),
           area_id: entityEntry?.area_id || null,
+          category_id,
           labels: entityEntry?.labels || [],
         };
       })
@@ -840,6 +877,11 @@ class AutomationPauseCard extends LitElement {
   _getCategoryName(categoryId) {
     if (!categoryId) return "Uncategorized";
 
+    // Look up from category registry first
+    const category = this._categoryRegistry[categoryId];
+    if (category?.name) return category.name;
+
+    // Fallback: transform ID to readable name
     return categoryId
       .replace(/_/g, " ")
       .replace(/\b\w/g, (c) => c.toUpperCase());
@@ -850,12 +892,10 @@ class AutomationPauseCard extends LitElement {
     const groups = {};
 
     automations.forEach((auto) => {
-      // Get category from automation state attributes
-      const state = this.hass.states?.[auto.id];
-      const category = state?.attributes?.category || null;
-      const categoryName = this._getCategoryName(category);
+      // Get category from entity registry (already fetched in _getAutomations)
+      const categoryName = this._getCategoryName(auto.category_id);
       if (!groups[categoryName]) groups[categoryName] = [];
-      groups[categoryName].push({ ...auto, category });
+      groups[categoryName].push(auto);
     });
 
     return Object.entries(groups).sort((a, b) =>
@@ -867,10 +907,9 @@ class AutomationPauseCard extends LitElement {
     const automations = this._getAutomations();
     const categories = new Set();
     automations.forEach((auto) => {
-      const state = this.hass.states?.[auto.id];
-      const category = state?.attributes?.category;
-      if (category) {
-        categories.add(category);
+      // Use category_id from entity registry (already fetched in _getAutomations)
+      if (auto.category_id) {
+        categories.add(auto.category_id);
       }
     });
     return categories.size;
@@ -1143,31 +1182,22 @@ class AutomationPauseCard extends LitElement {
       if (filtered.length === 0) {
         return html`<div class="list-empty">No automations found</div>`;
       }
-      return filtered.map((a) => {
-        // All tab: only show area, not labels
-        const areaName = a.area_id ? this._getAreaName(a.area_id) : null;
-
-        return html`
-          <div
-            class="list-item ${this._selected.includes(a.id) ? "selected" : ""}"
-            @click=${() => this._toggleSelection(a.id)}
-          >
-            <ha-icon
-              icon=${this._selected.includes(a.id)
-                ? "mdi:checkbox-marked"
-                : "mdi:checkbox-blank-outline"}
-            ></ha-icon>
-            <div class="list-item-content">
-              <div class="list-item-name">${a.name}</div>
-              ${areaName
-                ? html`<div class="list-item-meta">
-                    <ha-icon icon="mdi:home-outline"></ha-icon>${areaName}
-                  </div>`
-                : ""}
-            </div>
+      // All tab: show only automation name, no complementary metadata
+      return filtered.map((a) => html`
+        <div
+          class="list-item ${this._selected.includes(a.id) ? "selected" : ""}"
+          @click=${() => this._toggleSelection(a.id)}
+        >
+          <ha-icon
+            icon=${this._selected.includes(a.id)
+              ? "mdi:checkbox-marked"
+              : "mdi:checkbox-blank-outline"}
+          ></ha-icon>
+          <div class="list-item-content">
+            <div class="list-item-name">${a.name}</div>
           </div>
-        `;
-      });
+        </div>
+      `);
     }
 
     // Grouped views: areas, categories, labels
@@ -1384,7 +1414,7 @@ class AutomationPauseCard extends LitElement {
                         <button
                           class="pill ${d.minutes === null
                             ? this._showCustomInput ? "active" : ""
-                            : selectedDuration === d ? "active" : ""}"
+                            : !this._showCustomInput && selectedDuration === d ? "active" : ""}"
                           @click=${() => {
                             if (d.minutes === null) {
                               this._showCustomInput = !this._showCustomInput;
