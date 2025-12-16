@@ -433,17 +433,19 @@ class TestCDNCacheBusting:
         - Used by HACS (?hacstag=TIMESTAMP)
         - Used by card-mod, mini-graph-card, and most community cards
         - No URL path changes = no backwards compatibility issues
+
+        Uses /api/ prefix for reverse proxy compatibility (Cloudflare, Nginx, etc.)
         """
         content = self.INIT_PATH.read_text()
 
-        # Base URL should not include version
-        assert 'CARD_URL = f"/{DOMAIN}/autosnooze-card.js"' in content, (
-            "REGRESSION: CARD_URL should be the base path without version. "
+        # Base URL should use /api/ prefix for reverse proxy compatibility
+        assert 'CARD_URL = f"/api/{DOMAIN}/static/autosnooze-card.js"' in content, (
+            "REGRESSION: CARD_URL should use /api/ prefix for reverse proxy compatibility. "
             "Version should be in query param via CARD_URL_VERSIONED."
         )
 
         # Should have versioned URL with query param
-        assert 'CARD_URL_VERSIONED = f"/{DOMAIN}/autosnooze-card.js?v={VERSION}"' in content, (
+        assert 'CARD_URL_VERSIONED = f"/api/{DOMAIN}/static/autosnooze-card.js?v={VERSION}"' in content, (
             "REGRESSION: CARD_URL_VERSIONED should use ?v= query param. "
             "This is the HA ecosystem standard for cache busting."
         )
