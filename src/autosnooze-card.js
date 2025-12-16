@@ -1,7 +1,7 @@
 import { LitElement, html, css } from "lit";
 
-// Version 2.9.0 - Custom pill, Categories tab, cleaner metadata
-const CARD_VERSION = "2.9.0";
+// Version 2.9.1 - Fix: Root-level path for reverse proxy compatibility
+const CARD_VERSION = "2.9.1";
 
 // ============================================================================
 // CARD EDITOR
