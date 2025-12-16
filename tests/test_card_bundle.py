@@ -450,6 +450,28 @@ class TestCDNCacheBusting:
             "This is the HA ecosystem standard for cache busting."
         )
 
+    def test_card_url_uses_reverse_proxy_safe_prefix(self) -> None:
+        """Test that card URL uses /api/ prefix for reverse proxy compatibility.
+
+        Reverse proxies (Cloudflare Tunnel, Nginx, Traefik, etc.) only forward
+        known Home Assistant paths by default. Custom paths like /autosnooze/
+        will return 404 when accessed through these proxies.
+
+        The /api/ prefix is ALWAYS forwarded because it's required for HA's
+        core REST API and WebSocket functionality.
+
+        This test prevents regression to a non-proxy-safe URL path.
+        """
+        content = self.INIT_PATH.read_text()
+
+        # Verify /api/ prefix is used in CARD_URL definition
+        assert '"/api/' in content and "CARD_URL" in content, (
+            "REGRESSION: CARD_URL must use /api/ prefix. "
+            "Paths like /autosnooze/ are NOT forwarded by reverse proxies "
+            "(Cloudflare Tunnel, Nginx, etc.) and will return 404. "
+            "The /api/ prefix is always forwarded since it's required for HA's core API."
+        )
+
     def test_version_matches_across_files(self) -> None:
         """Test that version is consistent across manifest, init, and source."""
         manifest = json.loads(self.MANIFEST_PATH.read_text())
