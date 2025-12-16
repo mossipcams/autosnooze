@@ -1,7 +1,7 @@
 import { LitElement, html, css } from "lit";
 
-// Version 2.8.0 - Improved duration input and Areas/Labels tabs
-const CARD_VERSION = "2.8.0";
+// Version 2.8.1 - Add cache-busting for CDN compatibility
+const CARD_VERSION = "2.8.1";
 
 // ============================================================================
 // CARD EDITOR
