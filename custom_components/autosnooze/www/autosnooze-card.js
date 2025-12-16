@@ -1,7 +1,7 @@
-import { LitElement, html, css } from "https://unpkg.com/lit@2.8.0/index.js?module";
+import { LitElement, html, css } from "https://cdn.jsdelivr.net/npm/lit@2.8.0/+esm";
 
-// Version 2.4.0 - Fixed Lit imports
-const CARD_VERSION = "2.4.0";
+// Version 2.4.1 - Use jsDelivr CDN for better reliability
+const CARD_VERSION = "2.4.1";
 
 // ============================================================================
 // CARD EDITOR
