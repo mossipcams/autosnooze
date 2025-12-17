@@ -1,6 +1,4 @@
 {
   "name": "AutoSnooze",
-  "content_in_root": true,
-  "render_readme": true,
-  "filename": "autosnooze-card.js"
+  "render_readme": true
 }
