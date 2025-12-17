@@ -128,7 +128,6 @@ class AutomationPauseCard extends LitElement {
     this._labelsFetched = false;
     this._categoriesFetched = false;
     this._entityRegistryFetched = false;
-    this._debugLogged = false;
   }
 
   connectedCallback() {
@@ -190,7 +189,7 @@ class AutomationPauseCard extends LitElement {
     if (this._entityRegistryFetched || !this.hass?.connection) return;
 
     try {
-      // First, get the basic list to identify automation entities
+      // Get basic entity list to identify automation entities
       const entities = await this.hass.connection.sendMessagePromise({
         type: "config/entity_registry/list",
       });
@@ -207,58 +206,31 @@ class AutomationPauseCard extends LitElement {
         });
       }
 
-      console.log("[AutoSnooze] Basic entity registry fetched:", Object.keys(entityMap).length, "entities,", automationIds.length, "automations");
-
-      // The basic list doesn't include categories - need to fetch extended entries
-      // Fetch extended entry for each automation to get categories
+      // Basic list excludes categories - fetch extended entries for automations
       if (automationIds.length > 0) {
-        console.log("[AutoSnooze] Fetching extended entries for automations to get categories...");
-
         const extendedEntries = await Promise.all(
           automationIds.map(async (entityId) => {
             try {
-              const entry = await this.hass.connection.sendMessagePromise({
+              return await this.hass.connection.sendMessagePromise({
                 type: "config/entity_registry/get",
                 entity_id: entityId,
               });
-              return entry;
-            } catch (err) {
-              console.warn("[AutoSnooze] Failed to fetch extended entry for", entityId, err);
+            } catch {
               return null;
             }
           })
         );
 
-        // Update entityMap with extended entries that include categories
-        let withCategories = 0;
+        // Merge extended entries into entityMap
         extendedEntries.forEach((entry) => {
-          if (entry && entry.entity_id) {
+          if (entry?.entity_id) {
             entityMap[entry.entity_id] = entry;
-            if (entry.categories && Object.keys(entry.categories).length > 0) {
-              withCategories++;
-            }
           }
         });
-
-        console.log("[AutoSnooze] Extended entries fetched:", extendedEntries.filter(e => e).length, "automations,", withCategories, "with categories");
-
-        if (withCategories > 0) {
-          const sample = extendedEntries.find(e => e?.categories && Object.keys(e.categories).length > 0);
-          if (sample) {
-            console.log("[AutoSnooze] Sample with category:", sample.entity_id, "categories:", JSON.stringify(sample.categories));
-          }
-        }
       }
 
       this._entityRegistry = entityMap;
       this._entityRegistryFetched = true;
-
-      // Reset log flags so they log again with real data
-      this._categoryCountLogged = false;
-      this._getAutomationsLogged = false;
-      this._automationCategoryLogged = false;
-
-      // Force re-render now that we have the data
       this.requestUpdate();
     } catch (err) {
       console.warn("[AutoSnooze] Failed to fetch entity registry:", err);
@@ -828,45 +800,14 @@ class AutomationPauseCard extends LitElement {
   _getAutomations() {
     if (!this.hass?.states) return [];
 
-    // Debug: log available hass properties on first call
-    if (!this._debugLogged) {
-      this._debugLogged = true;
-      console.log("[AutoSnooze] Card version:", CARD_VERSION);
-      console.log("[AutoSnooze] hass.entities available:", !!this.hass.entities, "count:", this.hass.entities ? Object.keys(this.hass.entities).length : 0);
-      console.log("[AutoSnooze] hass.areas available:", !!this.hass.areas, "count:", this.hass.areas ? Object.keys(this.hass.areas).length : 0);
-      console.log("[AutoSnooze] Label registry (fetched separately):", Object.keys(this._labelRegistry).length, "labels");
-      console.log("[AutoSnooze] Entity registry (fetched separately):", Object.keys(this._entityRegistry).length, "entities");
-      if (this._entityRegistry) {
-        const sampleEntity = Object.keys(this._entityRegistry).find(k => k.startsWith("automation."));
-        if (sampleEntity) {
-          console.log("[AutoSnooze] Sample entity registry entry:", sampleEntity, this._entityRegistry[sampleEntity]);
-        }
-      }
-      if (this.hass.areas && Object.keys(this.hass.areas).length > 0) {
-        console.log("[AutoSnooze] Areas:", Object.entries(this.hass.areas).map(([id, a]) => `${id}: ${a.name}`).join(", "));
-      }
-    }
-
-    // Debug: Check entity registry state at render time
-    const entityRegistrySize = Object.keys(this._entityRegistry || {}).length;
-    if (!this._getAutomationsLogged) {
-      this._getAutomationsLogged = true;
-      console.log("[AutoSnooze] _getAutomations called, _entityRegistry size:", entityRegistrySize);
-      console.log("[AutoSnooze] _entityRegistryFetched flag:", this._entityRegistryFetched);
-    }
-
-    const automations = Object.keys(this.hass.states)
+    return Object.keys(this.hass.states)
       .filter((id) => id.startsWith("automation."))
       .map((id) => {
         const state = this.hass.states[id];
-        // Use fetched entity registry for full entity data including categories
         const registryEntry = this._entityRegistry?.[id];
-        // Fallback to hass.entities for basic info (area_id, labels)
         const hassEntry = this.hass.entities?.[id];
-        // Get category from entity registry (categories object with scope keys)
-        // The entity registry from WebSocket includes categories: { automation: "category_id" }
-        const categories = registryEntry?.categories || {};
-        const category_id = categories.automation || null;
+        // Category from extended entity registry (categories.automation = category_id)
+        const category_id = registryEntry?.categories?.automation || null;
         return {
           id,
           name: state.attributes.friendly_name || id.replace("automation.", ""),
@@ -876,25 +817,6 @@ class AutomationPauseCard extends LitElement {
         };
       })
       .sort((a, b) => a.name.localeCompare(b.name));
-
-    // Debug: Log first automation with category data
-    if (!this._automationCategoryLogged && entityRegistrySize > 0) {
-      this._automationCategoryLogged = true;
-      const withCat = automations.filter(a => a.category_id);
-      console.log("[AutoSnooze] After mapping - automations with category_id:", withCat.length);
-      if (withCat.length > 0) {
-        console.log("[AutoSnooze] First with category:", withCat[0]);
-      } else {
-        // Log raw registry entry to see actual structure
-        const firstAuto = automations[0];
-        if (firstAuto) {
-          const rawEntry = this._entityRegistry?.[firstAuto.id];
-          console.log("[AutoSnooze] Raw registry entry for", firstAuto.id, ":", JSON.stringify(rawEntry, null, 2));
-        }
-      }
-    }
-
-    return automations;
   }
 
   _getFilteredAutomations() {
@@ -1010,7 +932,6 @@ class AutomationPauseCard extends LitElement {
     const groups = {};
 
     automations.forEach((auto) => {
-      // Get category from entity registry (already fetched in _getAutomations)
       const categoryName = this._getCategoryName(auto.category_id);
       if (!groups[categoryName]) groups[categoryName] = [];
       groups[categoryName].push(auto);
@@ -1024,25 +945,11 @@ class AutomationPauseCard extends LitElement {
   _getCategoryCount() {
     const automations = this._getAutomations();
     const categories = new Set();
-    let withCategory = 0;
-    let withoutCategory = 0;
     automations.forEach((auto) => {
-      // Use category_id from entity registry (already fetched in _getAutomations)
       if (auto.category_id) {
         categories.add(auto.category_id);
-        withCategory++;
-      } else {
-        withoutCategory++;
       }
     });
-    // Debug log once
-    if (!this._categoryCountLogged) {
-      this._categoryCountLogged = true;
-      console.log("[AutoSnooze] Category count:", categories.size, "unique categories,", withCategory, "with category,", withoutCategory, "without");
-      if (categories.size > 0) {
-        console.log("[AutoSnooze] Categories found:", [...categories]);
-      }
-    }
     return categories.size;
   }
 
