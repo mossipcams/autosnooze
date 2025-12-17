@@ -212,12 +212,11 @@ async def _async_register_frontend(hass: HomeAssistant) -> None:
 
 
 async def _async_register_lovelace_resource(hass: HomeAssistant) -> None:
-    """Register the card as a Lovelace resource using the official service.
+    """Register the card as a Lovelace resource.
 
-    Uses the official lovelace.add_resource/remove_resource services instead
-    of internal APIs. Namespace matching pattern inspired by HACS.
+    Uses the lovelace resources API (same as HACS). Namespace matching
+    pattern ensures we only ever modify OUR resource, never others.
     """
-    # Check if resource already exists to avoid duplicates
     lovelace_data = hass.data.get("lovelace")
     if lovelace_data is None:
         return
@@ -244,21 +243,12 @@ async def _async_register_lovelace_resource(hass: HomeAssistant) -> None:
             break
 
     if existing_resource:
-        # Only update if version changed
+        # Only update if version changed - update ONLY our resource by ID
         if existing_resource.get("url") != CARD_URL_VERSIONED:
             try:
-                # Remove old resource and add new one with updated version
-                await hass.services.async_call(
-                    "lovelace",
-                    "remove_resource",
-                    {"resource_id": existing_resource["id"]},
-                    blocking=True,
-                )
-                await hass.services.async_call(
-                    "lovelace",
-                    "add_resource",
-                    {"url": CARD_URL_VERSIONED, "type": "module"},
-                    blocking=True,
+                await resources.async_update_item(
+                    existing_resource["id"],
+                    {"url": CARD_URL_VERSIONED, "res_type": "module"}
                 )
                 _LOGGER.info("Updated AutoSnooze card resource to v%s", VERSION)
             except Exception as err:
@@ -267,14 +257,12 @@ async def _async_register_lovelace_resource(hass: HomeAssistant) -> None:
             _LOGGER.debug("AutoSnooze card already registered with current version")
         return
 
-    # No existing resource found - create new one using official service
+    # No existing resource found - create new one
     try:
-        await hass.services.async_call(
-            "lovelace",
-            "add_resource",
-            {"url": CARD_URL_VERSIONED, "type": "module"},
-            blocking=True,
-        )
+        await resources.async_create_item({
+            "url": CARD_URL_VERSIONED,
+            "res_type": "module"
+        })
         _LOGGER.info("Registered AutoSnooze card as Lovelace resource (v%s)", VERSION)
     except Exception as err:
         _LOGGER.warning("Failed to register Lovelace resource: %s", err)
