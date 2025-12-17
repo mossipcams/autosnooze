@@ -203,21 +203,40 @@ class AutomationPauseCard extends LitElement {
 
       this._entityRegistry = entityMap;
       this._entityRegistryFetched = true;
-      console.log("[AutoSnooze] Entity registry fetched:", Object.keys(entityMap).length, "entities");
+
+      // Reset category count log flag so it logs again with real data
+      this._categoryCountLogged = false;
 
       // Debug: Check what category data looks like
       const automationEntities = Object.entries(entityMap).filter(([k]) => k.startsWith("automation."));
-      console.log("[AutoSnooze] Automation entities in registry:", automationEntities.length);
-      if (automationEntities.length > 0) {
-        const [id, entry] = automationEntities[0];
-        console.log("[AutoSnooze] Sample automation registry entry:", id, JSON.stringify(entry, null, 2));
-        console.log("[AutoSnooze] Entry keys:", Object.keys(entry));
-        if (entry.categories) {
-          console.log("[AutoSnooze] Categories object:", JSON.stringify(entry.categories));
-        } else {
-          console.log("[AutoSnooze] No 'categories' property on entry");
+      console.log("[AutoSnooze] Entity registry fetched:", Object.keys(entityMap).length, "entities,", automationEntities.length, "automations");
+
+      // Check for categories in automation entities
+      let automationsWithCategories = 0;
+      let sampleWithCategory = null;
+      automationEntities.forEach(([id, entry]) => {
+        if (entry.categories && Object.keys(entry.categories).length > 0) {
+          automationsWithCategories++;
+          if (!sampleWithCategory) sampleWithCategory = [id, entry];
         }
+      });
+
+      console.log("[AutoSnooze] Automations with categories:", automationsWithCategories, "out of", automationEntities.length);
+
+      if (sampleWithCategory) {
+        const [id, entry] = sampleWithCategory;
+        console.log("[AutoSnooze] Sample automation WITH category:", id);
+        console.log("[AutoSnooze] - categories:", JSON.stringify(entry.categories));
+        console.log("[AutoSnooze] - category_id for automation scope:", entry.categories?.automation || "NOT SET");
+      } else if (automationEntities.length > 0) {
+        const [id, entry] = automationEntities[0];
+        console.log("[AutoSnooze] Sample automation (no category):", id);
+        console.log("[AutoSnooze] - Entry keys:", Object.keys(entry));
+        console.log("[AutoSnooze] - categories property:", entry.categories ? JSON.stringify(entry.categories) : "undefined/missing");
       }
+
+      // Force re-render now that we have the data
+      this.requestUpdate();
     } catch (err) {
       console.warn("[AutoSnooze] Failed to fetch entity registry:", err);
     }
