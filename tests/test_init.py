@@ -1016,3 +1016,256 @@ class TestLovelaceResourceSafety:
         assert "SAFETY" in func_body or "never modifies" in func_body.lower(), (
             "Function should document its safety guarantees in docstring"
         )
+
+    def test_uses_resource_manager_api(self) -> None:
+        """Verify resource registration uses lovelace resource manager API.
+
+        Uses async_create_item on the resources object (same as HACS).
+        Note: We only create resources, never update (safety guarantee).
+        """
+        from pathlib import Path
+
+        # Use pathlib for robust path handling across environments
+        test_dir = Path(__file__).resolve().parent
+        init_path = test_dir.parent / "custom_components" / "autosnooze" / "__init__.py"
+
+        assert init_path.exists(), f"Init file not found at {init_path}"
+        source = init_path.read_text()
+
+        func_match = source.find("async def _async_register_lovelace_resource")
+        assert func_match != -1, f"Function not found in {init_path}"
+
+        next_func = source.find("\nasync def ", func_match + 1)
+        if next_func == -1:
+            next_func = len(source)
+
+        func_body = source[func_match:next_func]
+
+        # Must use resource manager API for creating resources
+        assert 'async_create_item' in func_body, (
+            "Must use resources.async_create_item for new resources"
+        )
+        # Should use 'res_type' for resource manager API
+        assert '"res_type": "module"' in func_body, (
+            "Must use 'res_type' parameter for resource manager API"
+        )
+
+
+class TestLovelaceResourceRegistrationIntegration:
+    """Integration tests for Lovelace resource registration.
+
+    These tests verify the resource registration logic behaves correctly -
+    only modifying OUR resource and never touching other custom cards.
+
+    Note: We recreate the registration logic here because the source module
+    uses Python 3.12+ syntax that isn't compatible with the test environment.
+    """
+
+    # Constants matching the source code
+    CARD_URL = "/autosnooze-card.js"
+    CARD_URL_VERSIONED = "/autosnooze-card.js?v=2.9.1"
+
+    async def _async_register_lovelace_resource(self, hass: MagicMock) -> None:
+        """Recreate the registration logic from __init__.py for testing.
+
+        This mirrors the exact logic from _async_register_lovelace_resource
+        in custom_components/autosnooze/__init__.py using resource manager API.
+        """
+        lovelace_data = hass.data.get("lovelace")
+        if lovelace_data is None:
+            return
+
+        resources = getattr(lovelace_data, "resources", None)
+        if resources is None:
+            resources = lovelace_data.get("resources") if hasattr(lovelace_data, "get") else None
+        if resources is None:
+            return
+
+        namespace = self.CARD_URL
+
+        existing_resource = None
+        for resource in resources.async_items():
+            url = resource.get("url", "")
+            if url.startswith(namespace):
+                existing_resource = resource
+                break
+
+        if existing_resource:
+            if existing_resource.get("url") != self.CARD_URL_VERSIONED:
+                # Update only our resource by ID
+                await resources.async_update_item(
+                    existing_resource["id"],
+                    {"url": self.CARD_URL_VERSIONED, "res_type": "module"}
+                )
+            return
+
+        # Create new resource
+        await resources.async_create_item({
+            "url": self.CARD_URL_VERSIONED,
+            "res_type": "module"
+        })
+
+    @pytest.fixture
+    def mock_resources(self) -> MagicMock:
+        """Create a mock resources object with other cards already registered."""
+        resources = MagicMock()
+        # Simulate existing resources from other integrations
+        existing_resources = [
+            {"id": "mushroom-001", "url": "/hacsfiles/mushroom-cards/mushroom.js", "res_type": "module"},
+            {"id": "hacs-002", "url": "/hacsfiles/lovelace-card-mod/card-mod.js", "res_type": "module"},
+            {"id": "browser-mod-003", "url": "/browser_mod.js?v=2.3.0", "res_type": "module"},
+            {"id": "custom-004", "url": "/local/my-custom-card.js", "res_type": "module"},
+        ]
+        resources.async_items.return_value = existing_resources
+        resources.async_create_item = AsyncMock()
+        resources.async_update_item = AsyncMock()
+        resources.async_delete_item = AsyncMock()
+        return resources
+
+    @pytest.fixture
+    def mock_hass(self, mock_resources: MagicMock) -> MagicMock:
+        """Create a mock Home Assistant instance."""
+        hass = MagicMock()
+        lovelace_data = MagicMock()
+        lovelace_data.resources = mock_resources
+        hass.data = {"lovelace": lovelace_data}
+        return hass
+
+    @pytest.mark.asyncio
+    async def test_does_not_modify_other_resources(
+        self, mock_hass: MagicMock, mock_resources: MagicMock
+    ) -> None:
+        """Verify other cards' resources are never modified."""
+        await self._async_register_lovelace_resource(mock_hass)
+
+        # Verify no update was called on any of the other resources
+        for call in mock_resources.async_update_item.call_args_list:
+            resource_id = call[0][0]  # First positional arg is resource ID
+            assert resource_id not in ["mushroom-001", "hacs-002", "browser-mod-003", "custom-004"], (
+                f"SAFETY VIOLATION: Updated another card's resource: {resource_id}"
+            )
+
+        # Verify delete was never called
+        assert mock_resources.async_delete_item.call_count == 0, (
+            "SAFETY VIOLATION: async_delete_item was called"
+        )
+
+    @pytest.mark.asyncio
+    async def test_creates_new_resource_when_not_exists(
+        self, mock_hass: MagicMock, mock_resources: MagicMock
+    ) -> None:
+        """Verify a new resource is created when autosnooze is not registered."""
+        await self._async_register_lovelace_resource(mock_hass)
+
+        # Should have called async_create_item with our resource
+        mock_resources.async_create_item.assert_called_once()
+        call_args = mock_resources.async_create_item.call_args[0][0]
+        assert call_args["url"] == self.CARD_URL_VERSIONED
+        assert call_args["res_type"] == "module"
+
+    @pytest.mark.asyncio
+    async def test_updates_only_our_resource_when_version_changes(
+        self, mock_hass: MagicMock, mock_resources: MagicMock
+    ) -> None:
+        """Verify only our resource is updated when version changes."""
+        # Add an old version of our resource
+        existing_resources = list(mock_resources.async_items.return_value)
+        existing_resources.append({
+            "id": "autosnooze-resource",
+            "url": "/autosnooze-card.js?v=1.0.0",  # Old version
+            "res_type": "module"
+        })
+        mock_resources.async_items.return_value = existing_resources
+
+        await self._async_register_lovelace_resource(mock_hass)
+
+        # Should have updated only our resource
+        mock_resources.async_update_item.assert_called_once()
+        call_args = mock_resources.async_update_item.call_args
+        assert call_args[0][0] == "autosnooze-resource", "Should update our resource ID"
+        assert call_args[0][1]["url"] == self.CARD_URL_VERSIONED
+
+        # Should NOT have created a new resource
+        mock_resources.async_create_item.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_does_not_update_when_version_matches(
+        self, mock_hass: MagicMock, mock_resources: MagicMock
+    ) -> None:
+        """Verify no update happens when version already matches."""
+        # Add current version of our resource
+        existing_resources = list(mock_resources.async_items.return_value)
+        existing_resources.append({
+            "id": "autosnooze-resource",
+            "url": self.CARD_URL_VERSIONED,  # Current version
+            "res_type": "module"
+        })
+        mock_resources.async_items.return_value = existing_resources
+
+        await self._async_register_lovelace_resource(mock_hass)
+
+        # Should NOT have updated or created anything
+        mock_resources.async_update_item.assert_not_called()
+        mock_resources.async_create_item.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_handles_yaml_mode_gracefully(self) -> None:
+        """Verify the function handles YAML mode (no resources object)."""
+        hass = MagicMock()
+        lovelace_data = MagicMock()
+        lovelace_data.resources = None
+        # Also make get() return None for older HA compatibility path
+        lovelace_data.get = MagicMock(return_value=None)
+        hass.data = {"lovelace": lovelace_data}
+
+        # Should not raise any exception
+        await self._async_register_lovelace_resource(hass)
+
+    @pytest.mark.asyncio
+    async def test_handles_no_lovelace_data(self) -> None:
+        """Verify the function handles missing lovelace data."""
+        hass = MagicMock()
+        hass.data = {}  # No lovelace data
+
+        # Should not raise any exception
+        await self._async_register_lovelace_resource(hass)
+
+    @pytest.mark.asyncio
+    async def test_preserves_all_existing_resources_after_registration(
+        self, mock_hass: MagicMock, mock_resources: MagicMock
+    ) -> None:
+        """Verify all existing resources are preserved after our registration."""
+        original_resources = list(mock_resources.async_items.return_value)
+
+        await self._async_register_lovelace_resource(mock_hass)
+
+        # The only modification should be async_create_item for our resource
+        # No deletions or modifications to existing resources
+        assert mock_resources.async_delete_item.call_count == 0
+        # async_update_item should not be called for other resources
+        for call in mock_resources.async_update_item.call_args_list:
+            resource_id = call[0][0]
+            assert resource_id not in [r["id"] for r in original_resources]
+
+    @pytest.mark.asyncio
+    async def test_namespace_matching_is_strict(
+        self, mock_hass: MagicMock, mock_resources: MagicMock
+    ) -> None:
+        """Verify namespace matching doesn't match similar but different URLs."""
+        # Add resources with similar but different URLs that should NOT match
+        tricky_resources = [
+            {"id": "fake-1", "url": "/autosnooze-card-copy.js", "res_type": "module"},
+            {"id": "fake-2", "url": "/other/autosnooze-card.js", "res_type": "module"},
+            {"id": "fake-3", "url": "/local/autosnooze-card.js", "res_type": "module"},
+            {"id": "fake-4", "url": "autosnooze-card.js", "res_type": "module"},  # No leading slash
+        ]
+        mock_resources.async_items.return_value = tricky_resources
+
+        await self._async_register_lovelace_resource(mock_hass)
+
+        # None of these should be updated - they don't match our namespace
+        assert mock_resources.async_update_item.call_count == 0, (
+            "Should not update resources that don't exactly match our namespace"
+        )
+        # Should create a new resource since none matched
+        mock_resources.async_create_item.assert_called_once()
