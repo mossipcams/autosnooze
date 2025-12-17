@@ -190,23 +190,36 @@ class AutomationPauseCard extends LitElement {
     if (this._entityRegistryFetched || !this.hass?.connection) return;
 
     try {
+      // Step 1: Get basic list to identify all entities
       const entities = await this.hass.connection.sendMessagePromise({
         type: "config/entity_registry/list",
       });
 
+      // Step 2: Filter to automation entities only
+      const automationEntities = Array.isArray(entities)
+        ? entities.filter((e) => e.entity_id.startsWith("automation."))
+        : [];
+
+      // Step 3: Fetch EXTENDED entry for each automation (includes categories)
+      // The basic list endpoint doesn't include categories for performance reasons
+      const extendedEntries = await Promise.all(
+        automationEntities.map((entity) =>
+          this.hass.connection.sendMessagePromise({
+            type: "config/entity_registry/get",
+            entity_id: entity.entity_id,
+          })
+        )
+      );
+
+      // Step 4: Build map from extended entries
       const entityMap = {};
-      if (Array.isArray(entities)) {
-        entities.forEach((entity) => {
-          // Only store automation entities
-          if (entity.entity_id?.startsWith("automation.")) {
-            entityMap[entity.entity_id] = entity;
-          }
-        });
-      }
+      extendedEntries.forEach((entity) => {
+        entityMap[entity.entity_id] = entity;
+      });
 
       this._entityRegistry = entityMap;
       this._entityRegistryFetched = true;
-      console.log("[AutoSnooze] Entity registry fetched:", Object.keys(entityMap).length, "automations");
+      console.log("[AutoSnooze] Entity registry fetched:", Object.keys(entityMap).length, "automation entities with categories");
     } catch (err) {
       console.warn("[AutoSnooze] Failed to fetch entity registry:", err);
     }
@@ -782,10 +795,11 @@ class AutomationPauseCard extends LitElement {
       console.log("[AutoSnooze] hass.entities available:", !!this.hass.entities, "count:", this.hass.entities ? Object.keys(this.hass.entities).length : 0);
       console.log("[AutoSnooze] hass.areas available:", !!this.hass.areas, "count:", this.hass.areas ? Object.keys(this.hass.areas).length : 0);
       console.log("[AutoSnooze] Label registry (fetched separately):", Object.keys(this._labelRegistry).length, "labels");
-      if (this.hass.entities) {
-        const sampleEntity = Object.keys(this.hass.entities).find(k => k.startsWith("automation."));
+      console.log("[AutoSnooze] Entity registry (fetched separately):", Object.keys(this._entityRegistry).length, "entities");
+      if (this._entityRegistry) {
+        const sampleEntity = Object.keys(this._entityRegistry).find(k => k.startsWith("automation."));
         if (sampleEntity) {
-          console.log("[AutoSnooze] Sample automation entity:", sampleEntity, this.hass.entities[sampleEntity]);
+          console.log("[AutoSnooze] Sample entity registry entry:", sampleEntity, this._entityRegistry[sampleEntity]);
         }
       }
       if (this.hass.areas && Object.keys(this.hass.areas).length > 0) {
@@ -797,17 +811,20 @@ class AutomationPauseCard extends LitElement {
       .filter((id) => id.startsWith("automation."))
       .map((id) => {
         const state = this.hass.states[id];
-        const entityEntry = this.hass.entities?.[id];
-        // Get category from entity registry (fetched via WebSocket, has full category data)
-        const registryEntry = this._entityRegistry[id];
+        // Use fetched entity registry for full entity data including categories
+        const registryEntry = this._entityRegistry?.[id];
+        // Fallback to hass.entities for basic info (area_id, labels)
+        const hassEntry = this.hass.entities?.[id];
+        // Get category from entity registry (categories object with scope keys)
+        // The entity registry from WebSocket includes categories: { automation: "category_id" }
         const categories = registryEntry?.categories || {};
         const category_id = categories.automation || null;
         return {
           id,
           name: state.attributes.friendly_name || id.replace("automation.", ""),
-          area_id: entityEntry?.area_id || null,
+          area_id: registryEntry?.area_id || hassEntry?.area_id || null,
           category_id,
-          labels: entityEntry?.labels || [],
+          labels: registryEntry?.labels || hassEntry?.labels || [],
         };
       })
       .sort((a, b) => a.name.localeCompare(b.name));
@@ -926,7 +943,6 @@ class AutomationPauseCard extends LitElement {
     const groups = {};
 
     automations.forEach((auto) => {
-      // Get category from entity registry (already fetched in _getAutomations)
       const categoryName = this._getCategoryName(auto.category_id);
       if (!groups[categoryName]) groups[categoryName] = [];
       groups[categoryName].push(auto);
@@ -941,7 +957,6 @@ class AutomationPauseCard extends LitElement {
     const automations = this._getAutomations();
     const categories = new Set();
     automations.forEach((auto) => {
-      // Use category_id from entity registry (already fetched in _getAutomations)
       if (auto.category_id) {
         categories.add(auto.category_id);
       }
