@@ -1306,10 +1306,10 @@ class AutomationPauseCard extends LitElement {
         </div>
         ${expanded
           ? items.map((a) => {
-              // Areas tab: no metadata (area is the group header, no labels per requirements)
-              // Categories tab: show area as complementary info
+              // Areas tab: no metadata (area is the group header)
+              // Categories tab: no metadata (category is the group header)
               // Labels tab: show area as complementary info
-              const showArea = (this._filterTab === "labels" || this._filterTab === "categories") && a.area_id;
+              const showArea = this._filterTab === "labels" && a.area_id;
               const metaInfo = showArea ? this._getAreaName(a.area_id) : null;
 
               return html`
