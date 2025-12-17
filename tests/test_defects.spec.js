@@ -236,3 +236,115 @@ describe('All Defects Fixed - Summary', () => {
     expect(checksCustomState).toBe(true);
   });
 });
+
+// ============================================================================
+// DEFECT 4: Categories show 0 because entity registry is not fetched
+// Root cause: this.hass.entities does NOT contain category data.
+// The code needs to fetch the entity registry via WebSocket to get category
+// assignments for automations.
+// ============================================================================
+describe('Defect #4: Entity Registry Must Be Fetched for Category Data', () => {
+
+  describe('Entity registry property and initialization', () => {
+    test('Should have _entityRegistry in static properties', () => {
+      // Like _categoryRegistry and _labelRegistry, we need _entityRegistry
+      const hasEntityRegistryProperty = sourceCode.includes('_entityRegistry:') &&
+                                         sourceCode.includes('{ state: true }');
+
+      expect(hasEntityRegistryProperty).toBe(true);
+    });
+
+    test('Should initialize _entityRegistry in constructor', () => {
+      // Constructor should initialize this._entityRegistry = {}
+      // Note: There are multiple constructors in the file (card + editor)
+      // We check for the initialization pattern directly
+      const initializesEntityRegistry = sourceCode.includes('this._entityRegistry = {}');
+
+      expect(initializesEntityRegistry).toBe(true);
+    });
+
+    test('Should have _entityRegistryFetched flag', () => {
+      // Like _labelsFetched and _categoriesFetched, need a flag
+      const hasFetchedFlag = sourceCode.includes('_entityRegistryFetched');
+
+      expect(hasFetchedFlag).toBe(true);
+    });
+  });
+
+  describe('Entity registry fetch method', () => {
+    test('Should have _fetchEntityRegistry method', () => {
+      // Need a method to fetch entity registry via WebSocket
+      const hasFetchMethod = sourceCode.includes('_fetchEntityRegistry') ||
+                              sourceCode.includes('async _fetchEntityRegistry');
+
+      expect(hasFetchMethod).toBe(true);
+    });
+
+    test('_fetchEntityRegistry should call config/entity_registry/list', () => {
+      // The method should fetch from the entity registry endpoint
+      const fetchesEntityRegistry = sourceCode.includes('config/entity_registry/list') ||
+                                     sourceCode.includes('entity_registry/list');
+
+      expect(fetchesEntityRegistry).toBe(true);
+    });
+
+    test('_fetchEntityRegistry should be called in connectedCallback or updated', () => {
+      // Should be called when component connects, like label/category registry
+      const connectedMatch = sourceCode.match(/connectedCallback\(\)\s*\{([\s\S]*?)\n  \}/);
+      const connectedBody = connectedMatch ? connectedMatch[1] : '';
+
+      const updatedMatch = sourceCode.match(/updated\(changedProps\)\s*\{([\s\S]*?)\n  \}/);
+      const updatedBody = updatedMatch ? updatedMatch[1] : '';
+
+      const isCalled = connectedBody.includes('_fetchEntityRegistry') ||
+                       updatedBody.includes('_fetchEntityRegistry');
+
+      expect(isCalled).toBe(true);
+    });
+  });
+
+  describe('Category data source in _getAutomations', () => {
+    test('_getAutomations should use _entityRegistry, not this.hass.entities', () => {
+      // Extract the _getAutomations method
+      const methodMatch = sourceCode.match(/_getAutomations\(\)\s*\{([\s\S]*?)\n  \}/);
+      const methodBody = methodMatch ? methodMatch[1] : '';
+
+      // Should use this._entityRegistry for category lookup
+      const usesEntityRegistry = methodBody.includes('this._entityRegistry') ||
+                                  methodBody.includes('_entityRegistry[');
+
+      // Should NOT rely solely on this.hass.entities for categories
+      // (this.hass.entities doesn't include category data)
+      expect(usesEntityRegistry).toBe(true);
+    });
+
+    test('Category should come from entity registry categories object', () => {
+      // The entity registry returns categories as: { automation: "category_id" }
+      // This pattern should exist in how we extract category_id
+      const methodMatch = sourceCode.match(/_getAutomations\(\)\s*\{([\s\S]*?)\n  \}/);
+      const methodBody = methodMatch ? methodMatch[1] : '';
+
+      // Should extract from a proper entity registry source
+      const extractsFromRegistry = methodBody.includes('_entityRegistry') &&
+                                    methodBody.includes('categories');
+
+      expect(extractsFromRegistry).toBe(true);
+    });
+  });
+
+  describe('Why this.hass.entities fails for categories', () => {
+    test('DOCUMENTATION: this.hass.entities is a lightweight cache without categories', () => {
+      // this.hass.entities includes: entity_id, area_id, device_id, labels, platform
+      // It does NOT include: categories (which requires extended entity registry)
+      //
+      // Labels work because this.hass.entities DOES include labels array
+      // Categories fail because this.hass.entities does NOT include categories object
+      //
+      // The fix requires fetching config/entity_registry/list which returns
+      // full entity data including the categories object.
+
+      // This test documents the issue - the actual fix is tested above
+      expect(true).toBe(true);
+    });
+  });
+});

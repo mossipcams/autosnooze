@@ -101,6 +101,7 @@ class AutomationPauseCard extends LitElement {
     _resumeAt: { state: true },
     _labelRegistry: { state: true },
     _categoryRegistry: { state: true },
+    _entityRegistry: { state: true },
     _showCustomInput: { state: true },
   };
 
@@ -121,10 +122,12 @@ class AutomationPauseCard extends LitElement {
     this._resumeAt = "";
     this._labelRegistry = {};
     this._categoryRegistry = {};
+    this._entityRegistry = {};
     this._showCustomInput = false;
     this._interval = null;
     this._labelsFetched = false;
     this._categoriesFetched = false;
+    this._entityRegistryFetched = false;
     this._debugLogged = false;
   }
 
@@ -133,6 +136,7 @@ class AutomationPauseCard extends LitElement {
     this._interval = window.setInterval(() => this.requestUpdate(), 1000);
     this._fetchLabelRegistry();
     this._fetchCategoryRegistry();
+    this._fetchEntityRegistry();
   }
 
   async _fetchLabelRegistry() {
@@ -182,6 +186,32 @@ class AutomationPauseCard extends LitElement {
     }
   }
 
+  async _fetchEntityRegistry() {
+    if (this._entityRegistryFetched || !this.hass?.connection) return;
+
+    try {
+      const entities = await this.hass.connection.sendMessagePromise({
+        type: "config/entity_registry/list",
+      });
+
+      const entityMap = {};
+      if (Array.isArray(entities)) {
+        entities.forEach((entity) => {
+          // Only store automation entities
+          if (entity.entity_id?.startsWith("automation.")) {
+            entityMap[entity.entity_id] = entity;
+          }
+        });
+      }
+
+      this._entityRegistry = entityMap;
+      this._entityRegistryFetched = true;
+      console.log("[AutoSnooze] Entity registry fetched:", Object.keys(entityMap).length, "automations");
+    } catch (err) {
+      console.warn("[AutoSnooze] Failed to fetch entity registry:", err);
+    }
+  }
+
   updated(changedProps) {
     super.updated(changedProps);
     if (changedProps.has("hass") && this.hass?.connection) {
@@ -190,6 +220,9 @@ class AutomationPauseCard extends LitElement {
       }
       if (!this._categoriesFetched) {
         this._fetchCategoryRegistry();
+      }
+      if (!this._entityRegistryFetched) {
+        this._fetchEntityRegistry();
       }
     }
   }
@@ -765,8 +798,9 @@ class AutomationPauseCard extends LitElement {
       .map((id) => {
         const state = this.hass.states[id];
         const entityEntry = this.hass.entities?.[id];
-        // Get category from entity registry (categories object with scope keys)
-        const categories = entityEntry?.categories || {};
+        // Get category from entity registry (fetched via WebSocket, has full category data)
+        const registryEntry = this._entityRegistry[id];
+        const categories = registryEntry?.categories || {};
         const category_id = categories.automation || null;
         return {
           id,
