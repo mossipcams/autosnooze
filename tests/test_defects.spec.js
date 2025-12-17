@@ -84,15 +84,16 @@ describe('Defect #2: Categories Should Pull from HA Entity Registry', () => {
     });
 
     test('_getAutomations should fetch category from entity registry', () => {
-      // Like how area_id is fetched from entityEntry, category should be too
+      // Category should be fetched from entity registry (via _entityRegistry)
       const methodMatch = sourceCode.match(/_getAutomations\(\)\s*\{([\s\S]*?)\n  \}/);
       const methodBody = methodMatch ? methodMatch[1] : '';
 
-      // Should include category_id in the returned object from entityEntry
-      const hasCategoryFromEntityEntry = methodBody.includes('category') &&
-                                          methodBody.includes('entityEntry');
+      // Should include category_id from registry entry (fetched via WebSocket)
+      const hasCategoryFromRegistry = methodBody.includes('category') &&
+                                       (methodBody.includes('registryEntry') ||
+                                        methodBody.includes('_entityRegistry'));
 
-      expect(hasCategoryFromEntityEntry).toBe(true);
+      expect(hasCategoryFromRegistry).toBe(true);
     });
 
     test('Category should be stored in automation objects like area_id', () => {

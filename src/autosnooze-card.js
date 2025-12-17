@@ -101,6 +101,7 @@ class AutomationPauseCard extends LitElement {
     _resumeAt: { state: true },
     _labelRegistry: { state: true },
     _categoryRegistry: { state: true },
+    _entityRegistry: { state: true },
     _showCustomInput: { state: true },
   };
 
@@ -121,10 +122,12 @@ class AutomationPauseCard extends LitElement {
     this._resumeAt = "";
     this._labelRegistry = {};
     this._categoryRegistry = {};
+    this._entityRegistry = {};
     this._showCustomInput = false;
     this._interval = null;
     this._labelsFetched = false;
     this._categoriesFetched = false;
+    this._entityRegistryFetched = false;
     this._debugLogged = false;
   }
 
@@ -133,6 +136,7 @@ class AutomationPauseCard extends LitElement {
     this._interval = window.setInterval(() => this.requestUpdate(), 1000);
     this._fetchLabelRegistry();
     this._fetchCategoryRegistry();
+    this._fetchEntityRegistry();
   }
 
   async _fetchLabelRegistry() {
@@ -182,6 +186,29 @@ class AutomationPauseCard extends LitElement {
     }
   }
 
+  async _fetchEntityRegistry() {
+    if (this._entityRegistryFetched || !this.hass?.connection) return;
+
+    try {
+      const entities = await this.hass.connection.sendMessagePromise({
+        type: "config/entity_registry/list",
+      });
+
+      const entityMap = {};
+      if (Array.isArray(entities)) {
+        entities.forEach((entity) => {
+          entityMap[entity.entity_id] = entity;
+        });
+      }
+
+      this._entityRegistry = entityMap;
+      this._entityRegistryFetched = true;
+      console.log("[AutoSnooze] Entity registry fetched:", Object.keys(entityMap).length, "entities");
+    } catch (err) {
+      console.warn("[AutoSnooze] Failed to fetch entity registry:", err);
+    }
+  }
+
   updated(changedProps) {
     super.updated(changedProps);
     if (changedProps.has("hass") && this.hass?.connection) {
@@ -190,6 +217,9 @@ class AutomationPauseCard extends LitElement {
       }
       if (!this._categoriesFetched) {
         this._fetchCategoryRegistry();
+      }
+      if (!this._entityRegistryFetched) {
+        this._fetchEntityRegistry();
       }
     }
   }
@@ -749,10 +779,11 @@ class AutomationPauseCard extends LitElement {
       console.log("[AutoSnooze] hass.entities available:", !!this.hass.entities, "count:", this.hass.entities ? Object.keys(this.hass.entities).length : 0);
       console.log("[AutoSnooze] hass.areas available:", !!this.hass.areas, "count:", this.hass.areas ? Object.keys(this.hass.areas).length : 0);
       console.log("[AutoSnooze] Label registry (fetched separately):", Object.keys(this._labelRegistry).length, "labels");
-      if (this.hass.entities) {
-        const sampleEntity = Object.keys(this.hass.entities).find(k => k.startsWith("automation."));
+      console.log("[AutoSnooze] Entity registry (fetched separately):", Object.keys(this._entityRegistry).length, "entities");
+      if (this._entityRegistry) {
+        const sampleEntity = Object.keys(this._entityRegistry).find(k => k.startsWith("automation."));
         if (sampleEntity) {
-          console.log("[AutoSnooze] Sample automation entity:", sampleEntity, this.hass.entities[sampleEntity]);
+          console.log("[AutoSnooze] Sample entity registry entry:", sampleEntity, this._entityRegistry[sampleEntity]);
         }
       }
       if (this.hass.areas && Object.keys(this.hass.areas).length > 0) {
@@ -764,16 +795,20 @@ class AutomationPauseCard extends LitElement {
       .filter((id) => id.startsWith("automation."))
       .map((id) => {
         const state = this.hass.states[id];
-        const entityEntry = this.hass.entities?.[id];
+        // Use fetched entity registry for full entity data including categories
+        const registryEntry = this._entityRegistry?.[id];
+        // Fallback to hass.entities for basic info (area_id, labels)
+        const hassEntry = this.hass.entities?.[id];
         // Get category from entity registry (categories object with scope keys)
-        const categories = entityEntry?.categories || {};
+        // The entity registry from WebSocket includes categories: { automation: "category_id" }
+        const categories = registryEntry?.categories || {};
         const category_id = categories.automation || null;
         return {
           id,
           name: state.attributes.friendly_name || id.replace("automation.", ""),
-          area_id: entityEntry?.area_id || null,
+          area_id: registryEntry?.area_id || hassEntry?.area_id || null,
           category_id,
-          labels: entityEntry?.labels || [],
+          labels: registryEntry?.labels || hassEntry?.labels || [],
         };
       })
       .sort((a, b) => a.name.localeCompare(b.name));
