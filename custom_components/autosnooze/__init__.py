@@ -212,7 +212,12 @@ async def _async_register_frontend(hass: HomeAssistant) -> None:
 
 
 async def _async_register_lovelace_resource(hass: HomeAssistant) -> None:
-    """Register the card as a Lovelace resource."""
+    """Register the card as a Lovelace resource.
+
+    SAFETY: This function only CREATES a new resource if none exists.
+    It never modifies or deletes existing resources to avoid conflicts
+    with HACS or other resource managers.
+    """
     lovelace_data = hass.data.get("lovelace")
     if lovelace_data is None:
         return
@@ -223,31 +228,17 @@ async def _async_register_lovelace_resource(hass: HomeAssistant) -> None:
         _LOGGER.debug("Lovelace resources not available (YAML mode?)")
         return
 
-    # Check if already registered (any format: query param, path-based, or base URL)
-    existing_resource = None
+    # Check if ANY autosnooze resource already exists - if so, don't touch it
     for resource in resources.async_items():
         url = resource.get("url", "")
-        # Match any autosnooze card URL (handles both old path-based and new query-param formats)
-        if f"/{DOMAIN}/autosnooze-card" in url:
-            existing_resource = resource
-            break
+        if "autosnooze-card" in url:
+            _LOGGER.debug(
+                "AutoSnooze card resource already exists: %s (not modifying)",
+                url
+            )
+            return
 
-    if existing_resource:
-        # Update existing resource if URL changed (new version)
-        if existing_resource.get("url") != CARD_URL_VERSIONED:
-            try:
-                await resources.async_update_item(
-                    existing_resource["id"],
-                    {"url": CARD_URL_VERSIONED, "res_type": "module"}
-                )
-                _LOGGER.info("Updated AutoSnooze card resource to v%s", VERSION)
-            except Exception as err:
-                _LOGGER.warning("Failed to update Lovelace resource: %s", err)
-        else:
-            _LOGGER.debug("AutoSnooze card already registered with current version")
-        return
-
-    # Add new resource
+    # No existing resource found - create one
     try:
         await resources.async_create_item({
             "url": CARD_URL_VERSIONED,
