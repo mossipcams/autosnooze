@@ -927,7 +927,6 @@ class AutomationPauseCard extends LitElement {
     const groups = {};
 
     automations.forEach((auto) => {
-      // Get category from entity registry (already fetched in _getAutomations)
       const categoryName = this._getCategoryName(auto.category_id);
       if (!groups[categoryName]) groups[categoryName] = [];
       groups[categoryName].push(auto);
@@ -942,7 +941,6 @@ class AutomationPauseCard extends LitElement {
     const automations = this._getAutomations();
     const categories = new Set();
     automations.forEach((auto) => {
-      // Use category_id from entity registry (already fetched in _getAutomations)
       if (auto.category_id) {
         categories.add(auto.category_id);
       }
