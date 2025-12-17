@@ -183,8 +183,18 @@ async def async_setup_entry(
     data = AutomationPauseData(store=store)
     entry.runtime_data = data
 
-    # Register frontend card
+    # Register frontend card (defer lovelace resource to ensure it's fully loaded)
     await _async_register_frontend(hass)
+
+    # Defer lovelace resource registration until Home Assistant is fully started
+    # This ensures the lovelace storage is fully loaded before we try to add to it
+    if hass.is_running:
+        await _async_register_lovelace_resource(hass)
+    else:
+        async def _register_when_started(_event: Any) -> None:
+            await _async_register_lovelace_resource(hass)
+
+        hass.bus.async_listen_once("homeassistant_started", _register_when_started)
 
     # FR-07: Persistence - Load stored data on restart
     await _async_load_stored(hass, data)
@@ -197,7 +207,7 @@ async def async_setup_entry(
 
 
 async def _async_register_frontend(hass: HomeAssistant) -> None:
-    """Register the frontend card."""
+    """Register the frontend card static path."""
     # Register static path to serve the JS file (skip if already registered on reload)
     try:
         await hass.http.async_register_static_paths([
@@ -206,9 +216,8 @@ async def _async_register_frontend(hass: HomeAssistant) -> None:
     except RuntimeError:
         # Path already registered (happens on integration reload)
         pass
-
-    # Register as Lovelace resource
-    await _async_register_lovelace_resource(hass)
+    # Note: Lovelace resource registration is handled separately in async_setup_entry
+    # to ensure it runs after Home Assistant is fully started
 
 
 async def _async_register_lovelace_resource(hass: HomeAssistant) -> None:
@@ -220,6 +229,7 @@ async def _async_register_lovelace_resource(hass: HomeAssistant) -> None:
     """
     lovelace_data = hass.data.get("lovelace")
     if lovelace_data is None:
+        _LOGGER.debug("No lovelace data found in hass.data")
         return
 
     # Use attribute access (not .get()) per HA 2026.2 deprecation warning
@@ -240,6 +250,7 @@ async def _async_register_lovelace_resource(hass: HomeAssistant) -> None:
 
     # No existing resource found - create one
     try:
+        _LOGGER.debug("Creating new resource: %s", CARD_URL_VERSIONED)
         await resources.async_create_item({
             "url": CARD_URL_VERSIONED,
             "res_type": "module"
