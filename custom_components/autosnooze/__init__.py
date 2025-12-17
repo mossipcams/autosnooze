@@ -214,31 +214,52 @@ async def _async_register_frontend(hass: HomeAssistant) -> None:
 async def _async_register_lovelace_resource(hass: HomeAssistant) -> None:
     """Register the card as a Lovelace resource.
 
-    SAFETY: This function only CREATES a new resource if none exists.
-    It never modifies or deletes existing resources to avoid conflicts
-    with HACS or other resource managers.
+    Following HACS pattern: use namespace prefix to identify OUR resources only.
+    See: https://github.com/hacs/integration/pull/4402
     """
     lovelace_data = hass.data.get("lovelace")
     if lovelace_data is None:
         return
 
-    # Use attribute access (not .get()) per HA 2026.2 deprecation warning
+    # Version-aware resource access (HA 2025.2.0+ uses attribute, older uses dict)
+    # See: https://github.com/hacs/integration/pull/4402
     resources = getattr(lovelace_data, "resources", None)
+    if resources is None:
+        # Fallback for older HA versions
+        resources = lovelace_data.get("resources") if hasattr(lovelace_data, "get") else None
     if resources is None:
         _LOGGER.debug("Lovelace resources not available (YAML mode?)")
         return
 
-    # Check if ANY autosnooze resource already exists - if so, don't touch it
+    # Namespace: our base URL without query params (like HACS does)
+    # This ensures we ONLY match and modify OUR resource, never others
+    namespace = CARD_URL  # "/autosnooze-card.js"
+
+    # Find existing autosnooze resource by checking if URL starts with our namespace
+    existing_resource = None
     for resource in resources.async_items():
         url = resource.get("url", "")
-        if "autosnooze-card" in url:
-            _LOGGER.debug(
-                "AutoSnooze card resource already exists: %s (not modifying)",
-                url
-            )
-            return
+        # Match: /autosnooze-card.js or /autosnooze-card.js?v=X.X.X
+        if url.startswith(namespace):
+            existing_resource = resource
+            break
 
-    # No existing resource found - create one
+    if existing_resource:
+        # Only update if version changed - and only update OUR resource
+        if existing_resource.get("url") != CARD_URL_VERSIONED:
+            try:
+                await resources.async_update_item(
+                    existing_resource["id"],
+                    {"url": CARD_URL_VERSIONED, "res_type": "module"}
+                )
+                _LOGGER.info("Updated AutoSnooze card resource to v%s", VERSION)
+            except Exception as err:
+                _LOGGER.warning("Failed to update Lovelace resource: %s", err)
+        else:
+            _LOGGER.debug("AutoSnooze card already registered with current version")
+        return
+
+    # No existing resource found - create new one
     try:
         await resources.async_create_item({
             "url": CARD_URL_VERSIONED,
