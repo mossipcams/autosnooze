@@ -1,7 +1,7 @@
 import { LitElement, html, css } from "lit";
 
-// Version 2.9.2 - Fix: Card loading in YAML-mode dashboards via add_extra_js_url
-const CARD_VERSION = "2.9.2";
+// Version 2.9.3 - Fix: Sync version across all files for proper auto-bump
+const CARD_VERSION = "2.9.3";
 
 // ============================================================================
 // CARD EDITOR
