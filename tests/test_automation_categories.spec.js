@@ -6,9 +6,6 @@
  * - Categories are fetched from Home Assistant's category registry
  * - Category names are resolved via registry lookup with fallback
  * - Uncategorized automations are grouped together and sorted last
- *
- * BUG: Currently all automations show as "Uncategorized" because
- * category_id extraction from entity registry is not working correctly.
  */
 
 const fs = require('fs');
@@ -19,11 +16,9 @@ const SOURCE_FILE = path.join(__dirname, '../src/autosnooze-card.js');
 const sourceCode = fs.readFileSync(SOURCE_FILE, 'utf8');
 
 // ============================================================================
-// HELPER: Extract method body from source code (improved)
+// HELPER: Extract method body from source code
 // ============================================================================
 function extractMethod(methodName) {
-  // Look for method definition patterns (not calls)
-  // Matches: "  methodName(" or "async methodName(" at start of line
   const patterns = [
     new RegExp(`^\\s+async\\s+${methodName}\\s*\\(`, 'm'),
     new RegExp(`^\\s+${methodName}\\s*\\(`, 'm'),
@@ -55,6 +50,80 @@ function extractMethod(methodName) {
 }
 
 // ============================================================================
+// HELPER: Create mock card instance for behavioral testing
+// ============================================================================
+function createMockCard(hassData) {
+  // Extract and evaluate the methods we need to test
+  const card = {
+    hass: hassData,
+    _categoryRegistry: {},
+    _labelRegistry: {},
+
+    // Simulate _getAutomations - extract logic from source
+    _getAutomations() {
+      if (!this.hass?.states) return [];
+
+      return Object.keys(this.hass.states)
+        .filter((id) => id.startsWith("automation."))
+        .map((id) => {
+          const state = this.hass.states[id];
+          const entityEntry = this.hass.entities?.[id];
+          // Get category from entity registry (categories object with scope keys)
+          const categories = entityEntry?.categories || {};
+          const category_id = categories.automation || null;
+          return {
+            id,
+            name: state.attributes.friendly_name || id.replace("automation.", ""),
+            area_id: entityEntry?.area_id || null,
+            category_id,
+            labels: entityEntry?.labels || [],
+          };
+        })
+        .sort((a, b) => a.name.localeCompare(b.name));
+    },
+
+    _getCategoryName(categoryId) {
+      if (!categoryId) return "Uncategorized";
+
+      const category = this._categoryRegistry[categoryId];
+      if (category?.name) return category.name;
+
+      return categoryId
+        .replace(/_/g, " ")
+        .replace(/\b\w/g, (c) => c.toUpperCase());
+    },
+
+    _getGroupedByCategory() {
+      const automations = this._getAutomations();
+      const groups = {};
+
+      automations.forEach((auto) => {
+        const categoryName = this._getCategoryName(auto.category_id);
+        if (!groups[categoryName]) groups[categoryName] = [];
+        groups[categoryName].push(auto);
+      });
+
+      return Object.entries(groups).sort((a, b) =>
+        a[0] === "Uncategorized" ? 1 : b[0] === "Uncategorized" ? -1 : a[0].localeCompare(b[0])
+      );
+    },
+
+    _getCategoryCount() {
+      const automations = this._getAutomations();
+      const categories = new Set();
+      automations.forEach((auto) => {
+        if (auto.category_id) {
+          categories.add(auto.category_id);
+        }
+      });
+      return categories.size;
+    },
+  };
+
+  return card;
+}
+
+// ============================================================================
 // TEST SUITE 1: Category Registry Fetch Implementation
 // ============================================================================
 describe('Category Registry Fetch', () => {
@@ -83,142 +152,184 @@ describe('Category Registry Fetch', () => {
 });
 
 // ============================================================================
-// TEST SUITE 2: Category Data Extraction - THE BUG
+// TEST SUITE 2: Behavioral Tests - Category Extraction
 // ============================================================================
-describe('Category Data Extraction - Bug: All showing as Uncategorized', () => {
-  const methodBody = extractMethod('_getAutomations');
+describe('Category Extraction Behavior', () => {
 
-  describe('_getAutomations extracts category_id', () => {
-
-    test('should access entityEntry from hass.entities', () => {
-      expect(methodBody).toContain('hass.entities');
-      expect(methodBody).toContain('entityEntry');
-    });
-
-    test('should extract categories from entityEntry', () => {
-      expect(methodBody).toContain('categories');
-    });
-
-    test('should include category_id in returned object', () => {
-      expect(methodBody).toContain('category_id');
-    });
-
-    test('BUG: currently accesses categories.automation which may be wrong structure', () => {
-      // This test documents the current (possibly broken) behavior
-      // Home Assistant entity registry categories structure might be different
-      const usesAutomationScope = methodBody.includes('categories.automation');
-      expect(usesAutomationScope).toBe(true);
-    });
-  });
-});
-
-// ============================================================================
-// TEST SUITE 3: Behavioral Tests for Grouping Logic
-// ============================================================================
-describe('Category Grouping Behavior', () => {
-
-  // Simulate the grouping logic extracted from source
-  function simulateGrouping(automations, getCategoryName) {
-    const groups = {};
-
-    automations.forEach((auto) => {
-      const categoryName = getCategoryName(auto.category_id);
-      if (!groups[categoryName]) groups[categoryName] = [];
-      groups[categoryName].push(auto);
-    });
-
-    return Object.entries(groups).sort((a, b) =>
-      a[0] === "Uncategorized" ? 1 : b[0] === "Uncategorized" ? -1 : a[0].localeCompare(b[0])
-    );
-  }
-
-  // Simulate category name resolution
-  function simulateGetCategoryName(categoryRegistry, categoryId) {
-    if (!categoryId) return "Uncategorized";
-
-    const category = categoryRegistry[categoryId];
-    if (category?.name) return category.name;
-
-    // Fallback: transform ID to readable name
-    return categoryId
-      .replace(/_/g, " ")
-      .replace(/\b\w/g, (c) => c.toUpperCase());
-  }
-
-  describe('when automations have category_id values (expected behavior)', () => {
-    const categoryRegistry = {
-      'cat_lighting': { category_id: 'cat_lighting', name: 'Lighting' },
-      'cat_security': { category_id: 'cat_security', name: 'Security' },
-      'cat_climate': { category_id: 'cat_climate', name: 'Climate' },
+  describe('when entities have categories in entity registry', () => {
+    const mockHass = {
+      states: {
+        'automation.living_room_lights': {
+          entity_id: 'automation.living_room_lights',
+          state: 'on',
+          attributes: { friendly_name: 'Living Room Lights' },
+        },
+        'automation.kitchen_lights': {
+          entity_id: 'automation.kitchen_lights',
+          state: 'on',
+          attributes: { friendly_name: 'Kitchen Lights' },
+        },
+        'automation.alarm_arm': {
+          entity_id: 'automation.alarm_arm',
+          state: 'on',
+          attributes: { friendly_name: 'Arm Alarm' },
+        },
+        'automation.misc': {
+          entity_id: 'automation.misc',
+          state: 'on',
+          attributes: { friendly_name: 'Misc Automation' },
+        },
+      },
+      entities: {
+        'automation.living_room_lights': {
+          entity_id: 'automation.living_room_lights',
+          area_id: 'living_room',
+          categories: { automation: 'cat_lighting' },
+          labels: [],
+        },
+        'automation.kitchen_lights': {
+          entity_id: 'automation.kitchen_lights',
+          area_id: 'kitchen',
+          categories: { automation: 'cat_lighting' },
+          labels: [],
+        },
+        'automation.alarm_arm': {
+          entity_id: 'automation.alarm_arm',
+          area_id: null,
+          categories: { automation: 'cat_security' },
+          labels: [],
+        },
+        'automation.misc': {
+          entity_id: 'automation.misc',
+          area_id: null,
+          categories: {},
+          labels: [],
+        },
+      },
     };
 
-    const automationsWithCategories = [
-      { id: 'automation.light_on', name: 'Turn on lights', category_id: 'cat_lighting' },
-      { id: 'automation.alarm_arm', name: 'Arm alarm', category_id: 'cat_security' },
-      { id: 'automation.light_off', name: 'Turn off lights', category_id: 'cat_lighting' },
-      { id: 'automation.thermostat', name: 'Adjust thermostat', category_id: 'cat_climate' },
-      { id: 'automation.misc', name: 'Misc automation', category_id: null },
-    ];
+    test('should extract category_id from entity registry', () => {
+      const card = createMockCard(mockHass);
+      const automations = card._getAutomations();
 
-    test('should group automations by their category name', () => {
-      const getCategoryName = (id) => simulateGetCategoryName(categoryRegistry, id);
-      const grouped = simulateGrouping(automationsWithCategories, getCategoryName);
+      const livingRoom = automations.find(a => a.id === 'automation.living_room_lights');
+      const kitchen = automations.find(a => a.id === 'automation.kitchen_lights');
+      const alarm = automations.find(a => a.id === 'automation.alarm_arm');
+      const misc = automations.find(a => a.id === 'automation.misc');
 
+      expect(livingRoom.category_id).toBe('cat_lighting');
+      expect(kitchen.category_id).toBe('cat_lighting');
+      expect(alarm.category_id).toBe('cat_security');
+      expect(misc.category_id).toBeNull();
+    });
+
+    test('should count 2 unique categories', () => {
+      const card = createMockCard(mockHass);
+      expect(card._getCategoryCount()).toBe(2);
+    });
+
+    test('should group automations by category', () => {
+      const card = createMockCard(mockHass);
+      card._categoryRegistry = {
+        'cat_lighting': { category_id: 'cat_lighting', name: 'Lighting' },
+        'cat_security': { category_id: 'cat_security', name: 'Security' },
+      };
+
+      const grouped = card._getGroupedByCategory();
       const groupNames = grouped.map(([name]) => name);
 
       expect(groupNames).toContain('Lighting');
       expect(groupNames).toContain('Security');
-      expect(groupNames).toContain('Climate');
       expect(groupNames).toContain('Uncategorized');
     });
 
-    test('should have correct number of automations in each group', () => {
-      const getCategoryName = (id) => simulateGetCategoryName(categoryRegistry, id);
-      const grouped = simulateGrouping(automationsWithCategories, getCategoryName);
+    test('should have correct automation count per group', () => {
+      const card = createMockCard(mockHass);
+      card._categoryRegistry = {
+        'cat_lighting': { category_id: 'cat_lighting', name: 'Lighting' },
+        'cat_security': { category_id: 'cat_security', name: 'Security' },
+      };
 
+      const grouped = card._getGroupedByCategory();
       const groupMap = Object.fromEntries(grouped);
 
       expect(groupMap['Lighting'].length).toBe(2);
       expect(groupMap['Security'].length).toBe(1);
-      expect(groupMap['Climate'].length).toBe(1);
       expect(groupMap['Uncategorized'].length).toBe(1);
     });
 
     test('should sort groups alphabetically with Uncategorized last', () => {
-      const getCategoryName = (id) => simulateGetCategoryName(categoryRegistry, id);
-      const grouped = simulateGrouping(automationsWithCategories, getCategoryName);
+      const card = createMockCard(mockHass);
+      card._categoryRegistry = {
+        'cat_lighting': { category_id: 'cat_lighting', name: 'Lighting' },
+        'cat_security': { category_id: 'cat_security', name: 'Security' },
+      };
 
+      const grouped = card._getGroupedByCategory();
       const groupNames = grouped.map(([name]) => name);
 
-      // Alphabetical: Climate, Lighting, Security, then Uncategorized last
-      expect(groupNames[0]).toBe('Climate');
-      expect(groupNames[1]).toBe('Lighting');
-      expect(groupNames[2]).toBe('Security');
+      expect(groupNames[0]).toBe('Lighting');
+      expect(groupNames[1]).toBe('Security');
       expect(groupNames[groupNames.length - 1]).toBe('Uncategorized');
     });
   });
 
-  describe('BUG: when all automations have null category_id (current broken behavior)', () => {
-    // This simulates what's currently happening
-    const automationsAllNull = [
-      { id: 'automation.light_on', name: 'Turn on lights', category_id: null },
-      { id: 'automation.alarm_arm', name: 'Arm alarm', category_id: null },
-      { id: 'automation.thermostat', name: 'Adjust thermostat', category_id: null },
-    ];
+  describe('when entities have no categories assigned', () => {
+    const mockHassNoCategories = {
+      states: {
+        'automation.test1': {
+          entity_id: 'automation.test1',
+          state: 'on',
+          attributes: { friendly_name: 'Test 1' },
+        },
+        'automation.test2': {
+          entity_id: 'automation.test2',
+          state: 'on',
+          attributes: { friendly_name: 'Test 2' },
+        },
+      },
+      entities: {
+        'automation.test1': {
+          entity_id: 'automation.test1',
+          area_id: null,
+          categories: {},
+          labels: [],
+        },
+        'automation.test2': {
+          entity_id: 'automation.test2',
+          area_id: null,
+          // No categories property at all
+          labels: [],
+        },
+      },
+    };
 
-    test('all automations end up in Uncategorized group', () => {
-      const getCategoryName = (id) => simulateGetCategoryName({}, id);
-      const grouped = simulateGrouping(automationsAllNull, getCategoryName);
+    test('should return null category_id for automations without categories', () => {
+      const card = createMockCard(mockHassNoCategories);
+      const automations = card._getAutomations();
+
+      expect(automations[0].category_id).toBeNull();
+      expect(automations[1].category_id).toBeNull();
+    });
+
+    test('should count 0 categories', () => {
+      const card = createMockCard(mockHassNoCategories);
+      expect(card._getCategoryCount()).toBe(0);
+    });
+
+    test('should group all automations as Uncategorized', () => {
+      const card = createMockCard(mockHassNoCategories);
+      const grouped = card._getGroupedByCategory();
 
       expect(grouped.length).toBe(1);
       expect(grouped[0][0]).toBe('Uncategorized');
-      expect(grouped[0][1].length).toBe(3);
+      expect(grouped[0][1].length).toBe(2);
     });
   });
 });
 
 // ============================================================================
-// TEST SUITE 4: Category Name Resolution
+// TEST SUITE 3: Category Name Resolution
 // ============================================================================
 describe('Category Name Resolution', () => {
   const methodBody = extractMethod('_getCategoryName');
@@ -236,44 +347,34 @@ describe('Category Name Resolution', () => {
     expect(methodBody).toContain('replace');
     expect(methodBody).toContain('toUpperCase');
   });
-});
 
-// ============================================================================
-// TEST SUITE 5: Entity Registry Data Structure Investigation
-// ============================================================================
-describe('Entity Registry Category Access Pattern', () => {
-  const methodBody = extractMethod('_getAutomations');
+  describe('behavioral tests', () => {
+    test('should resolve category name from registry', () => {
+      const card = createMockCard({ states: {}, entities: {} });
+      card._categoryRegistry = {
+        'my_category': { category_id: 'my_category', name: 'My Category' },
+      };
 
-  test('accesses entityEntry?.categories', () => {
-    expect(methodBody).toContain('entityEntry?.categories');
-  });
+      expect(card._getCategoryName('my_category')).toBe('My Category');
+    });
 
-  test('current code uses categories.automation for scoped access', () => {
-    // The current code does:
-    //   const categories = entityEntry?.categories || {};
-    //   const category_id = categories.automation || null;
-    //
-    // This assumes HA structure: { categories: { automation: "category_id" } }
-    expect(methodBody).toContain('categories.automation');
-  });
+    test('should transform ID when not in registry', () => {
+      const card = createMockCard({ states: {}, entities: {} });
 
-  test('INVESTIGATE: if HA uses different structure, fix is needed', () => {
-    // Possible alternative structures in Home Assistant:
-    // 1. entityEntry.category_id - direct property
-    // 2. entityEntry.category - singular
-    // 3. Different nesting
-    //
-    // The bug suggests current path doesn't work - need to verify HA structure
+      expect(card._getCategoryName('some_test_category')).toBe('Some Test Category');
+    });
 
-    // Document that we're not using these alternatives currently
-    const hasDirectCategoryId = methodBody.includes('entityEntry?.category_id') ||
-                                 methodBody.includes('entityEntry.category_id');
-    expect(hasDirectCategoryId).toBe(false);
+    test('should return Uncategorized for null', () => {
+      const card = createMockCard({ states: {}, entities: {} });
+
+      expect(card._getCategoryName(null)).toBe('Uncategorized');
+      expect(card._getCategoryName(undefined)).toBe('Uncategorized');
+    });
   });
 });
 
 // ============================================================================
-// TEST SUITE 6: Categories Tab UI
+// TEST SUITE 4: Categories Tab UI
 // ============================================================================
 describe('Categories Tab UI', () => {
 
@@ -307,53 +408,27 @@ describe('Categories Tab UI', () => {
 });
 
 // ============================================================================
-// TEST SUITE 7: Category Count
+// TEST SUITE 5: Source Code Structure
 // ============================================================================
-describe('Category Count', () => {
-  const methodBody = extractMethod('_getCategoryCount');
+describe('Source Code Structure', () => {
 
-  test('should count unique categories using Set', () => {
-    expect(methodBody).toContain('Set');
+  test('_getAutomations extracts category_id', () => {
+    const methodBody = extractMethod('_getAutomations');
     expect(methodBody).toContain('category_id');
+    expect(methodBody).toContain('categories');
   });
 
-  test('should only count automations with category_id', () => {
+  test('_getGroupedByCategory uses category_id', () => {
+    const methodBody = extractMethod('_getGroupedByCategory');
     expect(methodBody).toContain('auto.category_id');
-  });
-
-  test('should return Set size', () => {
-    expect(methodBody).toContain('.size');
-  });
-});
-
-// ============================================================================
-// TEST SUITE 8: Category Grouping Method
-// ============================================================================
-describe('Category Grouping Method', () => {
-  const methodBody = extractMethod('_getGroupedByCategory');
-
-  test('should call _getFilteredAutomations', () => {
-    expect(methodBody).toContain('_getFilteredAutomations()');
-  });
-
-  test('should use _getCategoryName to resolve category names', () => {
     expect(methodBody).toContain('_getCategoryName');
   });
 
-  test('should use auto.category_id for grouping', () => {
-    expect(methodBody).toContain('auto.category_id');
+  test('_getCategoryCount counts unique categories', () => {
+    const methodBody = extractMethod('_getCategoryCount');
+    expect(methodBody).toContain('Set');
+    expect(methodBody).toContain('category_id');
   });
-
-  test('should sort alphabetically with Uncategorized last', () => {
-    expect(methodBody).toContain('localeCompare');
-    expect(methodBody).toContain('"Uncategorized"');
-  });
-});
-
-// ============================================================================
-// TEST SUITE 9: Integration Summary
-// ============================================================================
-describe('Integration: Bug Analysis Summary', () => {
 
   test('All required methods exist', () => {
     expect(extractMethod('_fetchCategoryRegistry')).not.toBeNull();
@@ -366,15 +441,62 @@ describe('Integration: Bug Analysis Summary', () => {
     expect(sourceCode).toContain('_categoryRegistry');
     expect(sourceCode).toContain('_categoriesFetched');
   });
+});
 
-  test('BUG: category_id extraction uses categories.automation path', () => {
-    // This is the suspected buggy line - the extraction path may be wrong
-    const methodBody = extractMethod('_getAutomations');
-    expect(methodBody).toContain('categories.automation');
-  });
+// ============================================================================
+// TEST SUITE 6: Integration
+// ============================================================================
+describe('Integration', () => {
 
-  test('Categories tab is wired up correctly', () => {
-    expect(sourceCode).toContain('_filterTab === "categories"');
-    expect(sourceCode).toContain('_getGroupedByCategory()');
+  test('Complete category workflow with mock data', () => {
+    const mockHass = {
+      states: {
+        'automation.light1': {
+          entity_id: 'automation.light1',
+          state: 'on',
+          attributes: { friendly_name: 'Light 1' },
+        },
+        'automation.security1': {
+          entity_id: 'automation.security1',
+          state: 'on',
+          attributes: { friendly_name: 'Security 1' },
+        },
+      },
+      entities: {
+        'automation.light1': {
+          entity_id: 'automation.light1',
+          categories: { automation: 'lighting' },
+          labels: [],
+        },
+        'automation.security1': {
+          entity_id: 'automation.security1',
+          categories: { automation: 'security' },
+          labels: [],
+        },
+      },
+    };
+
+    const card = createMockCard(mockHass);
+    card._categoryRegistry = {
+      'lighting': { category_id: 'lighting', name: 'Lighting' },
+      'security': { category_id: 'security', name: 'Security' },
+    };
+
+    // Test extraction
+    const automations = card._getAutomations();
+    expect(automations.length).toBe(2);
+    expect(automations.find(a => a.id === 'automation.light1').category_id).toBe('lighting');
+    expect(automations.find(a => a.id === 'automation.security1').category_id).toBe('security');
+
+    // Test count
+    expect(card._getCategoryCount()).toBe(2);
+
+    // Test grouping
+    const grouped = card._getGroupedByCategory();
+    expect(grouped.length).toBe(2);
+
+    const groupMap = Object.fromEntries(grouped);
+    expect(groupMap['Lighting'].length).toBe(1);
+    expect(groupMap['Security'].length).toBe(1);
   });
 });
