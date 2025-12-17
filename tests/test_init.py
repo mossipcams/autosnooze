@@ -870,3 +870,149 @@ class TestAsyncResume:
         await _async_resume(mock_hass, data, "automation.test")
 
         listener.assert_called_once()
+
+
+# =============================================================================
+# Lovelace Resource Registration Safety Tests (Regression)
+# =============================================================================
+
+
+class TestLovelaceResourceSafety:
+    """Regression tests for Lovelace resource registration.
+
+    These tests ensure the integration never modifies or deletes
+    existing Lovelace resources, which could break other custom cards.
+    """
+
+    def test_register_function_never_updates_existing_resources(self) -> None:
+        """Verify source code doesn't call async_update_item.
+
+        REGRESSION: Previous versions could overwrite other cards' resources.
+        """
+        import os
+        init_path = os.path.join(
+            os.path.dirname(__file__),
+            "..",
+            "custom_components",
+            "autosnooze",
+            "__init__.py"
+        )
+        with open(init_path, "r") as f:
+            source = f.read()
+
+        # Extract the _async_register_lovelace_resource function
+        func_match = source.find("async def _async_register_lovelace_resource")
+        assert func_match != -1, "Function not found"
+
+        # Find next function to get end boundary
+        next_func = source.find("\nasync def ", func_match + 1)
+        if next_func == -1:
+            next_func = len(source)
+
+        func_body = source[func_match:next_func]
+
+        # Should NOT contain async_update_item (modifying resources is dangerous)
+        assert "async_update_item" not in func_body, (
+            "SAFETY VIOLATION: _async_register_lovelace_resource must not "
+            "call async_update_item as it can corrupt other resources"
+        )
+
+    def test_register_function_never_deletes_resources(self) -> None:
+        """Verify source code doesn't call async_delete_item.
+
+        REGRESSION: Ensure we never delete resources.
+        """
+        import os
+        init_path = os.path.join(
+            os.path.dirname(__file__),
+            "..",
+            "custom_components",
+            "autosnooze",
+            "__init__.py"
+        )
+        with open(init_path, "r") as f:
+            source = f.read()
+
+        # Extract the _async_register_lovelace_resource function
+        func_match = source.find("async def _async_register_lovelace_resource")
+        assert func_match != -1, "Function not found"
+
+        next_func = source.find("\nasync def ", func_match + 1)
+        if next_func == -1:
+            next_func = len(source)
+
+        func_body = source[func_match:next_func]
+
+        # Should NOT contain async_delete_item
+        assert "async_delete_item" not in func_body, (
+            "SAFETY VIOLATION: _async_register_lovelace_resource must not "
+            "call async_delete_item"
+        )
+
+    def test_register_function_only_creates_when_not_exists(self) -> None:
+        """Verify the function returns early when resource already exists.
+
+        REGRESSION: The function should check for existing resources
+        and return without modification if found.
+        """
+        import os
+        init_path = os.path.join(
+            os.path.dirname(__file__),
+            "..",
+            "custom_components",
+            "autosnooze",
+            "__init__.py"
+        )
+        with open(init_path, "r") as f:
+            source = f.read()
+
+        # Extract the _async_register_lovelace_resource function
+        func_match = source.find("async def _async_register_lovelace_resource")
+        assert func_match != -1, "Function not found"
+
+        next_func = source.find("\nasync def ", func_match + 1)
+        if next_func == -1:
+            next_func = len(source)
+
+        func_body = source[func_match:next_func]
+
+        # Must check for existing autosnooze resource
+        assert "autosnooze-card" in func_body, (
+            "Function must check for existing autosnooze-card resources"
+        )
+
+        # Must have early return when resource exists
+        assert "return" in func_body.split("async_create_item")[0], (
+            "Function must return early when resource already exists"
+        )
+
+    def test_docstring_documents_safety_guarantee(self) -> None:
+        """Verify the function documents its safety guarantee.
+
+        This ensures future developers understand the constraints.
+        """
+        import os
+        init_path = os.path.join(
+            os.path.dirname(__file__),
+            "..",
+            "custom_components",
+            "autosnooze",
+            "__init__.py"
+        )
+        with open(init_path, "r") as f:
+            source = f.read()
+
+        # Extract the _async_register_lovelace_resource function
+        func_match = source.find("async def _async_register_lovelace_resource")
+        assert func_match != -1, "Function not found"
+
+        next_func = source.find("\nasync def ", func_match + 1)
+        if next_func == -1:
+            next_func = len(source)
+
+        func_body = source[func_match:next_func]
+
+        # Should document the safety behavior
+        assert "SAFETY" in func_body or "never modifies" in func_body.lower(), (
+            "Function should document its safety guarantees in docstring"
+        )
