@@ -1,7 +1,7 @@
 import { LitElement, html, css } from "lit";
 
-// Version 2.9.1 - Fix: Root-level path for reverse proxy compatibility
-const CARD_VERSION = "2.9.1";
+// Version 2.9.2 - Fix: Card loading in YAML-mode dashboards via add_extra_js_url
+const CARD_VERSION = "2.9.2";
 
 // ============================================================================
 // CARD EDITOR
