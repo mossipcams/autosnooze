@@ -204,6 +204,20 @@ class AutomationPauseCard extends LitElement {
       this._entityRegistry = entityMap;
       this._entityRegistryFetched = true;
       console.log("[AutoSnooze] Entity registry fetched:", Object.keys(entityMap).length, "entities");
+
+      // Debug: Check what category data looks like
+      const automationEntities = Object.entries(entityMap).filter(([k]) => k.startsWith("automation."));
+      console.log("[AutoSnooze] Automation entities in registry:", automationEntities.length);
+      if (automationEntities.length > 0) {
+        const [id, entry] = automationEntities[0];
+        console.log("[AutoSnooze] Sample automation registry entry:", id, JSON.stringify(entry, null, 2));
+        console.log("[AutoSnooze] Entry keys:", Object.keys(entry));
+        if (entry.categories) {
+          console.log("[AutoSnooze] Categories object:", JSON.stringify(entry.categories));
+        } else {
+          console.log("[AutoSnooze] No 'categories' property on entry");
+        }
+      }
     } catch (err) {
       console.warn("[AutoSnooze] Failed to fetch entity registry:", err);
     }
@@ -941,12 +955,25 @@ class AutomationPauseCard extends LitElement {
   _getCategoryCount() {
     const automations = this._getAutomations();
     const categories = new Set();
+    let withCategory = 0;
+    let withoutCategory = 0;
     automations.forEach((auto) => {
       // Use category_id from entity registry (already fetched in _getAutomations)
       if (auto.category_id) {
         categories.add(auto.category_id);
+        withCategory++;
+      } else {
+        withoutCategory++;
       }
     });
+    // Debug log once
+    if (!this._categoryCountLogged) {
+      this._categoryCountLogged = true;
+      console.log("[AutoSnooze] Category count:", categories.size, "unique categories,", withCategory, "with category,", withoutCategory, "without");
+      if (categories.size > 0) {
+        console.log("[AutoSnooze] Categories found:", [...categories]);
+      }
+    }
     return categories.size;
   }
 
