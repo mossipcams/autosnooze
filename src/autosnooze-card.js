@@ -1,7 +1,7 @@
 import { LitElement, html, css } from "lit";
 
-// Version 2.9.3 - Fix: Sync version across all files for proper auto-bump
-const CARD_VERSION = "2.9.3";
+// Version 2.9.4 - Fix: Hide automation areas in Categories tab
+const CARD_VERSION = "2.9.4";
 
 // ============================================================================
 // CARD EDITOR
