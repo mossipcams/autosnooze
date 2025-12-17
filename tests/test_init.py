@@ -1020,22 +1020,20 @@ class TestLovelaceResourceSafety:
     def test_uses_resource_manager_api(self) -> None:
         """Verify resource registration uses lovelace resource manager API.
 
-        Uses async_create_item/async_update_item on the resources object,
-        same pattern as HACS. These are the correct internal APIs.
+        Uses async_create_item on the resources object (same as HACS).
+        Note: We only create resources, never update (safety guarantee).
         """
-        import os
-        init_path = os.path.join(
-            os.path.dirname(__file__),
-            "..",
-            "custom_components",
-            "autosnooze",
-            "__init__.py"
-        )
-        with open(init_path, "r") as f:
-            source = f.read()
+        from pathlib import Path
+
+        # Use pathlib for robust path handling across environments
+        test_dir = Path(__file__).resolve().parent
+        init_path = test_dir.parent / "custom_components" / "autosnooze" / "__init__.py"
+
+        assert init_path.exists(), f"Init file not found at {init_path}"
+        source = init_path.read_text()
 
         func_match = source.find("async def _async_register_lovelace_resource")
-        assert func_match != -1, "Function not found"
+        assert func_match != -1, f"Function not found in {init_path}"
 
         next_func = source.find("\nasync def ", func_match + 1)
         if next_func == -1:
@@ -1043,12 +1041,9 @@ class TestLovelaceResourceSafety:
 
         func_body = source[func_match:next_func]
 
-        # Must use resource manager API
+        # Must use resource manager API for creating resources
         assert 'async_create_item' in func_body, (
             "Must use resources.async_create_item for new resources"
-        )
-        assert 'async_update_item' in func_body, (
-            "Must use resources.async_update_item for updating resources"
         )
         # Should use 'res_type' for resource manager API
         assert '"res_type": "module"' in func_body, (
