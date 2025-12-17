@@ -18,6 +18,7 @@ from homeassistant.helpers import config_validation as cv, entity_registry as er
 from homeassistant.helpers.event import async_track_point_in_time
 from homeassistant.helpers.storage import Store
 from homeassistant.util import dt as dt_util
+from homeassistant.components.frontend import add_extra_js_url
 from homeassistant.components.http import StaticPathConfig
 
 _LOGGER = logging.getLogger(__name__)
@@ -183,11 +184,13 @@ async def async_setup_entry(
     data = AutomationPauseData(store=store)
     entry.runtime_data = data
 
-    # Register frontend card (defer lovelace resource to ensure it's fully loaded)
+    # Register frontend card via add_extra_js_url (works in ALL dashboard modes)
+    # This is the primary registration mechanism that works for YAML and storage modes
     await _async_register_frontend(hass)
 
-    # Defer lovelace resource registration until Home Assistant is fully started
-    # This ensures the lovelace storage is fully loaded before we try to add to it
+    # Optional: Also register as Lovelace resource for storage-mode dashboards
+    # This shows the card in Settings > Dashboards > Resources, but is NOT required
+    # for the card to load (add_extra_js_url handles that universally)
     if hass.is_running:
         await _async_register_lovelace_resource(hass)
     else:
@@ -207,8 +210,16 @@ async def async_setup_entry(
 
 
 async def _async_register_frontend(hass: HomeAssistant) -> None:
-    """Register the frontend card static path."""
-    # Register static path to serve the JS file (skip if already registered on reload)
+    """Register the frontend card for all dashboard modes (YAML and storage).
+
+    Uses add_extra_js_url() to register as a frontend module, which works
+    universally regardless of Lovelace dashboard mode. This is the same
+    approach used by HACS for its iconset.js.
+
+    The Lovelace resources API only works with storage-mode dashboards and
+    returns None for YAML-mode dashboards, causing silent registration failure.
+    """
+    # 1. Register static path to serve the JS file
     try:
         await hass.http.async_register_static_paths([
             StaticPathConfig(CARD_URL, str(CARD_PATH), cache_headers=True)
@@ -216,8 +227,11 @@ async def _async_register_frontend(hass: HomeAssistant) -> None:
     except RuntimeError:
         # Path already registered (happens on integration reload)
         pass
-    # Note: Lovelace resource registration is handled separately in async_setup_entry
-    # to ensure it runs after Home Assistant is fully started
+
+    # 2. Register as frontend module (works in ALL dashboard modes including YAML)
+    # This is the key fix - add_extra_js_url bypasses Lovelace resources entirely
+    add_extra_js_url(hass, CARD_URL_VERSIONED)
+    _LOGGER.info("Registered AutoSnooze card as frontend module (v%s)", VERSION)
 
 
 async def _async_register_lovelace_resource(hass: HomeAssistant) -> None:
