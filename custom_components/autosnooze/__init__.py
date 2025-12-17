@@ -219,6 +219,7 @@ async def _async_register_lovelace_resource(hass: HomeAssistant) -> None:
     """
     lovelace_data = hass.data.get("lovelace")
     if lovelace_data is None:
+        _LOGGER.debug("No lovelace data found in hass.data")
         return
 
     # Version-aware resource access (HA 2025.2.0+ uses attribute, older uses dict)
@@ -229,23 +230,42 @@ async def _async_register_lovelace_resource(hass: HomeAssistant) -> None:
         _LOGGER.debug("Lovelace resources not available (YAML mode?)")
         return
 
+    # Log current state of ALL resources before we do anything
+    try:
+        all_resources = list(resources.async_items())
+        _LOGGER.debug(
+            "Current lovelace resources BEFORE registration (%d total): %s",
+            len(all_resources),
+            [r.get("url", "unknown") for r in all_resources]
+        )
+    except Exception as err:
+        _LOGGER.warning("Failed to list existing resources: %s", err)
+        return
+
     # Namespace: our base URL without query params
     # This ensures we ONLY match and modify OUR resource, never others
     namespace = CARD_URL  # "/autosnooze-card.js"
 
     # Find existing autosnooze resource by checking if URL starts with our namespace
     existing_resource = None
-    for resource in resources.async_items():
+    for resource in all_resources:
         url = resource.get("url", "")
         # Match: /autosnooze-card.js or /autosnooze-card.js?v=X.X.X
         if url.startswith(namespace):
             existing_resource = resource
+            _LOGGER.debug("Found existing autosnooze resource: %s", resource)
             break
 
     if existing_resource:
         # Only update if version changed - update ONLY our resource by ID
         if existing_resource.get("url") != CARD_URL_VERSIONED:
             try:
+                _LOGGER.debug(
+                    "Updating resource id=%s from %s to %s",
+                    existing_resource["id"],
+                    existing_resource.get("url"),
+                    CARD_URL_VERSIONED
+                )
                 await resources.async_update_item(
                     existing_resource["id"],
                     {"url": CARD_URL_VERSIONED, "res_type": "module"}
@@ -259,6 +279,7 @@ async def _async_register_lovelace_resource(hass: HomeAssistant) -> None:
 
     # No existing resource found - create new one
     try:
+        _LOGGER.debug("Creating new resource: %s", CARD_URL_VERSIONED)
         await resources.async_create_item({
             "url": CARD_URL_VERSIONED,
             "res_type": "module"
