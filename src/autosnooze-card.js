@@ -204,8 +204,10 @@ class AutomationPauseCard extends LitElement {
       this._entityRegistry = entityMap;
       this._entityRegistryFetched = true;
 
-      // Reset category count log flag so it logs again with real data
+      // Reset log flags so they log again with real data
       this._categoryCountLogged = false;
+      this._getAutomationsLogged = false;
+      this._automationCategoryLogged = false;
 
       // Debug: Check what category data looks like
       const automationEntities = Object.entries(entityMap).filter(([k]) => k.startsWith("automation."));
@@ -824,7 +826,15 @@ class AutomationPauseCard extends LitElement {
       }
     }
 
-    return Object.keys(this.hass.states)
+    // Debug: Check entity registry state at render time
+    const entityRegistrySize = Object.keys(this._entityRegistry || {}).length;
+    if (!this._getAutomationsLogged) {
+      this._getAutomationsLogged = true;
+      console.log("[AutoSnooze] _getAutomations called, _entityRegistry size:", entityRegistrySize);
+      console.log("[AutoSnooze] _entityRegistryFetched flag:", this._entityRegistryFetched);
+    }
+
+    const automations = Object.keys(this.hass.states)
       .filter((id) => id.startsWith("automation."))
       .map((id) => {
         const state = this.hass.states[id];
@@ -845,6 +855,25 @@ class AutomationPauseCard extends LitElement {
         };
       })
       .sort((a, b) => a.name.localeCompare(b.name));
+
+    // Debug: Log first automation with category data
+    if (!this._automationCategoryLogged && entityRegistrySize > 0) {
+      this._automationCategoryLogged = true;
+      const withCat = automations.filter(a => a.category_id);
+      console.log("[AutoSnooze] After mapping - automations with category_id:", withCat.length);
+      if (withCat.length > 0) {
+        console.log("[AutoSnooze] First with category:", withCat[0]);
+      } else {
+        // Log raw registry entry to see actual structure
+        const firstAuto = automations[0];
+        if (firstAuto) {
+          const rawEntry = this._entityRegistry?.[firstAuto.id];
+          console.log("[AutoSnooze] Raw registry entry for", firstAuto.id, ":", JSON.stringify(rawEntry, null, 2));
+        }
+      }
+    }
+
+    return automations;
   }
 
   _getFilteredAutomations() {
