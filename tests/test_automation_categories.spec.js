@@ -52,14 +52,15 @@ function extractMethod(methodName) {
 // ============================================================================
 // HELPER: Create mock card instance for behavioral testing
 // ============================================================================
-function createMockCard(hassData) {
+function createMockCard(hassData, entityRegistry = {}) {
   // Extract and evaluate the methods we need to test
   const card = {
     hass: hassData,
     _categoryRegistry: {},
     _labelRegistry: {},
+    _entityRegistry: entityRegistry,
 
-    // Simulate _getAutomations - extract logic from source
+    // Simulate _getAutomations - uses _entityRegistry for categories (fetched via WebSocket)
     _getAutomations() {
       if (!this.hass?.states) return [];
 
@@ -67,16 +68,19 @@ function createMockCard(hassData) {
         .filter((id) => id.startsWith("automation."))
         .map((id) => {
           const state = this.hass.states[id];
-          const entityEntry = this.hass.entities?.[id];
+          // Use fetched entity registry for full entity data including categories
+          const registryEntry = this._entityRegistry?.[id];
+          // Fallback to hass.entities for basic info
+          const hassEntry = this.hass.entities?.[id];
           // Get category from entity registry (categories object with scope keys)
-          const categories = entityEntry?.categories || {};
+          const categories = registryEntry?.categories || {};
           const category_id = categories.automation || null;
           return {
             id,
             name: state.attributes.friendly_name || id.replace("automation.", ""),
-            area_id: entityEntry?.area_id || null,
+            area_id: registryEntry?.area_id || hassEntry?.area_id || null,
             category_id,
-            labels: entityEntry?.labels || [],
+            labels: registryEntry?.labels || hassEntry?.labels || [],
           };
         })
         .sort((a, b) => a.name.localeCompare(b.name));
@@ -152,11 +156,39 @@ describe('Category Registry Fetch', () => {
 });
 
 // ============================================================================
+// TEST SUITE 1b: Entity Registry Fetch Implementation
+// ============================================================================
+describe('Entity Registry Fetch', () => {
+  const methodBody = extractMethod('_fetchEntityRegistry');
+
+  test('_fetchEntityRegistry method should exist', () => {
+    expect(methodBody).not.toBeNull();
+  });
+
+  test('should fetch from config/entity_registry/list', () => {
+    expect(methodBody).toContain('config/entity_registry/list');
+  });
+
+  test('should store results in _entityRegistry', () => {
+    expect(methodBody).toContain('_entityRegistry');
+  });
+
+  test('should map by entity_id', () => {
+    expect(methodBody).toContain('entity_id');
+  });
+
+  test('should set _entityRegistryFetched flag', () => {
+    expect(methodBody).toContain('_entityRegistryFetched = true');
+  });
+});
+
+// ============================================================================
 // TEST SUITE 2: Behavioral Tests - Category Extraction
 // ============================================================================
 describe('Category Extraction Behavior', () => {
 
-  describe('when entities have categories in entity registry', () => {
+  describe('when entities have categories in entity registry (fetched via WebSocket)', () => {
+    // Mock hass object (states only needed for automation list)
     const mockHass = {
       states: {
         'automation.living_room_lights': {
@@ -180,36 +212,39 @@ describe('Category Extraction Behavior', () => {
           attributes: { friendly_name: 'Misc Automation' },
         },
       },
-      entities: {
-        'automation.living_room_lights': {
-          entity_id: 'automation.living_room_lights',
-          area_id: 'living_room',
-          categories: { automation: 'cat_lighting' },
-          labels: [],
-        },
-        'automation.kitchen_lights': {
-          entity_id: 'automation.kitchen_lights',
-          area_id: 'kitchen',
-          categories: { automation: 'cat_lighting' },
-          labels: [],
-        },
-        'automation.alarm_arm': {
-          entity_id: 'automation.alarm_arm',
-          area_id: null,
-          categories: { automation: 'cat_security' },
-          labels: [],
-        },
-        'automation.misc': {
-          entity_id: 'automation.misc',
-          area_id: null,
-          categories: {},
-          labels: [],
-        },
+      entities: {}, // hass.entities doesn't include categories
+    };
+
+    // Entity registry data (fetched via config/entity_registry/list WebSocket call)
+    const mockEntityRegistry = {
+      'automation.living_room_lights': {
+        entity_id: 'automation.living_room_lights',
+        area_id: 'living_room',
+        categories: { automation: 'cat_lighting' },
+        labels: [],
+      },
+      'automation.kitchen_lights': {
+        entity_id: 'automation.kitchen_lights',
+        area_id: 'kitchen',
+        categories: { automation: 'cat_lighting' },
+        labels: [],
+      },
+      'automation.alarm_arm': {
+        entity_id: 'automation.alarm_arm',
+        area_id: null,
+        categories: { automation: 'cat_security' },
+        labels: [],
+      },
+      'automation.misc': {
+        entity_id: 'automation.misc',
+        area_id: null,
+        categories: {},
+        labels: [],
       },
     };
 
-    test('should extract category_id from entity registry', () => {
-      const card = createMockCard(mockHass);
+    test('should extract category_id from fetched entity registry', () => {
+      const card = createMockCard(mockHass, mockEntityRegistry);
       const automations = card._getAutomations();
 
       const livingRoom = automations.find(a => a.id === 'automation.living_room_lights');
@@ -224,12 +259,12 @@ describe('Category Extraction Behavior', () => {
     });
 
     test('should count 2 unique categories', () => {
-      const card = createMockCard(mockHass);
+      const card = createMockCard(mockHass, mockEntityRegistry);
       expect(card._getCategoryCount()).toBe(2);
     });
 
     test('should group automations by category', () => {
-      const card = createMockCard(mockHass);
+      const card = createMockCard(mockHass, mockEntityRegistry);
       card._categoryRegistry = {
         'cat_lighting': { category_id: 'cat_lighting', name: 'Lighting' },
         'cat_security': { category_id: 'cat_security', name: 'Security' },
@@ -244,7 +279,7 @@ describe('Category Extraction Behavior', () => {
     });
 
     test('should have correct automation count per group', () => {
-      const card = createMockCard(mockHass);
+      const card = createMockCard(mockHass, mockEntityRegistry);
       card._categoryRegistry = {
         'cat_lighting': { category_id: 'cat_lighting', name: 'Lighting' },
         'cat_security': { category_id: 'cat_security', name: 'Security' },
@@ -259,7 +294,7 @@ describe('Category Extraction Behavior', () => {
     });
 
     test('should sort groups alphabetically with Uncategorized last', () => {
-      const card = createMockCard(mockHass);
+      const card = createMockCard(mockHass, mockEntityRegistry);
       card._categoryRegistry = {
         'cat_lighting': { category_id: 'cat_lighting', name: 'Lighting' },
         'cat_security': { category_id: 'cat_security', name: 'Security' },
@@ -274,8 +309,8 @@ describe('Category Extraction Behavior', () => {
     });
   });
 
-  describe('when entities have no categories assigned', () => {
-    const mockHassNoCategories = {
+  describe('when entity registry has no categories assigned', () => {
+    const mockHass = {
       states: {
         'automation.test1': {
           entity_id: 'automation.test1',
@@ -288,24 +323,26 @@ describe('Category Extraction Behavior', () => {
           attributes: { friendly_name: 'Test 2' },
         },
       },
-      entities: {
-        'automation.test1': {
-          entity_id: 'automation.test1',
-          area_id: null,
-          categories: {},
-          labels: [],
-        },
-        'automation.test2': {
-          entity_id: 'automation.test2',
-          area_id: null,
-          // No categories property at all
-          labels: [],
-        },
+      entities: {},
+    };
+
+    const mockEntityRegistryNoCategories = {
+      'automation.test1': {
+        entity_id: 'automation.test1',
+        area_id: null,
+        categories: {},
+        labels: [],
+      },
+      'automation.test2': {
+        entity_id: 'automation.test2',
+        area_id: null,
+        // No categories property at all
+        labels: [],
       },
     };
 
     test('should return null category_id for automations without categories', () => {
-      const card = createMockCard(mockHassNoCategories);
+      const card = createMockCard(mockHass, mockEntityRegistryNoCategories);
       const automations = card._getAutomations();
 
       expect(automations[0].category_id).toBeNull();
@@ -313,12 +350,12 @@ describe('Category Extraction Behavior', () => {
     });
 
     test('should count 0 categories', () => {
-      const card = createMockCard(mockHassNoCategories);
+      const card = createMockCard(mockHass, mockEntityRegistryNoCategories);
       expect(card._getCategoryCount()).toBe(0);
     });
 
     test('should group all automations as Uncategorized', () => {
-      const card = createMockCard(mockHassNoCategories);
+      const card = createMockCard(mockHass, mockEntityRegistryNoCategories);
       const grouped = card._getGroupedByCategory();
 
       expect(grouped.length).toBe(1);
@@ -412,10 +449,12 @@ describe('Categories Tab UI', () => {
 // ============================================================================
 describe('Source Code Structure', () => {
 
-  test('_getAutomations extracts category_id', () => {
+  test('_getAutomations extracts category_id from _entityRegistry', () => {
     const methodBody = extractMethod('_getAutomations');
     expect(methodBody).toContain('category_id');
     expect(methodBody).toContain('categories');
+    expect(methodBody).toContain('_entityRegistry');
+    expect(methodBody).toContain('registryEntry');
   });
 
   test('_getGroupedByCategory uses category_id', () => {
@@ -432,6 +471,7 @@ describe('Source Code Structure', () => {
 
   test('All required methods exist', () => {
     expect(extractMethod('_fetchCategoryRegistry')).not.toBeNull();
+    expect(extractMethod('_fetchEntityRegistry')).not.toBeNull();
     expect(extractMethod('_getCategoryName')).not.toBeNull();
     expect(extractMethod('_getGroupedByCategory')).not.toBeNull();
     expect(extractMethod('_getCategoryCount')).not.toBeNull();
@@ -439,7 +479,9 @@ describe('Source Code Structure', () => {
 
   test('All required state properties exist', () => {
     expect(sourceCode).toContain('_categoryRegistry');
+    expect(sourceCode).toContain('_entityRegistry');
     expect(sourceCode).toContain('_categoriesFetched');
+    expect(sourceCode).toContain('_entityRegistryFetched');
   });
 });
 
@@ -462,21 +504,24 @@ describe('Integration', () => {
           attributes: { friendly_name: 'Security 1' },
         },
       },
-      entities: {
-        'automation.light1': {
-          entity_id: 'automation.light1',
-          categories: { automation: 'lighting' },
-          labels: [],
-        },
-        'automation.security1': {
-          entity_id: 'automation.security1',
-          categories: { automation: 'security' },
-          labels: [],
-        },
+      entities: {}, // hass.entities doesn't include categories
+    };
+
+    // Entity registry fetched via WebSocket (includes categories)
+    const mockEntityRegistry = {
+      'automation.light1': {
+        entity_id: 'automation.light1',
+        categories: { automation: 'lighting' },
+        labels: [],
+      },
+      'automation.security1': {
+        entity_id: 'automation.security1',
+        categories: { automation: 'security' },
+        labels: [],
       },
     };
 
-    const card = createMockCard(mockHass);
+    const card = createMockCard(mockHass, mockEntityRegistry);
     card._categoryRegistry = {
       'lighting': { category_id: 'lighting', name: 'Lighting' },
       'security': { category_id: 'security', name: 'Security' },
