@@ -200,6 +200,13 @@ class AutomationPauseCard extends LitElement {
         ? entities.filter((e) => e.entity_id.startsWith("automation."))
         : [];
 
+      // Debug: Check if basic list includes categories
+      if (automationEntities.length > 0) {
+        const basicSample = automationEntities.find(e => e.categories) || automationEntities[0];
+        console.log("[AutoSnooze] Basic list entry keys:", Object.keys(basicSample));
+        console.log("[AutoSnooze] Basic list categories:", basicSample.categories);
+      }
+
       // Step 3: Fetch EXTENDED entry for each automation (includes categories)
       // The basic list endpoint doesn't include categories for performance reasons
       const extendedEntries = await Promise.all(
@@ -213,13 +220,24 @@ class AutomationPauseCard extends LitElement {
 
       // Step 4: Build map from extended entries
       const entityMap = {};
+      let categorizedCount = 0;
       extendedEntries.forEach((entity) => {
         entityMap[entity.entity_id] = entity;
+        if (entity.categories && Object.keys(entity.categories).length > 0) {
+          categorizedCount++;
+        }
       });
 
       this._entityRegistry = entityMap;
       this._entityRegistryFetched = true;
-      console.log("[AutoSnooze] Entity registry fetched:", Object.keys(entityMap).length, "automation entities with categories");
+      console.log("[AutoSnooze] Entity registry fetched:", Object.keys(entityMap).length, "automations,", categorizedCount, "with categories");
+
+      // Debug: Log a sample entry to see the data structure
+      if (extendedEntries.length > 0) {
+        const sample = extendedEntries.find(e => e.categories && Object.keys(e.categories).length > 0) || extendedEntries[0];
+        console.log("[AutoSnooze] Sample extended entry keys:", Object.keys(sample));
+        console.log("[AutoSnooze] Sample categories:", sample.categories);
+      }
     } catch (err) {
       console.warn("[AutoSnooze] Failed to fetch entity registry:", err);
     }
