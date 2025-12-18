@@ -1,6 +1,7 @@
 """AutoSnooze integration - Temporarily pause Home Assistant automations."""
 from __future__ import annotations
 
+import asyncio
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 import json
@@ -26,6 +27,11 @@ _LOGGER = logging.getLogger(__name__)
 DOMAIN = "autosnooze"
 PLATFORMS = ["sensor"]
 STORAGE_VERSION = 2
+
+# Retry configuration for save operations
+MAX_SAVE_RETRIES = 3
+SAVE_RETRY_DELAYS = [0.1, 0.2, 0.4]  # Exponential backoff delays in seconds
+TRANSIENT_ERRORS = (IOError, OSError)  # Errors that should trigger retry
 
 # Read version from manifest for cache-busting
 MANIFEST_PATH = Path(__file__).parent / "manifest.json"
@@ -319,6 +325,146 @@ async def async_unload_entry(
     return unload_ok
 
 
+def _validate_stored_entry(
+    entity_id: str,
+    entry_data: Any,
+    entry_type: str,
+) -> bool:
+    """Validate a single stored entry.
+
+    Args:
+        entity_id: The entity ID (key in storage)
+        entry_data: The entry data
+        entry_type: "paused" or "scheduled"
+
+    Returns:
+        True if valid, False if invalid.
+    """
+    # Validate entity ID format
+    if not entity_id.startswith("automation."):
+        _LOGGER.warning(
+            "Invalid entity_id %s: not an automation entity",
+            entity_id,
+        )
+        return False
+
+    # Validate data is a dict
+    if not isinstance(entry_data, dict):
+        _LOGGER.warning(
+            "Invalid data for %s: expected dict, got %s",
+            entity_id,
+            type(entry_data).__name__,
+        )
+        return False
+
+    # Validate required fields exist
+    if entry_type == "paused":
+        required = ["resume_at", "paused_at"]
+    else:  # scheduled
+        required = ["disable_at", "resume_at"]
+
+    for field_name in required:
+        if field_name not in entry_data:
+            _LOGGER.warning(
+                "Invalid data for %s: missing required field '%s'",
+                entity_id,
+                field_name,
+            )
+            return False
+
+    # Validate datetime fields
+    for field_name in required:
+        try:
+            datetime.fromisoformat(entry_data[field_name])
+        except (ValueError, TypeError) as err:
+            _LOGGER.warning(
+                "Invalid data for %s: invalid datetime in '%s': %s",
+                entity_id,
+                field_name,
+                err,
+            )
+            return False
+
+    # Validate numeric fields are non-negative (for paused entries)
+    if entry_type == "paused":
+        for field_name in ["days", "hours", "minutes"]:
+            value = entry_data.get(field_name, 0)
+            if not isinstance(value, (int, float)) or value < 0:
+                _LOGGER.warning(
+                    "Invalid data for %s: %s must be non-negative, got %s",
+                    entity_id,
+                    field_name,
+                    value,
+                )
+                return False
+
+    # Validate scheduled entry has disable_at < resume_at
+    if entry_type == "scheduled":
+        disable_at = datetime.fromisoformat(entry_data["disable_at"])
+        resume_at = datetime.fromisoformat(entry_data["resume_at"])
+        if resume_at <= disable_at:
+            _LOGGER.warning(
+                "Invalid scheduled snooze for %s: resume_at must be after disable_at",
+                entity_id,
+            )
+            return False
+
+    return True
+
+
+def _validate_stored_data(stored: Any) -> dict[str, Any]:
+    """Validate and sanitize stored data.
+
+    Returns validated data with invalid entries removed.
+    """
+    # Handle completely invalid storage
+    if not isinstance(stored, dict):
+        _LOGGER.error(
+            "Corrupted storage: expected dict, got %s",
+            type(stored).__name__,
+        )
+        return {"paused": {}, "scheduled": {}}
+
+    result: dict[str, Any] = {"paused": {}, "scheduled": {}}
+    invalid_count = 0
+
+    # Validate paused entries
+    paused = stored.get("paused", {})
+    if isinstance(paused, dict):
+        for entity_id, entry_data in paused.items():
+            if _validate_stored_entry(entity_id, entry_data, "paused"):
+                result["paused"][entity_id] = entry_data
+            else:
+                invalid_count += 1
+    else:
+        _LOGGER.warning(
+            "Invalid 'paused' schema: expected dict, got %s",
+            type(paused).__name__,
+        )
+
+    # Validate scheduled entries
+    scheduled = stored.get("scheduled", {})
+    if isinstance(scheduled, dict):
+        for entity_id, entry_data in scheduled.items():
+            if _validate_stored_entry(entity_id, entry_data, "scheduled"):
+                result["scheduled"][entity_id] = entry_data
+            else:
+                invalid_count += 1
+    else:
+        _LOGGER.warning(
+            "Invalid 'scheduled' schema: expected dict, got %s",
+            type(scheduled).__name__,
+        )
+
+    if invalid_count > 0:
+        _LOGGER.info(
+            "Skipped %d invalid entries during storage load",
+            invalid_count,
+        )
+
+    return result
+
+
 async def _async_load_stored(hass: HomeAssistant, data: AutomationPauseData) -> None:
     """Load and restore snoozed automations from storage (FR-07: Persistence)."""
     if data.store is None:
@@ -333,11 +479,14 @@ async def _async_load_stored(hass: HomeAssistant, data: AutomationPauseData) -> 
     if not stored:
         return
 
+    # Validate stored data before processing
+    validated = _validate_stored_data(stored)
+
     now = dt_util.utcnow()
     expired: list[str] = []
 
     # Load paused automations
-    for entity_id, info in stored.get("paused", {}).items():
+    for entity_id, info in validated.get("paused", {}).items():
         try:
             paused = PausedAutomation.from_dict(entity_id, info)
             if paused.resume_at <= now:
@@ -352,7 +501,7 @@ async def _async_load_stored(hass: HomeAssistant, data: AutomationPauseData) -> 
 
     # Load scheduled snoozes
     expired_scheduled: list[str] = []
-    for entity_id, info in stored.get("scheduled", {}).items():
+    for entity_id, info in validated.get("scheduled", {}).items():
         try:
             scheduled = ScheduledSnooze.from_dict(entity_id, info)
             if scheduled.disable_at <= now:
@@ -385,18 +534,48 @@ async def _async_load_stored(hass: HomeAssistant, data: AutomationPauseData) -> 
         await _async_save(data)
 
 
-async def _async_save(data: AutomationPauseData) -> None:
-    """Save snoozed automations to storage."""
-    if data.store is None:
-        return
+async def _async_save(data: AutomationPauseData) -> bool:
+    """Save snoozed automations to storage with retry logic.
 
-    try:
-        await data.store.async_save({
-            "paused": {k: v.to_dict() for k, v in data.paused.items()},
-            "scheduled": {k: v.to_dict() for k, v in data.scheduled.items()},
-        })
-    except Exception as err:
-        _LOGGER.error("Failed to save data: %s", err)
+    Returns:
+        True if save succeeded, False if all retries exhausted.
+    """
+    if data.store is None:
+        return True  # Nothing to save, consider success
+
+    save_data = {
+        "paused": {k: v.to_dict() for k, v in data.paused.items()},
+        "scheduled": {k: v.to_dict() for k, v in data.scheduled.items()},
+    }
+
+    last_error = None
+    for attempt in range(MAX_SAVE_RETRIES + 1):  # Initial + retries
+        try:
+            await data.store.async_save(save_data)
+            return True
+        except TRANSIENT_ERRORS as err:
+            last_error = err
+            if attempt < MAX_SAVE_RETRIES:
+                delay = SAVE_RETRY_DELAYS[attempt]
+                _LOGGER.warning(
+                    "Save attempt %d failed, retrying in %.1fs: %s",
+                    attempt + 1,
+                    delay,
+                    err,
+                )
+                await asyncio.sleep(delay)
+        except Exception as err:
+            # Non-transient error - don't retry
+            _LOGGER.error("Failed to save data: %s", err)
+            return False
+
+    # All retries exhausted
+    _LOGGER.error(
+        "Failed to save data after %d attempts: %s",
+        MAX_SAVE_RETRIES + 1,
+        last_error,
+    )
+    return False
 
 
 async def _set_automation_state(
