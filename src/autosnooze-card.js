@@ -1,9 +1,9 @@
 import { LitElement, html, css } from "lit";
 
-// Version 2.9.14 - Fix double-swipe error with elementWasDefined flag
-// Only fire ll-rebuild when we actually defined the element (first load),
-// not on refresh where element is already registered
-const CARD_VERSION = "2.9.14";
+// Version 2.9.13 - Fix double-swipe error with module load ID pattern
+// Uses unique module load ID to prevent stale timeouts from firing ll-rebuild
+// when WebView soft-reloads preserve window state across module re-executions
+const CARD_VERSION = "2.9.13";
 
 // Generate a unique ID for this module load instance
 // This allows us to detect when a newer module load has superseded us
@@ -1703,40 +1703,31 @@ try {
 // This fixes "Custom element not found" errors when the module loads after
 // Lovelace has already tried to render the card on page refresh
 //
-// DOUBLE-SWIPE FIX: Only fire ll-rebuild if we ACTUALLY defined the element.
+// MODULE LOAD ID PATTERN: Fixes double-swipe configuration errors in WebView
+// Problem: In Home Assistant Companion app, swipe-to-refresh does a "soft reload"
+// that preserves window state while re-executing the module. The old debounce
+// approach using clearTimeout() failed because stale timeout IDs from previous
+// execution contexts cannot be reliably cleared.
 //
-// Root cause of double-swipe bug:
-// In Home Assistant Companion app, swipe-to-refresh does a "soft reload" that
-// preserves the customElements registry while re-executing the module. On refresh:
-// 1. customElements.get("autosnooze-card") returns truthy (old class still there)
-// 2. We skip customElements.define() (element already registered)
-// 3. If we fire ll-rebuild anyway, Lovelace tries to re-render cards
-// 4. This causes "configuration error: card doesn't exist" due to state mismatch
+// Solution: Each module load gets a unique ID. Before firing ll-rebuild, we check
+// if this module instance is still "current". A newer module load will overwrite
+// window._autosnoozeCurrentModule, invalidating older pending timeouts.
 //
-// Solution: Track whether WE defined the element in THIS module load.
-// - First load: elementWasDefined=true, ll-rebuild fires (needed to replace error cards)
-// - Refresh: elementWasDefined=false, ll-rebuild is SKIPPED (no error cards to replace)
+// Timeline for double-swipe:
+// T=0ms:   First swipe - Module A loads, sets _autosnoozeCurrentModule = "A", schedules ll-rebuild
+// T=50ms:  Second swipe - Module B loads, sets _autosnoozeCurrentModule = "B", schedules ll-rebuild
+// T=100ms: Module A's timeout fires, but "A" !== "B", so ll-rebuild is SKIPPED
+// T=150ms: Module B's timeout fires, "B" === "B", ll-rebuild fires ONCE
 //
-// Additionally, use MODULE_LOAD_ID to handle rapid double-swipe:
-// - Each module load gets unique ID
-// - If a newer module load occurs, the old module's pending ll-rebuild is skipped
-// - This prevents multiple ll-rebuild events from racing
-//
-// Combined conditions for firing ll-rebuild:
-// 1. elementWasDefined === true (we actually registered the element)
-// 2. window._autosnoozeCurrentModule === MODULE_LOAD_ID (no newer module load)
+// This ensures exactly ONE ll-rebuild fires after all rapid reloads settle.
 window._autosnoozeCurrentModule = MODULE_LOAD_ID;
-console.log(`[AutoSnooze] Module load ID: ${MODULE_LOAD_ID}, elementWasDefined: ${elementWasDefined}`);
+console.log(`[AutoSnooze] Module load ID: ${MODULE_LOAD_ID}`);
 
 setTimeout(() => {
-  // CRITICAL: Only fire ll-rebuild if BOTH conditions are met:
-  // 1. We actually defined the element (not a refresh where it was already registered)
-  // 2. This module is still the current one (no newer module load superseded us)
-  if (elementWasDefined && window._autosnoozeCurrentModule === MODULE_LOAD_ID) {
-    console.log(`[AutoSnooze] Firing ll-rebuild (element was defined, module ${MODULE_LOAD_ID} is current)`);
+  // Check if a newer module load has superseded us
+  if (window._autosnoozeCurrentModule === MODULE_LOAD_ID) {
+    console.log(`[AutoSnooze] Firing ll-rebuild (module ${MODULE_LOAD_ID} is current)`);
     window.dispatchEvent(new Event("ll-rebuild"));
-  } else if (!elementWasDefined) {
-    console.log(`[AutoSnooze] Skipping ll-rebuild (element was already registered, no error cards to replace)`);
   } else {
     console.log(`[AutoSnooze] Skipping ll-rebuild (module ${MODULE_LOAD_ID} superseded by ${window._autosnoozeCurrentModule})`);
   }
