@@ -1,7 +1,7 @@
 import { LitElement, html, css } from "lit";
 
-// Version 2.9.9 - Fix configuration error on rapid swipe-to-refresh (double swipe)
-const CARD_VERSION = "2.9.9";
+// Version 2.9.11 - Revert to simple ll-rebuild dispatch
+const CARD_VERSION = "2.9.11";
 
 // ============================================================================
 // CARD EDITOR
