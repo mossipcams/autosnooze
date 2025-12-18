@@ -47,16 +47,13 @@ Snooze automations for a set duration. They re-enable automatically when the tim
 5. Restart Home Assistant
 6. Go to **Settings → Devices & Services → Add Integration → AutoSnooze**
 
-### Manual Card Installation
+The dashboard card is automatically registered when the integration loads. Just add the card to your dashboard and you're ready to go.
 
-> **Note:** HACS installs the integration but the dashboard card requires manual setup.
+### Manual Installation
 
-1. Download [`autosnooze-card.js`](https://github.com/mossipcams/autosnooze/raw/main/custom_components/autosnooze/www/autosnooze-card.js)
-2. Copy to `config/www/autosnooze-card.js`
-3. Go to **Settings → Dashboards → Resources → Add Resource**
-   - URL: `/local/autosnooze-card.js`
-   - Type: **JavaScript module**
-4. Hard refresh your browser (`Ctrl+Shift+R` or `Cmd+Shift+R`)
+1. Copy `custom_components/autosnooze` to your `config/custom_components/` folder
+2. Restart Home Assistant
+3. Go to **Settings → Devices & Services → Add Integration → AutoSnooze**
 
 ---
 
@@ -194,9 +191,14 @@ icon: mdi:sleep
 ## Troubleshooting
 
 ### Card not appearing
+
+The card should register automatically. If it doesn't:
+
 1. Clear browser cache and hard refresh (`Ctrl+Shift+R`)
-2. Verify the resource is registered in **Settings → Dashboards → Resources**
-3. Check browser console for JavaScript errors
+2. Check **Settings → Dashboards → Resources** for the autosnooze entry
+3. If missing, manually add the resource:
+   - URL: `/autosnooze/autosnooze-card.js`
+   - Type: **JavaScript module**
 
 ### iOS/Safari issues
 See [IOS_FIX.md](IOS_FIX.md) for iOS-specific cache issues.
