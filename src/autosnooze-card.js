@@ -1,7 +1,13 @@
 import { LitElement, html, css } from "lit";
 
-// Version 2.9.11 - Revert to simple ll-rebuild dispatch
-const CARD_VERSION = "2.9.11";
+// Version 2.9.14 - Fix double-swipe error with elementWasDefined flag
+// Only fire ll-rebuild when we actually defined the element (first load),
+// not on refresh where element is already registered
+const CARD_VERSION = "2.9.14";
+
+// Generate a unique ID for this module load instance
+// This allows us to detect when a newer module load has superseded us
+const MODULE_LOAD_ID = `autosnooze_${Date.now()}_${Math.random().toString(36).slice(2)}`;
 
 // ============================================================================
 // CARD EDITOR
@@ -129,14 +135,38 @@ class AutomationPauseCard extends LitElement {
     this._categoriesFetched = false;
     this._entityRegistryFetched = false;
     this._debugLogged = false;
+    // State guards to prevent duplicate initialization during rapid reloads
+    this._initialSetupComplete = false;
+    this._instanceModuleId = MODULE_LOAD_ID; // Track which module version created this instance
   }
 
   connectedCallback() {
     super.connectedCallback();
+
+    // Guard: Check if this instance was created by a stale module load
+    // This can happen when WebView preserves DOM but re-executes module
+    if (this._instanceModuleId !== MODULE_LOAD_ID) {
+      console.log(`[AutoSnooze] Instance from old module (${this._instanceModuleId}) reconnected, updating to current (${MODULE_LOAD_ID})`);
+      this._instanceModuleId = MODULE_LOAD_ID;
+      // Reset fetch flags to allow re-fetching with new module context
+      this._labelsFetched = false;
+      this._categoriesFetched = false;
+      this._entityRegistryFetched = false;
+      this._initialSetupComplete = false;
+    }
+
+    // Guard: Prevent duplicate interval setup
+    if (this._interval) {
+      window.clearInterval(this._interval);
+    }
     this._interval = window.setInterval(() => this.requestUpdate(), 1000);
+
+    // Fetch registries (guards inside each method prevent duplicate fetches)
     this._fetchLabelRegistry();
     this._fetchCategoryRegistry();
     this._fetchEntityRegistry();
+
+    this._initialSetupComplete = true;
   }
 
   async _fetchLabelRegistry() {
@@ -1629,12 +1659,24 @@ class AutomationPauseCard extends LitElement {
 // Register custom elements with guards to prevent duplicate registration errors
 // This fixes "Custom element not found" errors that can occur on page refresh
 // when the module is re-executed before previous definitions are cleared
+//
+// CRITICAL: Track whether WE defined the element in THIS module load.
+// This flag is the key to fixing the double-swipe configuration error.
+// On refresh, the element is already registered (by previous load), so we skip
+// define() and set elementWasDefined=false. This prevents ll-rebuild from firing
+// unnecessarily, which would cause Lovelace to re-render in an inconsistent state.
+let elementWasDefined = false;
+
 try {
   if (!customElements.get("autosnooze-card-editor")) {
     customElements.define("autosnooze-card-editor", AutomationPauseCardEditor);
   }
   if (!customElements.get("autosnooze-card")) {
     customElements.define("autosnooze-card", AutomationPauseCard);
+    elementWasDefined = true; // Only set true when WE actually defined it
+    console.log(`[AutoSnooze] Custom element defined (first load)`);
+  } else {
+    console.log(`[AutoSnooze] Custom element already registered (refresh/reload)`);
   }
 } catch (e) {
   console.error("[AutoSnooze] Failed to register custom elements:", e);
@@ -1661,16 +1703,41 @@ try {
 // This fixes "Custom element not found" errors when the module loads after
 // Lovelace has already tried to render the card on page refresh
 //
-// DEBOUNCED: Prevents race conditions when user rapidly swipes to refresh
-// (e.g., double swipe-down in Home Assistant Companion app). Multiple rapid
-// reloads can cause multiple ll-rebuild events to fire before the previous
-// one settles, leading to "configuration error". Debouncing ensures only
-// ONE ll-rebuild fires after all module loading settles.
-// See: https://github.com/custom-cards/button-card (similar pattern)
-if (window._autosnoozeRebuildTimeout) {
-  clearTimeout(window._autosnoozeRebuildTimeout);
-}
-window._autosnoozeRebuildTimeout = setTimeout(() => {
-  window.dispatchEvent(new Event("ll-rebuild"));
-  delete window._autosnoozeRebuildTimeout;
-}, 100);
+// DOUBLE-SWIPE FIX: Only fire ll-rebuild if we ACTUALLY defined the element.
+//
+// Root cause of double-swipe bug:
+// In Home Assistant Companion app, swipe-to-refresh does a "soft reload" that
+// preserves the customElements registry while re-executing the module. On refresh:
+// 1. customElements.get("autosnooze-card") returns truthy (old class still there)
+// 2. We skip customElements.define() (element already registered)
+// 3. If we fire ll-rebuild anyway, Lovelace tries to re-render cards
+// 4. This causes "configuration error: card doesn't exist" due to state mismatch
+//
+// Solution: Track whether WE defined the element in THIS module load.
+// - First load: elementWasDefined=true, ll-rebuild fires (needed to replace error cards)
+// - Refresh: elementWasDefined=false, ll-rebuild is SKIPPED (no error cards to replace)
+//
+// Additionally, use MODULE_LOAD_ID to handle rapid double-swipe:
+// - Each module load gets unique ID
+// - If a newer module load occurs, the old module's pending ll-rebuild is skipped
+// - This prevents multiple ll-rebuild events from racing
+//
+// Combined conditions for firing ll-rebuild:
+// 1. elementWasDefined === true (we actually registered the element)
+// 2. window._autosnoozeCurrentModule === MODULE_LOAD_ID (no newer module load)
+window._autosnoozeCurrentModule = MODULE_LOAD_ID;
+console.log(`[AutoSnooze] Module load ID: ${MODULE_LOAD_ID}, elementWasDefined: ${elementWasDefined}`);
+
+setTimeout(() => {
+  // CRITICAL: Only fire ll-rebuild if BOTH conditions are met:
+  // 1. We actually defined the element (not a refresh where it was already registered)
+  // 2. This module is still the current one (no newer module load superseded us)
+  if (elementWasDefined && window._autosnoozeCurrentModule === MODULE_LOAD_ID) {
+    console.log(`[AutoSnooze] Firing ll-rebuild (element was defined, module ${MODULE_LOAD_ID} is current)`);
+    window.dispatchEvent(new Event("ll-rebuild"));
+  } else if (!elementWasDefined) {
+    console.log(`[AutoSnooze] Skipping ll-rebuild (element was already registered, no error cards to replace)`);
+  } else {
+    console.log(`[AutoSnooze] Skipping ll-rebuild (module ${MODULE_LOAD_ID} superseded by ${window._autosnoozeCurrentModule})`);
+  }
+}, 150);
