@@ -53,10 +53,15 @@ class TestLovelaceResourcesOnlyRegistration:
         """
         source = get_init_source()
 
-        # Must NOT import add_extra_js_url
-        assert "add_extra_js_url" not in source, (
+        # Must NOT import add_extra_js_url from frontend
+        # (it may appear in comments explaining why we don't use it)
+        assert "from homeassistant.components.frontend import add_extra_js_url" not in source, (
             "Must NOT import add_extra_js_url - causes iOS refresh issues. "
             "Use Lovelace Resources only (like HACS cards)."
+        )
+        # Also check it's not called
+        assert "add_extra_js_url(hass" not in source, (
+            "Must NOT call add_extra_js_url() - causes iOS refresh issues."
         )
 
     def test_uses_static_path_registration(self) -> None:
