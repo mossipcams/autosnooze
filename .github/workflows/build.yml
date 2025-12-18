@@ -22,6 +22,36 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Validate version consistency
+        run: |
+          echo "Validating version consistency across files..."
+
+          # Extract versions from both files
+          PACKAGE_VERSION=$(jq -r '.version' package.json)
+          MANIFEST_VERSION=$(jq -r '.version' custom_components/autosnooze/manifest.json)
+
+          echo "package.json version: $PACKAGE_VERSION"
+          echo "manifest.json version: $MANIFEST_VERSION"
+
+          # Validate versions match
+          if [ "$PACKAGE_VERSION" != "$MANIFEST_VERSION" ]; then
+            echo "ERROR: Version mismatch detected!"
+            echo "  package.json:  $PACKAGE_VERSION"
+            echo "  manifest.json: $MANIFEST_VERSION"
+            echo ""
+            echo "Please ensure both files have the same version number."
+            exit 1
+          fi
+
+          # Validate semantic versioning format (major.minor.patch)
+          if ! echo "$PACKAGE_VERSION" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9.]+)?(\+[a-zA-Z0-9.]+)?$'; then
+            echo "ERROR: Version '$PACKAGE_VERSION' does not follow semantic versioning format!"
+            echo "Expected format: MAJOR.MINOR.PATCH (e.g., 1.0.0, 2.9.11)"
+            exit 1
+          fi
+
+          echo "Version validation passed: $PACKAGE_VERSION"
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
