@@ -201,6 +201,19 @@ icon: mdi:sleep
 
 ---
 
+## Performance
+
+AutoSnooze is optimized for large Home Assistant installations:
+
+- **Efficient data loading**: Uses a single API request regardless of automation count
+- **Smart re-rendering**: Only updates the UI when countdowns are active
+- **Cached computations**: Automation lists are cached and only recomputed when state changes
+- **Debounced search**: Search input waits 300ms before filtering to prevent lag
+
+Tested with 100+ automations without performance degradation.
+
+---
+
 ## Troubleshooting
 
 ### Card not appearing

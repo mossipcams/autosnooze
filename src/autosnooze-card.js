@@ -103,6 +103,8 @@ class AutomationPauseCard extends LitElement {
     _categoryRegistry: { state: true },
     _entityRegistry: { state: true },
     _showCustomInput: { state: true },
+    _automationsCache: { state: true },
+    _automationsCacheKey: { state: true },
   };
 
   constructor() {
@@ -128,6 +130,9 @@ class AutomationPauseCard extends LitElement {
     this._labelsFetched = false;
     this._categoriesFetched = false;
     this._entityRegistryFetched = false;
+    this._automationsCache = null;
+    this._automationsCacheKey = null;
+    this._searchTimeout = null;
   }
 
   connectedCallback() {
@@ -136,7 +141,15 @@ class AutomationPauseCard extends LitElement {
     if (this._interval) {
       window.clearInterval(this._interval);
     }
-    this._interval = window.setInterval(() => this.requestUpdate(), 1000);
+    // Only re-render when there are active countdowns to update
+    this._interval = window.setInterval(() => {
+      const sensor = this.hass?.states?.["sensor.autosnooze_status"];
+      const pausedCount = sensor?.attributes?.paused_count || 0;
+      const scheduledCount = sensor?.attributes?.scheduled_count || 0;
+      if (pausedCount > 0 || scheduledCount > 0) {
+        this.requestUpdate();
+      }
+    }, 1000);
 
     this._fetchLabelRegistry();
     this._fetchCategoryRegistry();
@@ -196,24 +209,15 @@ class AutomationPauseCard extends LitElement {
         type: "config/entity_registry/list",
       });
 
-      const automationEntities = Array.isArray(entities)
-        ? entities.filter((e) => e.entity_id.startsWith("automation."))
-        : [];
-
-      // Fetch extended entry for each automation (includes categories)
-      const extendedEntries = await Promise.all(
-        automationEntities.map((entity) =>
-          this.hass.connection.sendMessagePromise({
-            type: "config/entity_registry/get",
-            entity_id: entity.entity_id,
-          })
-        )
-      );
-
+      // Build map directly from list response (includes categories data)
       const entityMap = {};
-      extendedEntries.forEach((entity) => {
-        entityMap[entity.entity_id] = entity;
-      });
+      if (Array.isArray(entities)) {
+        entities
+          .filter((e) => e.entity_id.startsWith("automation."))
+          .forEach((entity) => {
+            entityMap[entity.entity_id] = entity;
+          });
+      }
 
       this._entityRegistry = entityMap;
       this._entityRegistryFetched = true;
@@ -243,6 +247,18 @@ class AutomationPauseCard extends LitElement {
       clearInterval(this._interval);
       this._interval = null;
     }
+    if (this._searchTimeout !== null) {
+      clearTimeout(this._searchTimeout);
+      this._searchTimeout = null;
+    }
+  }
+
+  _handleSearchInput(e) {
+    const value = e.target.value;
+    clearTimeout(this._searchTimeout);
+    this._searchTimeout = setTimeout(() => {
+      this._search = value;
+    }, 300);
   }
 
   static getConfigElement() {
@@ -787,8 +803,20 @@ class AutomationPauseCard extends LitElement {
     const entities = this.hass?.entities;
     if (!states) return [];
 
-    return Object.keys(states)
-      .filter((id) => id.startsWith("automation."))
+    // Generate cache key based on automation count and registry state
+    const automationIds = Object.keys(states).filter((id) =>
+      id.startsWith("automation.")
+    );
+    const cacheKey =
+      automationIds.length + "_" + this._entityRegistryFetched + "_" +
+      automationIds.map((id) => states[id]?.state).join(",");
+
+    // Return cached result if valid
+    if (this._automationsCacheKey === cacheKey && this._automationsCache) {
+      return this._automationsCache;
+    }
+
+    const result = automationIds
       .map((id) => {
         const state = states[id];
         if (!state) return null;
@@ -806,6 +834,12 @@ class AutomationPauseCard extends LitElement {
       })
       .filter((a) => a !== null)
       .sort((a, b) => a.name.localeCompare(b.name));
+
+    // Cache the result
+    this._automationsCache = result;
+    this._automationsCacheKey = cacheKey;
+
+    return result;
   }
 
   _getFilteredAutomations() {
@@ -1370,7 +1404,7 @@ class AutomationPauseCard extends LitElement {
               type="text"
               placeholder="Search automations..."
               .value=${this._search}
-              @input=${(e) => (this._search = e.target.value)}
+              @input=${(e) => this._handleSearchInput(e)}
             />
           </div>
 
