@@ -111,7 +111,7 @@ class AutomationPauseCard extends LitElement {
 
   constructor() {
     super();
-    this.hass = {};
+    this._hass = {}; // Internal storage for hass
     this.config = {};
     this._selected = [];
     this._duration = 1800000; // 30 minutes default
@@ -136,10 +136,59 @@ class AutomationPauseCard extends LitElement {
     // State guards to prevent duplicate initialization during rapid reloads
     this._initialSetupComplete = false;
     this._instanceModuleId = MODULE_LOAD_ID; // Track which module version created this instance
+    this._hassSetCount = 0; // Track how many times hass is set for debugging
+  }
+
+  // Custom hass getter/setter for debugging page refresh issues
+  get hass() {
+    return this._hass;
+  }
+
+  set hass(hass) {
+    this._hassSetCount++;
+    const sensorEntity = hass?.states?.["sensor.autosnooze_snoozed_automations"];
+
+    console.log(`[AutoSnooze] hass set #${this._hassSetCount}`, {
+      hassExists: !!hass,
+      statesCount: hass?.states ? Object.keys(hass.states).length : 0,
+      connectionExists: !!hass?.connection,
+      sensorExists: !!sensorEntity,
+      configExists: !!this.config,
+      moduleId: this._instanceModuleId,
+    });
+
+    if (!hass) {
+      console.warn("[AutoSnooze] hass is null/undefined during set");
+      return;
+    }
+
+    if (!hass.states) {
+      console.warn("[AutoSnooze] hass.states is missing during set");
+      return;
+    }
+
+    if (!sensorEntity) {
+      console.log("[AutoSnooze] AutoSnooze sensor not found (may not be loaded yet):", "sensor.autosnooze_snoozed_automations");
+    }
+
+    const oldHass = this._hass;
+    this._hass = hass;
+
+    // Trigger LitElement's reactive update
+    this.requestUpdate("hass", oldHass);
   }
 
   connectedCallback() {
     super.connectedCallback();
+
+    console.log(`[AutoSnooze] connectedCallback called`, {
+      instanceModuleId: this._instanceModuleId,
+      currentModuleId: MODULE_LOAD_ID,
+      hassExists: !!this._hass,
+      hassStatesCount: this._hass?.states ? Object.keys(this._hass.states).length : 0,
+      configExists: !!this.config,
+      initialSetupComplete: this._initialSetupComplete,
+    });
 
     // Guard: Check if this instance was created by a stale module load
     // This can happen when WebView preserves DOM but re-executes module
@@ -288,6 +337,10 @@ class AutomationPauseCard extends LitElement {
 
   disconnectedCallback() {
     super.disconnectedCallback();
+    console.log(`[AutoSnooze] disconnectedCallback called`, {
+      moduleId: this._instanceModuleId,
+      hassSetCount: this._hassSetCount,
+    });
     if (this._interval !== null) {
       clearInterval(this._interval);
       this._interval = null;
@@ -1375,6 +1428,15 @@ class AutomationPauseCard extends LitElement {
   }
 
   render() {
+    console.log(`[AutoSnooze] render called`, {
+      hassExists: !!this._hass,
+      hassStatesCount: this._hass?.states ? Object.keys(this._hass.states).length : 0,
+      sensorExists: !!this._hass?.states?.["sensor.autosnooze_snoozed_automations"],
+      configExists: !!this.config,
+      moduleId: this._instanceModuleId,
+      hassSetCount: this._hassSetCount,
+    });
+
     const paused = this._getPaused();
     const pausedCount = Object.keys(paused).length;
     const scheduled = this._getScheduled();
@@ -1650,6 +1712,11 @@ class AutomationPauseCard extends LitElement {
   }
 
   setConfig(config) {
+    console.log(`[AutoSnooze] setConfig called`, {
+      config,
+      moduleId: this._instanceModuleId,
+      hassExists: !!this._hass,
+    });
     this.config = config;
   }
 }
