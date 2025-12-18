@@ -1667,19 +1667,10 @@ try {
 // one settles, leading to "configuration error". Debouncing ensures only
 // ONE ll-rebuild fires after all module loading settles.
 // See: https://github.com/custom-cards/button-card (similar pattern)
-//
-// Strategy: Fire immediately on first load, debounce only rapid subsequent loads
 if (window._autosnoozeRebuildTimeout) {
-  // Rapid reload detected - clear previous timeout and set new one
   clearTimeout(window._autosnoozeRebuildTimeout);
-  window._autosnoozeRebuildTimeout = setTimeout(() => {
-    window.dispatchEvent(new Event("ll-rebuild"));
-    delete window._autosnoozeRebuildTimeout;
-  }, 100);
-} else {
-  // First load - fire immediately, then set a guard timeout
-  window.dispatchEvent(new Event("ll-rebuild"));
-  window._autosnoozeRebuildTimeout = setTimeout(() => {
-    delete window._autosnoozeRebuildTimeout;
-  }, 200);
 }
+window._autosnoozeRebuildTimeout = setTimeout(() => {
+  window.dispatchEvent(new Event("ll-rebuild"));
+  delete window._autosnoozeRebuildTimeout;
+}, 100);
