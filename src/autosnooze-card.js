@@ -1,7 +1,7 @@
 import { LitElement, html, css } from "lit";
 
-// Version 2.9.8 - Fix custom element not found error on page refresh
-const CARD_VERSION = "2.9.8";
+// Version 2.9.11
+const CARD_VERSION = "2.9.11";
 
 // ============================================================================
 // CARD EDITOR
