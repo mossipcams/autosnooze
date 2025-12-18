@@ -1,7 +1,7 @@
 import { LitElement, html, css } from "lit";
 
-// Version 2.9.16
-const CARD_VERSION = "2.9.16";
+// Version 2.9.17
+const CARD_VERSION = "2.9.17";
 
 // Generate a unique ID for this module load instance
 // This allows us to detect when a newer module load has superseded us
