@@ -26,20 +26,24 @@ jobs:
         run: |
           echo "Validating version consistency across files..."
 
-          # Extract versions from both files
+          # Extract versions from all three sources
           PACKAGE_VERSION=$(jq -r '.version' package.json)
           MANIFEST_VERSION=$(jq -r '.version' custom_components/autosnooze/manifest.json)
+          CARD_VERSION=$(grep -oP 'const CARD_VERSION = "\K[^"]+' src/autosnooze-card.js)
 
-          echo "package.json version: $PACKAGE_VERSION"
-          echo "manifest.json version: $MANIFEST_VERSION"
+          echo "package.json version:       $PACKAGE_VERSION"
+          echo "manifest.json version:      $MANIFEST_VERSION"
+          echo "CARD_VERSION (source) version: $CARD_VERSION"
 
-          # Validate versions match
-          if [ "$PACKAGE_VERSION" != "$MANIFEST_VERSION" ]; then
-            echo "ERROR: Version mismatch detected!"
-            echo "  package.json:  $PACKAGE_VERSION"
-            echo "  manifest.json: $MANIFEST_VERSION"
+          # Validate all three versions match
+          if [ "$PACKAGE_VERSION" != "$MANIFEST_VERSION" ] || [ "$PACKAGE_VERSION" != "$CARD_VERSION" ]; then
             echo ""
-            echo "Please ensure both files have the same version number."
+            echo "ERROR: Version mismatch detected!"
+            echo "  package.json:             $PACKAGE_VERSION"
+            echo "  manifest.json:            $MANIFEST_VERSION"
+            echo "  CARD_VERSION (source):    $CARD_VERSION"
+            echo ""
+            echo "Please ensure all three files have the same version number."
             exit 1
           fi
 
@@ -50,6 +54,7 @@ jobs:
             exit 1
           fi
 
+          echo ""
           echo "Version validation passed: $PACKAGE_VERSION"
 
       - name: Setup Node.js
