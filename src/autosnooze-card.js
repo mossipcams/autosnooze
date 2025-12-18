@@ -1,36 +1,7 @@
 import { LitElement, html, css } from "lit";
 
-// Version 2.9.22 - Fix: Use Lovelace Resources only (like HACS cards) for iOS refresh fix
-const CARD_VERSION = "2.9.22";
-
-// iOS REFRESH FIX: Detect and recover from stale ES module cache
-//
-// Problem: iOS pull-to-refresh does a "soft refresh" that:
-// 1. Clears the DOM and customElements registry
-// 2. BUT keeps the ES module cache (modules don't re-execute)
-// Result: "Custom element doesn't exist" error
-//
-// Solution: Check if we're in a stale state (module ran before but element missing)
-// and force a fresh import with a timestamp to bypass the module cache.
-//
-// This check runs at module load time. If we detect staleness, we:
-// 1. Clear our flag
-// 2. Dynamically import ourselves with a cache-busting timestamp
-// 3. Return early to prevent duplicate registration
-if (window.__autosnoozeModuleExecuted && !customElements.get("autosnooze-card")) {
-  console.log("[AutoSnooze] Detected stale module cache (element missing after refresh)");
-  console.log("[AutoSnooze] Forcing fresh import to re-register custom element");
-  window.__autosnoozeModuleExecuted = false;
-  // Import with timestamp to bypass ES module cache
-  import(`/autosnooze-card.js?refresh=${Date.now()}`);
-  // Don't continue executing this stale module - the fresh import will handle registration
-  throw new Error("[AutoSnooze] Reloading module - this error is expected and handled");
-}
-window.__autosnoozeModuleExecuted = true;
-
-// Generate a unique ID for this module load instance
-// This allows us to detect when a newer module load has superseded us
-const MODULE_LOAD_ID = `autosnooze_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+// Version 2.9.23 - Cleanup: Remove unsuccessful iOS fix attempts and debugging
+const CARD_VERSION = "2.9.23";
 
 // ============================================================================
 // CARD EDITOR
@@ -136,7 +107,7 @@ class AutomationPauseCard extends LitElement {
 
   constructor() {
     super();
-    this._hass = {}; // Internal storage for hass
+    this.hass = {};
     this.config = {};
     this._selected = [];
     this._duration = 1800000; // 30 minutes default
@@ -157,88 +128,19 @@ class AutomationPauseCard extends LitElement {
     this._labelsFetched = false;
     this._categoriesFetched = false;
     this._entityRegistryFetched = false;
-    this._debugLogged = false;
-    // State guards to prevent duplicate initialization during rapid reloads
-    this._initialSetupComplete = false;
-    this._instanceModuleId = MODULE_LOAD_ID; // Track which module version created this instance
-    this._hassSetCount = 0; // Track how many times hass is set for debugging
-  }
-
-  // Custom hass getter/setter for debugging page refresh issues
-  get hass() {
-    return this._hass;
-  }
-
-  set hass(hass) {
-    this._hassSetCount++;
-    const sensorEntity = hass?.states?.["sensor.autosnooze_snoozed_automations"];
-
-    console.log(`[AutoSnooze] hass set #${this._hassSetCount}`, {
-      hassExists: !!hass,
-      statesCount: hass?.states ? Object.keys(hass.states).length : 0,
-      connectionExists: !!hass?.connection,
-      sensorExists: !!sensorEntity,
-      configExists: !!this.config,
-      moduleId: this._instanceModuleId,
-    });
-
-    if (!hass) {
-      console.warn("[AutoSnooze] hass is null/undefined during set");
-      return;
-    }
-
-    if (!hass.states) {
-      console.warn("[AutoSnooze] hass.states is missing during set");
-      return;
-    }
-
-    if (!sensorEntity) {
-      console.log("[AutoSnooze] AutoSnooze sensor not found (may not be loaded yet):", "sensor.autosnooze_snoozed_automations");
-    }
-
-    const oldHass = this._hass;
-    this._hass = hass;
-
-    // Trigger LitElement's reactive update
-    this.requestUpdate("hass", oldHass);
   }
 
   connectedCallback() {
     super.connectedCallback();
 
-    console.log(`[AutoSnooze] connectedCallback called`, {
-      instanceModuleId: this._instanceModuleId,
-      currentModuleId: MODULE_LOAD_ID,
-      hassExists: !!this._hass,
-      hassStatesCount: this._hass?.states ? Object.keys(this._hass.states).length : 0,
-      configExists: !!this.config,
-      initialSetupComplete: this._initialSetupComplete,
-    });
-
-    // Guard: Check if this instance was created by a stale module load
-    // This can happen when WebView preserves DOM but re-executes module
-    if (this._instanceModuleId !== MODULE_LOAD_ID) {
-      console.log(`[AutoSnooze] Instance from old module (${this._instanceModuleId}) reconnected, updating to current (${MODULE_LOAD_ID})`);
-      this._instanceModuleId = MODULE_LOAD_ID;
-      // Reset fetch flags to allow re-fetching with new module context
-      this._labelsFetched = false;
-      this._categoriesFetched = false;
-      this._entityRegistryFetched = false;
-      this._initialSetupComplete = false;
-    }
-
-    // Guard: Prevent duplicate interval setup
     if (this._interval) {
       window.clearInterval(this._interval);
     }
     this._interval = window.setInterval(() => this.requestUpdate(), 1000);
 
-    // Fetch registries (guards inside each method prevent duplicate fetches)
     this._fetchLabelRegistry();
     this._fetchCategoryRegistry();
     this._fetchEntityRegistry();
-
-    this._initialSetupComplete = true;
   }
 
   async _fetchLabelRegistry() {
@@ -258,7 +160,6 @@ class AutomationPauseCard extends LitElement {
 
       this._labelRegistry = labelMap;
       this._labelsFetched = true;
-      console.log("[AutoSnooze] Label registry fetched:", Object.keys(labelMap).length, "labels");
     } catch (err) {
       console.warn("[AutoSnooze] Failed to fetch label registry:", err);
     }
@@ -282,7 +183,6 @@ class AutomationPauseCard extends LitElement {
 
       this._categoryRegistry = categoryMap;
       this._categoriesFetched = true;
-      console.log("[AutoSnooze] Category registry fetched:", Object.keys(categoryMap).length, "categories");
     } catch (err) {
       console.warn("[AutoSnooze] Failed to fetch category registry:", err);
     }
@@ -292,25 +192,15 @@ class AutomationPauseCard extends LitElement {
     if (this._entityRegistryFetched || !this.hass?.connection) return;
 
     try {
-      // Step 1: Get basic list to identify all entities
       const entities = await this.hass.connection.sendMessagePromise({
         type: "config/entity_registry/list",
       });
 
-      // Step 2: Filter to automation entities only
       const automationEntities = Array.isArray(entities)
         ? entities.filter((e) => e.entity_id.startsWith("automation."))
         : [];
 
-      // Debug: Check if basic list includes categories
-      if (automationEntities.length > 0) {
-        const basicSample = automationEntities.find(e => e.categories) || automationEntities[0];
-        console.log("[AutoSnooze] Basic list entry keys:", Object.keys(basicSample));
-        console.log("[AutoSnooze] Basic list categories:", basicSample.categories);
-      }
-
-      // Step 3: Fetch EXTENDED entry for each automation (includes categories)
-      // The basic list endpoint doesn't include categories for performance reasons
+      // Fetch extended entry for each automation (includes categories)
       const extendedEntries = await Promise.all(
         automationEntities.map((entity) =>
           this.hass.connection.sendMessagePromise({
@@ -320,26 +210,13 @@ class AutomationPauseCard extends LitElement {
         )
       );
 
-      // Step 4: Build map from extended entries
       const entityMap = {};
-      let categorizedCount = 0;
       extendedEntries.forEach((entity) => {
         entityMap[entity.entity_id] = entity;
-        if (entity.categories && Object.keys(entity.categories).length > 0) {
-          categorizedCount++;
-        }
       });
 
       this._entityRegistry = entityMap;
       this._entityRegistryFetched = true;
-      console.log("[AutoSnooze] Entity registry fetched:", Object.keys(entityMap).length, "automations,", categorizedCount, "with categories");
-
-      // Debug: Log a sample entry to see the data structure
-      if (extendedEntries.length > 0) {
-        const sample = extendedEntries.find(e => e.categories && Object.keys(e.categories).length > 0) || extendedEntries[0];
-        console.log("[AutoSnooze] Sample extended entry keys:", Object.keys(sample));
-        console.log("[AutoSnooze] Sample categories:", sample.categories);
-      }
     } catch (err) {
       console.warn("[AutoSnooze] Failed to fetch entity registry:", err);
     }
@@ -362,10 +239,6 @@ class AutomationPauseCard extends LitElement {
 
   disconnectedCallback() {
     super.disconnectedCallback();
-    console.log(`[AutoSnooze] disconnectedCallback called`, {
-      moduleId: this._instanceModuleId,
-      hassSetCount: this._hassSetCount,
-    });
     if (this._interval !== null) {
       clearInterval(this._interval);
       this._interval = null;
@@ -386,23 +259,6 @@ class AutomationPauseCard extends LitElement {
     }
     ha-card {
       padding: 16px;
-    }
-
-    /* Loading State */
-    .card-loading {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 12px;
-      padding: 32px 16px;
-      color: var(--secondary-text-color);
-    }
-    .card-loading ha-icon {
-      animation: spin 1s linear infinite;
-    }
-    @keyframes spin {
-      from { transform: rotate(0deg); }
-      to { transform: rotate(360deg); }
     }
 
     /* Header */
@@ -927,44 +783,17 @@ class AutomationPauseCard extends LitElement {
   `;
 
   _getAutomations() {
-    // Capture hass references in local variables to prevent race conditions
-    // (hass object can be replaced during iteration, causing undefined access errors)
     const states = this.hass?.states;
     const entities = this.hass?.entities;
-    const areas = this.hass?.areas;
     if (!states) return [];
-
-    // Debug: log available hass properties on first call
-    if (!this._debugLogged) {
-      this._debugLogged = true;
-      console.log("[AutoSnooze] Card version:", CARD_VERSION);
-      console.log("[AutoSnooze] hass.entities available:", !!entities, "count:", entities ? Object.keys(entities).length : 0);
-      console.log("[AutoSnooze] hass.areas available:", !!areas, "count:", areas ? Object.keys(areas).length : 0);
-      console.log("[AutoSnooze] Label registry (fetched separately):", Object.keys(this._labelRegistry).length, "labels");
-      console.log("[AutoSnooze] Entity registry (fetched separately):", Object.keys(this._entityRegistry).length, "entities");
-      if (this._entityRegistry) {
-        const sampleEntity = Object.keys(this._entityRegistry).find(k => k.startsWith("automation."));
-        if (sampleEntity) {
-          console.log("[AutoSnooze] Sample entity registry entry:", sampleEntity, this._entityRegistry[sampleEntity]);
-        }
-      }
-      if (areas && Object.keys(areas).length > 0) {
-        console.log("[AutoSnooze] Areas:", Object.entries(areas).map(([id, a]) => `${id}: ${a.name}`).join(", "));
-      }
-    }
 
     return Object.keys(states)
       .filter((id) => id.startsWith("automation."))
       .map((id) => {
         const state = states[id];
-        // Skip if state is undefined (can happen during rapid hass updates)
         if (!state) return null;
-        // Use fetched entity registry for full entity data including categories
         const registryEntry = this._entityRegistry?.[id];
-        // Fallback to hass.entities for basic info (area_id, labels)
         const hassEntry = entities?.[id];
-        // Get category from entity registry (categories object with scope keys)
-        // The entity registry from WebSocket includes categories: { automation: "category_id" }
         const categories = registryEntry?.categories || {};
         const category_id = categories.automation || null;
         return {
@@ -1077,11 +906,9 @@ class AutomationPauseCard extends LitElement {
   _getCategoryName(categoryId) {
     if (!categoryId) return "Uncategorized";
 
-    // Look up from category registry first
     const category = this._categoryRegistry[categoryId];
     if (category?.name) return category.name;
 
-    // Fallback: transform ID to readable name
     return categoryId
       .replace(/_/g, " ")
       .replace(/\b\w/g, (c) => c.toUpperCase());
@@ -1380,7 +1207,6 @@ class AutomationPauseCard extends LitElement {
       if (filtered.length === 0) {
         return html`<div class="list-empty">No automations found</div>`;
       }
-      // All tab: show only automation name, no complementary metadata
       return filtered.map((a) => html`
         <div
           class="list-item ${this._selected.includes(a.id) ? "selected" : ""}"
@@ -1398,7 +1224,6 @@ class AutomationPauseCard extends LitElement {
       `);
     }
 
-    // Grouped views: areas, categories, labels
     const grouped =
       this._filterTab === "areas"
         ? this._getGroupedByArea()
@@ -1437,9 +1262,6 @@ class AutomationPauseCard extends LitElement {
         </div>
         ${expanded
           ? items.map((a) => {
-              // Areas tab: no metadata (area is the group header)
-              // Categories tab: no metadata (category is the group header)
-              // Labels tab: show area as complementary info
               const showArea = this._filterTab === "labels" && a.area_id;
               const metaInfo = showArea ? this._getAreaName(a.area_id) : null;
 
@@ -1470,26 +1292,8 @@ class AutomationPauseCard extends LitElement {
   }
 
   render() {
-    console.log(`[AutoSnooze] render called`, {
-      hassExists: !!this._hass,
-      hassStatesCount: this._hass?.states ? Object.keys(this._hass.states).length : 0,
-      sensorExists: !!this._hass?.states?.["sensor.autosnooze_snoozed_automations"],
-      configExists: !!this.config,
-      moduleId: this._instanceModuleId,
-      hassSetCount: this._hassSetCount,
-    });
-
-    // Guard: Don't render full UI until we have hass and config
-    // This prevents iOS WebView from caching an empty/broken render
-    if (!this._hass || !this.config) {
-      return html`
-        <ha-card>
-          <div class="card-loading">
-            <ha-icon icon="mdi:loading"></ha-icon>
-            <span>Loading AutoSnooze...</span>
-          </div>
-        </ha-card>
-      `;
+    if (!this.hass || !this.config) {
+      return html``;
     }
 
     const paused = this._getPaused();
@@ -1767,129 +1571,25 @@ class AutomationPauseCard extends LitElement {
   }
 
   setConfig(config) {
-    console.log(`[AutoSnooze] setConfig called`, {
-      config,
-      moduleId: this._instanceModuleId,
-      hassExists: !!this._hass,
-    });
     this.config = config;
   }
 }
 
-// Register custom elements with guards to prevent duplicate registration errors
-// This fixes "Custom element not found" errors that can occur on page refresh
-// when the module is re-executed before previous definitions are cleared
-try {
-  if (!customElements.get("autosnooze-card-editor")) {
-    customElements.define("autosnooze-card-editor", AutomationPauseCardEditor);
-  }
-  if (!customElements.get("autosnooze-card")) {
-    customElements.define("autosnooze-card", AutomationPauseCard);
-  }
-} catch (e) {
-  console.error("[AutoSnooze] Failed to register custom elements:", e);
+// Register custom elements
+if (!customElements.get("autosnooze-card-editor")) {
+  customElements.define("autosnooze-card-editor", AutomationPauseCardEditor);
+}
+if (!customElements.get("autosnooze-card")) {
+  customElements.define("autosnooze-card", AutomationPauseCard);
 }
 
 // Register for the manual card picker
-try {
-  window.customCards = window.customCards || [];
-  // Avoid duplicate registration in customCards array
-  if (!window.customCards.some((card) => card.type === "autosnooze-card")) {
-    window.customCards.push({
-      type: "autosnooze-card",
-      name: "AutoSnooze Card",
-      description: `Temporarily pause automations with area and label filtering (v${CARD_VERSION})`,
-      preview: true,
-    });
-  }
-  console.log(`[AutoSnooze] Card registered, version ${CARD_VERSION}`);
-} catch (e) {
-  console.warn("[AutoSnooze] customCards registration failed:", e);
+window.customCards = window.customCards || [];
+if (!window.customCards.some((card) => card.type === "autosnooze-card")) {
+  window.customCards.push({
+    type: "autosnooze-card",
+    name: "AutoSnooze Card",
+    description: `Temporarily pause automations with area and label filtering (v${CARD_VERSION})`,
+    preview: true,
+  });
 }
-
-// Fire ll-rebuild event to tell Lovelace to re-render cards after async module load
-// This fixes "Custom element not found" errors when the module loads after
-// Lovelace has already tried to render the card on page refresh.
-//
-// DUAL LL-REBUILD STRATEGY: Handles both single-refresh and double-swipe scenarios
-//
-// Problem 1 (Single Refresh): On normal page refresh in iOS Companion app, Lovelace
-// renders before this module loads. We need to fire ll-rebuild IMMEDIATELY to trigger
-// a re-render while Lovelace is still listening. The 150ms delay alone misses this window.
-//
-// Problem 2 (Double Swipe): Swipe-to-refresh does a "soft reload" that preserves window
-// state while re-executing the module. Multiple rapid refreshes could fire multiple
-// ll-rebuild events, causing configuration errors.
-//
-// Solution: Fire ll-rebuild THREE times with deduplication:
-// - Immediate: Handles single-refresh by notifying Lovelace right away
-// - Delayed (150ms): Uses MODULE_LOAD_ID guard to dedupe double-swipe scenarios
-// - Safety (500ms): Catches edge cases where Lovelace wasn't ready for earlier rebuilds
-//
-// Timeline for single refresh:
-// T=0ms:   Module loads, immediate ll-rebuild fires → card renders!
-// T=150ms: Delayed ll-rebuild fires (safety net)
-// T=500ms: Safety ll-rebuild fires (extra safety)
-//
-// Timeline for double-swipe:
-// T=0ms:   First swipe - Module A loads, fires immediate, schedules delayed
-// T=50ms:  Second swipe - Module B loads, fires immediate, schedules delayed
-// T=150ms: Module A's delayed SKIPPED (A !== B)
-// T=200ms: Module B's delayed fires (deduped)
-window._autosnoozeCurrentModule = MODULE_LOAD_ID;
-console.log(`[AutoSnooze] Module load ID: ${MODULE_LOAD_ID}`);
-
-// IMMEDIATE ll-rebuild for single-refresh scenarios
-console.log(`[AutoSnooze] Firing immediate ll-rebuild`);
-window.dispatchEvent(new Event("ll-rebuild"));
-
-// DELAYED ll-rebuild (150ms) with MODULE_LOAD_ID guard for double-swipe deduplication
-setTimeout(() => {
-  if (window._autosnoozeCurrentModule === MODULE_LOAD_ID) {
-    console.log(`[AutoSnooze] Firing delayed ll-rebuild (module ${MODULE_LOAD_ID} is current)`);
-    window.dispatchEvent(new Event("ll-rebuild"));
-  } else {
-    console.log(`[AutoSnooze] Skipping delayed ll-rebuild (superseded by ${window._autosnoozeCurrentModule})`);
-  }
-}, 150);
-
-// SAFETY ll-rebuild (500ms) for edge cases where Lovelace wasn't ready
-setTimeout(() => {
-  if (window._autosnoozeCurrentModule === MODULE_LOAD_ID) {
-    console.log(`[AutoSnooze] Firing safety ll-rebuild (module ${MODULE_LOAD_ID} is current)`);
-    window.dispatchEvent(new Event("ll-rebuild"));
-  }
-}, 500);
-
-// iOS RECOVERY MECHANISM: Store class constructors globally for re-registration
-// If ES module cache causes customElements to be cleared but classes remain in memory,
-// this allows re-registration without a full module reload
-window.__AutoSnoozeCard = AutomationPauseCard;
-window.__AutoSnoozeCardEditor = AutomationPauseCardEditor;
-
-// Global recovery function that can be called to re-register custom elements
-window.__autosnoozeRecovery = () => {
-  if (!customElements.get("autosnooze-card") && window.__AutoSnoozeCard) {
-    console.log("[AutoSnooze] Recovery: Re-registering custom elements");
-    try {
-      customElements.define("autosnooze-card", window.__AutoSnoozeCard);
-      customElements.define("autosnooze-card-editor", window.__AutoSnoozeCardEditor);
-      window.dispatchEvent(new Event("ll-rebuild"));
-      return true;
-    } catch (e) {
-      console.error("[AutoSnooze] Recovery failed:", e);
-      return false;
-    }
-  }
-  return false;
-};
-
-// Periodic recovery check - detects when customElements registry was cleared
-// This interval runs every 2 seconds and will re-register if needed
-// The interval persists as long as the JS context is alive
-setInterval(() => {
-  if (!customElements.get("autosnooze-card") && window.__AutoSnoozeCard) {
-    console.log("[AutoSnooze] Periodic check: Element missing, attempting recovery");
-    window.__autosnoozeRecovery();
-  }
-}, 2000);
