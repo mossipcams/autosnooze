@@ -1,7 +1,7 @@
 import { LitElement, html, css } from "lit";
 
-// Version 2.9.17
-const CARD_VERSION = "2.9.17";
+// Version 2.9.18 - Fix: Add immediate ll-rebuild for single page refresh in iOS
+const CARD_VERSION = "2.9.18";
 
 // Generate a unique ID for this module load instance
 // This allows us to detect when a newer module load has superseded us
@@ -1752,36 +1752,56 @@ try {
   console.warn("[AutoSnooze] customCards registration failed:", e);
 }
 
-// Fire event to tell Lovelace to re-render cards after async module load
+// Fire ll-rebuild event to tell Lovelace to re-render cards after async module load
 // This fixes "Custom element not found" errors when the module loads after
-// Lovelace has already tried to render the card on page refresh
+// Lovelace has already tried to render the card on page refresh.
 //
-// MODULE LOAD ID PATTERN: Fixes double-swipe configuration errors in WebView
-// Problem: In Home Assistant Companion app, swipe-to-refresh does a "soft reload"
-// that preserves window state while re-executing the module. The old debounce
-// approach using clearTimeout() failed because stale timeout IDs from previous
-// execution contexts cannot be reliably cleared.
+// DUAL LL-REBUILD STRATEGY: Handles both single-refresh and double-swipe scenarios
 //
-// Solution: Each module load gets a unique ID. Before firing ll-rebuild, we check
-// if this module instance is still "current". A newer module load will overwrite
-// window._autosnoozeCurrentModule, invalidating older pending timeouts.
+// Problem 1 (Single Refresh): On normal page refresh in iOS Companion app, Lovelace
+// renders before this module loads. We need to fire ll-rebuild IMMEDIATELY to trigger
+// a re-render while Lovelace is still listening. The 150ms delay alone misses this window.
+//
+// Problem 2 (Double Swipe): Swipe-to-refresh does a "soft reload" that preserves window
+// state while re-executing the module. Multiple rapid refreshes could fire multiple
+// ll-rebuild events, causing configuration errors.
+//
+// Solution: Fire ll-rebuild THREE times with deduplication:
+// - Immediate: Handles single-refresh by notifying Lovelace right away
+// - Delayed (150ms): Uses MODULE_LOAD_ID guard to dedupe double-swipe scenarios
+// - Safety (500ms): Catches edge cases where Lovelace wasn't ready for earlier rebuilds
+//
+// Timeline for single refresh:
+// T=0ms:   Module loads, immediate ll-rebuild fires → card renders!
+// T=150ms: Delayed ll-rebuild fires (safety net)
+// T=500ms: Safety ll-rebuild fires (extra safety)
 //
 // Timeline for double-swipe:
-// T=0ms:   First swipe - Module A loads, sets _autosnoozeCurrentModule = "A", schedules ll-rebuild
-// T=50ms:  Second swipe - Module B loads, sets _autosnoozeCurrentModule = "B", schedules ll-rebuild
-// T=100ms: Module A's timeout fires, but "A" !== "B", so ll-rebuild is SKIPPED
-// T=150ms: Module B's timeout fires, "B" === "B", ll-rebuild fires ONCE
-//
-// This ensures exactly ONE ll-rebuild fires after all rapid reloads settle.
+// T=0ms:   First swipe - Module A loads, fires immediate, schedules delayed
+// T=50ms:  Second swipe - Module B loads, fires immediate, schedules delayed
+// T=150ms: Module A's delayed SKIPPED (A !== B)
+// T=200ms: Module B's delayed fires (deduped)
 window._autosnoozeCurrentModule = MODULE_LOAD_ID;
 console.log(`[AutoSnooze] Module load ID: ${MODULE_LOAD_ID}`);
 
+// IMMEDIATE ll-rebuild for single-refresh scenarios
+console.log(`[AutoSnooze] Firing immediate ll-rebuild`);
+window.dispatchEvent(new Event("ll-rebuild"));
+
+// DELAYED ll-rebuild (150ms) with MODULE_LOAD_ID guard for double-swipe deduplication
 setTimeout(() => {
-  // Check if a newer module load has superseded us
   if (window._autosnoozeCurrentModule === MODULE_LOAD_ID) {
-    console.log(`[AutoSnooze] Firing ll-rebuild (module ${MODULE_LOAD_ID} is current)`);
+    console.log(`[AutoSnooze] Firing delayed ll-rebuild (module ${MODULE_LOAD_ID} is current)`);
     window.dispatchEvent(new Event("ll-rebuild"));
   } else {
-    console.log(`[AutoSnooze] Skipping ll-rebuild (module ${MODULE_LOAD_ID} superseded by ${window._autosnoozeCurrentModule})`);
+    console.log(`[AutoSnooze] Skipping delayed ll-rebuild (superseded by ${window._autosnoozeCurrentModule})`);
   }
 }, 150);
+
+// SAFETY ll-rebuild (500ms) for edge cases where Lovelace wasn't ready
+setTimeout(() => {
+  if (window._autosnoozeCurrentModule === MODULE_LOAD_ID) {
+    console.log(`[AutoSnooze] Firing safety ll-rebuild (module ${MODULE_LOAD_ID} is current)`);
+    window.dispatchEvent(new Event("ll-rebuild"));
+  }
+}, 500);
