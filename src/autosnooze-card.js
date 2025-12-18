@@ -1,7 +1,7 @@
 import { LitElement, html, css } from "lit";
 
-// Version 2.9.18 - Fix: Add immediate ll-rebuild for single page refresh in iOS
-const CARD_VERSION = "2.9.18";
+// Version 2.9.19 - Fix: Guard render until hass/config ready (iOS refresh fix)
+const CARD_VERSION = "2.9.19";
 
 // Generate a unique ID for this module load instance
 // This allows us to detect when a newer module load has superseded us
@@ -361,6 +361,23 @@ class AutomationPauseCard extends LitElement {
     }
     ha-card {
       padding: 16px;
+    }
+
+    /* Loading State */
+    .card-loading {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      padding: 32px 16px;
+      color: var(--secondary-text-color);
+    }
+    .card-loading ha-icon {
+      animation: spin 1s linear infinite;
+    }
+    @keyframes spin {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
     }
 
     /* Header */
@@ -1436,6 +1453,19 @@ class AutomationPauseCard extends LitElement {
       moduleId: this._instanceModuleId,
       hassSetCount: this._hassSetCount,
     });
+
+    // Guard: Don't render full UI until we have hass and config
+    // This prevents iOS WebView from caching an empty/broken render
+    if (!this._hass || !this.config) {
+      return html`
+        <ha-card>
+          <div class="card-loading">
+            <ha-icon icon="mdi:loading"></ha-icon>
+            <span>Loading AutoSnooze...</span>
+          </div>
+        </ha-card>
+      `;
+    }
 
     const paused = this._getPaused();
     const pausedCount = Object.keys(paused).length;
