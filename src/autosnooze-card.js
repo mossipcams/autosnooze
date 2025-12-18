@@ -1,7 +1,7 @@
 import { LitElement, html, css } from "lit";
 
-// Version 2.9.8 - Fix custom element not found error on page refresh
-const CARD_VERSION = "2.9.8";
+// Version 2.9.9 - Fix configuration error on rapid swipe-to-refresh (double swipe)
+const CARD_VERSION = "2.9.9";
 
 // ============================================================================
 // CARD EDITOR
@@ -1660,4 +1660,26 @@ try {
 // Fire event to tell Lovelace to re-render cards after async module load
 // This fixes "Custom element not found" errors when the module loads after
 // Lovelace has already tried to render the card on page refresh
-window.dispatchEvent(new Event("ll-rebuild"));
+//
+// DEBOUNCED: Prevents race conditions when user rapidly swipes to refresh
+// (e.g., double swipe-down in Home Assistant Companion app). Multiple rapid
+// reloads can cause multiple ll-rebuild events to fire before the previous
+// one settles, leading to "configuration error". Debouncing ensures only
+// ONE ll-rebuild fires after all module loading settles.
+// See: https://github.com/custom-cards/button-card (similar pattern)
+//
+// Strategy: Fire immediately on first load, debounce only rapid subsequent loads
+if (window._autosnoozeRebuildTimeout) {
+  // Rapid reload detected - clear previous timeout and set new one
+  clearTimeout(window._autosnoozeRebuildTimeout);
+  window._autosnoozeRebuildTimeout = setTimeout(() => {
+    window.dispatchEvent(new Event("ll-rebuild"));
+    delete window._autosnoozeRebuildTimeout;
+  }, 100);
+} else {
+  // First load - fire immediately, then set a guard timeout
+  window.dispatchEvent(new Event("ll-rebuild"));
+  window._autosnoozeRebuildTimeout = setTimeout(() => {
+    delete window._autosnoozeRebuildTimeout;
+  }, 200);
+}
