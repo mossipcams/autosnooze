@@ -1,7 +1,7 @@
 import { LitElement, html, css } from "lit";
 
-// Version 2.9.14 - Fix CI version check to validate all version sources
-const CARD_VERSION = "2.9.14";
+// Version 2.9.15 - Add auto-version-bump workflow
+const CARD_VERSION = "2.9.15";
 
 // Generate a unique ID for this module load instance
 // This allows us to detect when a newer module load has superseded us
