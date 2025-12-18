@@ -1,7 +1,7 @@
 import { LitElement, html, css } from "lit";
 
-// Version 2.9.6 - Fix race condition causing card to fail loading on dashboard
-const CARD_VERSION = "2.9.6";
+// Version 2.9.8 - Fix custom element not found error on page refresh
+const CARD_VERSION = "2.9.8";
 
 // ============================================================================
 // CARD EDITOR
@@ -1626,20 +1626,38 @@ class AutomationPauseCard extends LitElement {
   }
 }
 
-// Register custom elements
-customElements.define("autosnooze-card-editor", AutomationPauseCardEditor);
-customElements.define("autosnooze-card", AutomationPauseCard);
+// Register custom elements with guards to prevent duplicate registration errors
+// This fixes "Custom element not found" errors that can occur on page refresh
+// when the module is re-executed before previous definitions are cleared
+try {
+  if (!customElements.get("autosnooze-card-editor")) {
+    customElements.define("autosnooze-card-editor", AutomationPauseCardEditor);
+  }
+  if (!customElements.get("autosnooze-card")) {
+    customElements.define("autosnooze-card", AutomationPauseCard);
+  }
+} catch (e) {
+  console.error("[AutoSnooze] Failed to register custom elements:", e);
+}
 
 // Register for the manual card picker
 try {
   window.customCards = window.customCards || [];
-  window.customCards.push({
-    type: "autosnooze-card",
-    name: "AutoSnooze Card",
-    description: `Temporarily pause automations with area and label filtering (v${CARD_VERSION})`,
-    preview: true,
-  });
+  // Avoid duplicate registration in customCards array
+  if (!window.customCards.some((card) => card.type === "autosnooze-card")) {
+    window.customCards.push({
+      type: "autosnooze-card",
+      name: "AutoSnooze Card",
+      description: `Temporarily pause automations with area and label filtering (v${CARD_VERSION})`,
+      preview: true,
+    });
+  }
   console.log(`[AutoSnooze] Card registered, version ${CARD_VERSION}`);
 } catch (e) {
-  console.warn("customCards registration failed", e);
+  console.warn("[AutoSnooze] customCards registration failed:", e);
 }
+
+// Fire event to tell Lovelace to re-render cards after async module load
+// This fixes "Custom element not found" errors when the module loads after
+// Lovelace has already tried to render the card on page refresh
+window.dispatchEvent(new Event("ll-rebuild"));

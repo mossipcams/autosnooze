@@ -5,7 +5,7 @@ from homeassistant.components.sensor import SensorEntity
 from homeassistant.core import callback
 from homeassistant.helpers.device_registry import DeviceEntryType, DeviceInfo
 
-from . import DOMAIN, AutomationPauseConfigEntry
+from . import DOMAIN, VERSION, AutomationPauseConfigEntry
 
 
 async def async_setup_entry(
@@ -32,6 +32,7 @@ class AutoSnoozeCountSensor(SensorEntity):
             identifiers={(DOMAIN, entry.entry_id)},
             name="AutoSnooze",
             entry_type=DeviceEntryType.SERVICE,
+            sw_version=VERSION,
         )
         self._unsub: callable | None = None
 
