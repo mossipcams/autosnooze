@@ -8,7 +8,10 @@
 
 **Temporarily pause Home Assistant automations with automatic re-enabling.**
 
-<!-- Add a screenshot or GIF here: ![AutoSnooze Card](docs/images/screenshot.png) -->
+<p align="center">
+  <img src="docs/images/card-main.png" alt="AutoSnooze Card" width="400">
+  <img src="docs/images/card-snoozed.png" alt="Snoozed Automations" width="400">
+</p>
 
 ---
 
