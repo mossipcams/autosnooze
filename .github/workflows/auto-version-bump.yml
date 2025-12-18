@@ -8,9 +8,6 @@ on:
       - 'custom_components/**'
       - '!custom_components/autosnooze/manifest.json'
 
-permissions:
-  contents: write
-
 jobs:
   bump-version:
     runs-on: ubuntu-latest
