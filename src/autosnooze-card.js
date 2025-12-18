@@ -1,7 +1,7 @@
 import { LitElement, html, css } from "lit";
 
-// Version 2.9.4 - Fix: Hide automation areas in Categories tab
-const CARD_VERSION = "2.9.4";
+// Version 2.9.5 - Add persistence robustness (retry saves, validate on load)
+const CARD_VERSION = "2.9.5";
 
 // ============================================================================
 // CARD EDITOR
