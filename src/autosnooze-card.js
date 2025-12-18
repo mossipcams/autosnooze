@@ -1,7 +1,13 @@
 import { LitElement, html, css } from "lit";
 
-// Version 2.9.11 - Revert to simple ll-rebuild dispatch
-const CARD_VERSION = "2.9.11";
+// Version 2.9.13 - Fix double-swipe error with module load ID pattern
+// Uses unique module load ID to prevent stale timeouts from firing ll-rebuild
+// when WebView soft-reloads preserve window state across module re-executions
+const CARD_VERSION = "2.9.13";
+
+// Generate a unique ID for this module load instance
+// This allows us to detect when a newer module load has superseded us
+const MODULE_LOAD_ID = `autosnooze_${Date.now()}_${Math.random().toString(36).slice(2)}`;
 
 // ============================================================================
 // CARD EDITOR
@@ -129,14 +135,38 @@ class AutomationPauseCard extends LitElement {
     this._categoriesFetched = false;
     this._entityRegistryFetched = false;
     this._debugLogged = false;
+    // State guards to prevent duplicate initialization during rapid reloads
+    this._initialSetupComplete = false;
+    this._instanceModuleId = MODULE_LOAD_ID; // Track which module version created this instance
   }
 
   connectedCallback() {
     super.connectedCallback();
+
+    // Guard: Check if this instance was created by a stale module load
+    // This can happen when WebView preserves DOM but re-executes module
+    if (this._instanceModuleId !== MODULE_LOAD_ID) {
+      console.log(`[AutoSnooze] Instance from old module (${this._instanceModuleId}) reconnected, updating to current (${MODULE_LOAD_ID})`);
+      this._instanceModuleId = MODULE_LOAD_ID;
+      // Reset fetch flags to allow re-fetching with new module context
+      this._labelsFetched = false;
+      this._categoriesFetched = false;
+      this._entityRegistryFetched = false;
+      this._initialSetupComplete = false;
+    }
+
+    // Guard: Prevent duplicate interval setup
+    if (this._interval) {
+      window.clearInterval(this._interval);
+    }
     this._interval = window.setInterval(() => this.requestUpdate(), 1000);
+
+    // Fetch registries (guards inside each method prevent duplicate fetches)
     this._fetchLabelRegistry();
     this._fetchCategoryRegistry();
     this._fetchEntityRegistry();
+
+    this._initialSetupComplete = true;
   }
 
   async _fetchLabelRegistry() {
@@ -1661,16 +1691,32 @@ try {
 // This fixes "Custom element not found" errors when the module loads after
 // Lovelace has already tried to render the card on page refresh
 //
-// DEBOUNCED: Prevents race conditions when user rapidly swipes to refresh
-// (e.g., double swipe-down in Home Assistant Companion app). Multiple rapid
-// reloads can cause multiple ll-rebuild events to fire before the previous
-// one settles, leading to "configuration error". Debouncing ensures only
-// ONE ll-rebuild fires after all module loading settles.
-// See: https://github.com/custom-cards/button-card (similar pattern)
-if (window._autosnoozeRebuildTimeout) {
-  clearTimeout(window._autosnoozeRebuildTimeout);
-}
-window._autosnoozeRebuildTimeout = setTimeout(() => {
-  window.dispatchEvent(new Event("ll-rebuild"));
-  delete window._autosnoozeRebuildTimeout;
-}, 100);
+// MODULE LOAD ID PATTERN: Fixes double-swipe configuration errors in WebView
+// Problem: In Home Assistant Companion app, swipe-to-refresh does a "soft reload"
+// that preserves window state while re-executing the module. The old debounce
+// approach using clearTimeout() failed because stale timeout IDs from previous
+// execution contexts cannot be reliably cleared.
+//
+// Solution: Each module load gets a unique ID. Before firing ll-rebuild, we check
+// if this module instance is still "current". A newer module load will overwrite
+// window._autosnoozeCurrentModule, invalidating older pending timeouts.
+//
+// Timeline for double-swipe:
+// T=0ms:   First swipe - Module A loads, sets _autosnoozeCurrentModule = "A", schedules ll-rebuild
+// T=50ms:  Second swipe - Module B loads, sets _autosnoozeCurrentModule = "B", schedules ll-rebuild
+// T=100ms: Module A's timeout fires, but "A" !== "B", so ll-rebuild is SKIPPED
+// T=150ms: Module B's timeout fires, "B" === "B", ll-rebuild fires ONCE
+//
+// This ensures exactly ONE ll-rebuild fires after all rapid reloads settle.
+window._autosnoozeCurrentModule = MODULE_LOAD_ID;
+console.log(`[AutoSnooze] Module load ID: ${MODULE_LOAD_ID}`);
+
+setTimeout(() => {
+  // Check if a newer module load has superseded us
+  if (window._autosnoozeCurrentModule === MODULE_LOAD_ID) {
+    console.log(`[AutoSnooze] Firing ll-rebuild (module ${MODULE_LOAD_ID} is current)`);
+    window.dispatchEvent(new Event("ll-rebuild"));
+  } else {
+    console.log(`[AutoSnooze] Skipping ll-rebuild (module ${MODULE_LOAD_ID} superseded by ${window._autosnoozeCurrentModule})`);
+  }
+}, 150);
