@@ -113,7 +113,8 @@ data:
 | `days` | No | Duration in days |
 | `hours` | No | Duration in hours |
 | `minutes` | No | Duration in minutes |
-| `until` | No | ISO datetime to snooze until |
+| `resume_at` | No | Datetime when to re-enable (overrides duration) |
+| `disable_at` | No | Datetime when to start the snooze (for scheduling) |
 
 ### `autosnooze.cancel`
 Wake a specific snoozed automation.
@@ -137,7 +138,7 @@ Snooze all automations in specified areas.
 ```yaml
 service: autosnooze.pause_by_area
 data:
-  areas:
+  area_id:
     - living_room
     - kitchen
   hours: 2
@@ -149,10 +150,19 @@ Snooze all automations with specified labels.
 ```yaml
 service: autosnooze.pause_by_label
 data:
-  labels:
+  label_id:
     - security
     - motion
   hours: 1
+```
+
+### `autosnooze.cancel_scheduled`
+Cancel a scheduled snooze before it activates.
+
+```yaml
+service: autosnooze.cancel_scheduled
+data:
+  entity_id: automation.motion_lights
 ```
 
 ---
@@ -197,7 +207,7 @@ The card should register automatically. If it doesn't:
 1. Clear browser cache and hard refresh (`Ctrl+Shift+R`)
 2. Check **Settings → Dashboards → Resources** for the autosnooze entry
 3. If missing, manually add the resource:
-   - URL: `/autosnooze/autosnooze-card.js`
+   - URL: `/autosnooze-card.js`
    - Type: **JavaScript module**
 
 ### iOS/Safari issues
