@@ -12,7 +12,7 @@ jobs:
   bump-version:
     runs-on: ubuntu-latest
     # Skip if commit message indicates version bump or is from bot
-    if: "!contains(github.event.head_commit.message, '[skip-version-bump]') && !contains(github.event.head_commit.message, 'Auto bump version')"
+    if: "!contains(github.event.head_commit.message, '[skip-version-bump]') && !contains(github.event.head_commit.message, 'Auto bump version') && !contains(github.event.head_commit.message, 'Bump version to')"
 
     steps:
       - name: Checkout repository
@@ -71,8 +71,19 @@ jobs:
 
           echo "NEW_VERSION=$NEW_VERSION" >> $GITHUB_ENV
 
-      - name: Commit and push version bump
-        run: |
-          git add package.json custom_components/autosnooze/manifest.json src/autosnooze-card.js
-          git commit -m "Auto bump version to $NEW_VERSION [skip-version-bump]"
-          git push
+      - name: Create Pull Request
+        uses: peter-evans/create-pull-request@v5
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          commit-message: "Bump version to ${{ env.NEW_VERSION }}"
+          title: "Bump version to ${{ env.NEW_VERSION }}"
+          body: |
+            Automated version bump from ${{ github.sha }}.
+
+            Updates version to `${{ env.NEW_VERSION }}` in:
+            - package.json
+            - manifest.json
+            - src/autosnooze-card.js
+          branch: auto-version-bump-${{ env.NEW_VERSION }}
+          delete-branch: true
+          labels: automated
