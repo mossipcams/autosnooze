@@ -10,6 +10,8 @@ on:
       - 'package.json'
       - 'package-lock.json'
       - 'rollup.config.mjs'
+      - 'requirements_test.txt'
+      - 'pytest.ini'
   pull_request:
     branches: [main]
   workflow_dispatch:
@@ -75,10 +77,12 @@ jobs:
           python-version: '3.11'
 
       - name: Install Python dependencies
-        run: pip install pytest pytest-asyncio
+        run: pip install -r requirements_test.txt
 
       - name: Run Python tests
-        run: pytest tests/
+        run: pytest tests/ -v
+        env:
+          TZ: UTC
 
       - name: Build card
         run: npm run build
