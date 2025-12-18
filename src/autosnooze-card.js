@@ -1,7 +1,7 @@
 import { LitElement, html, css } from "lit";
 
-// Version 2.9.21 - Fix: Detect stale ES module cache and force fresh import (iOS refresh fix)
-const CARD_VERSION = "2.9.21";
+// Version 2.9.22 - Fix: Use Lovelace Resources only (like HACS cards) for iOS refresh fix
+const CARD_VERSION = "2.9.22";
 
 // iOS REFRESH FIX: Detect and recover from stale ES module cache
 //

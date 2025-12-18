@@ -1,15 +1,14 @@
-"""Regression Tests for Frontend Module Registration (Defect #5).
+"""Regression Tests for Frontend Registration (iOS Refresh Fix).
 
-Root Cause: The integration used the Lovelace Resources API which only works
-with storage-mode dashboards. YAML-mode dashboards have `resources = None`,
-causing silent failure and the card never loading.
+Root Cause: Previous versions used add_extra_js_url() to register the card,
+which caused issues on iOS Companion app refreshes where the custom element
+would become undefined. Other HACS cards don't have this issue because they
+use Lovelace Resources only.
 
-Fix: Use `add_extra_js_url()` from `homeassistant.components.frontend` which
-registers JavaScript as a frontend module that loads on ALL pages regardless
-of dashboard mode (YAML or storage).
+Fix: Use Lovelace Resources registration only (like HACS cards do), not
+add_extra_js_url(). This matches how working HACS cards register.
 
-Reference: This is how HACS registers its iconset.js - see:
-https://github.com/hacs/integration/blob/main/custom_components/hacs/frontend.py
+Reference: HACS uses Lovelace Resources stored in .storage/lovelace_resources
 """
 from __future__ import annotations
 
@@ -36,288 +35,68 @@ def get_init_source() -> str:
 
 
 # =============================================================================
-# Defect #5: Frontend Module Registration
-# Card doesn't load in YAML mode because Lovelace resources API returns None
+# iOS Refresh Fix: Use Lovelace Resources Only (like HACS cards)
 # =============================================================================
 
 
-class TestFrontendModuleRegistrationSource:
-    """Source code analysis tests for frontend module registration.
+class TestLovelaceResourcesOnlyRegistration:
+    """Source code analysis tests for Lovelace-only registration.
 
-    These tests verify the code uses the correct API that works in ALL modes.
+    These tests verify the code uses the same approach as working HACS cards.
     """
 
-    def test_imports_add_extra_js_url_from_frontend(self) -> None:
-        """Verify add_extra_js_url is imported from homeassistant.components.frontend.
+    def test_does_not_import_add_extra_js_url(self) -> None:
+        """Verify add_extra_js_url is NOT imported (iOS refresh fix).
 
-        REGRESSION: Previous code only used Lovelace resources API which fails
-        silently in YAML mode dashboards.
+        REGRESSION: Using add_extra_js_url caused iOS refresh issues.
+        Other HACS cards don't have this issue because they don't use it.
         """
         source = get_init_source()
 
-        # Must import add_extra_js_url from the frontend component
-        assert "from homeassistant.components.frontend import" in source, (
-            "Must import from homeassistant.components.frontend"
+        # Must NOT import add_extra_js_url from frontend
+        # (it may appear in comments explaining why we don't use it)
+        assert "from homeassistant.components.frontend import add_extra_js_url" not in source, (
+            "Must NOT import add_extra_js_url - causes iOS refresh issues. "
+            "Use Lovelace Resources only (like HACS cards)."
         )
-        assert "add_extra_js_url" in source, (
-            "Must import add_extra_js_url for frontend module registration"
+        # Also check it's not called
+        assert "add_extra_js_url(hass" not in source, (
+            "Must NOT call add_extra_js_url() - causes iOS refresh issues."
         )
 
-    def test_calls_add_extra_js_url_in_frontend_registration(self) -> None:
-        """Verify add_extra_js_url is called during frontend registration.
+    def test_uses_static_path_registration(self) -> None:
+        """Verify static path registration is used.
 
-        This is the key fix: registering as a frontend module works in ALL
-        dashboard modes (YAML and storage), unlike the Lovelace resources API.
+        StaticPathConfig is still needed to serve the JS file.
         """
         source = get_init_source()
 
-        # Find the _async_register_frontend function
-        func_start = source.find("async def _async_register_frontend")
-        assert func_start != -1, "_async_register_frontend function not found"
-
-        # Find the end of the function (next function definition or end of file)
-        next_func = source.find("\nasync def ", func_start + 1)
-        if next_func == -1:
-            next_func = source.find("\ndef ", func_start + 1)
-        if next_func == -1:
-            next_func = len(source)
-
-        func_body = source[func_start:next_func]
-
-        # Must call add_extra_js_url
-        assert "add_extra_js_url" in func_body, (
-            "_async_register_frontend must call add_extra_js_url to register "
-            "the card as a frontend module (works in ALL dashboard modes)"
+        assert "StaticPathConfig" in source, (
+            "Must use StaticPathConfig to register static path for serving JS file"
         )
 
-    def test_uses_versioned_url_for_cache_busting(self) -> None:
-        """Verify the versioned URL is used for cache busting."""
+    def test_has_lovelace_resource_registration(self) -> None:
+        """Verify Lovelace resource registration function exists."""
         source = get_init_source()
 
-        # Find the _async_register_frontend function
-        func_start = source.find("async def _async_register_frontend")
-        assert func_start != -1, "_async_register_frontend function not found"
+        assert "_async_register_lovelace_resource" in source, (
+            "Must have _async_register_lovelace_resource function"
+        )
 
-        next_func = source.find("\nasync def ", func_start + 1)
-        if next_func == -1:
-            next_func = source.find("\ndef ", func_start + 1)
-        if next_func == -1:
-            next_func = len(source)
+    def test_static_path_uses_cache_headers_false(self) -> None:
+        """Verify static path registration disables caching.
 
-        func_body = source[func_start:next_func]
-
-        # Should use CARD_URL (base path for static registration) and
-        # CARD_URL_VERSIONED (with ?v= for cache busting in frontend module)
-        assert "CARD_URL" in func_body, "Must use CARD_URL for static path"
-
-    def test_does_not_depend_on_lovelace_resources_for_loading(self) -> None:
-        """Verify card loading doesn't depend solely on Lovelace resources.
-
-        The Lovelace resources API is for storage-mode dashboards only.
-        The frontend module API (add_extra_js_url) works universally.
+        cache_headers=False prevents iOS WebView from caching the file.
         """
         source = get_init_source()
 
-        # Find the _async_register_frontend function
-        func_start = source.find("async def _async_register_frontend")
-        assert func_start != -1, "_async_register_frontend function not found"
-
-        next_func = source.find("\nasync def ", func_start + 1)
-        if next_func == -1:
-            next_func = source.find("\ndef ", func_start + 1)
-        if next_func == -1:
-            next_func = len(source)
-
-        func_body = source[func_start:next_func]
-
-        # _async_register_frontend should NOT call lovelace resource APIs
-        # It should use add_extra_js_url which works regardless of dashboard mode
-        # Note: The word "lovelace" may appear in docstrings/comments, so we check
-        # for actual API usage patterns instead
-        assert "lovelace_data" not in func_body, (
-            "_async_register_frontend should not access lovelace_data. "
-            "Use add_extra_js_url for universal compatibility."
-        )
-        assert "resources.async_create_item" not in func_body, (
-            "_async_register_frontend should not use resources API. "
-            "Use add_extra_js_url for universal compatibility."
+        # Find the static path registration
+        assert "cache_headers=False" in source, (
+            "Static path must use cache_headers=False to prevent iOS caching issues"
         )
 
-
-class TestFrontendModuleRegistrationBehavior:
-    """Behavioral tests for frontend module registration.
-
-    These tests recreate the _async_register_frontend function locally to avoid
-    Python 3.12+ syntax issues when importing the module. This approach tests
-    the expected behavior pattern rather than the exact implementation.
-    """
-
-    # Recreate constants for testing
-    CARD_URL = "/autosnooze-card.js"
-    CARD_URL_VERSIONED = "/autosnooze-card.js?v=test"
-
-    @pytest.fixture
-    def mock_hass(self) -> MagicMock:
-        """Create a mock Home Assistant instance."""
-        hass = MagicMock()
-        hass.data = {}
-        hass.http = MagicMock()
-        hass.http.async_register_static_paths = AsyncMock()
-        return hass
-
-    @staticmethod
-    async def _async_register_frontend_impl(
-        hass: Any,
-        card_url: str,
-        card_url_versioned: str,
-        add_extra_js_url_fn: Any,
-        static_path_config_cls: Any,
-    ) -> None:
-        """Recreated implementation matching the source pattern.
-
-        This mirrors the logic in custom_components/autosnooze/__init__.py
-        """
-        # 1. Register static path to serve the JS file
-        try:
-            await hass.http.async_register_static_paths([
-                static_path_config_cls(card_url, "/fake/path", cache_headers=True)
-            ])
-        except RuntimeError:
-            # Path already registered (happens on integration reload)
-            pass
-
-        # 2. Register as frontend module (works in ALL dashboard modes)
-        add_extra_js_url_fn(hass, card_url_versioned)
-
-    @pytest.mark.asyncio
-    async def test_registers_static_path_and_frontend_module(
-        self, mock_hass: MagicMock
-    ) -> None:
-        """Verify both static path and frontend module are registered."""
-        mock_add_extra_js = MagicMock()
-        mock_static_path_config = MagicMock()
-
-        await self._async_register_frontend_impl(
-            mock_hass,
-            self.CARD_URL,
-            self.CARD_URL_VERSIONED,
-            mock_add_extra_js,
-            mock_static_path_config,
-        )
-
-        # Static path should be registered
-        mock_hass.http.async_register_static_paths.assert_called_once()
-
-        # Frontend module should be registered
-        mock_add_extra_js.assert_called_once()
-
-    @pytest.mark.asyncio
-    async def test_frontend_module_registered_with_versioned_url(
-        self, mock_hass: MagicMock
-    ) -> None:
-        """Verify the frontend module uses versioned URL for cache busting."""
-        mock_add_extra_js = MagicMock()
-        mock_static_path_config = MagicMock()
-
-        await self._async_register_frontend_impl(
-            mock_hass,
-            self.CARD_URL,
-            self.CARD_URL_VERSIONED,
-            mock_add_extra_js,
-            mock_static_path_config,
-        )
-
-        # Should be called with hass and versioned URL
-        mock_add_extra_js.assert_called_once_with(mock_hass, self.CARD_URL_VERSIONED)
-
-    @pytest.mark.asyncio
-    async def test_works_without_lovelace_data(self, mock_hass: MagicMock) -> None:
-        """Verify registration works even without lovelace data (YAML mode).
-
-        This is the key regression test - the old code would silently fail
-        when hass.data["lovelace"] was missing or had resources=None.
-        """
-        # Simulate YAML mode - no lovelace storage data
-        mock_hass.data = {}  # No "lovelace" key at all
-
-        mock_add_extra_js = MagicMock()
-        mock_static_path_config = MagicMock()
-
-        await self._async_register_frontend_impl(
-            mock_hass,
-            self.CARD_URL,
-            self.CARD_URL_VERSIONED,
-            mock_add_extra_js,
-            mock_static_path_config,
-        )
-
-        # Should STILL register the frontend module
-        mock_add_extra_js.assert_called_once()
-
-    @pytest.mark.asyncio
-    async def test_works_with_lovelace_yaml_mode(self, mock_hass: MagicMock) -> None:
-        """Verify registration works with YAML mode lovelace (resources=None).
-
-        In YAML mode, hass.data["lovelace"] exists but resources is None.
-        """
-        lovelace_data = MagicMock()
-        lovelace_data.resources = None
-        mock_hass.data = {"lovelace": lovelace_data}
-
-        mock_add_extra_js = MagicMock()
-        mock_static_path_config = MagicMock()
-
-        await self._async_register_frontend_impl(
-            mock_hass,
-            self.CARD_URL,
-            self.CARD_URL_VERSIONED,
-            mock_add_extra_js,
-            mock_static_path_config,
-        )
-
-        # Should STILL register the frontend module
-        mock_add_extra_js.assert_called_once()
-
-    @pytest.mark.asyncio
-    async def test_handles_static_path_already_registered(
-        self, mock_hass: MagicMock
-    ) -> None:
-        """Verify graceful handling when static path already registered (reload)."""
-        # Simulate path already registered error
-        mock_hass.http.async_register_static_paths = AsyncMock(
-            side_effect=RuntimeError("Path already registered")
-        )
-
-        mock_add_extra_js = MagicMock()
-        mock_static_path_config = MagicMock()
-
-        # Should not raise
-        await self._async_register_frontend_impl(
-            mock_hass,
-            self.CARD_URL,
-            self.CARD_URL_VERSIONED,
-            mock_add_extra_js,
-            mock_static_path_config,
-        )
-
-        # Frontend module should still be registered
-        mock_add_extra_js.assert_called_once()
-
-
-class TestRemoveLovelaceResourceDependency:
-    """Tests to verify Lovelace resource registration is no longer required.
-
-    The _async_register_lovelace_resource function can remain for backwards
-    compatibility with storage-mode users, but it should NOT be required
-    for the card to load.
-    """
-
-    def test_async_setup_entry_does_not_require_lovelace_resource(self) -> None:
-        """Verify async_setup_entry doesn't depend on lovelace resource success.
-
-        The card should load via add_extra_js_url even if lovelace resource
-        registration fails or is skipped.
-        """
+    def test_async_setup_entry_calls_static_path(self) -> None:
+        """Verify async_setup_entry registers static path."""
         source = get_init_source()
 
         # Find async_setup_entry
@@ -330,71 +109,294 @@ class TestRemoveLovelaceResourceDependency:
 
         func_body = source[func_start:next_func]
 
-        # The function should call _async_register_frontend
-        assert "_async_register_frontend" in func_body, (
-            "async_setup_entry must call _async_register_frontend"
+        assert "_async_register_static_path" in func_body, (
+            "async_setup_entry must call _async_register_static_path"
         )
 
-    def test_lovelace_resource_registration_is_optional(self) -> None:
-        """Verify lovelace resource registration doesn't block setup.
-
-        The _async_register_lovelace_resource function should be either:
-        1. Removed entirely (frontend module handles loading)
-        2. Optional/best-effort (doesn't affect card loading)
-        """
+    def test_async_setup_entry_registers_lovelace_resource(self) -> None:
+        """Verify async_setup_entry registers Lovelace resource."""
         source = get_init_source()
 
-        # Check if _async_register_lovelace_resource still exists
-        if "_async_register_lovelace_resource" in source:
-            # If it exists, verify it's called in a non-blocking way
-            # (after homeassistant_started or in a try/except)
-            func_start = source.find("async def async_setup_entry")
-            next_func = source.find("\nasync def ", func_start + 1)
-            if next_func == -1:
-                next_func = len(source)
+        # Find async_setup_entry
+        func_start = source.find("async def async_setup_entry")
+        assert func_start != -1, "async_setup_entry not found"
 
-            func_body = source[func_start:next_func]
+        next_func = source.find("\nasync def ", func_start + 1)
+        if next_func == -1:
+            next_func = len(source)
 
-            # If lovelace resource registration is called, it should be
-            # in a deferred/optional context (not blocking setup)
-            if "_async_register_lovelace_resource" in func_body:
-                # It's OK if it's there, but the card must also be registered
-                # via add_extra_js_url which is the primary mechanism
-                pass
+        func_body = source[func_start:next_func]
+
+        assert "_async_register_lovelace_resource" in func_body, (
+            "async_setup_entry must call _async_register_lovelace_resource"
+        )
+
+
+class TestStaticPathRegistrationBehavior:
+    """Behavioral tests for static path registration."""
+
+    CARD_URL = "/autosnooze-card.js"
+
+    @pytest.fixture
+    def mock_hass(self) -> MagicMock:
+        """Create a mock Home Assistant instance."""
+        hass = MagicMock()
+        hass.data = {}
+        hass.http = MagicMock()
+        hass.http.async_register_static_paths = AsyncMock()
+        return hass
+
+    @staticmethod
+    async def _async_register_static_path_impl(
+        hass: Any,
+        card_url: str,
+        static_path_config_cls: Any,
+    ) -> None:
+        """Recreated implementation matching the source pattern."""
+        try:
+            await hass.http.async_register_static_paths([
+                static_path_config_cls(card_url, "/fake/path", cache_headers=False)
+            ])
+        except RuntimeError:
+            # Path already registered (happens on integration reload)
+            pass
+
+    @pytest.mark.asyncio
+    async def test_registers_static_path(self, mock_hass: MagicMock) -> None:
+        """Verify static path is registered."""
+        mock_static_path_config = MagicMock()
+
+        await self._async_register_static_path_impl(
+            mock_hass,
+            self.CARD_URL,
+            mock_static_path_config,
+        )
+
+        mock_hass.http.async_register_static_paths.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_static_path_uses_no_cache(self, mock_hass: MagicMock) -> None:
+        """Verify static path is registered with cache_headers=False."""
+        mock_static_path_config = MagicMock()
+
+        await self._async_register_static_path_impl(
+            mock_hass,
+            self.CARD_URL,
+            mock_static_path_config,
+        )
+
+        # Check the StaticPathConfig was created with cache_headers=False
+        mock_static_path_config.assert_called_once()
+        call_kwargs = mock_static_path_config.call_args
+        assert call_kwargs[1].get("cache_headers") is False or (
+            len(call_kwargs[0]) >= 3 and call_kwargs[0][2] is False
+        ), "cache_headers must be False"
+
+    @pytest.mark.asyncio
+    async def test_handles_already_registered(self, mock_hass: MagicMock) -> None:
+        """Verify graceful handling when path already registered (reload)."""
+        mock_hass.http.async_register_static_paths = AsyncMock(
+            side_effect=RuntimeError("Path already registered")
+        )
+        mock_static_path_config = MagicMock()
+
+        # Should not raise
+        await self._async_register_static_path_impl(
+            mock_hass,
+            self.CARD_URL,
+            mock_static_path_config,
+        )
+
+
+class TestLovelaceResourceRegistrationBehavior:
+    """Behavioral tests for Lovelace resource registration."""
+
+    CARD_URL_VERSIONED = "/autosnooze-card.js?v=test"
+
+    @pytest.fixture
+    def mock_hass_with_lovelace(self) -> MagicMock:
+        """Create a mock Home Assistant instance with Lovelace storage."""
+        hass = MagicMock()
+
+        # Create mock resources
+        mock_resources = MagicMock()
+        mock_resources.async_items = MagicMock(return_value=[])
+        mock_resources.async_create_item = AsyncMock()
+        mock_resources.async_update_item = AsyncMock()
+
+        # Create mock lovelace data with resources attribute
+        lovelace_data = MagicMock()
+        lovelace_data.resources = mock_resources
+
+        hass.data = {"lovelace": lovelace_data}
+        return hass
+
+    @pytest.fixture
+    def mock_hass_yaml_mode(self) -> MagicMock:
+        """Create a mock Home Assistant instance in YAML mode."""
+        hass = MagicMock()
+        lovelace_data = MagicMock()
+        lovelace_data.resources = None
+        hass.data = {"lovelace": lovelace_data}
+        return hass
+
+    @staticmethod
+    async def _async_register_lovelace_resource_impl(
+        hass: Any,
+        card_url_versioned: str,
+        namespace: str,
+    ) -> None:
+        """Recreated implementation matching the source pattern."""
+        lovelace_data = hass.data.get("lovelace")
+        if lovelace_data is None:
+            return
+
+        resources = getattr(lovelace_data, "resources", None)
+        if resources is None:
+            return
+
+        # Find existing resource
+        existing = None
+        for resource in resources.async_items():
+            url = resource.get("url", "")
+            if url.startswith(namespace):
+                existing = resource
+                break
+
+        if existing:
+            if existing.get("url") != card_url_versioned:
+                await resources.async_update_item(
+                    existing["id"],
+                    {"url": card_url_versioned, "res_type": "module"}
+                )
+        else:
+            await resources.async_create_item({
+                "url": card_url_versioned,
+                "res_type": "module"
+            })
+
+    @pytest.mark.asyncio
+    async def test_creates_resource_when_none_exists(
+        self, mock_hass_with_lovelace: MagicMock
+    ) -> None:
+        """Verify resource is created when none exists."""
+        await self._async_register_lovelace_resource_impl(
+            mock_hass_with_lovelace,
+            self.CARD_URL_VERSIONED,
+            "/autosnooze-card.js",
+        )
+
+        resources = mock_hass_with_lovelace.data["lovelace"].resources
+        resources.async_create_item.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_updates_existing_resource_with_new_version(
+        self, mock_hass_with_lovelace: MagicMock
+    ) -> None:
+        """Verify existing resource is updated with new version."""
+        resources = mock_hass_with_lovelace.data["lovelace"].resources
+        resources.async_items = MagicMock(return_value=[
+            {"id": "123", "url": "/autosnooze-card.js?v=old"}
+        ])
+
+        await self._async_register_lovelace_resource_impl(
+            mock_hass_with_lovelace,
+            self.CARD_URL_VERSIONED,
+            "/autosnooze-card.js",
+        )
+
+        resources.async_update_item.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_skips_update_if_version_matches(
+        self, mock_hass_with_lovelace: MagicMock
+    ) -> None:
+        """Verify no update if version already matches."""
+        resources = mock_hass_with_lovelace.data["lovelace"].resources
+        resources.async_items = MagicMock(return_value=[
+            {"id": "123", "url": self.CARD_URL_VERSIONED}
+        ])
+
+        await self._async_register_lovelace_resource_impl(
+            mock_hass_with_lovelace,
+            self.CARD_URL_VERSIONED,
+            "/autosnooze-card.js",
+        )
+
+        resources.async_update_item.assert_not_called()
+        resources.async_create_item.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_handles_yaml_mode_gracefully(
+        self, mock_hass_yaml_mode: MagicMock
+    ) -> None:
+        """Verify YAML mode (resources=None) doesn't cause errors."""
+        # Should not raise
+        await self._async_register_lovelace_resource_impl(
+            mock_hass_yaml_mode,
+            self.CARD_URL_VERSIONED,
+            "/autosnooze-card.js",
+        )
+
+    @pytest.mark.asyncio
+    async def test_handles_no_lovelace_data(self) -> None:
+        """Verify missing lovelace data doesn't cause errors."""
+        hass = MagicMock()
+        hass.data = {}  # No lovelace key
+
+        # Should not raise
+        await self._async_register_lovelace_resource_impl(
+            hass,
+            self.CARD_URL_VERSIONED,
+            "/autosnooze-card.js",
+        )
 
 
 class TestDocumentationAndComments:
     """Tests to verify proper documentation of the fix."""
 
-    def test_frontend_registration_has_explanatory_comment(self) -> None:
+    def test_has_explanatory_comment_about_ios_fix(self) -> None:
         """Verify the fix includes documentation explaining why.
 
-        Future developers need to understand why we use add_extra_js_url
-        instead of (or in addition to) Lovelace resources.
+        Future developers need to understand why we use Lovelace Resources
+        only instead of add_extra_js_url.
         """
         source = get_init_source()
 
-        # Find the _async_register_frontend function
-        func_start = source.find("async def _async_register_frontend")
-        assert func_start != -1, "_async_register_frontend function not found"
-
-        # Look for docstring or comments explaining the approach
-        # Check 500 characters before and after the function start
-        context_start = max(0, func_start - 200)
-        context_end = min(len(source), func_start + 500)
-        context = source[context_start:context_end]
-
-        # Should mention YAML mode, frontend module, or universal compatibility
-        has_explanation = any(keyword in context.lower() for keyword in [
-            "yaml",
-            "all modes",
-            "frontend module",
-            "universal",
-            "regardless of",
-            "dashboard mode",
+        # Should mention iOS, HACS, or the refresh issue
+        has_explanation = any(keyword in source.lower() for keyword in [
+            "ios",
+            "hacs",
+            "refresh",
+            "like hacs",
         ])
 
         assert has_explanation, (
-            "_async_register_frontend should document why add_extra_js_url "
-            "is used (works in all dashboard modes including YAML)"
+            "Code should document why Lovelace Resources only is used "
+            "(iOS refresh fix, like HACS cards)"
+        )
+
+    def test_has_cache_headers_documentation(self) -> None:
+        """Verify cache_headers=False is documented."""
+        source = get_init_source()
+
+        # Find the static path function
+        func_start = source.find("async def _async_register_static_path")
+        assert func_start != -1, "_async_register_static_path not found"
+
+        next_func = source.find("\nasync def ", func_start + 1)
+        if next_func == -1:
+            next_func = len(source)
+
+        func_body = source[func_start:next_func]
+
+        # Should have a comment or docstring about cache headers
+        has_cache_doc = any(keyword in func_body.lower() for keyword in [
+            "cache",
+            "ios",
+            "webview",
+        ])
+
+        assert has_cache_doc, (
+            "_async_register_static_path should document cache_headers=False"
         )
