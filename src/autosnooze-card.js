@@ -1,7 +1,7 @@
 import { LitElement, html, css } from "lit";
 
-// Version 2.9.5 - Add persistence robustness (retry saves, validate on load)
-const CARD_VERSION = "2.9.5";
+// Version 2.9.6 - Fix race condition causing card to fail loading on dashboard
+const CARD_VERSION = "2.9.6";
 
 // ============================================================================
 // CARD EDITOR
@@ -804,14 +804,19 @@ class AutomationPauseCard extends LitElement {
   `;
 
   _getAutomations() {
-    if (!this.hass?.states) return [];
+    // Capture hass references in local variables to prevent race conditions
+    // (hass object can be replaced during iteration, causing undefined access errors)
+    const states = this.hass?.states;
+    const entities = this.hass?.entities;
+    const areas = this.hass?.areas;
+    if (!states) return [];
 
     // Debug: log available hass properties on first call
     if (!this._debugLogged) {
       this._debugLogged = true;
       console.log("[AutoSnooze] Card version:", CARD_VERSION);
-      console.log("[AutoSnooze] hass.entities available:", !!this.hass.entities, "count:", this.hass.entities ? Object.keys(this.hass.entities).length : 0);
-      console.log("[AutoSnooze] hass.areas available:", !!this.hass.areas, "count:", this.hass.areas ? Object.keys(this.hass.areas).length : 0);
+      console.log("[AutoSnooze] hass.entities available:", !!entities, "count:", entities ? Object.keys(entities).length : 0);
+      console.log("[AutoSnooze] hass.areas available:", !!areas, "count:", areas ? Object.keys(areas).length : 0);
       console.log("[AutoSnooze] Label registry (fetched separately):", Object.keys(this._labelRegistry).length, "labels");
       console.log("[AutoSnooze] Entity registry (fetched separately):", Object.keys(this._entityRegistry).length, "entities");
       if (this._entityRegistry) {
@@ -820,31 +825,34 @@ class AutomationPauseCard extends LitElement {
           console.log("[AutoSnooze] Sample entity registry entry:", sampleEntity, this._entityRegistry[sampleEntity]);
         }
       }
-      if (this.hass.areas && Object.keys(this.hass.areas).length > 0) {
-        console.log("[AutoSnooze] Areas:", Object.entries(this.hass.areas).map(([id, a]) => `${id}: ${a.name}`).join(", "));
+      if (areas && Object.keys(areas).length > 0) {
+        console.log("[AutoSnooze] Areas:", Object.entries(areas).map(([id, a]) => `${id}: ${a.name}`).join(", "));
       }
     }
 
-    return Object.keys(this.hass.states)
+    return Object.keys(states)
       .filter((id) => id.startsWith("automation."))
       .map((id) => {
-        const state = this.hass.states[id];
+        const state = states[id];
+        // Skip if state is undefined (can happen during rapid hass updates)
+        if (!state) return null;
         // Use fetched entity registry for full entity data including categories
         const registryEntry = this._entityRegistry?.[id];
         // Fallback to hass.entities for basic info (area_id, labels)
-        const hassEntry = this.hass.entities?.[id];
+        const hassEntry = entities?.[id];
         // Get category from entity registry (categories object with scope keys)
         // The entity registry from WebSocket includes categories: { automation: "category_id" }
         const categories = registryEntry?.categories || {};
         const category_id = categories.automation || null;
         return {
           id,
-          name: state.attributes.friendly_name || id.replace("automation.", ""),
+          name: state.attributes?.friendly_name || id.replace("automation.", ""),
           area_id: registryEntry?.area_id || hassEntry?.area_id || null,
           category_id,
           labels: registryEntry?.labels || hassEntry?.labels || [],
         };
       })
+      .filter((a) => a !== null)
       .sort((a, b) => a.name.localeCompare(b.name));
   }
 
