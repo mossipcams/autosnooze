@@ -1,7 +1,32 @@
 import { LitElement, html, css } from "lit";
 
-// Version 2.9.20 - Fix: Disable aggressive cache headers (iOS refresh fix)
-const CARD_VERSION = "2.9.20";
+// Version 2.9.21 - Fix: Detect stale ES module cache and force fresh import (iOS refresh fix)
+const CARD_VERSION = "2.9.21";
+
+// iOS REFRESH FIX: Detect and recover from stale ES module cache
+//
+// Problem: iOS pull-to-refresh does a "soft refresh" that:
+// 1. Clears the DOM and customElements registry
+// 2. BUT keeps the ES module cache (modules don't re-execute)
+// Result: "Custom element doesn't exist" error
+//
+// Solution: Check if we're in a stale state (module ran before but element missing)
+// and force a fresh import with a timestamp to bypass the module cache.
+//
+// This check runs at module load time. If we detect staleness, we:
+// 1. Clear our flag
+// 2. Dynamically import ourselves with a cache-busting timestamp
+// 3. Return early to prevent duplicate registration
+if (window.__autosnoozeModuleExecuted && !customElements.get("autosnooze-card")) {
+  console.log("[AutoSnooze] Detected stale module cache (element missing after refresh)");
+  console.log("[AutoSnooze] Forcing fresh import to re-register custom element");
+  window.__autosnoozeModuleExecuted = false;
+  // Import with timestamp to bypass ES module cache
+  import(`/autosnooze-card.js?refresh=${Date.now()}`);
+  // Don't continue executing this stale module - the fresh import will handle registration
+  throw new Error("[AutoSnooze] Reloading module - this error is expected and handled");
+}
+window.__autosnoozeModuleExecuted = true;
 
 // Generate a unique ID for this module load instance
 // This allows us to detect when a newer module load has superseded us
@@ -1835,3 +1860,36 @@ setTimeout(() => {
     window.dispatchEvent(new Event("ll-rebuild"));
   }
 }, 500);
+
+// iOS RECOVERY MECHANISM: Store class constructors globally for re-registration
+// If ES module cache causes customElements to be cleared but classes remain in memory,
+// this allows re-registration without a full module reload
+window.__AutoSnoozeCard = AutomationPauseCard;
+window.__AutoSnoozeCardEditor = AutomationPauseCardEditor;
+
+// Global recovery function that can be called to re-register custom elements
+window.__autosnoozeRecovery = () => {
+  if (!customElements.get("autosnooze-card") && window.__AutoSnoozeCard) {
+    console.log("[AutoSnooze] Recovery: Re-registering custom elements");
+    try {
+      customElements.define("autosnooze-card", window.__AutoSnoozeCard);
+      customElements.define("autosnooze-card-editor", window.__AutoSnoozeCardEditor);
+      window.dispatchEvent(new Event("ll-rebuild"));
+      return true;
+    } catch (e) {
+      console.error("[AutoSnooze] Recovery failed:", e);
+      return false;
+    }
+  }
+  return false;
+};
+
+// Periodic recovery check - detects when customElements registry was cleared
+// This interval runs every 2 seconds and will re-register if needed
+// The interval persists as long as the JS context is alive
+setInterval(() => {
+  if (!customElements.get("autosnooze-card") && window.__AutoSnoozeCard) {
+    console.log("[AutoSnooze] Periodic check: Element missing, attempting recovery");
+    window.__autosnoozeRecovery();
+  }
+}, 2000);
