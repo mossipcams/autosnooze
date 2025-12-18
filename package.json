@@ -1,6 +1,6 @@
 {
   "name": "autosnooze",
-  "version": "2.9.19",
+  "version": "2.9.20",
   "description": "AutoSnooze - Temporarily pause Home Assistant automations",
   "main": "custom_components/autosnooze/www/autosnooze-card.js",
   "scripts": {

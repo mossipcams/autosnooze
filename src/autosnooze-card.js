@@ -1,7 +1,7 @@
 import { LitElement, html, css } from "lit";
 
-// Version 2.9.19 - Fix: Guard render until hass/config ready (iOS refresh fix)
-const CARD_VERSION = "2.9.19";
+// Version 2.9.20 - Fix: Disable aggressive cache headers (iOS refresh fix)
+const CARD_VERSION = "2.9.20";
 
 // Generate a unique ID for this module load instance
 // This allows us to detect when a newer module load has superseded us

@@ -226,9 +226,11 @@ async def _async_register_frontend(hass: HomeAssistant) -> None:
     returns None for YAML-mode dashboards, causing silent registration failure.
     """
     # 1. Register static path to serve the JS file
+    # cache_headers=False prevents iOS WebView from caching the file for 31 days
+    # This fixes the iOS Companion app refresh bug where stale JS was served
     try:
         await hass.http.async_register_static_paths([
-            StaticPathConfig(CARD_URL, str(CARD_PATH), cache_headers=True)
+            StaticPathConfig(CARD_URL, str(CARD_PATH), cache_headers=False)
         ])
     except RuntimeError:
         # Path already registered (happens on integration reload)
