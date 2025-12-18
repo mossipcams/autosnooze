@@ -1,9 +1,7 @@
 import { LitElement, html, css } from "lit";
 
-// Version 2.9.13 - Fix double-swipe error with module load ID pattern
-// Uses unique module load ID to prevent stale timeouts from firing ll-rebuild
-// when WebView soft-reloads preserve window state across module re-executions
-const CARD_VERSION = "2.9.13";
+// Version 2.9.14 - Fix CI version check to validate all version sources
+const CARD_VERSION = "2.9.14";
 
 // Generate a unique ID for this module load instance
 // This allows us to detect when a newer module load has superseded us
