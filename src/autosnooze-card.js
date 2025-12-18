@@ -1,7 +1,7 @@
 import { LitElement, html, css } from "lit";
 
-// Version 2.9.11 - Revert to simple ll-rebuild dispatch
-const CARD_VERSION = "2.9.11";
+// Version 2.9.12 - Fix version bump
+const CARD_VERSION = "2.9.12";
 
 // ============================================================================
 // CARD EDITOR
