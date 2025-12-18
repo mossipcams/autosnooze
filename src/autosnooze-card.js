@@ -1,7 +1,7 @@
 import { LitElement, html, css } from "lit";
 
-// Version 2.9.7 - Fix custom element not found error on page refresh
-const CARD_VERSION = "2.9.7";
+// Version 2.9.8 - Fix custom element not found error on page refresh
+const CARD_VERSION = "2.9.8";
 
 // ============================================================================
 // CARD EDITOR
@@ -1656,3 +1656,8 @@ try {
 } catch (e) {
   console.warn("[AutoSnooze] customCards registration failed:", e);
 }
+
+// Fire event to tell Lovelace to re-render cards after async module load
+// This fixes "Custom element not found" errors when the module loads after
+// Lovelace has already tried to render the card on page refresh
+window.dispatchEvent(new Event("ll-rebuild"));
