@@ -19,7 +19,6 @@ from homeassistant.helpers import config_validation as cv, entity_registry as er
 from homeassistant.helpers.event import async_track_point_in_time
 from homeassistant.helpers.storage import Store
 from homeassistant.util import dt as dt_util
-from homeassistant.components.frontend import add_extra_js_url
 from homeassistant.components.http import StaticPathConfig
 
 _LOGGER = logging.getLogger(__name__)
@@ -190,13 +189,12 @@ async def async_setup_entry(
     data = AutomationPauseData(store=store)
     entry.runtime_data = data
 
-    # Register frontend card via add_extra_js_url (works in ALL dashboard modes)
-    # This is the primary registration mechanism that works for YAML and storage modes
-    await _async_register_frontend(hass)
+    # Register static path to serve the JS file (required for both methods)
+    await _async_register_static_path(hass)
 
-    # Optional: Also register as Lovelace resource for storage-mode dashboards
-    # This shows the card in Settings > Dashboards > Resources, but is NOT required
-    # for the card to load (add_extra_js_url handles that universally)
+    # Register as Lovelace resource ONLY (like HACS cards do)
+    # This is how working HACS cards register - they don't use add_extra_js_url
+    # Using add_extra_js_url was causing iOS refresh issues
     if hass.is_running:
         await _async_register_lovelace_resource(hass)
     else:
@@ -215,31 +213,19 @@ async def async_setup_entry(
     return True
 
 
-async def _async_register_frontend(hass: HomeAssistant) -> None:
-    """Register the frontend card for all dashboard modes (YAML and storage).
+async def _async_register_static_path(hass: HomeAssistant) -> None:
+    """Register static path to serve the JS file.
 
-    Uses add_extra_js_url() to register as a frontend module, which works
-    universally regardless of Lovelace dashboard mode. This is the same
-    approach used by HACS for its iconset.js.
-
-    The Lovelace resources API only works with storage-mode dashboards and
-    returns None for YAML-mode dashboards, causing silent registration failure.
+    cache_headers=False prevents iOS WebView from caching the file for 31 days.
     """
-    # 1. Register static path to serve the JS file
-    # cache_headers=False prevents iOS WebView from caching the file for 31 days
-    # This fixes the iOS Companion app refresh bug where stale JS was served
     try:
         await hass.http.async_register_static_paths([
             StaticPathConfig(CARD_URL, str(CARD_PATH), cache_headers=False)
         ])
+        _LOGGER.debug("Registered static path: %s", CARD_URL)
     except RuntimeError:
         # Path already registered (happens on integration reload)
         pass
-
-    # 2. Register as frontend module (works in ALL dashboard modes including YAML)
-    # This is the key fix - add_extra_js_url bypasses Lovelace resources entirely
-    add_extra_js_url(hass, CARD_URL_VERSIONED)
-    _LOGGER.info("Registered AutoSnooze card as frontend module (v%s)", VERSION)
 
 
 async def _async_register_lovelace_resource(hass: HomeAssistant) -> None:
