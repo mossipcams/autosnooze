@@ -287,9 +287,9 @@ describe('AutoSnooze Card Main Component', () => {
       expect(card._formatDuration(2, 2, 2)).toBe('2 days, 2 hours, 2 minutes');
     });
 
-    test('_formatCountdown returns "Waking up..." for past time', () => {
+    test('_formatCountdown returns "Resuming..." for past time', () => {
       const pastTime = new Date(Date.now() - 10000).toISOString();
-      expect(card._formatCountdown(pastTime)).toBe('Waking up...');
+      expect(card._formatCountdown(pastTime)).toBe('Resuming...');
     });
 
     test('_formatCountdown formats future time correctly', () => {

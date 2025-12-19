@@ -267,7 +267,8 @@ describe('Snooze Operations', () => {
     test('calls pause service with schedule parameters', async () => {
       card._selected = ['automation.test'];
       card._scheduleMode = true;
-      card._resumeAt = '2024-12-25T12:00';
+      card._resumeAtDate = '2024-12-25';
+      card._resumeAtTime = '12:00';
 
       await card._snooze();
 
@@ -280,8 +281,10 @@ describe('Snooze Operations', () => {
     test('includes disable_at when set', async () => {
       card._selected = ['automation.test'];
       card._scheduleMode = true;
-      card._disableAt = '2024-12-25T10:00';
-      card._resumeAt = '2024-12-25T12:00';
+      card._disableAtDate = '2024-12-25';
+      card._disableAtTime = '10:00';
+      card._resumeAtDate = '2024-12-25';
+      card._resumeAtTime = '12:00';
 
       await card._snooze();
 
@@ -295,7 +298,8 @@ describe('Snooze Operations', () => {
     test('shows toast when resume_at not set', async () => {
       card._selected = ['automation.test'];
       card._scheduleMode = true;
-      card._resumeAt = '';
+      card._resumeAtDate = '';
+      card._resumeAtTime = '';
 
       await card._snooze();
 
@@ -305,13 +309,17 @@ describe('Snooze Operations', () => {
     test('clears schedule inputs after snooze', async () => {
       card._selected = ['automation.test'];
       card._scheduleMode = true;
-      card._disableAt = '2024-12-25T10:00';
-      card._resumeAt = '2024-12-25T12:00';
+      card._disableAtDate = '2024-12-25';
+      card._disableAtTime = '10:00';
+      card._resumeAtDate = '2024-12-25';
+      card._resumeAtTime = '12:00';
 
       await card._snooze();
 
-      expect(card._disableAt).toBe('');
-      expect(card._resumeAt).toBe('');
+      expect(card._disableAtDate).toBe('');
+      expect(card._disableAtTime).toBe('');
+      expect(card._resumeAtDate).toBe('');
+      expect(card._resumeAtTime).toBe('');
     });
   });
 
@@ -516,8 +524,10 @@ describe('Schedule Mode UI', () => {
     const scheduleInputs = card.shadowRoot.querySelector('.schedule-inputs');
     expect(scheduleInputs).not.toBeNull();
 
-    const datetimeInputs = scheduleInputs.querySelectorAll('input[type="datetime-local"]');
-    expect(datetimeInputs.length).toBe(2);
+    const dateInputs = scheduleInputs.querySelectorAll('input[type="date"]');
+    const timeInputs = scheduleInputs.querySelectorAll('input[type="time"]');
+    expect(dateInputs.length).toBe(2);
+    expect(timeInputs.length).toBe(2);
   });
 
   test('renders duration selector when schedule mode is disabled', async () => {
@@ -528,12 +538,13 @@ describe('Schedule Mode UI', () => {
     expect(durationSelector).not.toBeNull();
   });
 
-  test('schedule toggle changes mode', async () => {
+  test('schedule link changes mode', async () => {
     card._scheduleMode = false;
     await card.updateComplete;
 
-    const toggle = card.shadowRoot.querySelector('.schedule-toggle');
-    toggle.click();
+    // Click the "Pick specific date/time instead" link to enable schedule mode
+    const scheduleLink = card.shadowRoot.querySelector('.schedule-link');
+    scheduleLink.click();
 
     expect(card._scheduleMode).toBe(true);
   });
@@ -988,8 +999,10 @@ describe('Undo Functionality in Snooze', () => {
   test('undo after scheduled snooze calls cancel_scheduled service', async () => {
     card._selected = ['automation.test'];
     card._scheduleMode = true;
-    card._disableAt = '2024-12-25T10:00';
-    card._resumeAt = '2024-12-25T12:00';
+    card._disableAtDate = '2024-12-25';
+    card._disableAtTime = '10:00';
+    card._resumeAtDate = '2024-12-25';
+    card._resumeAtTime = '12:00';
 
     await card._snooze();
 
