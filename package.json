@@ -11,7 +11,7 @@
     "test:coverage": "jest --coverage",
     "lint": "eslint src/ tests/*.spec.js",
     "lint:fix": "eslint src/ tests/*.spec.js --fix",
-    "prepare": "husky"
+    "prepare": "husky || true"
   },
   "keywords": [
     "home-assistant",
