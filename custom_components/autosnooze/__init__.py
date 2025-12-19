@@ -7,7 +7,7 @@ from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
 import json
 from pathlib import Path
-from typing import Any
+from typing import Any, TypeAlias
 import logging
 
 import voluptuous as vol
@@ -192,7 +192,7 @@ class AutomationPauseData:
         return {k: v.to_dict() for k, v in self.scheduled.items()}
 
 
-type AutomationPauseConfigEntry = ConfigEntry[AutomationPauseData]
+AutomationPauseConfigEntry: TypeAlias = ConfigEntry[AutomationPauseData]
 
 
 # FR-05: Duration Input - days, hours, minutes parameters
