@@ -12,7 +12,11 @@
     "lint": "eslint src/ tests/*.spec.js",
     "lint:fix": "eslint src/ tests/*.spec.js --fix"
   },
-  "keywords": ["home-assistant", "lovelace", "custom-card"],
+  "keywords": [
+    "home-assistant",
+    "lovelace",
+    "custom-card"
+  ],
   "author": "",
   "license": "MIT",
   "dependencies": {
@@ -31,8 +35,12 @@
   },
   "jest": {
     "testEnvironment": "jsdom",
-    "testMatch": ["**/tests/**/*.spec.js"],
-    "setupFilesAfterEnv": ["<rootDir>/tests/jest.setup.js"],
+    "testMatch": [
+      "**/tests/**/*.spec.js"
+    ],
+    "setupFilesAfterEnv": [
+      "<rootDir>/tests/jest.setup.js"
+    ],
     "transform": {
       "^.+\\.js$": "babel-jest"
     },
@@ -55,6 +63,11 @@
         "statements": 55
       }
     },
-    "coverageReporters": ["text", "text-summary", "html", "lcov"]
+    "coverageReporters": [
+      "text",
+      "text-summary",
+      "html",
+      "lcov"
+    ]
   }
 }
