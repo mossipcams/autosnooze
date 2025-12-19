@@ -226,8 +226,6 @@ The card should register automatically. If it doesn't:
    - URL: `/autosnooze-card.js`
    - Type: **JavaScript module**
 
-### iOS/Safari issues
-See [IOS_FIX.md](IOS_FIX.md) for iOS-specific cache issues.
 
 ### Automations not re-enabling
 1. Check **Developer Tools → States** for the sensor state
@@ -257,7 +255,6 @@ Contributions are welcome! Please:
 5. Push to branch (`git push origin feature/amazing-feature`)
 6. Open a Pull Request
 
-See [DEBUGGING.md](DEBUGGING.md) for development setup.
 
 ---
 
