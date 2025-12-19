@@ -93,6 +93,7 @@ jobs:
       # === Testing ===
       - name: Run JavaScript tests with coverage
         run: npm run test:coverage
+        # Jest coverage thresholds are enforced via package.json (70% minimum)
 
       - name: Install Python test dependencies
         run: pip install -r requirements_test.txt
@@ -101,6 +102,7 @@ jobs:
         run: pytest tests/ -v --cov=custom_components/autosnooze --cov-report=term-missing --cov-report=xml
         env:
           TZ: UTC
+        # Note: Python coverage threshold not enforced yet - needs verification
 
       # === Build ===
       - name: Build card
