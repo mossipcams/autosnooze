@@ -186,7 +186,7 @@ class AutomationPauseCard extends LitElement {
   }
 
   _updateCountdownIfNeeded() {
-    const sensor = this.hass?.states?.["sensor.autosnooze_status"];
+    const sensor = this.hass?.states?.["sensor.autosnooze_snoozed_automations"];
     const pausedCount = sensor?.attributes?.paused_count || 0;
     const scheduledCount = sensor?.attributes?.scheduled_count || 0;
     if (pausedCount > 0 || scheduledCount > 0) {
