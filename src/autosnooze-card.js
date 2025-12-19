@@ -1258,15 +1258,15 @@ class AutomationPauseCard extends LitElement {
     }
   }
 
-  _showWakeAllConfirmDialog() {
+  _showWakeAllConfirmDialog = () => {
     this._showWakeAllConfirm = true;
-  }
+  };
 
-  _cancelWakeAllConfirm() {
+  _cancelWakeAllConfirm = () => {
     this._showWakeAllConfirm = false;
-  }
+  };
 
-  async _wakeAll() {
+  _wakeAll = async () => {
     this._showWakeAllConfirm = false;
     try {
       await this.hass.callService("autosnooze", "cancel_all", {});
@@ -1275,7 +1275,7 @@ class AutomationPauseCard extends LitElement {
       console.error("Wake all failed:", e);
       this._showToast("Failed to resume automations");
     }
-  }
+  };
 
   async _cancelScheduled(entityId) {
     try {
