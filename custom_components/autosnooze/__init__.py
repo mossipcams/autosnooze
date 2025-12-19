@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import asyncio
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import json
 from pathlib import Path
 from typing import Any
@@ -44,6 +44,31 @@ CARD_URL = "/autosnooze-card.js"
 CARD_URL_VERSIONED = f"/autosnooze-card.js?v={VERSION}"
 
 
+def _parse_datetime_utc(dt_str: str) -> datetime:
+    """Parse a datetime string and ensure it is UTC-aware.
+
+    Uses Home Assistant's dt_util.parse_datetime for robust parsing,
+    then ensures the result is timezone-aware (UTC) to prevent
+    comparison errors with dt_util.utcnow().
+
+    Args:
+        dt_str: ISO format datetime string
+
+    Returns:
+        UTC-aware datetime object
+
+    Raises:
+        ValueError: If the string cannot be parsed as a datetime
+    """
+    parsed = dt_util.parse_datetime(dt_str)
+    if parsed is None:
+        raise ValueError(f"Invalid datetime string: {dt_str}")
+    # If naive (no timezone info), assume UTC since we store datetimes in UTC
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=timezone.utc)
+    return parsed
+
+
 @dataclass
 class PausedAutomation:
     """Represent a snoozed automation."""
@@ -73,8 +98,8 @@ class PausedAutomation:
         return cls(
             entity_id=entity_id,
             friendly_name=data.get("friendly_name", entity_id),
-            resume_at=datetime.fromisoformat(data["resume_at"]),
-            paused_at=datetime.fromisoformat(data["paused_at"]),
+            resume_at=_parse_datetime_utc(data["resume_at"]),
+            paused_at=_parse_datetime_utc(data["paused_at"]),
             days=data.get("days", 0),
             hours=data.get("hours", 0),
             minutes=data.get("minutes", 0),
@@ -104,8 +129,8 @@ class ScheduledSnooze:
         return cls(
             entity_id=entity_id,
             friendly_name=data.get("friendly_name", entity_id),
-            disable_at=datetime.fromisoformat(data["disable_at"]),
-            resume_at=datetime.fromisoformat(data["resume_at"]),
+            disable_at=_parse_datetime_utc(data["disable_at"]),
+            resume_at=_parse_datetime_utc(data["resume_at"]),
         )
 
 
@@ -363,7 +388,7 @@ def _validate_stored_entry(
     # Validate datetime fields
     for field_name in required:
         try:
-            datetime.fromisoformat(entry_data[field_name])
+            _parse_datetime_utc(entry_data[field_name])
         except (ValueError, TypeError) as err:
             _LOGGER.warning(
                 "Invalid data for %s: invalid datetime in '%s': %s",
@@ -388,8 +413,8 @@ def _validate_stored_entry(
 
     # Validate scheduled entry has disable_at < resume_at
     if entry_type == "scheduled":
-        disable_at = datetime.fromisoformat(entry_data["disable_at"])
-        resume_at = datetime.fromisoformat(entry_data["resume_at"])
+        disable_at = _parse_datetime_utc(entry_data["disable_at"])
+        resume_at = _parse_datetime_utc(entry_data["resume_at"])
         if resume_at <= disable_at:
             _LOGGER.warning(
                 "Invalid scheduled snooze for %s: resume_at must be after disable_at",
