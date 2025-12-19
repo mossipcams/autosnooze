@@ -187,11 +187,15 @@ class AutomationPauseCard extends LitElement {
   }
 
   _updateCountdownIfNeeded() {
-    const sensor = this.hass?.states?.["sensor.autosnooze_snoozed_automations"];
-    const pausedCount = sensor?.attributes?.paused_count || 0;
-    const scheduledCount = sensor?.attributes?.scheduled_count || 0;
-    if (pausedCount > 0 || scheduledCount > 0) {
-      this.requestUpdate();
+    // Update countdown elements directly in DOM to avoid expensive full re-render
+    const countdownElements = this.shadowRoot?.querySelectorAll(".countdown[data-resume-at]");
+    if (countdownElements && countdownElements.length > 0) {
+      countdownElements.forEach((el) => {
+        const resumeAt = el.dataset.resumeAt;
+        if (resumeAt) {
+          el.textContent = this._formatCountdown(resumeAt);
+        }
+      });
     }
   }
 
@@ -1785,7 +1789,7 @@ class AutomationPauseCard extends LitElement {
                             `
                           : html`
                               <div class="paused-time">
-                                Resuming in: ${this._formatCountdown(data.resume_at)}
+                                Resuming in: <span class="countdown" data-resume-at="${data.resume_at}">${this._formatCountdown(data.resume_at)}</span>
                               </div>
                             `}
                       </div>
