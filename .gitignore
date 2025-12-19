@@ -3,6 +3,7 @@ __pycache__/
 *.pyc
 .claude/
 .devcontainer/
+config/
 .venv/
 coverage/
 .coverage

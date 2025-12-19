@@ -3,7 +3,7 @@
 This document tracks known defects, their status, and resolution details for the AutoSnooze project.
 
 **Last Updated:** 2025-12-18
-**Current Version:** 2.9.23
+**Current Version:** 2.9.29
 
 ---
 
