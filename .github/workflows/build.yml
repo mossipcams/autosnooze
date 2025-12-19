@@ -118,21 +118,21 @@ jobs:
 
       # === Artifacts ===
       - name: Upload built artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: autosnooze-card
           path: custom_components/autosnooze/www/autosnooze-card.js
           retention-days: 30
 
       - name: Upload Python coverage report
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: python-coverage
           path: coverage.xml
           retention-days: 30
 
       - name: Upload JavaScript coverage report
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: js-coverage
           path: coverage/
