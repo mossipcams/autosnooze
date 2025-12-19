@@ -1,7 +1,7 @@
 import { LitElement, html, css } from "lit";
 
-// Version 2.9.28 - Add confirmation dialog for Wake All button
-const CARD_VERSION = "2.9.28";
+// Version 2.9.29 - Improve toast duration, add undo, fix countdown precision
+const CARD_VERSION = "2.9.29";
 
 // ============================================================================
 // CARD EDITOR
@@ -128,6 +128,7 @@ class AutomationPauseCard extends LitElement {
     this._entityRegistry = {};
     this._showCustomInput = false;
     this._interval = null;
+    this._syncTimeout = null;
     this._labelsFetched = false;
     this._categoriesFetched = false;
     this._entityRegistryFetched = false;
@@ -142,20 +143,46 @@ class AutomationPauseCard extends LitElement {
 
     if (this._interval) {
       window.clearInterval(this._interval);
+      this._interval = null;
     }
-    // Only re-render when there are active countdowns to update
-    this._interval = window.setInterval(() => {
-      const sensor = this.hass?.states?.["sensor.autosnooze_status"];
-      const pausedCount = sensor?.attributes?.paused_count || 0;
-      const scheduledCount = sensor?.attributes?.scheduled_count || 0;
-      if (pausedCount > 0 || scheduledCount > 0) {
-        this.requestUpdate();
-      }
-    }, 1000);
+    if (this._syncTimeout) {
+      window.clearTimeout(this._syncTimeout);
+      this._syncTimeout = null;
+    }
+
+    // Synchronize countdown updates to second boundaries for consistent display
+    this._startSynchronizedCountdown();
 
     this._fetchLabelRegistry();
     this._fetchCategoryRegistry();
     this._fetchEntityRegistry();
+  }
+
+  _startSynchronizedCountdown() {
+    // Calculate milliseconds until the next second boundary
+    const now = Date.now();
+    const msUntilNextSecond = 1000 - (now % 1000);
+
+    // Wait until the next second boundary, then start the interval
+    this._syncTimeout = window.setTimeout(() => {
+      this._syncTimeout = null;
+      // Trigger an immediate update at the second boundary
+      this._updateCountdownIfNeeded();
+
+      // Start interval aligned to second boundaries
+      this._interval = window.setInterval(() => {
+        this._updateCountdownIfNeeded();
+      }, 1000);
+    }, msUntilNextSecond);
+  }
+
+  _updateCountdownIfNeeded() {
+    const sensor = this.hass?.states?.["sensor.autosnooze_status"];
+    const pausedCount = sensor?.attributes?.paused_count || 0;
+    const scheduledCount = sensor?.attributes?.scheduled_count || 0;
+    if (pausedCount > 0 || scheduledCount > 0) {
+      this.requestUpdate();
+    }
   }
 
   async _fetchLabelRegistry() {
@@ -248,6 +275,10 @@ class AutomationPauseCard extends LitElement {
     if (this._interval !== null) {
       clearInterval(this._interval);
       this._interval = null;
+    }
+    if (this._syncTimeout !== null) {
+      clearTimeout(this._syncTimeout);
+      this._syncTimeout = null;
     }
     if (this._searchTimeout !== null) {
       clearTimeout(this._searchTimeout);
@@ -831,6 +862,24 @@ class AutomationPauseCard extends LitElement {
       box-shadow: 0 4px 12px rgba(0,0,0,0.3);
       z-index: 1000;
       animation: slideUp 0.3s ease-out;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .toast-undo-btn {
+      padding: 4px 12px;
+      border: 1px solid rgba(255, 255, 255, 0.5);
+      border-radius: 4px;
+      background: transparent;
+      color: var(--text-primary-color);
+      cursor: pointer;
+      font-size: 0.85em;
+      font-weight: 500;
+      transition: all 0.2s;
+    }
+    .toast-undo-btn:hover {
+      background: rgba(255, 255, 255, 0.2);
+      border-color: rgba(255, 255, 255, 0.8);
     }
     @keyframes slideUp {
       from {
@@ -1167,16 +1216,42 @@ class AutomationPauseCard extends LitElement {
     return this._parseDurationInput(this._customDurationInput) !== null;
   }
 
-  _showToast(message) {
+  _showToast(message, options = {}) {
+    const { showUndo = false, onUndo = null } = options;
+
+    // Remove any existing toast
+    const existingToast = this.shadowRoot?.querySelector(".toast");
+    if (existingToast) {
+      existingToast.remove();
+    }
+
     const toast = document.createElement("div");
     toast.className = "toast";
-    toast.textContent = message;
+
+    if (showUndo && onUndo) {
+      const textSpan = document.createElement("span");
+      textSpan.textContent = message;
+      toast.appendChild(textSpan);
+
+      const undoBtn = document.createElement("button");
+      undoBtn.className = "toast-undo-btn";
+      undoBtn.textContent = "Undo";
+      undoBtn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        onUndo();
+        toast.remove();
+      });
+      toast.appendChild(undoBtn);
+    } else {
+      toast.textContent = message;
+    }
+
     this.shadowRoot?.appendChild(toast);
 
     setTimeout(() => {
       toast.style.animation = "slideUp 0.3s ease-out reverse";
       setTimeout(() => toast.remove(), 300);
-    }, 3000);
+    }, 5000);
   }
 
   async _snooze() {
@@ -1194,6 +1269,9 @@ class AutomationPauseCard extends LitElement {
     this._loading = true;
     try {
       const count = this._selected.length;
+      const snoozedEntities = [...this._selected];
+      const wasScheduleMode = this._scheduleMode;
+      const hadDisableAt = !!this._disableAt;
       let toastMessage;
 
       if (this._scheduleMode) {
@@ -1227,7 +1305,35 @@ class AutomationPauseCard extends LitElement {
         toastMessage = `Paused ${count} automation${count !== 1 ? "s" : ""} for ${durationText}`;
       }
 
-      this._showToast(toastMessage);
+      // Show toast with undo option
+      this._showToast(toastMessage, {
+        showUndo: true,
+        onUndo: async () => {
+          try {
+            // Cancel the snooze for all entities that were just snoozed
+            for (const entityId of snoozedEntities) {
+              if (wasScheduleMode && hadDisableAt) {
+                // Cancel scheduled snooze
+                await this.hass.callService("autosnooze", "cancel_scheduled", {
+                  entity_id: entityId,
+                });
+              } else {
+                // Cancel active snooze
+                await this.hass.callService("autosnooze", "cancel", {
+                  entity_id: entityId,
+                });
+              }
+            }
+            // Restore the selection
+            this._selected = snoozedEntities;
+            this._showToast(`Restored ${count} automation${count !== 1 ? "s" : ""}`);
+          } catch (e) {
+            console.error("Undo failed:", e);
+            this._showToast("Failed to undo");
+          }
+        },
+      });
+
       this._selected = [];
       this._disableAt = "";
       this._resumeAt = "";
