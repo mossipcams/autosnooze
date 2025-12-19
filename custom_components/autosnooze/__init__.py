@@ -99,10 +99,11 @@ class PausedAutomation:
     days: int = 0
     hours: int = 0
     minutes: int = 0
+    disable_at: datetime | None = None  # Set when snooze originated from schedule mode
 
     def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for storage/attributes."""
-        return {
+        result = {
             "friendly_name": self.friendly_name,
             "resume_at": self.resume_at.isoformat(),
             "paused_at": self.paused_at.isoformat(),
@@ -110,10 +111,16 @@ class PausedAutomation:
             "hours": self.hours,
             "minutes": self.minutes,
         }
+        if self.disable_at is not None:
+            result["disable_at"] = self.disable_at.isoformat()
+        return result
 
     @classmethod
     def from_dict(cls, entity_id: str, data: dict[str, Any]) -> PausedAutomation:
         """Create from dictionary."""
+        disable_at = None
+        if "disable_at" in data:
+            disable_at = _parse_datetime_utc(data["disable_at"])
         return cls(
             entity_id=entity_id,
             friendly_name=data.get("friendly_name", entity_id),
@@ -122,6 +129,7 @@ class PausedAutomation:
             days=data.get("days", 0),
             hours=data.get("hours", 0),
             minutes=data.get("minutes", 0),
+            disable_at=disable_at,
         )
 
 
@@ -548,6 +556,7 @@ async def _async_load_stored(hass: HomeAssistant, data: AutomationPauseData) -> 
                         friendly_name=scheduled.friendly_name,
                         resume_at=scheduled.resume_at,
                         paused_at=now,
+                        disable_at=scheduled.disable_at,
                     )
                     data.paused[entity_id] = paused
                     _schedule_resume(hass, data, entity_id, scheduled.resume_at)
@@ -716,12 +725,14 @@ async def _async_execute_scheduled_disable(
 
     now = dt_util.utcnow()
     friendly_name = scheduled.friendly_name if scheduled else _get_friendly_name(hass, entity_id)
+    disable_at = scheduled.disable_at if scheduled else None
 
     data.paused[entity_id] = PausedAutomation(
         entity_id=entity_id,
         friendly_name=friendly_name,
         resume_at=resume_at,
         paused_at=now,
+        disable_at=disable_at,
     )
 
     _schedule_resume(hass, data, entity_id, resume_at)
