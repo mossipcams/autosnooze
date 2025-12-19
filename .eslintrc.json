@@ -12,7 +12,10 @@
   },
   "globals": {
     "customElements": "readonly",
-    "HTMLElement": "readonly"
+    "HTMLElement": "readonly",
+    "createMockHass": "readonly",
+    "waitForLitUpdate": "readonly",
+    "createAndConnectElement": "readonly"
   },
   "rules": {
     "no-unused-vars": ["error", { "argsIgnorePattern": "^_" }],
