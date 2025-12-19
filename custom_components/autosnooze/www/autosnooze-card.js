@@ -160,6 +160,19 @@ const t=window,e=t.ShadowRoot&&(void 0===t.ShadyCSS||t.ShadyCSS.nativeShadow)&&"
       color: var(--primary-color);
       flex-shrink: 0;
     }
+    .list-item input[type="checkbox"] {
+      width: 18px;
+      height: 18px;
+      cursor: pointer;
+      accent-color: var(--primary-color);
+      flex-shrink: 0;
+    }
+    .group-header input[type="checkbox"] {
+      width: 18px;
+      height: 18px;
+      cursor: pointer;
+      accent-color: var(--primary-color);
+    }
     .list-item-content {
       flex: 1;
       min-width: 0;
@@ -569,9 +582,12 @@ const t=window,e=t.ShadowRoot&&(void 0===t.ShadyCSS||t.ShadyCSS.nativeShadow)&&"
           class="list-item ${this._selected.includes(t.id)?"selected":""}"
           @click=${()=>this._toggleSelection(t.id)}
         >
-          <ha-icon
-            icon=${this._selected.includes(t.id)?"mdi:checkbox-marked":"mdi:checkbox-blank-outline"}
-          ></ha-icon>
+          <input
+            type="checkbox"
+            .checked=${this._selected.includes(t.id)}
+            @click=${t=>t.stopPropagation()}
+            @change=${()=>this._toggleSelection(t.id)}
+          />
           <div class="list-item-content">
             <div class="list-item-name">${t.name}</div>
           </div>
@@ -584,19 +600,25 @@ const t=window,e=t.ShadowRoot&&(void 0===t.ShadyCSS||t.ShadyCSS.nativeShadow)&&"
           <ha-icon icon="mdi:chevron-right"></ha-icon>
           <span>${t}</span>
           <span class="group-badge">${e.length}</span>
-          <ha-icon
-            icon=${s?"mdi:checkbox-marked":o?"mdi:checkbox-intermediate":"mdi:checkbox-blank-outline"}
-            @click=${t=>{t.stopPropagation(),this._selectGroup(e)}}
-          ></ha-icon>
+          <input
+            type="checkbox"
+            .checked=${s}
+            .indeterminate=${o}
+            @click=${t=>t.stopPropagation()}
+            @change=${()=>this._selectGroup(e)}
+          />
         </div>
         ${i?e.map(t=>{const e="labels"===this._filterTab&&t.area_id?this._getAreaName(t.area_id):null;return N`
                 <div
                   class="list-item ${this._selected.includes(t.id)?"selected":""}"
                   @click=${()=>this._toggleSelection(t.id)}
                 >
-                  <ha-icon
-                    icon=${this._selected.includes(t.id)?"mdi:checkbox-marked":"mdi:checkbox-blank-outline"}
-                  ></ha-icon>
+                  <input
+                    type="checkbox"
+                    .checked=${this._selected.includes(t.id)}
+                    @click=${t=>t.stopPropagation()}
+                    @change=${()=>this._toggleSelection(t.id)}
+                  />
                   <div class="list-item-content">
                     <div class="list-item-name">${t.name}</div>
                     ${e?N`<div class="list-item-meta">

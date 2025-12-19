@@ -405,6 +405,19 @@ class AutomationPauseCard extends LitElement {
       color: var(--primary-color);
       flex-shrink: 0;
     }
+    .list-item input[type="checkbox"] {
+      width: 18px;
+      height: 18px;
+      cursor: pointer;
+      accent-color: var(--primary-color);
+      flex-shrink: 0;
+    }
+    .group-header input[type="checkbox"] {
+      width: 18px;
+      height: 18px;
+      cursor: pointer;
+      accent-color: var(--primary-color);
+    }
     .list-item-content {
       flex: 1;
       min-width: 0;
@@ -1272,11 +1285,12 @@ class AutomationPauseCard extends LitElement {
           class="list-item ${this._selected.includes(a.id) ? "selected" : ""}"
           @click=${() => this._toggleSelection(a.id)}
         >
-          <ha-icon
-            icon=${this._selected.includes(a.id)
-              ? "mdi:checkbox-marked"
-              : "mdi:checkbox-blank-outline"}
-          ></ha-icon>
+          <input
+            type="checkbox"
+            .checked=${this._selected.includes(a.id)}
+            @click=${(e) => e.stopPropagation()}
+            @change=${() => this._toggleSelection(a.id)}
+          />
           <div class="list-item-content">
             <div class="list-item-name">${a.name}</div>
           </div>
@@ -1308,17 +1322,13 @@ class AutomationPauseCard extends LitElement {
           <ha-icon icon="mdi:chevron-right"></ha-icon>
           <span>${groupName}</span>
           <span class="group-badge">${items.length}</span>
-          <ha-icon
-            icon=${groupSelected
-              ? "mdi:checkbox-marked"
-              : someSelected
-                ? "mdi:checkbox-intermediate"
-                : "mdi:checkbox-blank-outline"}
-            @click=${(e) => {
-              e.stopPropagation();
-              this._selectGroup(items);
-            }}
-          ></ha-icon>
+          <input
+            type="checkbox"
+            .checked=${groupSelected}
+            .indeterminate=${someSelected}
+            @click=${(e) => e.stopPropagation()}
+            @change=${() => this._selectGroup(items)}
+          />
         </div>
         ${expanded
           ? items.map((a) => {
@@ -1330,11 +1340,12 @@ class AutomationPauseCard extends LitElement {
                   class="list-item ${this._selected.includes(a.id) ? "selected" : ""}"
                   @click=${() => this._toggleSelection(a.id)}
                 >
-                  <ha-icon
-                    icon=${this._selected.includes(a.id)
-                      ? "mdi:checkbox-marked"
-                      : "mdi:checkbox-blank-outline"}
-                  ></ha-icon>
+                  <input
+                    type="checkbox"
+                    .checked=${this._selected.includes(a.id)}
+                    @click=${(e) => e.stopPropagation()}
+                    @change=${() => this._toggleSelection(a.id)}
+                  />
                   <div class="list-item-content">
                     <div class="list-item-name">${a.name}</div>
                     ${metaInfo
