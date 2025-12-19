@@ -15,11 +15,37 @@ on:
       - 'pytest.ini'
       - 'pyproject.toml'
       - '.eslintrc.json'
+      - 'hacs.json'
   pull_request:
     branches: [main]
   workflow_dispatch:
 
 jobs:
+  # === HACS Validation ===
+  validate-hacs:
+    name: HACS Validation
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: HACS Action
+        uses: hacs/action@main
+        with:
+          category: integration
+
+  # === Home Assistant Integration Validation ===
+  validate-hassfest:
+    name: Hassfest Validation
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Hassfest
+        uses: home-assistant/actions/hassfest@master
+
+  # === Main Build Job ===
   build:
     runs-on: ubuntu-latest
 
