@@ -1,7 +1,7 @@
 import { LitElement, html, css } from "lit";
 
-// Version 2.9.27 - Fix schedule-mode detection for immediate snoozes
-const CARD_VERSION = "2.9.27";
+// Version 2.9.28 - Add confirmation dialog for Wake All button
+const CARD_VERSION = "2.9.28";
 
 // ============================================================================
 // CARD EDITOR
@@ -105,6 +105,7 @@ class AutomationPauseCard extends LitElement {
     _showCustomInput: { state: true },
     _automationsCache: { state: true },
     _automationsCacheKey: { state: true },
+    _showWakeAllConfirm: { state: true },
   };
 
   constructor() {
@@ -133,6 +134,7 @@ class AutomationPauseCard extends LitElement {
     this._automationsCache = null;
     this._automationsCacheKey = null;
     this._searchTimeout = null;
+    this._showWakeAllConfirm = false;
   }
 
   connectedCallback() {
@@ -659,6 +661,50 @@ class AutomationPauseCard extends LitElement {
     .wake-all:hover {
       background: #ff9800;
       color: white;
+    }
+
+    /* Wake All Confirmation Dialog */
+    .wake-all-confirm {
+      margin-top: 8px;
+      padding: 12px;
+      background: rgba(255, 152, 0, 0.1);
+      border: 1px solid #ff9800;
+      border-radius: 6px;
+    }
+    .wake-all-confirm-text {
+      font-size: 0.9em;
+      margin-bottom: 10px;
+      color: var(--primary-text-color);
+    }
+    .wake-all-confirm-buttons {
+      display: flex;
+      gap: 8px;
+    }
+    .wake-all-confirm-btn {
+      flex: 1;
+      padding: 8px 12px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 0.85em;
+      font-weight: 500;
+      transition: all 0.2s;
+    }
+    .wake-all-confirm-btn.confirm {
+      background: #ff9800;
+      color: white;
+      border: 1px solid #ff9800;
+    }
+    .wake-all-confirm-btn.confirm:hover {
+      background: #f57c00;
+      border-color: #f57c00;
+    }
+    .wake-all-confirm-btn.cancel {
+      background: transparent;
+      color: var(--primary-text-color);
+      border: 1px solid var(--divider-color);
+    }
+    .wake-all-confirm-btn.cancel:hover {
+      background: var(--secondary-background-color);
     }
 
     /* Empty State */
@@ -1212,7 +1258,16 @@ class AutomationPauseCard extends LitElement {
     }
   }
 
+  _showWakeAllConfirmDialog() {
+    this._showWakeAllConfirm = true;
+  }
+
+  _cancelWakeAllConfirm() {
+    this._showWakeAllConfirm = false;
+  }
+
   async _wakeAll() {
+    this._showWakeAllConfirm = false;
     try {
       await this.hass.callService("autosnooze", "cancel_all", {});
       this._showToast("All automations resumed");
@@ -1562,11 +1617,33 @@ class AutomationPauseCard extends LitElement {
                 )}
 
                 ${pausedCount > 1
-                  ? html`
-                      <button class="wake-all" @click=${this._wakeAll}>
-                        Wake All
-                      </button>
-                    `
+                  ? this._showWakeAllConfirm
+                    ? html`
+                        <div class="wake-all-confirm">
+                          <div class="wake-all-confirm-text">
+                            Wake all ${pausedCount} snoozed automations?
+                          </div>
+                          <div class="wake-all-confirm-buttons">
+                            <button
+                              class="wake-all-confirm-btn cancel"
+                              @click=${this._cancelWakeAllConfirm}
+                            >
+                              Cancel
+                            </button>
+                            <button
+                              class="wake-all-confirm-btn confirm"
+                              @click=${this._wakeAll}
+                            >
+                              Wake All
+                            </button>
+                          </div>
+                        </div>
+                      `
+                    : html`
+                        <button class="wake-all" @click=${this._showWakeAllConfirmDialog}>
+                          Wake All
+                        </button>
+                      `
                   : ""}
               </div>
             `
