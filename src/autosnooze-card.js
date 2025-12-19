@@ -1,7 +1,7 @@
 import { LitElement, html, css } from "lit";
 
-// Version 2.9.23 - Cleanup: Remove unsuccessful iOS fix attempts and debugging
-const CARD_VERSION = "2.9.23";
+// Version 2.9.24 - Fix schedule mode date comparison with offset-naive datetimes
+const CARD_VERSION = "2.9.24";
 
 // ============================================================================
 // CARD EDITOR
