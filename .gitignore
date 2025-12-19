@@ -2,6 +2,7 @@ node_modules/
 __pycache__/
 *.pyc
 .claude/
+CLAUDE.md
 .devcontainer/
 config/
 .venv/
