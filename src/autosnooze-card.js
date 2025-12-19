@@ -142,6 +142,7 @@ class AutomationPauseCard extends LitElement {
     this._entityRegistryFetched = false;
     this._automationsCache = null;
     this._automationsCacheKey = null;
+    this._lastHassStates = null;
     this._searchTimeout = null;
     this._wakeAllPending = false;
     this._wakeAllTimeout = null;
@@ -903,18 +904,22 @@ class AutomationPauseCard extends LitElement {
     const entities = this.hass?.entities;
     if (!states) return [];
 
-    // Generate cache key based on automation count and registry state
+    // Use reference check for fast cache validation - hass.states is a new object when states change
+    const statesRef = states;
+    const registryKey = this._entityRegistryFetched;
+
+    // Return cached result if states reference and registry state haven't changed
+    if (
+      this._lastHassStates === statesRef &&
+      this._automationsCacheKey === registryKey &&
+      this._automationsCache
+    ) {
+      return this._automationsCache;
+    }
+
     const automationIds = Object.keys(states).filter((id) =>
       id.startsWith("automation.")
     );
-    const cacheKey =
-      automationIds.length + "_" + this._entityRegistryFetched + "_" +
-      automationIds.map((id) => states[id]?.state).join(",");
-
-    // Return cached result if valid
-    if (this._automationsCacheKey === cacheKey && this._automationsCache) {
-      return this._automationsCache;
-    }
 
     const result = automationIds
       .map((id) => {
@@ -935,9 +940,10 @@ class AutomationPauseCard extends LitElement {
       .filter((a) => a !== null)
       .sort((a, b) => a.name.localeCompare(b.name));
 
-    // Cache the result
+    // Cache the result with reference and registry state
     this._automationsCache = result;
-    this._automationsCacheKey = cacheKey;
+    this._automationsCacheKey = registryKey;
+    this._lastHassStates = statesRef;
 
     return result;
   }
