@@ -97,9 +97,11 @@ class AutomationPauseCard extends LitElement {
     _filterTab: { state: true },
     _expandedGroups: { state: true },
     _scheduleMode: { state: true },
-    _disableAtDate: { state: true },
+    _disableAtMonth: { state: true },
+    _disableAtDay: { state: true },
     _disableAtTime: { state: true },
-    _resumeAtDate: { state: true },
+    _resumeAtMonth: { state: true },
+    _resumeAtDay: { state: true },
     _resumeAtTime: { state: true },
     _labelRegistry: { state: true },
     _categoryRegistry: { state: true },
@@ -123,9 +125,11 @@ class AutomationPauseCard extends LitElement {
     this._filterTab = "all";
     this._expandedGroups = {};
     this._scheduleMode = false;
-    this._disableAtDate = "";
+    this._disableAtMonth = "";
+    this._disableAtDay = "";
     this._disableAtTime = "";
-    this._resumeAtDate = "";
+    this._resumeAtMonth = "";
+    this._resumeAtDay = "";
     this._resumeAtTime = "";
     this._labelRegistry = {};
     this._categoryRegistry = {};
@@ -779,9 +783,8 @@ class AutomationPauseCard extends LitElement {
       display: flex;
       gap: 8px;
     }
-    .datetime-row input[type="date"],
+    .datetime-row select,
     .datetime-row input[type="time"] {
-      flex: 1;
       padding: 10px 12px;
       border: 1px solid var(--divider-color);
       border-radius: 6px;
@@ -789,6 +792,15 @@ class AutomationPauseCard extends LitElement {
       color: var(--primary-text-color);
       font-size: 0.95em;
     }
+    .datetime-row select {
+      flex: 1;
+      min-width: 0;
+    }
+    .datetime-row input[type="time"] {
+      width: 110px;
+      flex-shrink: 0;
+    }
+    .datetime-row select:focus,
     .datetime-row input:focus {
       outline: none;
       border-color: var(--primary-color);
@@ -1246,17 +1258,20 @@ class AutomationPauseCard extends LitElement {
     }, 5000);
   }
 
-  _combineDateTime(date, time) {
-    if (!date || !time) return null;
-    return `${date}T${time}`;
+  _combineDateTime(month, day, time) {
+    if (!month || !day || !time) return null;
+    const year = new Date().getFullYear();
+    const paddedMonth = month.padStart(2, "0");
+    const paddedDay = day.padStart(2, "0");
+    return `${year}-${paddedMonth}-${paddedDay}T${time}`;
   }
 
   _hasResumeAt() {
-    return this._resumeAtDate && this._resumeAtTime;
+    return this._resumeAtMonth && this._resumeAtDay && this._resumeAtTime;
   }
 
   _hasDisableAt() {
-    return this._disableAtDate && this._disableAtTime;
+    return this._disableAtMonth && this._disableAtDay && this._disableAtTime;
   }
 
   async _snooze() {
@@ -1280,8 +1295,8 @@ class AutomationPauseCard extends LitElement {
       let toastMessage;
 
       if (this._scheduleMode) {
-        const resumeAt = this._combineDateTime(this._resumeAtDate, this._resumeAtTime);
-        const disableAt = this._combineDateTime(this._disableAtDate, this._disableAtTime);
+        const resumeAt = this._combineDateTime(this._resumeAtMonth, this._resumeAtDay, this._resumeAtTime);
+        const disableAt = this._combineDateTime(this._disableAtMonth, this._disableAtDay, this._disableAtTime);
 
         const serviceData = {
           entity_id: this._selected,
@@ -1343,9 +1358,11 @@ class AutomationPauseCard extends LitElement {
       });
 
       this._selected = [];
-      this._disableAtDate = "";
+      this._disableAtMonth = "";
+      this._disableAtDay = "";
       this._disableAtTime = "";
-      this._resumeAtDate = "";
+      this._resumeAtMonth = "";
+      this._resumeAtDay = "";
       this._resumeAtTime = "";
     } catch (e) {
       console.error("Snooze failed:", e);
@@ -1407,6 +1424,15 @@ class AutomationPauseCard extends LitElement {
       console.error("Cancel scheduled failed:", e);
       this._showToast("Failed to cancel scheduled pause");
     }
+  }
+
+  _renderMonthOptions() {
+    const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    return months.map((m, i) => html`<option value="${i + 1}">${m}</option>`);
+  }
+
+  _renderDayOptions() {
+    return Array.from({ length: 31 }, (_, i) => html`<option value="${i + 1}">${i + 1}</option>`);
   }
 
   _renderSelectionList() {
@@ -1608,11 +1634,20 @@ class AutomationPauseCard extends LitElement {
                   <div class="datetime-field">
                     <label>Pause at:</label>
                     <div class="datetime-row">
-                      <input
-                        type="date"
-                        .value=${this._disableAtDate}
-                        @input=${(e) => (this._disableAtDate = e.target.value)}
-                      />
+                      <select
+                        .value=${this._disableAtMonth}
+                        @change=${(e) => (this._disableAtMonth = e.target.value)}
+                      >
+                        <option value="">Month</option>
+                        ${this._renderMonthOptions()}
+                      </select>
+                      <select
+                        .value=${this._disableAtDay}
+                        @change=${(e) => (this._disableAtDay = e.target.value)}
+                      >
+                        <option value="">Day</option>
+                        ${this._renderDayOptions()}
+                      </select>
                       <input
                         type="time"
                         .value=${this._disableAtTime}
@@ -1624,11 +1659,20 @@ class AutomationPauseCard extends LitElement {
                   <div class="datetime-field">
                     <label>Resume at:</label>
                     <div class="datetime-row">
-                      <input
-                        type="date"
-                        .value=${this._resumeAtDate}
-                        @input=${(e) => (this._resumeAtDate = e.target.value)}
-                      />
+                      <select
+                        .value=${this._resumeAtMonth}
+                        @change=${(e) => (this._resumeAtMonth = e.target.value)}
+                      >
+                        <option value="">Month</option>
+                        ${this._renderMonthOptions()}
+                      </select>
+                      <select
+                        .value=${this._resumeAtDay}
+                        @change=${(e) => (this._resumeAtDay = e.target.value)}
+                      >
+                        <option value="">Day</option>
+                        ${this._renderDayOptions()}
+                      </select>
                       <input
                         type="time"
                         .value=${this._resumeAtTime}
