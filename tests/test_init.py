@@ -1,4 +1,5 @@
 """Tests for AutoSnooze __init__.py - Data Models and Core Logic."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -167,9 +168,7 @@ def _cancel_scheduled_timer(data: AutomationPauseData, entity_id: str) -> None:
         unsub()
 
 
-async def _set_automation_state(
-    hass: Any, entity_id: str, *, enabled: bool
-) -> bool:
+async def _set_automation_state(hass: Any, entity_id: str, *, enabled: bool) -> bool:
     """Enable or disable an automation."""
     state = hass.states.get(entity_id)
     if state is None:
@@ -193,17 +192,17 @@ async def _async_save(data: AutomationPauseData) -> None:
         return
 
     try:
-        await data.store.async_save({
-            "paused": {k: v.to_dict() for k, v in data.paused.items()},
-            "scheduled": {k: v.to_dict() for k, v in data.scheduled.items()},
-        })
+        await data.store.async_save(
+            {
+                "paused": {k: v.to_dict() for k, v in data.paused.items()},
+                "scheduled": {k: v.to_dict() for k, v in data.scheduled.items()},
+            }
+        )
     except Exception:
         pass
 
 
-async def _async_resume(
-    hass: Any, data: AutomationPauseData, entity_id: str
-) -> None:
+async def _async_resume(hass: Any, data: AutomationPauseData, entity_id: str) -> None:
     """Wake up a snoozed automation."""
     _cancel_timer(data, entity_id)
     data.paused.pop(entity_id, None)
@@ -215,6 +214,7 @@ async def _async_resume(
 def _get_automations_by_area(hass: Any, area_ids: list[str]) -> list[str]:
     """Get all automation entity IDs in the specified areas."""
     from unittest.mock import MagicMock
+
     entity_reg = MagicMock()
     # This is mocked in tests
     return []
@@ -247,9 +247,7 @@ class TestPausedAutomation:
             minutes=0,
         )
 
-    def test_to_dict_returns_correct_structure(
-        self, sample_paused_automation: PausedAutomation
-    ) -> None:
+    def test_to_dict_returns_correct_structure(self, sample_paused_automation: PausedAutomation) -> None:
         """Test to_dict returns all fields in correct format."""
         result = sample_paused_automation.to_dict()
 
@@ -262,9 +260,7 @@ class TestPausedAutomation:
         assert result["friendly_name"] == "Test Automation"
         assert result["hours"] == 1
 
-    def test_to_dict_datetime_as_isoformat(
-        self, sample_paused_automation: PausedAutomation
-    ) -> None:
+    def test_to_dict_datetime_as_isoformat(self, sample_paused_automation: PausedAutomation) -> None:
         """Test datetime fields are serialized as ISO format strings."""
         result = sample_paused_automation.to_dict()
 
@@ -324,14 +320,10 @@ class TestPausedAutomation:
         with pytest.raises(ValueError):
             PausedAutomation.from_dict("automation.test", data)
 
-    def test_roundtrip_serialization(
-        self, sample_paused_automation: PausedAutomation
-    ) -> None:
+    def test_roundtrip_serialization(self, sample_paused_automation: PausedAutomation) -> None:
         """Test data survives serialization roundtrip."""
         serialized = sample_paused_automation.to_dict()
-        restored = PausedAutomation.from_dict(
-            sample_paused_automation.entity_id, serialized
-        )
+        restored = PausedAutomation.from_dict(sample_paused_automation.entity_id, serialized)
 
         assert restored.entity_id == sample_paused_automation.entity_id
         assert restored.friendly_name == sample_paused_automation.friendly_name
@@ -359,9 +351,7 @@ class TestScheduledSnooze:
             resume_at=now + timedelta(hours=2),
         )
 
-    def test_to_dict_returns_correct_structure(
-        self, sample_scheduled_snooze: ScheduledSnooze
-    ) -> None:
+    def test_to_dict_returns_correct_structure(self, sample_scheduled_snooze: ScheduledSnooze) -> None:
         """Test to_dict returns all fields in correct format."""
         result = sample_scheduled_snooze.to_dict()
 
@@ -370,9 +360,7 @@ class TestScheduledSnooze:
         assert "resume_at" in result
         assert result["friendly_name"] == "Test Automation"
 
-    def test_to_dict_datetime_as_isoformat(
-        self, sample_scheduled_snooze: ScheduledSnooze
-    ) -> None:
+    def test_to_dict_datetime_as_isoformat(self, sample_scheduled_snooze: ScheduledSnooze) -> None:
         """Test datetime fields are serialized as ISO format strings."""
         result = sample_scheduled_snooze.to_dict()
 
@@ -412,14 +400,10 @@ class TestScheduledSnooze:
         with pytest.raises(KeyError):
             ScheduledSnooze.from_dict("automation.test", data)
 
-    def test_roundtrip_serialization(
-        self, sample_scheduled_snooze: ScheduledSnooze
-    ) -> None:
+    def test_roundtrip_serialization(self, sample_scheduled_snooze: ScheduledSnooze) -> None:
         """Test data survives serialization roundtrip."""
         serialized = sample_scheduled_snooze.to_dict()
-        restored = ScheduledSnooze.from_dict(
-            sample_scheduled_snooze.entity_id, serialized
-        )
+        restored = ScheduledSnooze.from_dict(sample_scheduled_snooze.entity_id, serialized)
 
         assert restored.entity_id == sample_scheduled_snooze.entity_id
         assert restored.friendly_name == sample_scheduled_snooze.friendly_name
@@ -482,9 +466,7 @@ class TestAutomationPauseData:
         assert data.listeners == []
         assert data.store is None
 
-    def test_add_listener_registers_callback(
-        self, automation_pause_data: AutomationPauseData
-    ) -> None:
+    def test_add_listener_registers_callback(self, automation_pause_data: AutomationPauseData) -> None:
         """Test add_listener registers callback in listeners list."""
         callback = MagicMock()
 
@@ -492,9 +474,7 @@ class TestAutomationPauseData:
 
         assert callback in automation_pause_data.listeners
 
-    def test_add_listener_returns_removal_function(
-        self, automation_pause_data: AutomationPauseData
-    ) -> None:
+    def test_add_listener_returns_removal_function(self, automation_pause_data: AutomationPauseData) -> None:
         """Test add_listener returns function that removes the listener."""
         callback = MagicMock()
 
@@ -504,9 +484,7 @@ class TestAutomationPauseData:
         remove_fn()
         assert callback not in automation_pause_data.listeners
 
-    def test_add_multiple_listeners(
-        self, automation_pause_data: AutomationPauseData
-    ) -> None:
+    def test_add_multiple_listeners(self, automation_pause_data: AutomationPauseData) -> None:
         """Test multiple listeners can be registered."""
         callback1 = MagicMock()
         callback2 = MagicMock()
@@ -516,9 +494,7 @@ class TestAutomationPauseData:
 
         assert len(automation_pause_data.listeners) == 2
 
-    def test_notify_calls_all_listeners(
-        self, automation_pause_data: AutomationPauseData
-    ) -> None:
+    def test_notify_calls_all_listeners(self, automation_pause_data: AutomationPauseData) -> None:
         """Test notify calls all registered listeners."""
         callback1 = MagicMock()
         callback2 = MagicMock()
@@ -530,9 +506,7 @@ class TestAutomationPauseData:
         callback1.assert_called_once()
         callback2.assert_called_once()
 
-    def test_notify_with_no_listeners_does_not_raise(
-        self, automation_pause_data: AutomationPauseData
-    ) -> None:
+    def test_notify_with_no_listeners_does_not_raise(self, automation_pause_data: AutomationPauseData) -> None:
         """Test notify with no listeners doesn't raise exception."""
         automation_pause_data.notify()  # Should not raise
 
@@ -549,9 +523,7 @@ class TestAutomationPauseData:
         assert "automation.test" in result
         assert result["automation.test"]["friendly_name"] == "Test Automation"
 
-    def test_get_paused_dict_empty_returns_empty_dict(
-        self, automation_pause_data: AutomationPauseData
-    ) -> None:
+    def test_get_paused_dict_empty_returns_empty_dict(self, automation_pause_data: AutomationPauseData) -> None:
         """Test get_paused_dict returns empty dict when no paused automations."""
         result = automation_pause_data.get_paused_dict()
 
@@ -570,9 +542,7 @@ class TestAutomationPauseData:
         assert "automation.test" in result
         assert result["automation.test"]["friendly_name"] == "Test Automation"
 
-    def test_get_scheduled_dict_empty_returns_empty_dict(
-        self, automation_pause_data: AutomationPauseData
-    ) -> None:
+    def test_get_scheduled_dict_empty_returns_empty_dict(self, automation_pause_data: AutomationPauseData) -> None:
         """Test get_scheduled_dict returns empty dict when no scheduled snoozes."""
         result = automation_pause_data.get_scheduled_dict()
 
@@ -636,9 +606,7 @@ class TestGetFriendlyName:
     def test_returns_friendly_name_from_state_attributes(self) -> None:
         """Test returns friendly_name attribute when present."""
         mock_hass = MagicMock()
-        mock_state = MockState(
-            "automation.test", "on", {ATTR_FRIENDLY_NAME: "Test Automation"}
-        )
+        mock_state = MockState("automation.test", "on", {ATTR_FRIENDLY_NAME: "Test Automation"})
         mock_hass.states.get.return_value = mock_state
 
         result = _get_friendly_name(mock_hass, "automation.test")
@@ -680,9 +648,7 @@ class TestSetAutomationState:
         mock_hass.states.get.return_value = MockState("automation.test", "on")
         mock_hass.services.async_call = AsyncMock()
 
-        result = await _set_automation_state(
-            mock_hass, "automation.test", enabled=True
-        )
+        result = await _set_automation_state(mock_hass, "automation.test", enabled=True)
 
         assert result is True
         mock_hass.services.async_call.assert_called_once_with(
@@ -699,9 +665,7 @@ class TestSetAutomationState:
         mock_hass.states.get.return_value = MockState("automation.test", "on")
         mock_hass.services.async_call = AsyncMock()
 
-        result = await _set_automation_state(
-            mock_hass, "automation.test", enabled=False
-        )
+        result = await _set_automation_state(mock_hass, "automation.test", enabled=False)
 
         assert result is True
         mock_hass.services.async_call.assert_called_once_with(
@@ -718,9 +682,7 @@ class TestSetAutomationState:
         mock_hass.states.get.return_value = None
         mock_hass.services.async_call = AsyncMock()
 
-        result = await _set_automation_state(
-            mock_hass, "automation.nonexistent", enabled=True
-        )
+        result = await _set_automation_state(mock_hass, "automation.nonexistent", enabled=True)
 
         assert result is False
         mock_hass.services.async_call.assert_not_called()
@@ -732,9 +694,7 @@ class TestSetAutomationState:
         mock_hass.states.get.return_value = MockState("automation.test", "on")
         mock_hass.services.async_call = AsyncMock(side_effect=Exception("Service error"))
 
-        result = await _set_automation_state(
-            mock_hass, "automation.test", enabled=True
-        )
+        result = await _set_automation_state(mock_hass, "automation.test", enabled=True)
 
         assert result is False
 
@@ -891,13 +851,8 @@ class TestLovelaceResourceSafety:
         causing duplicate resources on every restart.
         """
         import os
-        init_path = os.path.join(
-            os.path.dirname(__file__),
-            "..",
-            "custom_components",
-            "autosnooze",
-            "__init__.py"
-        )
+
+        init_path = os.path.join(os.path.dirname(__file__), "..", "custom_components", "autosnooze", "__init__.py")
         with open(init_path, "r") as f:
             source = f.read()
 
@@ -912,24 +867,15 @@ class TestLovelaceResourceSafety:
         func_body = source[func_match:next_func]
 
         # Must use startswith for namespace matching (like HACS)
-        assert "startswith" in func_body, (
-            "Resource matching must use startswith() for namespace prefix matching"
-        )
+        assert "startswith" in func_body, "Resource matching must use startswith() for namespace prefix matching"
         # Must use CARD_URL as namespace (not a broken pattern)
-        assert "CARD_URL" in func_body, (
-            "Must use CARD_URL as the namespace for matching"
-        )
+        assert "CARD_URL" in func_body, "Must use CARD_URL as the namespace for matching"
 
     def test_never_deletes_resources(self) -> None:
         """Verify source code doesn't call async_delete_item."""
         import os
-        init_path = os.path.join(
-            os.path.dirname(__file__),
-            "..",
-            "custom_components",
-            "autosnooze",
-            "__init__.py"
-        )
+
+        init_path = os.path.join(os.path.dirname(__file__), "..", "custom_components", "autosnooze", "__init__.py")
         with open(init_path, "r") as f:
             source = f.read()
 
@@ -942,9 +888,7 @@ class TestLovelaceResourceSafety:
 
         func_body = source[func_match:next_func]
 
-        assert "async_delete_item" not in func_body, (
-            "SAFETY VIOLATION: Must never delete resources"
-        )
+        assert "async_delete_item" not in func_body, "SAFETY VIOLATION: Must never delete resources"
 
     def test_references_hacs_pattern(self) -> None:
         """Verify the function references HACS as the source pattern.
@@ -952,13 +896,8 @@ class TestLovelaceResourceSafety:
         This ensures future developers understand where the pattern came from.
         """
         import os
-        init_path = os.path.join(
-            os.path.dirname(__file__),
-            "..",
-            "custom_components",
-            "autosnooze",
-            "__init__.py"
-        )
+
+        init_path = os.path.join(os.path.dirname(__file__), "..", "custom_components", "autosnooze", "__init__.py")
         with open(init_path, "r") as f:
             source = f.read()
 
@@ -979,13 +918,8 @@ class TestLovelaceResourceSafety:
     def test_handles_ha_version_compatibility(self) -> None:
         """Verify version-aware resource access for HA 2025.2.0+."""
         import os
-        init_path = os.path.join(
-            os.path.dirname(__file__),
-            "..",
-            "custom_components",
-            "autosnooze",
-            "__init__.py"
-        )
+
+        init_path = os.path.join(os.path.dirname(__file__), "..", "custom_components", "autosnooze", "__init__.py")
         with open(init_path, "r") as f:
             source = f.read()
 
@@ -999,9 +933,7 @@ class TestLovelaceResourceSafety:
         func_body = source[func_match:next_func]
 
         # Should use getattr for version-aware access
-        assert "getattr" in func_body, (
-            "Must use getattr for version-aware resource access"
-        )
+        assert "getattr" in func_body, "Must use getattr for version-aware resource access"
 
     def test_uses_resource_manager_api(self) -> None:
         """Verify resource registration uses lovelace resource manager API.
@@ -1028,13 +960,9 @@ class TestLovelaceResourceSafety:
         func_body = source[func_match:next_func]
 
         # Must use resource manager API for creating resources
-        assert 'async_create_item' in func_body, (
-            "Must use resources.async_create_item for new resources"
-        )
+        assert "async_create_item" in func_body, "Must use resources.async_create_item for new resources"
         # Should use 'res_type' for resource manager API
-        assert '"res_type": "module"' in func_body, (
-            "Must use 'res_type' parameter for resource manager API"
-        )
+        assert '"res_type": "module"' in func_body, "Must use 'res_type' parameter for resource manager API"
 
 
 class TestLovelaceResourceRegistrationIntegration:
@@ -1080,16 +1008,12 @@ class TestLovelaceResourceRegistrationIntegration:
             if existing_resource.get("url") != self.CARD_URL_VERSIONED:
                 # Update only our resource by ID
                 await resources.async_update_item(
-                    existing_resource["id"],
-                    {"url": self.CARD_URL_VERSIONED, "res_type": "module"}
+                    existing_resource["id"], {"url": self.CARD_URL_VERSIONED, "res_type": "module"}
                 )
             return
 
         # Create new resource
-        await resources.async_create_item({
-            "url": self.CARD_URL_VERSIONED,
-            "res_type": "module"
-        })
+        await resources.async_create_item({"url": self.CARD_URL_VERSIONED, "res_type": "module"})
 
     @pytest.fixture
     def mock_resources(self) -> MagicMock:
@@ -1118,9 +1042,7 @@ class TestLovelaceResourceRegistrationIntegration:
         return hass
 
     @pytest.mark.asyncio
-    async def test_does_not_modify_other_resources(
-        self, mock_hass: MagicMock, mock_resources: MagicMock
-    ) -> None:
+    async def test_does_not_modify_other_resources(self, mock_hass: MagicMock, mock_resources: MagicMock) -> None:
         """Verify other cards' resources are never modified."""
         await self._async_register_lovelace_resource(mock_hass)
 
@@ -1132,14 +1054,10 @@ class TestLovelaceResourceRegistrationIntegration:
             )
 
         # Verify delete was never called
-        assert mock_resources.async_delete_item.call_count == 0, (
-            "SAFETY VIOLATION: async_delete_item was called"
-        )
+        assert mock_resources.async_delete_item.call_count == 0, "SAFETY VIOLATION: async_delete_item was called"
 
     @pytest.mark.asyncio
-    async def test_creates_new_resource_when_not_exists(
-        self, mock_hass: MagicMock, mock_resources: MagicMock
-    ) -> None:
+    async def test_creates_new_resource_when_not_exists(self, mock_hass: MagicMock, mock_resources: MagicMock) -> None:
         """Verify a new resource is created when autosnooze is not registered."""
         await self._async_register_lovelace_resource(mock_hass)
 
@@ -1156,11 +1074,13 @@ class TestLovelaceResourceRegistrationIntegration:
         """Verify only our resource is updated when version changes."""
         # Add an old version of our resource
         existing_resources = list(mock_resources.async_items.return_value)
-        existing_resources.append({
-            "id": "autosnooze-resource",
-            "url": "/autosnooze-card.js?v=1.0.0",  # Old version
-            "res_type": "module"
-        })
+        existing_resources.append(
+            {
+                "id": "autosnooze-resource",
+                "url": "/autosnooze-card.js?v=1.0.0",  # Old version
+                "res_type": "module",
+            }
+        )
         mock_resources.async_items.return_value = existing_resources
 
         await self._async_register_lovelace_resource(mock_hass)
@@ -1175,17 +1095,17 @@ class TestLovelaceResourceRegistrationIntegration:
         mock_resources.async_create_item.assert_not_called()
 
     @pytest.mark.asyncio
-    async def test_does_not_update_when_version_matches(
-        self, mock_hass: MagicMock, mock_resources: MagicMock
-    ) -> None:
+    async def test_does_not_update_when_version_matches(self, mock_hass: MagicMock, mock_resources: MagicMock) -> None:
         """Verify no update happens when version already matches."""
         # Add current version of our resource
         existing_resources = list(mock_resources.async_items.return_value)
-        existing_resources.append({
-            "id": "autosnooze-resource",
-            "url": self.CARD_URL_VERSIONED,  # Current version
-            "res_type": "module"
-        })
+        existing_resources.append(
+            {
+                "id": "autosnooze-resource",
+                "url": self.CARD_URL_VERSIONED,  # Current version
+                "res_type": "module",
+            }
+        )
         mock_resources.async_items.return_value = existing_resources
 
         await self._async_register_lovelace_resource(mock_hass)
@@ -1234,9 +1154,7 @@ class TestLovelaceResourceRegistrationIntegration:
             assert resource_id not in [r["id"] for r in original_resources]
 
     @pytest.mark.asyncio
-    async def test_namespace_matching_is_strict(
-        self, mock_hass: MagicMock, mock_resources: MagicMock
-    ) -> None:
+    async def test_namespace_matching_is_strict(self, mock_hass: MagicMock, mock_resources: MagicMock) -> None:
         """Verify namespace matching doesn't match similar but different URLs."""
         # Add resources with similar but different URLs that should NOT match
         tricky_resources = [

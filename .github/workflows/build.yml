@@ -4,6 +4,7 @@ on:
   push:
     branches: [main, dev]
     paths:
+      - '.github/workflows/**'
       - 'src/**'
       - 'tests/**'
       - 'custom_components/**'
@@ -12,6 +13,8 @@ on:
       - 'rollup.config.mjs'
       - 'requirements_test.txt'
       - 'pytest.ini'
+      - 'pyproject.toml'
+      - '.eslintrc.json'
   pull_request:
     branches: [main]
   workflow_dispatch:
@@ -24,6 +27,34 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      # === Linting ===
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install Python linting tools
+        run: pip install ruff
+
+      - name: Run ruff (Python linter)
+        run: ruff check custom_components/ tests/ --output-format=github
+
+      - name: Check ruff formatting
+        run: ruff format --check --diff custom_components/ tests/
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install npm dependencies
+        run: npm install
+
+      - name: Run ESLint (JavaScript linter)
+        run: npm run lint
+
+      # === Validation ===
       - name: Validate version consistency
         run: |
           echo "Validating version consistency across files..."
@@ -59,31 +90,19 @@ jobs:
           echo ""
           echo "Version validation passed: $PACKAGE_VERSION"
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'npm'
+      # === Testing ===
+      - name: Run JavaScript tests with coverage
+        run: npm run test:coverage
 
-      - name: Install dependencies
-        run: npm install
-
-      - name: Run JavaScript tests
-        run: npm test
-
-      - name: Setup Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-
-      - name: Install Python dependencies
+      - name: Install Python test dependencies
         run: pip install -r requirements_test.txt
 
-      - name: Run Python tests
-        run: pytest tests/ -v
+      - name: Run Python tests with coverage
+        run: pytest tests/ -v --cov=custom_components/autosnooze --cov-report=term-missing --cov-report=xml
         env:
           TZ: UTC
 
+      # === Build ===
       - name: Build card
         run: npm run build
 
@@ -95,9 +114,24 @@ jobs:
           fi
           echo "Build verified: no bare imports found"
 
+      # === Artifacts ===
       - name: Upload built artifact
         uses: actions/upload-artifact@v4
         with:
           name: autosnooze-card
           path: custom_components/autosnooze/www/autosnooze-card.js
+          retention-days: 30
+
+      - name: Upload Python coverage report
+        uses: actions/upload-artifact@v4
+        with:
+          name: python-coverage
+          path: coverage.xml
+          retention-days: 30
+
+      - name: Upload JavaScript coverage report
+        uses: actions/upload-artifact@v4
+        with:
+          name: js-coverage
+          path: coverage/
           retention-days: 30
