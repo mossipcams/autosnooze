@@ -754,9 +754,18 @@ const t=window,e=t.ShadowRoot&&(void 0===t.ShadyCSS||t.ShadyCSS.nativeShadow)&&"
                         <div class="paused-name">
                           ${e.friendly_name||t}
                         </div>
-                        <div class="paused-time">
-                          Waking up in: ${this._formatCountdown(e.resume_at)}
-                        </div>
+                        ${e.disable_at?N`
+                              <div class="scheduled-time">
+                                Started: ${this._formatDateTime(e.disable_at)}
+                              </div>
+                              <div class="paused-time">
+                                Resumes: ${this._formatDateTime(e.resume_at)}
+                              </div>
+                            `:N`
+                              <div class="paused-time">
+                                Waking up in: ${this._formatCountdown(e.resume_at)}
+                              </div>
+                            `}
                       </div>
                       <button class="wake-btn" @click=${()=>this._wake(t)}>
                         Wake Now
@@ -802,4 +811,4 @@ const t=window,e=t.ShadowRoot&&(void 0===t.ShadyCSS||t.ShadyCSS.nativeShadow)&&"
               </div>
             `:""}
       </ha-card>
-    `}getCardSize(){const t=this._getPaused(),e=this._getScheduled();return 4+Object.keys(t).length+Object.keys(e).length}setConfig(t){this.config=t}}customElements.get("autosnooze-card-editor")||customElements.define("autosnooze-card-editor",rt),customElements.get("autosnooze-card")||customElements.define("autosnooze-card",at),window.customCards=window.customCards||[],window.customCards.some(t=>"autosnooze-card"===t.type)||window.customCards.push({type:"autosnooze-card",name:"AutoSnooze Card",description:"Temporarily pause automations with area and label filtering (v2.9.23)",preview:!0});
+    `}getCardSize(){const t=this._getPaused(),e=this._getScheduled();return 4+Object.keys(t).length+Object.keys(e).length}setConfig(t){this.config=t}}customElements.get("autosnooze-card-editor")||customElements.define("autosnooze-card-editor",rt),customElements.get("autosnooze-card")||customElements.define("autosnooze-card",at),window.customCards=window.customCards||[],window.customCards.some(t=>"autosnooze-card"===t.type)||window.customCards.push({type:"autosnooze-card",name:"AutoSnooze Card",description:"Temporarily pause automations with area and label filtering (v2.9.26)",preview:!0});
