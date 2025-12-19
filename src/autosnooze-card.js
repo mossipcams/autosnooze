@@ -662,19 +662,22 @@ class AutomationPauseCard extends LitElement {
       background: var(--card-background-color);
       border-radius: 8px;
       margin-bottom: 8px;
-      overflow: hidden;
     }
     .pause-group-header {
       display: flex;
-      flex-wrap: wrap;
-      gap: 8px 16px;
-      padding: 10px 12px;
-      background: var(--primary-color);
-      color: var(--text-primary-color);
-      font-size: 0.9em;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 12px;
+      color: #ff9800;
+      font-size: 0.85em;
+      border-bottom: 1px solid var(--divider-color);
+    }
+    .pause-group-header ha-icon {
+      --mdc-icon-size: 18px;
     }
     .pause-group-header .countdown {
-      font-weight: 500;
+      font-weight: 600;
+      font-variant-numeric: tabular-nums;
     }
 
     /* Paused Item */
@@ -683,6 +686,8 @@ class AutomationPauseCard extends LitElement {
       align-items: center;
       gap: 12px;
       padding: 10px 12px;
+    }
+    .paused-item + .paused-item {
       border-top: 1px solid var(--divider-color);
     }
     .paused-icon {
@@ -1810,16 +1815,10 @@ class AutomationPauseCard extends LitElement {
                   (group) => html`
                     <div class="pause-group">
                       <div class="pause-group-header">
+                        <ha-icon icon="mdi:timer-outline"></ha-icon>
                         ${group.disableAt
-                          ? html`
-                              <span class="scheduled-time">Started: ${this._formatDateTime(group.disableAt)}</span>
-                              <span class="paused-time">Resumes: ${this._formatDateTime(group.resumeAt)}</span>
-                            `
-                          : html`
-                              <span class="paused-time">
-                                Resuming in: <span class="countdown" data-resume-at="${group.resumeAt}">${this._formatCountdown(group.resumeAt)}</span>
-                              </span>
-                            `}
+                          ? html`Resumes ${this._formatDateTime(group.resumeAt)}`
+                          : html`<span class="countdown" data-resume-at="${group.resumeAt}">${this._formatCountdown(group.resumeAt)}</span>`}
                       </div>
                       ${group.automations.map(
                         (auto) => html`

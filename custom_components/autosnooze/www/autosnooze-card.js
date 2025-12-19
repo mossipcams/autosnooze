@@ -373,19 +373,22 @@ const t=window,e=t.ShadowRoot&&(void 0===t.ShadyCSS||t.ShadyCSS.nativeShadow)&&"
       background: var(--card-background-color);
       border-radius: 8px;
       margin-bottom: 8px;
-      overflow: hidden;
     }
     .pause-group-header {
       display: flex;
-      flex-wrap: wrap;
-      gap: 8px 16px;
-      padding: 10px 12px;
-      background: var(--primary-color);
-      color: var(--text-primary-color);
-      font-size: 0.9em;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 12px;
+      color: #ff9800;
+      font-size: 0.85em;
+      border-bottom: 1px solid var(--divider-color);
+    }
+    .pause-group-header ha-icon {
+      --mdc-icon-size: 18px;
     }
     .pause-group-header .countdown {
-      font-weight: 500;
+      font-weight: 600;
+      font-variant-numeric: tabular-nums;
     }
 
     /* Paused Item */
@@ -394,6 +397,8 @@ const t=window,e=t.ShadowRoot&&(void 0===t.ShadyCSS||t.ShadyCSS.nativeShadow)&&"
       align-items: center;
       gap: 12px;
       padding: 10px 12px;
+    }
+    .paused-item + .paused-item {
       border-top: 1px solid var(--divider-color);
     }
     .paused-icon {
@@ -857,14 +862,8 @@ const t=window,e=t.ShadowRoot&&(void 0===t.ShadyCSS||t.ShadyCSS.nativeShadow)&&"
                 ${this._getPausedGroupedByResumeTime().map(t=>I`
                     <div class="pause-group">
                       <div class="pause-group-header">
-                        ${t.disableAt?I`
-                              <span class="scheduled-time">Started: ${this._formatDateTime(t.disableAt)}</span>
-                              <span class="paused-time">Resumes: ${this._formatDateTime(t.resumeAt)}</span>
-                            `:I`
-                              <span class="paused-time">
-                                Resuming in: <span class="countdown" data-resume-at="${t.resumeAt}">${this._formatCountdown(t.resumeAt)}</span>
-                              </span>
-                            `}
+                        <ha-icon icon="mdi:timer-outline"></ha-icon>
+                        ${t.disableAt?I`Resumes ${this._formatDateTime(t.resumeAt)}`:I`<span class="countdown" data-resume-at="${t.resumeAt}">${this._formatCountdown(t.resumeAt)}</span>`}
                       </div>
                       ${t.automations.map(t=>I`
                           <div class="paused-item">
