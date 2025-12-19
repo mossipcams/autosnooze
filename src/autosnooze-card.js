@@ -97,8 +97,10 @@ class AutomationPauseCard extends LitElement {
     _filterTab: { state: true },
     _expandedGroups: { state: true },
     _scheduleMode: { state: true },
-    _disableAt: { state: true },
-    _resumeAt: { state: true },
+    _disableAtDate: { state: true },
+    _disableAtTime: { state: true },
+    _resumeAtDate: { state: true },
+    _resumeAtTime: { state: true },
     _labelRegistry: { state: true },
     _categoryRegistry: { state: true },
     _entityRegistry: { state: true },
@@ -121,8 +123,10 @@ class AutomationPauseCard extends LitElement {
     this._filterTab = "all";
     this._expandedGroups = {};
     this._scheduleMode = false;
-    this._disableAt = "";
-    this._resumeAt = "";
+    this._disableAtDate = "";
+    this._disableAtTime = "";
+    this._resumeAtDate = "";
+    this._resumeAtTime = "";
     this._labelRegistry = {};
     this._categoryRegistry = {};
     this._entityRegistry = {};
@@ -726,26 +730,29 @@ class AutomationPauseCard extends LitElement {
       font-size: 0.9em;
     }
 
-    /* Schedule Mode Toggle */
-    .schedule-toggle {
+    /* Schedule Link (Progressive Disclosure) */
+    .schedule-link {
       display: flex;
       align-items: center;
-      gap: 8px;
-      margin-bottom: 12px;
-      padding: 8px 12px;
-      background: var(--secondary-background-color);
-      border-radius: 8px;
-      cursor: pointer;
-    }
-    .schedule-toggle label {
-      flex: 1;
+      gap: 6px;
+      margin-top: 12px;
+      padding: 8px 0;
+      color: var(--primary-color);
       cursor: pointer;
       font-size: 0.9em;
     }
-    .schedule-toggle input[type="checkbox"] {
-      width: 18px;
-      height: 18px;
-      cursor: pointer;
+    .schedule-link:hover {
+      text-decoration: underline;
+    }
+    .schedule-link ha-icon {
+      --mdc-icon-size: 18px;
+    }
+
+    /* Field Hint */
+    .field-hint {
+      font-size: 0.8em;
+      color: var(--secondary-text-color);
+      margin-top: 4px;
     }
 
     /* Schedule Datetime Inputs */
@@ -768,7 +775,13 @@ class AutomationPauseCard extends LitElement {
       color: var(--secondary-text-color);
       font-weight: 500;
     }
-    .datetime-field input[type="datetime-local"] {
+    .datetime-row {
+      display: flex;
+      gap: 8px;
+    }
+    .datetime-row input[type="date"],
+    .datetime-row input[type="time"] {
+      flex: 1;
       padding: 10px 12px;
       border: 1px solid var(--divider-color);
       border-radius: 6px;
@@ -776,7 +789,7 @@ class AutomationPauseCard extends LitElement {
       color: var(--primary-text-color);
       font-size: 0.95em;
     }
-    .datetime-field input:focus {
+    .datetime-row input:focus {
       outline: none;
       border-color: var(--primary-color);
     }
@@ -1078,8 +1091,7 @@ class AutomationPauseCard extends LitElement {
   _formatDateTime(isoString) {
     const date = new Date(isoString);
     return date.toLocaleString(undefined, {
-      month: "short",
-      day: "numeric",
+      weekday: "short",
       hour: "2-digit",
       minute: "2-digit",
     });
@@ -1087,7 +1099,7 @@ class AutomationPauseCard extends LitElement {
 
   _formatCountdown(resumeAt) {
     const diff = new Date(resumeAt).getTime() - Date.now();
-    if (diff <= 0) return "Waking up...";
+    if (diff <= 0) return "Resuming...";
 
     const d = Math.floor(diff / 86400000);
     const h = Math.floor((diff % 86400000) / 3600000);
@@ -1234,12 +1246,25 @@ class AutomationPauseCard extends LitElement {
     }, 5000);
   }
 
+  _combineDateTime(date, time) {
+    if (!date || !time) return null;
+    return `${date}T${time}`;
+  }
+
+  _hasResumeAt() {
+    return this._resumeAtDate && this._resumeAtTime;
+  }
+
+  _hasDisableAt() {
+    return this._disableAtDate && this._disableAtTime;
+  }
+
   async _snooze() {
     if (this._selected.length === 0 || this._loading) return;
 
     if (this._scheduleMode) {
-      if (!this._resumeAt) {
-        this._showToast("Please set a resume time");
+      if (!this._hasResumeAt()) {
+        this._showToast("Please set a resume date and time");
         return;
       }
     } else {
@@ -1251,25 +1276,28 @@ class AutomationPauseCard extends LitElement {
       const count = this._selected.length;
       const snoozedEntities = [...this._selected];
       const wasScheduleMode = this._scheduleMode;
-      const hadDisableAt = !!this._disableAt;
+      const hadDisableAt = this._hasDisableAt();
       let toastMessage;
 
       if (this._scheduleMode) {
+        const resumeAt = this._combineDateTime(this._resumeAtDate, this._resumeAtTime);
+        const disableAt = this._combineDateTime(this._disableAtDate, this._disableAtTime);
+
         const serviceData = {
           entity_id: this._selected,
-          resume_at: this._resumeAt,
+          resume_at: resumeAt,
         };
 
-        if (this._disableAt) {
-          serviceData.disable_at = this._disableAt;
+        if (disableAt) {
+          serviceData.disable_at = disableAt;
         }
 
         await this.hass.callService("autosnooze", "pause", serviceData);
 
-        if (this._disableAt) {
-          toastMessage = `Scheduled ${count} automation${count !== 1 ? "s" : ""} to snooze`;
+        if (disableAt) {
+          toastMessage = `Scheduled ${count} automation${count !== 1 ? "s" : ""} to pause`;
         } else {
-          toastMessage = `Paused ${count} automation${count !== 1 ? "s" : ""} until ${this._formatDateTime(this._resumeAt)}`;
+          toastMessage = `Paused ${count} automation${count !== 1 ? "s" : ""} until ${this._formatDateTime(resumeAt)}`;
         }
       } else {
         const { days, hours, minutes } = this._customDuration;
@@ -1315,8 +1343,10 @@ class AutomationPauseCard extends LitElement {
       });
 
       this._selected = [];
-      this._disableAt = "";
-      this._resumeAt = "";
+      this._disableAtDate = "";
+      this._disableAtTime = "";
+      this._resumeAtDate = "";
+      this._resumeAtTime = "";
     } catch (e) {
       console.error("Snooze failed:", e);
       this._showToast("Failed to pause automations");
@@ -1372,10 +1402,10 @@ class AutomationPauseCard extends LitElement {
       await this.hass.callService("autosnooze", "cancel_scheduled", {
         entity_id: entityId,
       });
-      this._showToast("Scheduled snooze cancelled");
+      this._showToast("Scheduled pause cancelled");
     } catch (e) {
       console.error("Cancel scheduled failed:", e);
-      this._showToast("Failed to cancel scheduled snooze");
+      this._showToast("Failed to cancel scheduled pause");
     }
   }
 
@@ -1571,44 +1601,51 @@ class AutomationPauseCard extends LitElement {
           <!-- Selection List -->
           <div class="selection-list">${this._renderSelectionList()}</div>
 
-          <!-- Schedule Mode Toggle -->
-          <div class="schedule-toggle" @click=${() => (this._scheduleMode = !this._scheduleMode)}>
-            <ha-icon icon=${this._scheduleMode ? "mdi:calendar-clock" : "mdi:timer-outline"}></ha-icon>
-            <label>${this._scheduleMode ? "Schedule Mode" : "Duration Mode"}</label>
-            <input
-              type="checkbox"
-              .checked=${this._scheduleMode}
-              @click=${(e) => e.stopPropagation()}
-              @change=${(e) => (this._scheduleMode = e.target.checked)}
-            />
-          </div>
-
           ${this._scheduleMode
             ? html`
-                <!-- Schedule Datetime Inputs -->
+                <!-- Schedule Date/Time Inputs -->
                 <div class="schedule-inputs">
                   <div class="datetime-field">
-                    <label>Snooze Start (optional - leave empty to disable now)</label>
-                    <input
-                      type="datetime-local"
-                      .value=${this._disableAt}
-                      @input=${(e) => (this._disableAt = e.target.value)}
-                    />
+                    <label>Pause at:</label>
+                    <div class="datetime-row">
+                      <input
+                        type="date"
+                        .value=${this._disableAtDate}
+                        @input=${(e) => (this._disableAtDate = e.target.value)}
+                      />
+                      <input
+                        type="time"
+                        .value=${this._disableAtTime}
+                        @input=${(e) => (this._disableAtTime = e.target.value)}
+                      />
+                    </div>
+                    <span class="field-hint">Leave empty to pause immediately</span>
                   </div>
                   <div class="datetime-field">
-                    <label>Snooze End (required)</label>
-                    <input
-                      type="datetime-local"
-                      .value=${this._resumeAt}
-                      @input=${(e) => (this._resumeAt = e.target.value)}
-                    />
+                    <label>Resume at:</label>
+                    <div class="datetime-row">
+                      <input
+                        type="date"
+                        .value=${this._resumeAtDate}
+                        @input=${(e) => (this._resumeAtDate = e.target.value)}
+                      />
+                      <input
+                        type="time"
+                        .value=${this._resumeAtTime}
+                        @input=${(e) => (this._resumeAtTime = e.target.value)}
+                      />
+                    </div>
+                  </div>
+                  <div class="schedule-link" @click=${() => (this._scheduleMode = false)}>
+                    <ha-icon icon="mdi:timer-outline"></ha-icon>
+                    Back to duration selection
                   </div>
                 </div>
               `
             : html`
                 <!-- Duration Selector -->
                 <div class="duration-selector">
-                  <div class="duration-section-header">Snooze Duration</div>
+                  <div class="duration-section-header">Pause Duration</div>
                   <div class="duration-pills">
                     ${durations.map(
                       (d) => html`
@@ -1645,33 +1682,38 @@ class AutomationPauseCard extends LitElement {
                         : html`<div class="duration-help">Enter duration: 30m, 2h, 4h30m, 1d, 1d2h</div>`}
                     </div>
                   ` : ""}
+
+                  <div class="schedule-link" @click=${() => (this._scheduleMode = true)}>
+                    <ha-icon icon="mdi:calendar-clock"></ha-icon>
+                    Pick specific date/time instead
+                  </div>
                 </div>
               `}
 
-          <!-- Snooze Button -->
+          <!-- Pause Button -->
           <button
             class="snooze-btn"
             ?disabled=${this._selected.length === 0 ||
             (!this._scheduleMode && !this._isDurationValid()) ||
-            (this._scheduleMode && !this._resumeAt) ||
+            (this._scheduleMode && !this._hasResumeAt()) ||
             this._loading}
             @click=${this._snooze}
           >
             ${this._loading
-              ? "Snoozing..."
+              ? "Pausing..."
               : this._scheduleMode
                 ? `Schedule${this._selected.length > 0 ? ` (${this._selected.length})` : ""}`
-                : `Snooze${this._selected.length > 0 ? ` (${this._selected.length})` : ""}`}
+                : `Pause${this._selected.length > 0 ? ` (${this._selected.length})` : ""}`}
           </button>
         </div>
 
-        <!-- Section B: Active Snoozes -->
+        <!-- Section B: Active Pauses -->
         ${pausedCount > 0
           ? html`
               <div class="snooze-list">
                 <div class="list-header">
                   <ha-icon icon="mdi:bell-sleep"></ha-icon>
-                  Snoozed Automations (${pausedCount})
+                  Paused Automations (${pausedCount})
                 </div>
 
                 ${Object.entries(paused).map(
@@ -1693,12 +1735,12 @@ class AutomationPauseCard extends LitElement {
                             `
                           : html`
                               <div class="paused-time">
-                                Waking up in: ${this._formatCountdown(data.resume_at)}
+                                Resuming in: ${this._formatCountdown(data.resume_at)}
                               </div>
                             `}
                       </div>
                       <button class="wake-btn" @click=${() => this._wake(id)}>
-                        Wake Now
+                        Resume
                       </button>
                     </div>
                   `
@@ -1710,7 +1752,7 @@ class AutomationPauseCard extends LitElement {
                         class="wake-all ${this._wakeAllPending ? "pending" : ""}"
                         @click=${this._handleWakeAll}
                       >
-                        ${this._wakeAllPending ? "Confirm Wake All" : "Wake All"}
+                        ${this._wakeAllPending ? "Confirm Resume All" : "Resume All"}
                       </button>
                     `
                   : ""}
@@ -1718,13 +1760,13 @@ class AutomationPauseCard extends LitElement {
             `
           : ""}
 
-        <!-- Section C: Scheduled Snoozes -->
+        <!-- Section C: Scheduled Pauses -->
         ${scheduledCount > 0
           ? html`
               <div class="scheduled-list">
                 <div class="list-header">
                   <ha-icon icon="mdi:calendar-clock"></ha-icon>
-                  Scheduled Snoozes (${scheduledCount})
+                  Scheduled Pauses (${scheduledCount})
                 </div>
 
                 ${Object.entries(scheduled).map(
