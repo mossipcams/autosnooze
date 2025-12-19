@@ -105,7 +105,7 @@ class AutomationPauseCard extends LitElement {
     _showCustomInput: { state: true },
     _automationsCache: { state: true },
     _automationsCacheKey: { state: true },
-    _showWakeAllConfirm: { state: true },
+    _wakeAllPending: { state: true },
   };
 
   constructor() {
@@ -134,7 +134,8 @@ class AutomationPauseCard extends LitElement {
     this._automationsCache = null;
     this._automationsCacheKey = null;
     this._searchTimeout = null;
-    this._showWakeAllConfirm = false;
+    this._wakeAllPending = false;
+    this._wakeAllTimeout = null;
   }
 
   connectedCallback() {
@@ -252,6 +253,10 @@ class AutomationPauseCard extends LitElement {
     if (this._searchTimeout !== null) {
       clearTimeout(this._searchTimeout);
       this._searchTimeout = null;
+    }
+    if (this._wakeAllTimeout !== null) {
+      clearTimeout(this._wakeAllTimeout);
+      this._wakeAllTimeout = null;
     }
   }
 
@@ -663,48 +668,10 @@ class AutomationPauseCard extends LitElement {
       color: white;
     }
 
-    /* Wake All Confirmation Dialog */
-    .wake-all-confirm {
-      margin-top: 8px;
-      padding: 12px;
-      background: rgba(255, 152, 0, 0.1);
-      border: 1px solid #ff9800;
-      border-radius: 6px;
-    }
-    .wake-all-confirm-text {
-      font-size: 0.9em;
-      margin-bottom: 10px;
-      color: var(--primary-text-color);
-    }
-    .wake-all-confirm-buttons {
-      display: flex;
-      gap: 8px;
-    }
-    .wake-all-confirm-btn {
-      flex: 1;
-      padding: 8px 12px;
-      border-radius: 6px;
-      cursor: pointer;
-      font-size: 0.85em;
-      font-weight: 500;
-      transition: all 0.2s;
-    }
-    .wake-all-confirm-btn.confirm {
+    /* Wake All Button - Pending State */
+    .wake-all.pending {
       background: #ff9800;
       color: white;
-      border: 1px solid #ff9800;
-    }
-    .wake-all-confirm-btn.confirm:hover {
-      background: #f57c00;
-      border-color: #f57c00;
-    }
-    .wake-all-confirm-btn.cancel {
-      background: transparent;
-      color: var(--primary-text-color);
-      border: 1px solid var(--divider-color);
-    }
-    .wake-all-confirm-btn.cancel:hover {
-      background: var(--secondary-background-color);
     }
 
     /* Empty State */
@@ -1258,22 +1225,26 @@ class AutomationPauseCard extends LitElement {
     }
   }
 
-  _showWakeAllConfirmDialog = () => {
-    this._showWakeAllConfirm = true;
-  };
-
-  _cancelWakeAllConfirm = () => {
-    this._showWakeAllConfirm = false;
-  };
-
-  _wakeAll = async () => {
-    this._showWakeAllConfirm = false;
-    try {
-      await this.hass.callService("autosnooze", "cancel_all", {});
-      this._showToast("All automations resumed");
-    } catch (e) {
-      console.error("Wake all failed:", e);
-      this._showToast("Failed to resume automations");
+  _handleWakeAll = async () => {
+    if (this._wakeAllPending) {
+      // Second click - execute
+      clearTimeout(this._wakeAllTimeout);
+      this._wakeAllTimeout = null;
+      this._wakeAllPending = false;
+      try {
+        await this.hass.callService("autosnooze", "cancel_all", {});
+        this._showToast("All automations resumed");
+      } catch (e) {
+        console.error("Wake all failed:", e);
+        this._showToast("Failed to resume automations");
+      }
+    } else {
+      // First click - start confirmation
+      this._wakeAllPending = true;
+      this._wakeAllTimeout = setTimeout(() => {
+        this._wakeAllPending = false;
+        this._wakeAllTimeout = null;
+      }, 3000);
     }
   };
 
@@ -1617,33 +1588,14 @@ class AutomationPauseCard extends LitElement {
                 )}
 
                 ${pausedCount > 1
-                  ? this._showWakeAllConfirm
-                    ? html`
-                        <div class="wake-all-confirm">
-                          <div class="wake-all-confirm-text">
-                            Wake all ${pausedCount} snoozed automations?
-                          </div>
-                          <div class="wake-all-confirm-buttons">
-                            <button
-                              class="wake-all-confirm-btn cancel"
-                              @click=${this._cancelWakeAllConfirm}
-                            >
-                              Cancel
-                            </button>
-                            <button
-                              class="wake-all-confirm-btn confirm"
-                              @click=${this._wakeAll}
-                            >
-                              Wake All
-                            </button>
-                          </div>
-                        </div>
-                      `
-                    : html`
-                        <button class="wake-all" @click=${this._showWakeAllConfirmDialog}>
-                          Wake All
-                        </button>
-                      `
+                  ? html`
+                      <button
+                        class="wake-all ${this._wakeAllPending ? "pending" : ""}"
+                        @click=${this._handleWakeAll}
+                      >
+                        ${this._wakeAllPending ? "Confirm Wake All" : "Wake All"}
+                      </button>
+                    `
                   : ""}
               </div>
             `
