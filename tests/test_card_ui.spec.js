@@ -442,15 +442,25 @@ describe('AutoSnooze Card Main Component', () => {
   });
 
   describe('Wake All Confirmation', () => {
-    test('_showWakeAllConfirmDialog sets confirm flag', () => {
-      card._showWakeAllConfirmDialog();
-      expect(card._showWakeAllConfirm).toBe(true);
+    test('first click sets pending flag', () => {
+      card._handleWakeAll();
+      expect(card._wakeAllPending).toBe(true);
     });
 
-    test('_cancelWakeAllConfirm resets confirm flag', () => {
-      card._showWakeAllConfirm = true;
-      card._cancelWakeAllConfirm();
-      expect(card._showWakeAllConfirm).toBe(false);
+    test('second click resets pending flag and calls service', async () => {
+      card._wakeAllPending = true;
+      await card._handleWakeAll();
+      expect(card._wakeAllPending).toBe(false);
+      expect(card.hass.callService).toHaveBeenCalledWith('autosnooze', 'cancel_all', {});
+    });
+
+    test('pending state auto-resets after timeout', () => {
+      jest.useFakeTimers();
+      card._handleWakeAll();
+      expect(card._wakeAllPending).toBe(true);
+      jest.advanceTimersByTime(3000);
+      expect(card._wakeAllPending).toBe(false);
+      jest.useRealTimers();
     });
   });
 
