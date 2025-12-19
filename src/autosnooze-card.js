@@ -1,7 +1,7 @@
 import { LitElement, html, css } from "lit";
 
-// Version 2.9.25 - Fix service call datetime comparison with offset-naive datetimes
-const CARD_VERSION = "2.9.25";
+// Version 2.9.26 - Show start and end dates for schedule-mode snoozes
+const CARD_VERSION = "2.9.26";
 
 // ============================================================================
 // CARD EDITOR
@@ -1539,9 +1539,20 @@ class AutomationPauseCard extends LitElement {
                         <div class="paused-name">
                           ${data.friendly_name || id}
                         </div>
-                        <div class="paused-time">
-                          Waking up in: ${this._formatCountdown(data.resume_at)}
-                        </div>
+                        ${data.disable_at
+                          ? html`
+                              <div class="scheduled-time">
+                                Started: ${this._formatDateTime(data.disable_at)}
+                              </div>
+                              <div class="paused-time">
+                                Resumes: ${this._formatDateTime(data.resume_at)}
+                              </div>
+                            `
+                          : html`
+                              <div class="paused-time">
+                                Waking up in: ${this._formatCountdown(data.resume_at)}
+                              </div>
+                            `}
                       </div>
                       <button class="wake-btn" @click=${() => this._wake(id)}>
                         Wake Now
