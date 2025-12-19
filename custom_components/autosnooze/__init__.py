@@ -69,6 +69,25 @@ def _parse_datetime_utc(dt_str: str) -> datetime:
     return parsed
 
 
+def _ensure_utc_aware(dt: datetime | None) -> datetime | None:
+    """Ensure a datetime object is UTC-aware.
+
+    Handles datetime objects that may come from service calls via cv.datetime,
+    which can return offset-naive datetimes when the input lacks timezone info.
+
+    Args:
+        dt: A datetime object or None
+
+    Returns:
+        UTC-aware datetime object, or None if input was None
+    """
+    if dt is None:
+        return None
+    if dt.tzinfo is None:
+        return dt.replace(tzinfo=timezone.utc)
+    return dt
+
+
 @dataclass
 class PausedAutomation:
     """Represent a snoozed automation."""
@@ -761,6 +780,11 @@ def _register_services(hass: HomeAssistant, data: AutomationPauseData) -> None:
         """Internal helper to pause automations with duration or dates."""
         now = dt_util.utcnow()
 
+        # Ensure incoming datetimes are UTC-aware to prevent comparison errors
+        # with dt_util.utcnow() which is always offset-aware
+        disable_at = _ensure_utc_aware(disable_at)
+        resume_at_dt = _ensure_utc_aware(resume_at_dt)
+
         # Determine if using date-based or duration-based scheduling
         if resume_at_dt is not None:
             # Date-based scheduling
@@ -827,8 +851,9 @@ def _register_services(hass: HomeAssistant, data: AutomationPauseData) -> None:
         days = call.data.get("days", 0)
         hours = call.data.get("hours", 0)
         minutes = call.data.get("minutes", 0)
-        disable_at = call.data.get("disable_at")
-        resume_at_dt = call.data.get("resume_at")
+        # Ensure datetimes from service calls are UTC-aware
+        disable_at = _ensure_utc_aware(call.data.get("disable_at"))
+        resume_at_dt = _ensure_utc_aware(call.data.get("resume_at"))
 
         await _pause_automations(
             entity_ids, days, hours, minutes, disable_at, resume_at_dt
@@ -854,8 +879,9 @@ def _register_services(hass: HomeAssistant, data: AutomationPauseData) -> None:
         days = call.data.get("days", 0)
         hours = call.data.get("hours", 0)
         minutes = call.data.get("minutes", 0)
-        disable_at = call.data.get("disable_at")
-        resume_at_dt = call.data.get("resume_at")
+        # Ensure datetimes from service calls are UTC-aware
+        disable_at = _ensure_utc_aware(call.data.get("disable_at"))
+        resume_at_dt = _ensure_utc_aware(call.data.get("resume_at"))
 
         entity_ids = _get_automations_by_area(hass, area_ids)
         if not entity_ids:
@@ -873,8 +899,9 @@ def _register_services(hass: HomeAssistant, data: AutomationPauseData) -> None:
         days = call.data.get("days", 0)
         hours = call.data.get("hours", 0)
         minutes = call.data.get("minutes", 0)
-        disable_at = call.data.get("disable_at")
-        resume_at_dt = call.data.get("resume_at")
+        # Ensure datetimes from service calls are UTC-aware
+        disable_at = _ensure_utc_aware(call.data.get("disable_at"))
+        resume_at_dt = _ensure_utc_aware(call.data.get("resume_at"))
 
         entity_ids = _get_automations_by_label(hass, label_ids)
         if not entity_ids:
