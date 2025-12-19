@@ -1,7 +1,7 @@
 import { LitElement, html, css } from "lit";
 
 // Version 2.9.29 - Improve toast duration, add undo, fix countdown precision
-const CARD_VERSION = "2.9.29";
+const CARD_VERSION = "2.9.30";
 
 // ============================================================================
 // CARD EDITOR
