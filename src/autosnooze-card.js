@@ -1,7 +1,7 @@
 import { LitElement, html, css } from "lit";
 
-// Version 2.9.24 - Fix schedule mode date comparison with offset-naive datetimes
-const CARD_VERSION = "2.9.24";
+// Version 2.9.25 - Fix service call datetime comparison with offset-naive datetimes
+const CARD_VERSION = "2.9.25";
 
 // ============================================================================
 // CARD EDITOR
