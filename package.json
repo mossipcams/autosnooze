@@ -10,7 +10,8 @@
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
     "lint": "eslint src/ tests/*.spec.js",
-    "lint:fix": "eslint src/ tests/*.spec.js --fix"
+    "lint:fix": "eslint src/ tests/*.spec.js --fix",
+    "prepare": "husky"
   },
   "keywords": [
     "home-assistant",
@@ -29,9 +30,27 @@
     "@rollup/plugin-terser": "^0.4.4",
     "babel-jest": "^29.7.0",
     "eslint": "^8.57.0",
+    "husky": "^9.0.0",
     "jest": "^29.7.0",
     "jest-environment-jsdom": "^29.7.0",
+    "lint-staged": "^15.0.0",
     "rollup": "^4.9.6"
+  },
+  "lint-staged": {
+    "src/**/*.js": [
+      "eslint --fix"
+    ],
+    "tests/**/*.js": [
+      "eslint --fix"
+    ],
+    "custom_components/**/*.py": [
+      "ruff check --fix",
+      "ruff format"
+    ],
+    "tests/**/*.py": [
+      "ruff check --fix",
+      "ruff format"
+    ]
   },
   "jest": {
     "testEnvironment": "jsdom",
@@ -57,10 +76,10 @@
     ],
     "coverageThreshold": {
       "global": {
-        "branches": 50,
-        "functions": 50,
-        "lines": 55,
-        "statements": 55
+        "branches": 70,
+        "functions": 70,
+        "lines": 70,
+        "statements": 70
       }
     },
     "coverageReporters": [
