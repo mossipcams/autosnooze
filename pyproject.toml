@@ -1,0 +1,77 @@
+[tool.ruff]
+# Target Python 3.12+ (required for type alias syntax used in codebase)
+target-version = "py312"
+line-length = 120
+
+# Exclude common non-source directories
+exclude = [
+    ".git",
+    ".venv",
+    "__pycache__",
+    "node_modules",
+]
+
+[tool.ruff.lint]
+# Enable recommended rules
+select = [
+    "E",      # pycodestyle errors
+    "W",      # pycodestyle warnings
+    "F",      # Pyflakes
+    "B",      # flake8-bugbear
+    "C4",     # flake8-comprehensions
+    "SIM",    # flake8-simplify
+]
+
+# Ignore specific rules that are too strict for this project
+ignore = [
+    "E501",   # line too long (handled by formatter)
+    "SIM102", # Use nested if (sometimes clearer)
+    "SIM105", # Use contextlib.suppress (not always clearer)
+    "SIM108", # Use ternary operator (not always clearer)
+    "F401",   # Unused imports (allow for now, can be cleaned up later)
+    "F402",   # Import shadowed by loop variable (intentional in tests)
+    "F541",   # f-string without placeholders (allow for formatting)
+    "F841",   # Unused local variable (allow for now)
+]
+
+# TODO: Enable these rules later for stricter linting:
+# "I",      # isort - import sorting
+# "UP",     # pyupgrade - use modern Python syntax
+
+[tool.ruff.lint.isort]
+known-first-party = ["custom_components.autosnooze"]
+
+[tool.ruff.format]
+# Use ruff format instead of black for Python 3.12+ syntax support
+quote-style = "double"
+indent-style = "space"
+skip-magic-trailing-comma = false
+line-ending = "auto"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+markers = [
+    "slow: marks tests as slow",
+]
+filterwarnings = [
+    "ignore::DeprecationWarning",
+    "ignore::pytest.PytestUnraisableExceptionWarning",
+]
+
+[tool.coverage.run]
+source = ["custom_components/autosnooze"]
+omit = [
+    "*/tests/*",
+    "*/__pycache__/*",
+]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "raise NotImplementedError",
+    "if TYPE_CHECKING:",
+]
+fail_under = 0
+show_missing = true

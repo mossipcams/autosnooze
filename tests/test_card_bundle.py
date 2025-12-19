@@ -16,6 +16,7 @@ Solution:
 
 These tests verify the fix is properly implemented and won't regress.
 """
+
 from __future__ import annotations
 
 import json
@@ -63,10 +64,7 @@ class TestBuildInfrastructureExists:
 
         content = ROLLUP_CONFIG_PATH.read_text()
 
-        has_node_resolve = (
-            "nodeResolve" in content or
-            "@rollup/plugin-node-resolve" in content
-        )
+        has_node_resolve = "nodeResolve" in content or "@rollup/plugin-node-resolve" in content
 
         assert has_node_resolve, (
             "REGRESSION: Rollup config does not use @rollup/plugin-node-resolve. "
@@ -82,20 +80,14 @@ class TestBuildInfrastructureExists:
 
         # Check for lit in dependencies
         deps = content.get("dependencies", {})
-        assert "lit" in deps, (
-            "REGRESSION: 'lit' not in dependencies. "
-            "Add lit to dependencies in package.json."
-        )
+        assert "lit" in deps, "REGRESSION: 'lit' not in dependencies. Add lit to dependencies in package.json."
 
         # Check for rollup build tools in devDependencies
         dev_deps = content.get("devDependencies", {})
         required_dev_deps = ["rollup", "@rollup/plugin-node-resolve"]
 
         missing = [dep for dep in required_dev_deps if dep not in dev_deps]
-        assert not missing, (
-            f"REGRESSION: Missing devDependencies: {missing}. "
-            "These are required for bundling."
-        )
+        assert not missing, f"REGRESSION: Missing devDependencies: {missing}. These are required for bundling."
 
     def test_package_json_has_build_script(self) -> None:
         """Test that package.json has a build script that uses Rollup."""
@@ -104,14 +96,10 @@ class TestBuildInfrastructureExists:
         content = json.loads(PACKAGE_JSON_PATH.read_text())
         scripts = content.get("scripts", {})
 
-        assert "build" in scripts, (
-            "REGRESSION: No 'build' script in package.json. "
-            "Add: \"build\": \"rollup -c\""
-        )
+        assert "build" in scripts, 'REGRESSION: No \'build\' script in package.json. Add: "build": "rollup -c"'
 
         assert "rollup" in scripts.get("build", ""), (
-            "REGRESSION: Build script does not use rollup. "
-            "The build script should run: rollup -c"
+            "REGRESSION: Build script does not use rollup. The build script should run: rollup -c"
         )
 
     def test_ci_workflow_exists(self) -> None:
@@ -143,8 +131,7 @@ class TestBuildInfrastructureExists:
                 break
 
         assert build_workflow_found, (
-            "REGRESSION: No CI workflow runs 'npm run build'. "
-            "Add a step to run the build in your CI workflow."
+            "REGRESSION: No CI workflow runs 'npm run build'. Add a step to run the build in your CI workflow."
         )
 
 
@@ -154,8 +141,7 @@ class TestSourceFileDocumentsBareImport:
     def test_source_file_exists(self) -> None:
         """Test that the source file exists."""
         assert SOURCE_CARD_PATH.exists(), (
-            f"Source file not found at {SOURCE_CARD_PATH}. "
-            "The source should be in src/autosnooze-card.js"
+            f"Source file not found at {SOURCE_CARD_PATH}. The source should be in src/autosnooze-card.js"
         )
 
     def test_source_file_has_bare_lit_import(self) -> None:
@@ -170,10 +156,7 @@ class TestSourceFileDocumentsBareImport:
 
         content = SOURCE_CARD_PATH.read_text()
 
-        has_bare_import = (
-            'from "lit"' in content or
-            "from 'lit'" in content
-        )
+        has_bare_import = 'from "lit"' in content or "from 'lit'" in content
 
         assert has_bare_import, (
             "Source file does not have bare 'lit' import. "
@@ -264,11 +247,11 @@ class TestBuiltFileIsProperlyBundled:
 
         # Characteristic patterns from bundled lit code
         lit_indicators = [
-            "_$litType$",           # lit-html internal marker
-            "litHtmlVersions",      # lit-html version tracking
-            "litElementVersions",   # lit-element version tracking
-            "reactiveElement",      # Base class
-            "shadowRoot",           # Shadow DOM usage
+            "_$litType$",  # lit-html internal marker
+            "litHtmlVersions",  # lit-html version tracking
+            "litElementVersions",  # lit-element version tracking
+            "reactiveElement",  # Base class
+            "shadowRoot",  # Shadow DOM usage
         ]
 
         found = [ind for ind in lit_indicators if ind.lower() in content.lower()]
@@ -290,7 +273,7 @@ class TestBuiltFileIsProperlyBundled:
         expected_elements = ["autosnooze-card", "autosnooze-card-editor"]
 
         for element in expected_elements:
-            pattern = rf'customElements\.define\s*\(\s*["\']{ re.escape(element)}["\']'
+            pattern = rf'customElements\.define\s*\(\s*["\']{re.escape(element)}["\']'
             assert re.search(pattern, content), (
                 f"REGRESSION: Built file does not register '{element}' custom element. "
                 "The card won't appear in Home Assistant without this registration."
@@ -347,8 +330,7 @@ class TestBuildProcessWorks:
             )
             if result.returncode != 0:
                 pytest.skip(
-                    f"npm install failed: {result.stderr[:200]}. "
-                    "Install dependencies manually with 'npm install'."
+                    f"npm install failed: {result.stderr[:200]}. Install dependencies manually with 'npm install'."
                 )
 
         # Run the build
@@ -367,10 +349,7 @@ class TestBuildProcessWorks:
         )
 
         # Verify output was created/updated
-        assert BUILT_CARD_PATH.exists(), (
-            "Build succeeded but output file was not created at "
-            f"{BUILT_CARD_PATH}"
-        )
+        assert BUILT_CARD_PATH.exists(), f"Build succeeded but output file was not created at {BUILT_CARD_PATH}"
 
     @pytest.mark.slow
     def test_fresh_build_has_no_bare_imports(self) -> None:
@@ -408,12 +387,8 @@ class TestBuildProcessWorks:
         # Check the fresh output
         content = BUILT_CARD_PATH.read_text()
 
-        assert 'from "lit"' not in content, (
-            "REGRESSION: Fresh build contains bare 'from \"lit\"' import"
-        )
-        assert "from 'lit'" not in content, (
-            "REGRESSION: Fresh build contains bare \"from 'lit'\" import"
-        )
+        assert 'from "lit"' not in content, "REGRESSION: Fresh build contains bare 'from \"lit\"' import"
+        assert "from 'lit'" not in content, "REGRESSION: Fresh build contains bare \"from 'lit'\" import"
 
 
 class TestCDNCacheBusting:

@@ -1,4 +1,5 @@
 """Sensor platform for Automation Pause."""
+
 from __future__ import annotations
 
 from homeassistant.components.sensor import SensorEntity
@@ -38,6 +39,7 @@ class AutoSnoozeCountSensor(SensorEntity):
 
     async def async_added_to_hass(self) -> None:
         """Register listener when added."""
+
         @callback
         def update() -> None:
             self.async_write_ha_state()

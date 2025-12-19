@@ -4,3 +4,6 @@ __pycache__/
 .claude/
 .devcontainer/
 .venv/
+coverage/
+.coverage
+coverage.xml
