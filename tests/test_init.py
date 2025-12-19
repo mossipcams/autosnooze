@@ -2,116 +2,28 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
+# Import actual classes from the module to get real coverage
+from custom_components.autosnooze import (
+    PausedAutomation,
+    ScheduledSnooze,
+    AutomationPauseData,
+    _get_friendly_name,
+    _cancel_timer,
+    _cancel_scheduled_timer,
+    _set_automation_state,
+    _async_save,
+    _async_resume,
+    ATTR_ENTITY_ID,
+    ATTR_FRIENDLY_NAME,
+)
+
 UTC = timezone.utc
-ATTR_ENTITY_ID = "entity_id"
-ATTR_FRIENDLY_NAME = "friendly_name"
-
-
-# =============================================================================
-# Recreate data models for testing (avoids Python 3.12+ syntax issues)
-# =============================================================================
-
-
-@dataclass
-class PausedAutomation:
-    """Represent a snoozed automation."""
-
-    entity_id: str
-    friendly_name: str
-    resume_at: datetime
-    paused_at: datetime
-    days: int = 0
-    hours: int = 0
-    minutes: int = 0
-
-    def to_dict(self) -> dict[str, Any]:
-        """Convert to dictionary for storage/attributes."""
-        return {
-            "friendly_name": self.friendly_name,
-            "resume_at": self.resume_at.isoformat(),
-            "paused_at": self.paused_at.isoformat(),
-            "days": self.days,
-            "hours": self.hours,
-            "minutes": self.minutes,
-        }
-
-    @classmethod
-    def from_dict(cls, entity_id: str, data: dict[str, Any]) -> PausedAutomation:
-        """Create from dictionary."""
-        return cls(
-            entity_id=entity_id,
-            friendly_name=data.get("friendly_name", entity_id),
-            resume_at=datetime.fromisoformat(data["resume_at"]),
-            paused_at=datetime.fromisoformat(data["paused_at"]),
-            days=data.get("days", 0),
-            hours=data.get("hours", 0),
-            minutes=data.get("minutes", 0),
-        )
-
-
-@dataclass
-class ScheduledSnooze:
-    """Represent a scheduled future snooze."""
-
-    entity_id: str
-    friendly_name: str
-    disable_at: datetime
-    resume_at: datetime
-
-    def to_dict(self) -> dict[str, Any]:
-        """Convert to dictionary for storage/attributes."""
-        return {
-            "friendly_name": self.friendly_name,
-            "disable_at": self.disable_at.isoformat(),
-            "resume_at": self.resume_at.isoformat(),
-        }
-
-    @classmethod
-    def from_dict(cls, entity_id: str, data: dict[str, Any]) -> ScheduledSnooze:
-        """Create from dictionary."""
-        return cls(
-            entity_id=entity_id,
-            friendly_name=data.get("friendly_name", entity_id),
-            disable_at=datetime.fromisoformat(data["disable_at"]),
-            resume_at=datetime.fromisoformat(data["resume_at"]),
-        )
-
-
-@dataclass
-class AutomationPauseData:
-    """Runtime data for AutoSnooze."""
-
-    paused: dict[str, PausedAutomation] = field(default_factory=dict)
-    scheduled: dict[str, ScheduledSnooze] = field(default_factory=dict)
-    timers: dict[str, Any] = field(default_factory=dict)
-    scheduled_timers: dict[str, Any] = field(default_factory=dict)
-    listeners: list[Any] = field(default_factory=list)
-    store: Any = None
-
-    def add_listener(self, callback_fn: Any) -> Any:
-        """Add state change listener, return removal function."""
-        self.listeners.append(callback_fn)
-        return lambda: self.listeners.remove(callback_fn)
-
-    def notify(self) -> None:
-        """Notify all listeners of state change."""
-        for listener in self.listeners:
-            listener()
-
-    def get_paused_dict(self) -> dict[str, dict[str, Any]]:
-        """Get snoozed automations as serializable dict."""
-        return {k: v.to_dict() for k, v in self.paused.items()}
-
-    def get_scheduled_dict(self) -> dict[str, dict[str, Any]]:
-        """Get scheduled snoozes as serializable dict."""
-        return {k: v.to_dict() for k, v in self.scheduled.items()}
 
 
 class MockState:
@@ -142,87 +54,6 @@ def create_mock_entity(
     entity.area_id = area_id
     entity.labels = labels or set()
     return entity
-
-
-# =============================================================================
-# Core function implementations for testing
-# =============================================================================
-
-
-def _get_friendly_name(hass: Any, entity_id: str) -> str:
-    """Get friendly name for entity."""
-    if state := hass.states.get(entity_id):
-        return state.attributes.get(ATTR_FRIENDLY_NAME, entity_id)
-    return entity_id
-
-
-def _cancel_timer(data: AutomationPauseData, entity_id: str) -> None:
-    """Cancel timer for entity if exists."""
-    if unsub := data.timers.pop(entity_id, None):
-        unsub()
-
-
-def _cancel_scheduled_timer(data: AutomationPauseData, entity_id: str) -> None:
-    """Cancel scheduled timer for entity if exists."""
-    if unsub := data.scheduled_timers.pop(entity_id, None):
-        unsub()
-
-
-async def _set_automation_state(hass: Any, entity_id: str, *, enabled: bool) -> bool:
-    """Enable or disable an automation."""
-    state = hass.states.get(entity_id)
-    if state is None:
-        return False
-
-    try:
-        await hass.services.async_call(
-            "automation",
-            "turn_on" if enabled else "turn_off",
-            {ATTR_ENTITY_ID: entity_id},
-            blocking=True,
-        )
-        return True
-    except Exception:
-        return False
-
-
-async def _async_save(data: AutomationPauseData) -> None:
-    """Save snoozed automations to storage."""
-    if data.store is None:
-        return
-
-    try:
-        await data.store.async_save(
-            {
-                "paused": {k: v.to_dict() for k, v in data.paused.items()},
-                "scheduled": {k: v.to_dict() for k, v in data.scheduled.items()},
-            }
-        )
-    except Exception:
-        pass
-
-
-async def _async_resume(hass: Any, data: AutomationPauseData, entity_id: str) -> None:
-    """Wake up a snoozed automation."""
-    _cancel_timer(data, entity_id)
-    data.paused.pop(entity_id, None)
-    await _set_automation_state(hass, entity_id, enabled=True)
-    await _async_save(data)
-    data.notify()
-
-
-def _get_automations_by_area(hass: Any, area_ids: list[str]) -> list[str]:
-    """Get all automation entity IDs in the specified areas."""
-    from unittest.mock import MagicMock
-
-    entity_reg = MagicMock()
-    # This is mocked in tests
-    return []
-
-
-def _get_automations_by_label(hass: Any, label_ids: list[str]) -> list[str]:
-    """Get all automation entity IDs with the specified labels."""
-    return []
 
 
 # =============================================================================
@@ -738,11 +569,13 @@ class TestAsyncSave:
         assert "automation.s1" in saved_data["scheduled"]
 
     @pytest.mark.asyncio
-    async def test_does_nothing_when_no_store(self) -> None:
-        """Test does nothing when store is None."""
+    async def test_returns_true_when_no_store(self) -> None:
+        """Test returns True when store is None."""
         data = AutomationPauseData(store=None)
 
-        await _async_save(data)  # Should not raise
+        result = await _async_save(data)
+
+        assert result is True
 
     @pytest.mark.asyncio
     async def test_handles_store_exception(self) -> None:
@@ -751,7 +584,9 @@ class TestAsyncSave:
         mock_store.async_save = AsyncMock(side_effect=Exception("Storage error"))
         data = AutomationPauseData(store=mock_store)
 
-        await _async_save(data)  # Should not raise
+        result = await _async_save(data)
+
+        assert result is False
 
 
 # =============================================================================
@@ -850,11 +685,11 @@ class TestLovelaceResourceSafety:
         REGRESSION: Previous code used wrong pattern that never matched,
         causing duplicate resources on every restart.
         """
-        import os
+        from pathlib import Path
 
-        init_path = os.path.join(os.path.dirname(__file__), "..", "custom_components", "autosnooze", "__init__.py")
-        with open(init_path, "r") as f:
-            source = f.read()
+        init_path = Path(__file__).parent.parent / "custom_components" / "autosnooze" / "__init__.py"
+        assert init_path.exists(), f"Init file not found at {init_path}"
+        source = init_path.read_text()
 
         # Extract the _async_register_lovelace_resource function
         func_match = source.find("async def _async_register_lovelace_resource")
@@ -873,11 +708,10 @@ class TestLovelaceResourceSafety:
 
     def test_never_deletes_resources(self) -> None:
         """Verify source code doesn't call async_delete_item."""
-        import os
+        from pathlib import Path
 
-        init_path = os.path.join(os.path.dirname(__file__), "..", "custom_components", "autosnooze", "__init__.py")
-        with open(init_path, "r") as f:
-            source = f.read()
+        init_path = Path(__file__).parent.parent / "custom_components" / "autosnooze" / "__init__.py"
+        source = init_path.read_text()
 
         func_match = source.find("async def _async_register_lovelace_resource")
         assert func_match != -1, "Function not found"
@@ -895,11 +729,10 @@ class TestLovelaceResourceSafety:
 
         This ensures future developers understand where the pattern came from.
         """
-        import os
+        from pathlib import Path
 
-        init_path = os.path.join(os.path.dirname(__file__), "..", "custom_components", "autosnooze", "__init__.py")
-        with open(init_path, "r") as f:
-            source = f.read()
+        init_path = Path(__file__).parent.parent / "custom_components" / "autosnooze" / "__init__.py"
+        source = init_path.read_text()
 
         func_match = source.find("async def _async_register_lovelace_resource")
         assert func_match != -1, "Function not found"
@@ -917,11 +750,10 @@ class TestLovelaceResourceSafety:
 
     def test_handles_ha_version_compatibility(self) -> None:
         """Verify version-aware resource access for HA 2025.2.0+."""
-        import os
+        from pathlib import Path
 
-        init_path = os.path.join(os.path.dirname(__file__), "..", "custom_components", "autosnooze", "__init__.py")
-        with open(init_path, "r") as f:
-            source = f.read()
+        init_path = Path(__file__).parent.parent / "custom_components" / "autosnooze" / "__init__.py"
+        source = init_path.read_text()
 
         func_match = source.find("async def _async_register_lovelace_resource")
         assert func_match != -1, "Function not found"
@@ -970,9 +802,6 @@ class TestLovelaceResourceRegistrationIntegration:
 
     These tests verify the resource registration logic behaves correctly -
     only modifying OUR resource and never touching other custom cards.
-
-    Note: We recreate the registration logic here because the source module
-    uses Python 3.12+ syntax that isn't compatible with the test environment.
     """
 
     # Constants matching the source code
