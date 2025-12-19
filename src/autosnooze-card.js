@@ -1,7 +1,7 @@
 import { LitElement, html, css } from "lit";
 
-// Version 2.9.26 - Show start and end dates for schedule-mode snoozes
-const CARD_VERSION = "2.9.26";
+// Version 2.9.27 - Fix schedule-mode detection for immediate snoozes
+const CARD_VERSION = "2.9.27";
 
 // ============================================================================
 // CARD EDITOR
