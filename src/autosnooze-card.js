@@ -1544,7 +1544,7 @@ class AutomationPauseCard extends LitElement {
           <!-- Search -->
           <div class="search-box">
             <input
-              type="text"
+              type="search"
               placeholder="Search automations..."
               .value=${this._search}
               @input=${(e) => this._handleSearchInput(e)}
