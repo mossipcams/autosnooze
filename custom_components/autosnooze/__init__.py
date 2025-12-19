@@ -1,4 +1,5 @@
 """AutoSnooze integration - Temporarily pause Home Assistant automations."""
+
 from __future__ import annotations
 
 import asyncio
@@ -196,46 +197,52 @@ type AutomationPauseConfigEntry = ConfigEntry[AutomationPauseData]
 
 # FR-05: Duration Input - days, hours, minutes parameters
 # Also supports date-based scheduling with disable_at/resume_at
-PAUSE_SCHEMA = vol.Schema({
-    vol.Required(ATTR_ENTITY_ID): cv.entity_ids,
-    # Duration-based (existing)
-    vol.Optional("days", default=0): cv.positive_int,
-    vol.Optional("hours", default=0): cv.positive_int,
-    vol.Optional("minutes", default=0): cv.positive_int,
-    # Date-based (new) - overrides duration if provided
-    vol.Optional("disable_at"): cv.datetime,
-    vol.Optional("resume_at"): cv.datetime,
-})
+PAUSE_SCHEMA = vol.Schema(
+    {
+        vol.Required(ATTR_ENTITY_ID): cv.entity_ids,
+        # Duration-based (existing)
+        vol.Optional("days", default=0): cv.positive_int,
+        vol.Optional("hours", default=0): cv.positive_int,
+        vol.Optional("minutes", default=0): cv.positive_int,
+        # Date-based (new) - overrides duration if provided
+        vol.Optional("disable_at"): cv.datetime,
+        vol.Optional("resume_at"): cv.datetime,
+    }
+)
 
 # FR-10: Early Wake Up
-CANCEL_SCHEMA = vol.Schema({
-    vol.Required(ATTR_ENTITY_ID): cv.entity_ids,
-})
+CANCEL_SCHEMA = vol.Schema(
+    {
+        vol.Required(ATTR_ENTITY_ID): cv.entity_ids,
+    }
+)
 
 # Pause by area
-PAUSE_BY_AREA_SCHEMA = vol.Schema({
-    vol.Required("area_id"): vol.Any(cv.string, [cv.string]),
-    vol.Optional("days", default=0): cv.positive_int,
-    vol.Optional("hours", default=0): cv.positive_int,
-    vol.Optional("minutes", default=0): cv.positive_int,
-    vol.Optional("disable_at"): cv.datetime,
-    vol.Optional("resume_at"): cv.datetime,
-})
+PAUSE_BY_AREA_SCHEMA = vol.Schema(
+    {
+        vol.Required("area_id"): vol.Any(cv.string, [cv.string]),
+        vol.Optional("days", default=0): cv.positive_int,
+        vol.Optional("hours", default=0): cv.positive_int,
+        vol.Optional("minutes", default=0): cv.positive_int,
+        vol.Optional("disable_at"): cv.datetime,
+        vol.Optional("resume_at"): cv.datetime,
+    }
+)
 
 # Pause by label
-PAUSE_BY_LABEL_SCHEMA = vol.Schema({
-    vol.Required("label_id"): vol.Any(cv.string, [cv.string]),
-    vol.Optional("days", default=0): cv.positive_int,
-    vol.Optional("hours", default=0): cv.positive_int,
-    vol.Optional("minutes", default=0): cv.positive_int,
-    vol.Optional("disable_at"): cv.datetime,
-    vol.Optional("resume_at"): cv.datetime,
-})
+PAUSE_BY_LABEL_SCHEMA = vol.Schema(
+    {
+        vol.Required("label_id"): vol.Any(cv.string, [cv.string]),
+        vol.Optional("days", default=0): cv.positive_int,
+        vol.Optional("hours", default=0): cv.positive_int,
+        vol.Optional("minutes", default=0): cv.positive_int,
+        vol.Optional("disable_at"): cv.datetime,
+        vol.Optional("resume_at"): cv.datetime,
+    }
+)
 
 
-async def async_setup_entry(
-    hass: HomeAssistant, entry: AutomationPauseConfigEntry
-) -> bool:
+async def async_setup_entry(hass: HomeAssistant, entry: AutomationPauseConfigEntry) -> bool:
     """Set up AutoSnooze from a config entry."""
     store = Store[dict[str, Any]](hass, STORAGE_VERSION, f"{DOMAIN}.storage")
     data = AutomationPauseData(store=store)
@@ -250,6 +257,7 @@ async def async_setup_entry(
     if hass.is_running:
         await _async_register_lovelace_resource(hass)
     else:
+
         async def _register_when_started(_event: Any) -> None:
             await _async_register_lovelace_resource(hass)
 
@@ -271,9 +279,7 @@ async def _async_register_static_path(hass: HomeAssistant) -> None:
     cache_headers=False prevents iOS WebView from caching the file for 31 days.
     """
     try:
-        await hass.http.async_register_static_paths([
-            StaticPathConfig(CARD_URL, str(CARD_PATH), cache_headers=False)
-        ])
+        await hass.http.async_register_static_paths([StaticPathConfig(CARD_URL, str(CARD_PATH), cache_headers=False)])
         _LOGGER.debug("Registered static path: %s", CARD_URL)
     except RuntimeError:
         # Path already registered (happens on integration reload)
@@ -319,8 +325,7 @@ async def _async_register_lovelace_resource(hass: HomeAssistant) -> None:
         if existing_resource.get("url") != CARD_URL_VERSIONED:
             try:
                 await resources.async_update_item(
-                    existing_resource["id"],
-                    {"url": CARD_URL_VERSIONED, "res_type": "module"}
+                    existing_resource["id"], {"url": CARD_URL_VERSIONED, "res_type": "module"}
                 )
                 _LOGGER.info("Updated AutoSnooze card resource to v%s", VERSION)
             except Exception as err:
@@ -332,18 +337,13 @@ async def _async_register_lovelace_resource(hass: HomeAssistant) -> None:
     # No existing resource found - create new one
     try:
         _LOGGER.debug("Creating new resource: %s", CARD_URL_VERSIONED)
-        await resources.async_create_item({
-            "url": CARD_URL_VERSIONED,
-            "res_type": "module"
-        })
+        await resources.async_create_item({"url": CARD_URL_VERSIONED, "res_type": "module"})
         _LOGGER.info("Registered AutoSnooze card as Lovelace resource (v%s)", VERSION)
     except Exception as err:
         _LOGGER.warning("Failed to register Lovelace resource: %s", err)
 
 
-async def async_unload_entry(
-    hass: HomeAssistant, entry: AutomationPauseConfigEntry
-) -> bool:
+async def async_unload_entry(hass: HomeAssistant, entry: AutomationPauseConfigEntry) -> bool:
     """Unload config entry."""
     if unload_ok := await hass.config_entries.async_unload_platforms(entry, PLATFORMS):
         # Cancel all timers
@@ -619,9 +619,7 @@ async def _async_save(data: AutomationPauseData) -> bool:
     return False
 
 
-async def _set_automation_state(
-    hass: HomeAssistant, entity_id: str, *, enabled: bool
-) -> bool:
+async def _set_automation_state(hass: HomeAssistant, entity_id: str, *, enabled: bool) -> bool:
     """Enable or disable an automation."""
     state = hass.states.get(entity_id)
     if state is None:
@@ -670,9 +668,7 @@ def _schedule_resume(
     data.timers[entity_id] = async_track_point_in_time(hass, on_timer, resume_at)
 
 
-async def _async_resume(
-    hass: HomeAssistant, data: AutomationPauseData, entity_id: str
-) -> None:
+async def _async_resume(hass: HomeAssistant, data: AutomationPauseData, entity_id: str) -> None:
     """Wake up a snoozed automation."""
     _cancel_timer(data, entity_id)
     data.paused.pop(entity_id, None)
@@ -699,13 +695,9 @@ def _schedule_disable(
 
     @callback
     def on_disable_timer(_now: datetime) -> None:
-        hass.async_create_task(
-            _async_execute_scheduled_disable(hass, data, entity_id, scheduled.resume_at)
-        )
+        hass.async_create_task(_async_execute_scheduled_disable(hass, data, entity_id, scheduled.resume_at))
 
-    data.scheduled_timers[entity_id] = async_track_point_in_time(
-        hass, on_disable_timer, scheduled.disable_at
-    )
+    data.scheduled_timers[entity_id] = async_track_point_in_time(hass, on_disable_timer, scheduled.disable_at)
 
 
 async def _async_execute_scheduled_disable(
@@ -741,9 +733,7 @@ async def _async_execute_scheduled_disable(
     _LOGGER.info("Executed scheduled snooze for %s until %s", entity_id, resume_at)
 
 
-async def _async_cancel_scheduled(
-    hass: HomeAssistant, data: AutomationPauseData, entity_id: str
-) -> None:
+async def _async_cancel_scheduled(hass: HomeAssistant, data: AutomationPauseData, entity_id: str) -> None:
     """Cancel a scheduled snooze."""
     _cancel_scheduled_timer(data, entity_id)
     data.scheduled.pop(entity_id, None)
@@ -833,8 +823,7 @@ def _register_services(hass: HomeAssistant, data: AutomationPauseData) -> None:
                 )
                 data.scheduled[entity_id] = scheduled
                 _schedule_disable(hass, data, entity_id, scheduled)
-                _LOGGER.info("Scheduled snooze for %s: disable at %s, resume at %s",
-                           entity_id, disable_at, resume_at)
+                _LOGGER.info("Scheduled snooze for %s: disable at %s, resume at %s", entity_id, disable_at, resume_at)
             else:
                 # Immediate disable
                 if not await _set_automation_state(hass, entity_id, enabled=False):
@@ -866,9 +855,7 @@ def _register_services(hass: HomeAssistant, data: AutomationPauseData) -> None:
         disable_at = _ensure_utc_aware(call.data.get("disable_at"))
         resume_at_dt = _ensure_utc_aware(call.data.get("resume_at"))
 
-        await _pause_automations(
-            entity_ids, days, hours, minutes, disable_at, resume_at_dt
-        )
+        await _pause_automations(entity_ids, days, hours, minutes, disable_at, resume_at_dt)
 
     async def handle_cancel(call: ServiceCall) -> None:
         """Handle wake service call (FR-10: Early Wake Up)."""
@@ -899,9 +886,7 @@ def _register_services(hass: HomeAssistant, data: AutomationPauseData) -> None:
             _LOGGER.warning("No automations found in area(s): %s", area_ids)
             return
 
-        await _pause_automations(
-            entity_ids, days, hours, minutes, disable_at, resume_at_dt
-        )
+        await _pause_automations(entity_ids, days, hours, minutes, disable_at, resume_at_dt)
 
     async def handle_pause_by_label(call: ServiceCall) -> None:
         """Handle pause by label service call."""
@@ -919,9 +904,7 @@ def _register_services(hass: HomeAssistant, data: AutomationPauseData) -> None:
             _LOGGER.warning("No automations found with label(s): %s", label_ids)
             return
 
-        await _pause_automations(
-            entity_ids, days, hours, minutes, disable_at, resume_at_dt
-        )
+        await _pause_automations(entity_ids, days, hours, minutes, disable_at, resume_at_dt)
 
     async def handle_cancel_scheduled(call: ServiceCall) -> None:
         """Handle cancel scheduled snooze service call."""
