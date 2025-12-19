@@ -1,0 +1,79 @@
+name: Cleanup Old Releases
+
+on:
+  schedule:
+    # Run monthly on the 1st at 00:00 UTC
+    - cron: '0 0 1 * *'
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Dry run (no deletions)'
+        required: false
+        default: 'true'
+        type: boolean
+      keep_count:
+        description: 'Number of recent releases to keep'
+        required: false
+        default: '15'
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  cleanup-releases:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Cleanup old releases
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          DRY_RUN: ${{ inputs.dry_run || 'true' }}
+          KEEP_COUNT: ${{ inputs.keep_count || '15' }}
+        run: |
+          echo "=== Release Cleanup ==="
+          echo "Keeping last $KEEP_COUNT releases"
+          echo "Dry run: $DRY_RUN"
+          echo ""
+
+          # Get all releases sorted by date (newest first is default)
+          RELEASES=$(gh release list --limit 200 --json tagName --jq '.[].tagName')
+
+          TOTAL=$(echo "$RELEASES" | wc -l)
+          echo "Total releases: $TOTAL"
+          echo ""
+
+          # Keep first N releases, mark rest for deletion
+          COUNT=0
+          DELETED=0
+
+          for tag in $RELEASES; do
+            COUNT=$((COUNT + 1))
+
+            # Keep the first KEEP_COUNT releases
+            if [ $COUNT -le $KEEP_COUNT ]; then
+              echo "Keeping: $tag (#$COUNT)"
+              continue
+            fi
+
+            # Delete older releases
+            if [ "$DRY_RUN" == "true" ]; then
+              echo "[DRY RUN] Would delete: $tag"
+              DELETED=$((DELETED + 1))
+            else
+              echo "Deleting: $tag"
+              gh release delete "$tag" --yes --cleanup-tag 2>/dev/null || true
+              DELETED=$((DELETED + 1))
+            fi
+          done
+
+          echo ""
+          echo "=== Summary ==="
+          echo "Kept: $KEEP_COUNT releases"
+          if [ "$DRY_RUN" == "true" ]; then
+            echo "Would delete: $DELETED releases (dry run)"
+          else
+            echo "Deleted: $DELETED releases"
+          fi

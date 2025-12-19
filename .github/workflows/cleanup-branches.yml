@@ -1,0 +1,82 @@
+name: Cleanup Stale Branches
+
+on:
+  schedule:
+    # Run weekly on Sundays at 00:00 UTC
+    - cron: '0 0 * * 0'
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Dry run (no deletions)'
+        required: false
+        default: 'false'
+        type: boolean
+
+permissions:
+  contents: write
+
+jobs:
+  cleanup-branches:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Delete merged branches
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          DRY_RUN: ${{ inputs.dry_run || 'false' }}
+        run: |
+          echo "=== Merged Branch Cleanup ==="
+          echo "Dry run: $DRY_RUN"
+          echo ""
+
+          # Protected branches (never delete)
+          PROTECTED="main dev"
+
+          # Get merged branches
+          MERGED=$(git branch -r --merged origin/main | grep -v HEAD | sed 's/origin\///' || true)
+
+          DELETED=0
+          for branch in $MERGED; do
+            # Skip protected branches
+            if echo "$PROTECTED" | grep -qw "$branch"; then
+              echo "Skipping protected: $branch"
+              continue
+            fi
+
+            if [ "$DRY_RUN" == "true" ]; then
+              echo "[DRY RUN] Would delete: $branch"
+            else
+              echo "Deleting: $branch"
+              gh api -X DELETE "repos/${{ github.repository }}/git/refs/heads/$branch" 2>/dev/null || true
+              DELETED=$((DELETED + 1))
+            fi
+          done
+
+          echo ""
+          echo "=== Summary ==="
+          echo "Deleted $DELETED merged branches"
+
+      - name: Report stale unmerged branches
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo ""
+          echo "=== Stale Unmerged Branches (>30 days old) ==="
+
+          THIRTY_DAYS_AGO=$(date -d '30 days ago' +%Y-%m-%dT%H:%M:%SZ)
+
+          # Get all branches and check their last commit date
+          gh api "repos/${{ github.repository }}/branches" --paginate --jq '.[] | select(.name != "main" and .name != "dev") | .name' | while read -r branch; do
+            COMMIT_DATE=$(gh api "repos/${{ github.repository }}/branches/$branch" --jq '.commit.commit.author.date' 2>/dev/null || echo "")
+            if [ -n "$COMMIT_DATE" ] && [ "$COMMIT_DATE" \< "$THIRTY_DAYS_AGO" ]; then
+              echo "Stale: $branch (last commit: $COMMIT_DATE)"
+            fi
+          done || true
+
+          echo ""
+          echo "Note: Stale unmerged branches are reported but not auto-deleted."
+          echo "Review and delete manually if no longer needed."
