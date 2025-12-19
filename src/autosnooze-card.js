@@ -657,18 +657,33 @@ class AutomationPauseCard extends LitElement {
       color: #ff9800;
     }
 
+    /* Pause Group */
+    .pause-group {
+      background: var(--card-background-color);
+      border-radius: 8px;
+      margin-bottom: 8px;
+      overflow: hidden;
+    }
+    .pause-group-header {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px 16px;
+      padding: 10px 12px;
+      background: var(--primary-color);
+      color: var(--text-primary-color);
+      font-size: 0.9em;
+    }
+    .pause-group-header .countdown {
+      font-weight: 500;
+    }
+
     /* Paused Item */
     .paused-item {
       display: flex;
       align-items: center;
       gap: 12px;
-      padding: 12px;
-      background: var(--card-background-color);
-      border-radius: 8px;
-      margin-bottom: 8px;
-    }
-    .paused-item:last-of-type {
-      margin-bottom: 12px;
+      padding: 10px 12px;
+      border-top: 1px solid var(--divider-color);
     }
     .paused-icon {
       color: var(--secondary-text-color);
@@ -679,7 +694,6 @@ class AutomationPauseCard extends LitElement {
     }
     .paused-name {
       font-weight: 500;
-      margin-bottom: 4px;
     }
     .paused-time {
       font-size: 0.85em;
@@ -1103,6 +1117,28 @@ class AutomationPauseCard extends LitElement {
   _getPaused() {
     const entity = this.hass?.states["sensor.autosnooze_snoozed_automations"];
     return entity?.attributes?.paused_automations || {};
+  }
+
+  _getPausedGroupedByResumeTime() {
+    const paused = this._getPaused();
+    const groups = {};
+
+    Object.entries(paused).forEach(([id, data]) => {
+      const resumeAt = data.resume_at;
+      if (!groups[resumeAt]) {
+        groups[resumeAt] = {
+          resumeAt,
+          disableAt: data.disable_at,
+          automations: [],
+        };
+      }
+      groups[resumeAt].automations.push({ id, ...data });
+    });
+
+    // Sort groups by resume time (earliest first)
+    return Object.values(groups).sort(
+      (a, b) => new Date(a.resumeAt).getTime() - new Date(b.resumeAt).getTime()
+    );
   }
 
   _getScheduled() {
@@ -1770,32 +1806,34 @@ class AutomationPauseCard extends LitElement {
                   Paused Automations (${pausedCount})
                 </div>
 
-                ${Object.entries(paused).map(
-                  ([id, data]) => html`
-                    <div class="paused-item">
-                      <ha-icon class="paused-icon" icon="mdi:sleep"></ha-icon>
-                      <div class="paused-info">
-                        <div class="paused-name">
-                          ${data.friendly_name || id}
-                        </div>
-                        ${data.disable_at
+                ${this._getPausedGroupedByResumeTime().map(
+                  (group) => html`
+                    <div class="pause-group">
+                      <div class="pause-group-header">
+                        ${group.disableAt
                           ? html`
-                              <div class="scheduled-time">
-                                Started: ${this._formatDateTime(data.disable_at)}
-                              </div>
-                              <div class="paused-time">
-                                Resumes: ${this._formatDateTime(data.resume_at)}
-                              </div>
+                              <span class="scheduled-time">Started: ${this._formatDateTime(group.disableAt)}</span>
+                              <span class="paused-time">Resumes: ${this._formatDateTime(group.resumeAt)}</span>
                             `
                           : html`
-                              <div class="paused-time">
-                                Resuming in: <span class="countdown" data-resume-at="${data.resume_at}">${this._formatCountdown(data.resume_at)}</span>
-                              </div>
+                              <span class="paused-time">
+                                Resuming in: <span class="countdown" data-resume-at="${group.resumeAt}">${this._formatCountdown(group.resumeAt)}</span>
+                              </span>
                             `}
                       </div>
-                      <button class="wake-btn" @click=${() => this._wake(id)}>
-                        Resume
-                      </button>
+                      ${group.automations.map(
+                        (auto) => html`
+                          <div class="paused-item">
+                            <ha-icon class="paused-icon" icon="mdi:sleep"></ha-icon>
+                            <div class="paused-info">
+                              <div class="paused-name">${auto.friendly_name || auto.id}</div>
+                            </div>
+                            <button class="wake-btn" @click=${() => this._wake(auto.id)}>
+                              Resume
+                            </button>
+                          </div>
+                        `
+                      )}
                     </div>
                   `
                 )}
