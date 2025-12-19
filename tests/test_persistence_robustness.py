@@ -11,6 +11,7 @@ function signatures locally and test against those. The tests validate that:
 1. The source code contains the expected retry/validation logic
 2. The recreated functions behave as expected (acting as specification)
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -117,6 +118,7 @@ class AutomationPauseData:
 # Helper to read source code
 # =============================================================================
 
+
 def get_source_code() -> str:
     """Read the source code of __init__.py."""
     init_path = Path(__file__).parent.parent / "custom_components" / "autosnooze" / "__init__.py"
@@ -125,13 +127,15 @@ def get_source_code() -> str:
 
 def get_async_save_function(source: str) -> str:
     """Extract the _async_save function from source."""
-    match = re.search(r'async def _async_save\([^)]+\)[^:]*:.*?(?=\n(?:async )?def |\nclass |\Z)', source, re.DOTALL)
+    match = re.search(r"async def _async_save\([^)]+\)[^:]*:.*?(?=\n(?:async )?def |\nclass |\Z)", source, re.DOTALL)
     return match.group(0) if match else ""
 
 
 def get_async_load_stored_function(source: str) -> str:
     """Extract the _async_load_stored function from source."""
-    match = re.search(r'async def _async_load_stored\([^)]+\)[^:]*:.*?(?=\n(?:async )?def |\nclass |\Z)', source, re.DOTALL)
+    match = re.search(
+        r"async def _async_load_stored\([^)]+\)[^:]*:.*?(?=\n(?:async )?def |\nclass |\Z)", source, re.DOTALL
+    )
     return match.group(0) if match else ""
 
 
@@ -139,16 +143,19 @@ def get_async_load_stored_function(source: str) -> str:
 # CURRENT IMPLEMENTATION (for comparison - this is what exists now)
 # =============================================================================
 
+
 async def _async_save_current(data: AutomationPauseData) -> None:
     """Current implementation - no retry, no return value."""
     if data.store is None:
         return
 
     try:
-        await data.store.async_save({
-            "paused": {k: v.to_dict() for k, v in data.paused.items()},
-            "scheduled": {k: v.to_dict() for k, v in data.scheduled.items()},
-        })
+        await data.store.async_save(
+            {
+                "paused": {k: v.to_dict() for k, v in data.paused.items()},
+                "scheduled": {k: v.to_dict() for k, v in data.scheduled.items()},
+            }
+        )
     except Exception:
         pass  # Silently ignores errors
 
@@ -385,10 +392,7 @@ class TestRetrySaveSourceCode:
 
         # Should have a loop for retries
         has_retry_pattern = (
-            "for attempt" in func or
-            "for _ in range" in func or
-            "retry" in func.lower() or
-            "while" in func
+            "for attempt" in func or "for _ in range" in func or "retry" in func.lower() or "while" in func
         )
         assert has_retry_pattern, (
             "FEATURE NOT IMPLEMENTED: _async_save should have retry logic. "
@@ -402,9 +406,7 @@ class TestRetrySaveSourceCode:
 
         # Should use asyncio.sleep for backoff
         has_sleep = "asyncio.sleep" in func or "await sleep" in func
-        assert has_sleep, (
-            "FEATURE NOT IMPLEMENTED: _async_save should use asyncio.sleep for backoff delays"
-        )
+        assert has_sleep, "FEATURE NOT IMPLEMENTED: _async_save should use asyncio.sleep for backoff delays"
 
     def test_async_save_returns_bool(self) -> None:
         """Test that _async_save returns a boolean success status."""
@@ -426,19 +428,13 @@ class TestRetrySaveSourceCode:
         func = get_async_save_function(source)
 
         # Can use direct exception names or a TRANSIENT_ERRORS constant
-        catches_transient = (
-            "IOError" in func or
-            "OSError" in func or
-            "TRANSIENT_ERRORS" in func
-        )
+        catches_transient = "IOError" in func or "OSError" in func or "TRANSIENT_ERRORS" in func
         # Also check that TRANSIENT_ERRORS is defined with IOError/OSError in source
         if "TRANSIENT_ERRORS" in func:
             has_transient_def = "IOError" in source and "OSError" in source
             catches_transient = catches_transient and has_transient_def
 
-        assert catches_transient, (
-            "FEATURE NOT IMPLEMENTED: _async_save should catch IOError/OSError for retry"
-        )
+        assert catches_transient, "FEATURE NOT IMPLEMENTED: _async_save should catch IOError/OSError for retry"
 
     def test_async_save_logs_retry_attempts(self) -> None:
         """Test that _async_save logs retry attempts."""
@@ -499,9 +495,7 @@ class TestRetrySaveBehavior:
         self, data_with_automation: AutomationPauseData, mock_store: MagicMock
     ) -> None:
         """Test that save retries on IOError."""
-        mock_store.async_save = AsyncMock(
-            side_effect=[IOError("Disk full"), IOError("Disk full"), None]
-        )
+        mock_store.async_save = AsyncMock(side_effect=[IOError("Disk full"), IOError("Disk full"), None])
 
         with patch("asyncio.sleep", new_callable=AsyncMock):
             result = await _async_save_expected(data_with_automation)
@@ -562,9 +556,7 @@ class TestRetrySaveBehavior:
         self, data_with_automation: AutomationPauseData, mock_store: MagicMock
     ) -> None:
         """Test that retries are logged as warnings."""
-        mock_store.async_save = AsyncMock(
-            side_effect=[IOError("Disk full"), None]
-        )
+        mock_store.async_save = AsyncMock(side_effect=[IOError("Disk full"), None])
         mock_logger = MagicMock()
 
         with patch("asyncio.sleep", new_callable=AsyncMock):
@@ -588,13 +580,9 @@ class TestRetrySaveBehavior:
         assert mock_logger.error.called
 
     @pytest.mark.asyncio
-    async def test_retries_on_oserror(
-        self, data_with_automation: AutomationPauseData, mock_store: MagicMock
-    ) -> None:
+    async def test_retries_on_oserror(self, data_with_automation: AutomationPauseData, mock_store: MagicMock) -> None:
         """Test that save retries on OSError."""
-        mock_store.async_save = AsyncMock(
-            side_effect=[OSError("No space left"), None]
-        )
+        mock_store.async_save = AsyncMock(side_effect=[OSError("No space left"), None])
 
         with patch("asyncio.sleep", new_callable=AsyncMock):
             result = await _async_save_expected(data_with_automation)
@@ -616,9 +604,7 @@ class TestValidateOnLoadSourceCode:
         source = get_source_code()
 
         has_validate_func = "_validate_stored_data" in source or "validate" in source.lower()
-        assert has_validate_func, (
-            "FEATURE NOT IMPLEMENTED: Should have a _validate_stored_data function"
-        )
+        assert has_validate_func, "FEATURE NOT IMPLEMENTED: Should have a _validate_stored_data function"
 
     def test_load_stored_validates_schema(self) -> None:
         """Test that _async_load_stored validates the data schema."""
@@ -626,18 +612,12 @@ class TestValidateOnLoadSourceCode:
         func = get_async_load_stored_function(source)
 
         # Should either check isinstance directly or call a validation function
-        checks_type = (
-            "isinstance" in func or
-            "_validate_stored_data" in func or
-            "validate" in func.lower()
-        )
+        checks_type = "isinstance" in func or "_validate_stored_data" in func or "validate" in func.lower()
         # Also verify validation function exists with isinstance checks
         if "_validate_stored_data" in func:
             checks_type = checks_type and "isinstance" in source
 
-        assert checks_type, (
-            "FEATURE NOT IMPLEMENTED: _async_load_stored should validate data types with isinstance"
-        )
+        assert checks_type, "FEATURE NOT IMPLEMENTED: _async_load_stored should validate data types with isinstance"
 
     def test_load_stored_validates_entity_id(self) -> None:
         """Test that _async_load_stored validates entity IDs."""
@@ -646,17 +626,13 @@ class TestValidateOnLoadSourceCode:
 
         # Should check entity_id format directly or via validation function
         checks_entity = (
-            'startswith("automation.' in func or
-            "_validate_stored_data" in func or
-            "validate" in func.lower()
+            'startswith("automation.' in func or "_validate_stored_data" in func or "validate" in func.lower()
         )
         # Also verify validation function exists with entity_id check
         if "_validate_stored_data" in func:
             checks_entity = checks_entity and 'startswith("automation.' in source
 
-        assert checks_entity, (
-            "FEATURE NOT IMPLEMENTED: _async_load_stored should validate entity IDs are automations"
-        )
+        assert checks_entity, "FEATURE NOT IMPLEMENTED: _async_load_stored should validate entity IDs are automations"
 
     def test_load_stored_logs_validation_errors(self) -> None:
         """Test that validation errors are logged."""
@@ -666,9 +642,7 @@ class TestValidateOnLoadSourceCode:
         # Should log warnings for invalid entries
         # Current implementation logs for KeyError/ValueError but should be more comprehensive
         logs_issues = "_LOGGER.warning" in func or "_LOGGER.error" in func
-        assert logs_issues, (
-            "Validation should log warnings for invalid entries"
-        )
+        assert logs_issues, "Validation should log warnings for invalid entries"
 
 
 # =============================================================================
@@ -708,21 +682,24 @@ class TestValidateOnLoadBehavior:
         now = datetime.now(UTC)
         mock_logger = MagicMock()
 
-        result = _validate_stored_data({
-            "paused": {
-                "automation.valid": {
-                    "friendly_name": "Valid",
-                    "resume_at": (now + timedelta(hours=1)).isoformat(),
-                    "paused_at": now.isoformat(),
+        result = _validate_stored_data(
+            {
+                "paused": {
+                    "automation.valid": {
+                        "friendly_name": "Valid",
+                        "resume_at": (now + timedelta(hours=1)).isoformat(),
+                        "paused_at": now.isoformat(),
+                    },
+                    "automation.invalid": {
+                        "friendly_name": "Invalid",
+                        "resume_at": "not-a-datetime",
+                        "paused_at": now.isoformat(),
+                    },
                 },
-                "automation.invalid": {
-                    "friendly_name": "Invalid",
-                    "resume_at": "not-a-datetime",
-                    "paused_at": now.isoformat(),
-                },
+                "scheduled": {},
             },
-            "scheduled": {},
-        }, _logger=mock_logger)
+            _logger=mock_logger,
+        )
 
         assert "automation.valid" in result["paused"]
         assert "automation.invalid" not in result["paused"]
@@ -732,20 +709,23 @@ class TestValidateOnLoadBehavior:
         now = datetime.now(UTC)
         mock_logger = MagicMock()
 
-        result = _validate_stored_data({
-            "paused": {
-                "automation.valid": {
-                    "friendly_name": "Valid",
-                    "resume_at": (now + timedelta(hours=1)).isoformat(),
-                    "paused_at": now.isoformat(),
+        result = _validate_stored_data(
+            {
+                "paused": {
+                    "automation.valid": {
+                        "friendly_name": "Valid",
+                        "resume_at": (now + timedelta(hours=1)).isoformat(),
+                        "paused_at": now.isoformat(),
+                    },
+                    "automation.missing_resume": {
+                        "friendly_name": "Missing Resume",
+                        "paused_at": now.isoformat(),
+                    },
                 },
-                "automation.missing_resume": {
-                    "friendly_name": "Missing Resume",
-                    "paused_at": now.isoformat(),
-                },
+                "scheduled": {},
             },
-            "scheduled": {},
-        }, _logger=mock_logger)
+            _logger=mock_logger,
+        )
 
         assert "automation.valid" in result["paused"]
         assert "automation.missing_resume" not in result["paused"]
@@ -755,21 +735,24 @@ class TestValidateOnLoadBehavior:
         now = datetime.now(UTC)
         mock_logger = MagicMock()
 
-        result = _validate_stored_data({
-            "paused": {
-                "automation.valid": {
-                    "friendly_name": "Valid",
-                    "resume_at": (now + timedelta(hours=1)).isoformat(),
-                    "paused_at": now.isoformat(),
+        result = _validate_stored_data(
+            {
+                "paused": {
+                    "automation.valid": {
+                        "friendly_name": "Valid",
+                        "resume_at": (now + timedelta(hours=1)).isoformat(),
+                        "paused_at": now.isoformat(),
+                    },
+                    "light.not_automation": {
+                        "friendly_name": "Not an automation",
+                        "resume_at": (now + timedelta(hours=1)).isoformat(),
+                        "paused_at": now.isoformat(),
+                    },
                 },
-                "light.not_automation": {
-                    "friendly_name": "Not an automation",
-                    "resume_at": (now + timedelta(hours=1)).isoformat(),
-                    "paused_at": now.isoformat(),
-                },
+                "scheduled": {},
             },
-            "scheduled": {},
-        }, _logger=mock_logger)
+            _logger=mock_logger,
+        )
 
         assert "automation.valid" in result["paused"]
         assert "light.not_automation" not in result["paused"]
@@ -788,27 +771,30 @@ class TestValidateOnLoadBehavior:
         now = datetime.now(UTC)
         mock_logger = MagicMock()
 
-        result = _validate_stored_data({
-            "paused": {
-                "automation.valid": {
-                    "friendly_name": "Valid",
-                    "resume_at": (now + timedelta(hours=1)).isoformat(),
-                    "paused_at": now.isoformat(),
-                    "days": 0,
-                    "hours": 1,
-                    "minutes": 0,
+        result = _validate_stored_data(
+            {
+                "paused": {
+                    "automation.valid": {
+                        "friendly_name": "Valid",
+                        "resume_at": (now + timedelta(hours=1)).isoformat(),
+                        "paused_at": now.isoformat(),
+                        "days": 0,
+                        "hours": 1,
+                        "minutes": 0,
+                    },
+                    "automation.negative": {
+                        "friendly_name": "Negative values",
+                        "resume_at": (now + timedelta(hours=1)).isoformat(),
+                        "paused_at": now.isoformat(),
+                        "days": -1,
+                        "hours": 1,
+                        "minutes": 0,
+                    },
                 },
-                "automation.negative": {
-                    "friendly_name": "Negative values",
-                    "resume_at": (now + timedelta(hours=1)).isoformat(),
-                    "paused_at": now.isoformat(),
-                    "days": -1,
-                    "hours": 1,
-                    "minutes": 0,
-                },
+                "scheduled": {},
             },
-            "scheduled": {},
-        }, _logger=mock_logger)
+            _logger=mock_logger,
+        )
 
         assert "automation.valid" in result["paused"]
         assert "automation.negative" not in result["paused"]
@@ -818,21 +804,24 @@ class TestValidateOnLoadBehavior:
         now = datetime.now(UTC)
         mock_logger = MagicMock()
 
-        result = _validate_stored_data({
-            "paused": {},
-            "scheduled": {
-                "automation.valid": {
-                    "friendly_name": "Valid",
-                    "disable_at": (now + timedelta(hours=1)).isoformat(),
-                    "resume_at": (now + timedelta(hours=2)).isoformat(),
-                },
-                "automation.invalid_order": {
-                    "friendly_name": "Invalid Order",
-                    "disable_at": (now + timedelta(hours=2)).isoformat(),
-                    "resume_at": (now + timedelta(hours=1)).isoformat(),
+        result = _validate_stored_data(
+            {
+                "paused": {},
+                "scheduled": {
+                    "automation.valid": {
+                        "friendly_name": "Valid",
+                        "disable_at": (now + timedelta(hours=1)).isoformat(),
+                        "resume_at": (now + timedelta(hours=2)).isoformat(),
+                    },
+                    "automation.invalid_order": {
+                        "friendly_name": "Invalid Order",
+                        "disable_at": (now + timedelta(hours=2)).isoformat(),
+                        "resume_at": (now + timedelta(hours=1)).isoformat(),
+                    },
                 },
             },
-        }, _logger=mock_logger)
+            _logger=mock_logger,
+        )
 
         assert "automation.valid" in result["scheduled"]
         assert "automation.invalid_order" not in result["scheduled"]
@@ -842,17 +831,20 @@ class TestValidateOnLoadBehavior:
         now = datetime.now(UTC)
         mock_logger = MagicMock()
 
-        _validate_stored_data({
-            "paused": {
-                "automation.invalid1": {"friendly_name": "Invalid 1"},
-                "automation.invalid2": {
-                    "friendly_name": "Invalid 2",
-                    "resume_at": "bad-date",
-                    "paused_at": now.isoformat(),
+        _validate_stored_data(
+            {
+                "paused": {
+                    "automation.invalid1": {"friendly_name": "Invalid 1"},
+                    "automation.invalid2": {
+                        "friendly_name": "Invalid 2",
+                        "resume_at": "bad-date",
+                        "paused_at": now.isoformat(),
+                    },
                 },
+                "scheduled": {},
             },
-            "scheduled": {},
-        }, _logger=mock_logger)
+            _logger=mock_logger,
+        )
 
         # Should log info about number of skipped entries
         assert mock_logger.info.called
@@ -894,24 +886,27 @@ class TestPersistenceRobustnessIntegration:
         now = datetime.now(UTC)
         mock_logger = MagicMock()
 
-        result = _validate_stored_data({
-            "paused": {
-                "automation.valid1": {
-                    "friendly_name": "Valid 1",
-                    "resume_at": (now + timedelta(hours=1)).isoformat(),
-                    "paused_at": now.isoformat(),
+        result = _validate_stored_data(
+            {
+                "paused": {
+                    "automation.valid1": {
+                        "friendly_name": "Valid 1",
+                        "resume_at": (now + timedelta(hours=1)).isoformat(),
+                        "paused_at": now.isoformat(),
+                    },
+                    "automation.invalid": {
+                        "friendly_name": "Invalid",
+                    },
+                    "automation.valid2": {
+                        "friendly_name": "Valid 2",
+                        "resume_at": (now + timedelta(hours=2)).isoformat(),
+                        "paused_at": now.isoformat(),
+                    },
                 },
-                "automation.invalid": {
-                    "friendly_name": "Invalid",
-                },
-                "automation.valid2": {
-                    "friendly_name": "Valid 2",
-                    "resume_at": (now + timedelta(hours=2)).isoformat(),
-                    "paused_at": now.isoformat(),
-                },
+                "scheduled": {},
             },
-            "scheduled": {},
-        }, _logger=mock_logger)
+            _logger=mock_logger,
+        )
 
         # Both valid entries should be loaded
         assert "automation.valid1" in result["paused"]
@@ -923,6 +918,7 @@ class TestPersistenceRobustnessIntegration:
 # =============================================================================
 # SUMMARY: What needs to be implemented
 # =============================================================================
+
 
 class TestImplementationRequirements:
     """Summary tests that document what needs to be implemented.
@@ -950,10 +946,7 @@ class TestImplementationRequirements:
 
         missing = [req for req, met in requirements.items() if not met]
 
-        assert not missing, (
-            f"FEATURES NOT IMPLEMENTED in _async_save:\n"
-            + "\n".join(f"  - {req}" for req in missing)
-        )
+        assert not missing, f"FEATURES NOT IMPLEMENTED in _async_save:\n" + "\n".join(f"  - {req}" for req in missing)
 
     def test_validate_on_load_implementation_checklist(self) -> None:
         """Checklist of validate on load requirements."""
@@ -968,7 +961,4 @@ class TestImplementationRequirements:
 
         missing = [req for req, met in requirements.items() if not met]
 
-        assert not missing, (
-            f"FEATURES NOT IMPLEMENTED for validation:\n"
-            + "\n".join(f"  - {req}" for req in missing)
-        )
+        assert not missing, f"FEATURES NOT IMPLEMENTED for validation:\n" + "\n".join(f"  - {req}" for req in missing)

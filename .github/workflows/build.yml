@@ -12,13 +12,51 @@ on:
       - 'rollup.config.mjs'
       - 'requirements_test.txt'
       - 'pytest.ini'
+      - 'pyproject.toml'
+      - '.eslintrc.json'
   pull_request:
     branches: [main]
   workflow_dispatch:
 
 jobs:
-  build:
+  lint:
+    name: Lint
     runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install Python linting tools
+        run: pip install ruff
+
+      - name: Run ruff (Python linter)
+        run: ruff check custom_components/ tests/ --output-format=github
+
+      - name: Check ruff formatting
+        run: ruff format --check --diff custom_components/ tests/
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install npm dependencies
+        run: npm install
+
+      - name: Run ESLint (JavaScript linter)
+        run: npm run lint
+
+  build:
+    name: Build & Test
+    runs-on: ubuntu-latest
+    needs: lint
 
     steps:
       - name: Checkout repository
@@ -68,19 +106,19 @@ jobs:
       - name: Install dependencies
         run: npm install
 
-      - name: Run JavaScript tests
-        run: npm test
+      - name: Run JavaScript tests with coverage
+        run: npm run test:coverage
 
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
+          python-version: '3.12'
 
       - name: Install Python dependencies
         run: pip install -r requirements_test.txt
 
-      - name: Run Python tests
-        run: pytest tests/ -v
+      - name: Run Python tests with coverage
+        run: pytest tests/ -v --cov=custom_components/autosnooze --cov-report=term-missing --cov-report=xml --cov-fail-under=50
         env:
           TZ: UTC
 
@@ -100,4 +138,18 @@ jobs:
         with:
           name: autosnooze-card
           path: custom_components/autosnooze/www/autosnooze-card.js
+          retention-days: 30
+
+      - name: Upload Python coverage report
+        uses: actions/upload-artifact@v4
+        with:
+          name: python-coverage
+          path: coverage.xml
+          retention-days: 30
+
+      - name: Upload JavaScript coverage report
+        uses: actions/upload-artifact@v4
+        with:
+          name: js-coverage
+          path: coverage/
           retention-days: 30

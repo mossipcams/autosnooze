@@ -10,6 +10,7 @@ add_extra_js_url(). This matches how working HACS cards register.
 
 Reference: HACS uses Lovelace Resources stored in .storage/lovelace_resources
 """
+
 from __future__ import annotations
 
 import ast
@@ -60,9 +61,7 @@ class TestLovelaceResourcesOnlyRegistration:
             "Use Lovelace Resources only (like HACS cards)."
         )
         # Also check it's not called
-        assert "add_extra_js_url(hass" not in source, (
-            "Must NOT call add_extra_js_url() - causes iOS refresh issues."
-        )
+        assert "add_extra_js_url(hass" not in source, "Must NOT call add_extra_js_url() - causes iOS refresh issues."
 
     def test_uses_static_path_registration(self) -> None:
         """Verify static path registration is used.
@@ -71,17 +70,13 @@ class TestLovelaceResourcesOnlyRegistration:
         """
         source = get_init_source()
 
-        assert "StaticPathConfig" in source, (
-            "Must use StaticPathConfig to register static path for serving JS file"
-        )
+        assert "StaticPathConfig" in source, "Must use StaticPathConfig to register static path for serving JS file"
 
     def test_has_lovelace_resource_registration(self) -> None:
         """Verify Lovelace resource registration function exists."""
         source = get_init_source()
 
-        assert "_async_register_lovelace_resource" in source, (
-            "Must have _async_register_lovelace_resource function"
-        )
+        assert "_async_register_lovelace_resource" in source, "Must have _async_register_lovelace_resource function"
 
     def test_static_path_uses_cache_headers_false(self) -> None:
         """Verify static path registration disables caching.
@@ -91,9 +86,7 @@ class TestLovelaceResourcesOnlyRegistration:
         source = get_init_source()
 
         # Find the static path registration
-        assert "cache_headers=False" in source, (
-            "Static path must use cache_headers=False to prevent iOS caching issues"
-        )
+        assert "cache_headers=False" in source, "Static path must use cache_headers=False to prevent iOS caching issues"
 
     def test_async_setup_entry_calls_static_path(self) -> None:
         """Verify async_setup_entry registers static path."""
@@ -109,9 +102,7 @@ class TestLovelaceResourcesOnlyRegistration:
 
         func_body = source[func_start:next_func]
 
-        assert "_async_register_static_path" in func_body, (
-            "async_setup_entry must call _async_register_static_path"
-        )
+        assert "_async_register_static_path" in func_body, "async_setup_entry must call _async_register_static_path"
 
     def test_async_setup_entry_registers_lovelace_resource(self) -> None:
         """Verify async_setup_entry registers Lovelace resource."""
@@ -154,9 +145,9 @@ class TestStaticPathRegistrationBehavior:
     ) -> None:
         """Recreated implementation matching the source pattern."""
         try:
-            await hass.http.async_register_static_paths([
-                static_path_config_cls(card_url, "/fake/path", cache_headers=False)
-            ])
+            await hass.http.async_register_static_paths(
+                [static_path_config_cls(card_url, "/fake/path", cache_headers=False)]
+            )
         except RuntimeError:
             # Path already registered (happens on integration reload)
             pass
@@ -195,9 +186,7 @@ class TestStaticPathRegistrationBehavior:
     @pytest.mark.asyncio
     async def test_handles_already_registered(self, mock_hass: MagicMock) -> None:
         """Verify graceful handling when path already registered (reload)."""
-        mock_hass.http.async_register_static_paths = AsyncMock(
-            side_effect=RuntimeError("Path already registered")
-        )
+        mock_hass.http.async_register_static_paths = AsyncMock(side_effect=RuntimeError("Path already registered"))
         mock_static_path_config = MagicMock()
 
         # Should not raise
@@ -265,20 +254,12 @@ class TestLovelaceResourceRegistrationBehavior:
 
         if existing:
             if existing.get("url") != card_url_versioned:
-                await resources.async_update_item(
-                    existing["id"],
-                    {"url": card_url_versioned, "res_type": "module"}
-                )
+                await resources.async_update_item(existing["id"], {"url": card_url_versioned, "res_type": "module"})
         else:
-            await resources.async_create_item({
-                "url": card_url_versioned,
-                "res_type": "module"
-            })
+            await resources.async_create_item({"url": card_url_versioned, "res_type": "module"})
 
     @pytest.mark.asyncio
-    async def test_creates_resource_when_none_exists(
-        self, mock_hass_with_lovelace: MagicMock
-    ) -> None:
+    async def test_creates_resource_when_none_exists(self, mock_hass_with_lovelace: MagicMock) -> None:
         """Verify resource is created when none exists."""
         await self._async_register_lovelace_resource_impl(
             mock_hass_with_lovelace,
@@ -290,14 +271,10 @@ class TestLovelaceResourceRegistrationBehavior:
         resources.async_create_item.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_updates_existing_resource_with_new_version(
-        self, mock_hass_with_lovelace: MagicMock
-    ) -> None:
+    async def test_updates_existing_resource_with_new_version(self, mock_hass_with_lovelace: MagicMock) -> None:
         """Verify existing resource is updated with new version."""
         resources = mock_hass_with_lovelace.data["lovelace"].resources
-        resources.async_items = MagicMock(return_value=[
-            {"id": "123", "url": "/autosnooze-card.js?v=old"}
-        ])
+        resources.async_items = MagicMock(return_value=[{"id": "123", "url": "/autosnooze-card.js?v=old"}])
 
         await self._async_register_lovelace_resource_impl(
             mock_hass_with_lovelace,
@@ -308,14 +285,10 @@ class TestLovelaceResourceRegistrationBehavior:
         resources.async_update_item.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_skips_update_if_version_matches(
-        self, mock_hass_with_lovelace: MagicMock
-    ) -> None:
+    async def test_skips_update_if_version_matches(self, mock_hass_with_lovelace: MagicMock) -> None:
         """Verify no update if version already matches."""
         resources = mock_hass_with_lovelace.data["lovelace"].resources
-        resources.async_items = MagicMock(return_value=[
-            {"id": "123", "url": self.CARD_URL_VERSIONED}
-        ])
+        resources.async_items = MagicMock(return_value=[{"id": "123", "url": self.CARD_URL_VERSIONED}])
 
         await self._async_register_lovelace_resource_impl(
             mock_hass_with_lovelace,
@@ -327,9 +300,7 @@ class TestLovelaceResourceRegistrationBehavior:
         resources.async_create_item.assert_not_called()
 
     @pytest.mark.asyncio
-    async def test_handles_yaml_mode_gracefully(
-        self, mock_hass_yaml_mode: MagicMock
-    ) -> None:
+    async def test_handles_yaml_mode_gracefully(self, mock_hass_yaml_mode: MagicMock) -> None:
         """Verify YAML mode (resources=None) doesn't cause errors."""
         # Should not raise
         await self._async_register_lovelace_resource_impl(
@@ -364,16 +335,18 @@ class TestDocumentationAndComments:
         source = get_init_source()
 
         # Should mention iOS, HACS, or the refresh issue
-        has_explanation = any(keyword in source.lower() for keyword in [
-            "ios",
-            "hacs",
-            "refresh",
-            "like hacs",
-        ])
+        has_explanation = any(
+            keyword in source.lower()
+            for keyword in [
+                "ios",
+                "hacs",
+                "refresh",
+                "like hacs",
+            ]
+        )
 
         assert has_explanation, (
-            "Code should document why Lovelace Resources only is used "
-            "(iOS refresh fix, like HACS cards)"
+            "Code should document why Lovelace Resources only is used (iOS refresh fix, like HACS cards)"
         )
 
     def test_has_cache_headers_documentation(self) -> None:
@@ -391,12 +364,13 @@ class TestDocumentationAndComments:
         func_body = source[func_start:next_func]
 
         # Should have a comment or docstring about cache headers
-        has_cache_doc = any(keyword in func_body.lower() for keyword in [
-            "cache",
-            "ios",
-            "webview",
-        ])
-
-        assert has_cache_doc, (
-            "_async_register_static_path should document cache_headers=False"
+        has_cache_doc = any(
+            keyword in func_body.lower()
+            for keyword in [
+                "cache",
+                "ios",
+                "webview",
+            ]
         )
+
+        assert has_cache_doc, "_async_register_static_path should document cache_headers=False"
