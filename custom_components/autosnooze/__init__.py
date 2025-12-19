@@ -829,6 +829,10 @@ def _register_services(hass: HomeAssistant, data: AutomationPauseData) -> None:
                 if not await _set_automation_state(hass, entity_id, enabled=False):
                     continue
 
+                # If using date-based scheduling (resume_at_dt provided), store disable_at
+                # to indicate this was a schedule-mode snooze (for UI display)
+                schedule_mode_disable_at = disable_at if disable_at is not None else (now if resume_at_dt is not None else None)
+
                 data.paused[entity_id] = PausedAutomation(
                     entity_id=entity_id,
                     friendly_name=friendly_name,
@@ -837,6 +841,7 @@ def _register_services(hass: HomeAssistant, data: AutomationPauseData) -> None:
                     days=days,
                     hours=hours,
                     minutes=minutes,
+                    disable_at=schedule_mode_disable_at,
                 )
 
                 _schedule_resume(hass, data, entity_id, resume_at)
