@@ -14,9 +14,11 @@
 
 ## Post:
 
-We've all been there. Movie night, motion lights keep triggering, so you disable the automation. Three days later you're wondering why the hallway has been dark every night.
+A week ago my girlfriend threw a birthday party at my place. Mid-party, someone sits on the bed and triggers my pressure sensor — lights go out, the whole "goodnight" automation kicks off. Very romantic. Very awkward.
 
-**AutoSnooze** is a dashboard card that treats your automations like alarm clocks - snooze them for a set time, they wake themselves back up. No more forgotten automations.
+I didn't have time to build a proper toggle, so I just disabled the automation and went back to the party. The next night I'm lying in bed wondering why my lights won't turn off. Took me way too long to realize I'd never re-enabled it.
+
+So I built **AutoSnooze** — a dashboard card that lets you snooze automations instead of disabling them. Set a duration, they wake themselves back up. Like an alarm clock for your automations.
 
 [SCREENSHOT]
 
