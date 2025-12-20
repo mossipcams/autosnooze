@@ -6,67 +6,77 @@
 
 ## Title Options (pick one):
 
-1. "Built a card for temporarily pausing automations with auto-resume"
-2. "AutoSnooze - snooze automations like you snooze alarms"
-3. "Solved my 'forgot to re-enable that automation' problem"
+1. "AutoSnooze: Pause automations that automatically wake themselves back up"
+2. "Stop disabling automations. Start snoozing them."
+3. "AutoSnooze: Because 'I'll turn it back on later' is a lie we tell ourselves"
 
 ---
 
 ## Post:
 
-I kept running into the same annoying scenario: disable the motion lights for movie night, forget about it, then wonder three days later why the hallway has been dark.
+We've all been there. Movie night, motion lights keep triggering, so you disable the automation. Three days later you're wondering why the hallway has been dark every night.
 
-So I built AutoSnooze. It's a dashboard card that lets you pause automations for a set duration - they automatically re-enable when the timer expires. Timers survive reboots too.
+**AutoSnooze** is a dashboard card that treats your automations like alarm clocks - snooze them for a set time, they wake themselves back up. No more forgotten automations.
 
-**What it does:**
+[SCREENSHOT]
 
-- Filter automations by Area, Label, or search by name
-- Pick a duration (30m, 1h, 4h, 1 day) or set a custom time
-- Live countdown shows when each one wakes up
-- "Wake All" button if you change your mind
+**How it works:**
 
-**Some examples:**
+1. Filter by Area, Label, or search
+2. Select the automations you want to pause
+3. Pick a duration (or set a specific date/time)
+4. Done. They'll re-enable automatically.
 
-- Dinner party → pause dining room motion sensors for 4 hours
-- Maintenance → pause security automations for 1 hour while testing
-- Vacation → pause morning routines for a week
+Live countdowns show exactly when each automation wakes up. Timers persist through reboots. And if you change your mind, one tap wakes everything instantly.
 
-The card groups snoozed automations by their resume time, so if you pause 5 things at once, you see one countdown instead of five.
+---
 
-Available via HACS as a custom repository. No external dependencies - everything's bundled.
+**Real scenarios:**
 
-GitHub: [link]
+| Situation | What you'd do |
+|-----------|---------------|
+| Hosting dinner | Snooze dining room motion lights for 4 hours |
+| Testing sensors | Snooze security alerts for 1 hour |
+| Going on vacation | Snooze morning routines for a week |
+| Kids sleeping in | Snooze weekend wake-up automation until noon |
+
+---
+
+Available through HACS (custom repository). Self-contained, no external dependencies.
+
+**GitHub:** [link]
 
 ---
 
 ## Screenshot suggestion:
 
-Include a screenshot showing:
-- The card with a few automations snoozed
-- Visible countdown timer
-- The filter tabs (Area/Label)
+Show the card with:
+- 2-3 active snoozes with visible countdowns
+- The Area/Label/Search filter tabs visible
+- Maybe one grouped countdown (multiple automations resuming together)
 
 ---
 
 ## Notes for you:
 
-**What NOT to include (keeps it from sounding desperate):**
-- ❌ "Please try it out!"
-- ❌ "Would love feedback!"
-- ❌ "Star the repo if you like it!"
-- ❌ "First integration, be gentle"
-- ❌ Excessive feature lists
-- ❌ Comparison to other solutions
+**What this version does better:**
+- ✅ Punchy title options that hint at the value prop
+- ✅ "We've all been there" creates instant connection
+- ✅ Bold product name establishes it as a *thing*
+- ✅ "Treats automations like alarm clocks" - instant mental model
+- ✅ Table format for scenarios is scannable and visual
+- ✅ Numbered steps feel polished and easy
+- ✅ Screenshot placement is explicit (put it after the hook)
+- ✅ Still ends matter-of-factly, no begging
 
-**What makes this work:**
-- ✅ Opens with a relatable problem
-- ✅ States what it does matter-of-factly
-- ✅ Concrete examples people can picture
-- ✅ Brief - respects reader's time
-- ✅ Ends with where to get it, not a call to action
+**Lines doing subtle marketing work:**
+- "No more forgotten automations" - states the outcome, not just the feature
+- "They wake themselves back up" - active voice, sounds smart
+- "Timers persist through reboots" - signals quality/reliability
+- "One tap wakes everything instantly" - sounds satisfying
 
-**Optional additions if someone asks:**
-- Mention the sensor entity (`sensor.autosnooze_snoozed_automations`) for tracking count
+**Hold for comments (don't front-load):**
+- Sensor entity for automations/dashboards
 - Schedule mode for future-timed pauses
-- Works fine with 100+ automations
-- Services available for use in other automations
+- Performance with 100+ automations
+- Services for scripting
