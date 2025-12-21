@@ -45,20 +45,17 @@ async def async_setup_entry(hass: HomeAssistant, entry: AutomationPauseConfigEnt
     # Register as Lovelace resource ONLY (like HACS cards do)
     # This is how working HACS cards register - they don't use add_extra_js_url
     # Using add_extra_js_url was causing iOS refresh issues
-    # FR-07: Persistence - Load stored data on restart
-    # IMPORTANT: Must wait for HA to be fully started before loading stored data,
-    # otherwise automation entities may not exist yet and will be incorrectly
-    # cleaned up as "deleted". This matches the pattern used for Lovelace registration.
     if hass.is_running:
         await _async_register_lovelace_resource(hass)
-        await async_load_stored(hass, data)
     else:
 
         async def _register_when_started(_event: Any) -> None:
             await _async_register_lovelace_resource(hass)
-            await async_load_stored(hass, data)
 
         hass.bus.async_listen_once("homeassistant_started", _register_when_started)
+
+    # FR-07: Persistence - Load stored data on restart
+    await async_load_stored(hass, data)
 
     # Register services
     register_services(hass, data)
