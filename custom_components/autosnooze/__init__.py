@@ -528,6 +528,12 @@ async def _async_load_stored(hass: HomeAssistant, data: AutomationPauseData) -> 
     # Load paused automations
     for entity_id, info in validated.get("paused", {}).items():
         try:
+            # Check if automation still exists - clean up deleted automations
+            if hass.states.get(entity_id) is None:
+                _LOGGER.info("Cleaning up deleted automation from storage: %s", entity_id)
+                expired.append(entity_id)
+                continue
+
             paused = PausedAutomation.from_dict(entity_id, info)
             if paused.resume_at <= now:
                 expired.append(entity_id)
@@ -543,6 +549,12 @@ async def _async_load_stored(hass: HomeAssistant, data: AutomationPauseData) -> 
     expired_scheduled: list[str] = []
     for entity_id, info in validated.get("scheduled", {}).items():
         try:
+            # Check if automation still exists - clean up deleted automations
+            if hass.states.get(entity_id) is None:
+                _LOGGER.info("Cleaning up deleted automation from scheduled storage: %s", entity_id)
+                expired_scheduled.append(entity_id)
+                continue
+
             scheduled = ScheduledSnooze.from_dict(entity_id, info)
             if scheduled.disable_at <= now:
                 # Should have already disabled, check if resume is also past
