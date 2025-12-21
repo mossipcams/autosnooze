@@ -1311,9 +1311,20 @@ class AutomationPauseCard extends LitElement {
 
   _combineDateTime(month, day, time) {
     if (!month || !day || !time) return null;
-    const year = new Date().getFullYear();
+    const now = new Date();
+    let year = now.getFullYear();
     const paddedMonth = month.padStart(2, "0");
     const paddedDay = day.padStart(2, "0");
+
+    // Create tentative date with current year
+    const tentativeDate = new Date(`${year}-${paddedMonth}-${paddedDay}T${time}`);
+
+    // If the date is in the past, use next year
+    // Add a small buffer (1 minute) to avoid edge cases at exact current time
+    if (tentativeDate.getTime() < now.getTime() - 60000) {
+      year += 1;
+    }
+
     return `${year}-${paddedMonth}-${paddedDay}T${time}`;
   }
 
@@ -1332,6 +1343,30 @@ class AutomationPauseCard extends LitElement {
       if (!this._hasResumeAt()) {
         this._showToast("Please set a resume date and time");
         return;
+      }
+
+      // Validate schedule dates
+      const resumeAt = this._combineDateTime(this._resumeAtMonth, this._resumeAtDay, this._resumeAtTime);
+      const disableAt = this._hasDisableAt()
+        ? this._combineDateTime(this._disableAtMonth, this._disableAtDay, this._disableAtTime)
+        : null;
+
+      const now = Date.now();
+      const resumeTime = new Date(resumeAt).getTime();
+
+      // Resume time must be in the future
+      if (resumeTime <= now) {
+        this._showToast("Resume time must be in the future");
+        return;
+      }
+
+      // If disable time is set, it must be before resume time
+      if (disableAt) {
+        const disableTime = new Date(disableAt).getTime();
+        if (disableTime >= resumeTime) {
+          this._showToast("Pause time must be before resume time");
+          return;
+        }
       }
     } else {
       if (this._duration === 0) return;

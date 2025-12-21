@@ -357,6 +357,9 @@ async def async_unload_entry(hass: HomeAssistant, entry: AutomationPauseConfigEn
             unsub()
         data.scheduled_timers.clear()
 
+        # Clear all listeners to prevent orphaned callbacks
+        data.listeners.clear()
+
         # Only remove services if this is the last entry
         if not hass.config_entries.async_loaded_entries(DOMAIN):
             for service in ("pause", "cancel", "cancel_all", "pause_by_area", "pause_by_label", "cancel_scheduled"):
@@ -538,9 +541,12 @@ async def _async_load_stored(hass: HomeAssistant, data: AutomationPauseData) -> 
             if paused.resume_at <= now:
                 expired.append(entity_id)
             else:
-                data.paused[entity_id] = paused
-                _schedule_resume(hass, data, entity_id, paused.resume_at)
-                await _set_automation_state(hass, entity_id, enabled=False)
+                # Try to disable first - only track if disable succeeds
+                if await _set_automation_state(hass, entity_id, enabled=False):
+                    data.paused[entity_id] = paused
+                    _schedule_resume(hass, data, entity_id, paused.resume_at)
+                else:
+                    _LOGGER.warning("Failed to restore paused state for %s, skipping", entity_id)
         except (KeyError, ValueError) as err:
             _LOGGER.warning("Invalid stored data for %s: %s", entity_id, err)
             expired.append(entity_id)
@@ -561,17 +567,22 @@ async def _async_load_stored(hass: HomeAssistant, data: AutomationPauseData) -> 
                 if scheduled.resume_at <= now:
                     expired_scheduled.append(entity_id)
                 else:
-                    # Disable now and schedule resume
-                    await _set_automation_state(hass, entity_id, enabled=False)
-                    paused = PausedAutomation(
-                        entity_id=entity_id,
-                        friendly_name=scheduled.friendly_name,
-                        resume_at=scheduled.resume_at,
-                        paused_at=now,
-                        disable_at=scheduled.disable_at,
-                    )
-                    data.paused[entity_id] = paused
-                    _schedule_resume(hass, data, entity_id, scheduled.resume_at)
+                    # Disable now and schedule resume - only track if disable succeeds
+                    if await _set_automation_state(hass, entity_id, enabled=False):
+                        paused = PausedAutomation(
+                            entity_id=entity_id,
+                            friendly_name=scheduled.friendly_name,
+                            resume_at=scheduled.resume_at,
+                            paused_at=now,
+                            disable_at=scheduled.disable_at,
+                        )
+                        data.paused[entity_id] = paused
+                        _schedule_resume(hass, data, entity_id, scheduled.resume_at)
+                    else:
+                        _LOGGER.warning(
+                            "Failed to execute scheduled disable for %s, skipping",
+                            entity_id,
+                        )
             else:
                 data.scheduled[entity_id] = scheduled
                 _schedule_disable(hass, data, entity_id, scheduled)
@@ -797,6 +808,21 @@ def _register_services(hass: HomeAssistant, data: AutomationPauseData) -> None:
         # with dt_util.utcnow() which is always offset-aware
         disable_at = _ensure_utc_aware(disable_at)
         resume_at_dt = _ensure_utc_aware(resume_at_dt)
+
+        # Validate date-based scheduling constraints
+        if resume_at_dt is not None:
+            if resume_at_dt <= now:
+                raise ServiceValidationError(
+                    "Resume time must be in the future",
+                    translation_domain=DOMAIN,
+                    translation_key="resume_time_past",
+                )
+            if disable_at is not None and disable_at >= resume_at_dt:
+                raise ServiceValidationError(
+                    "Disable time must be before resume time",
+                    translation_domain=DOMAIN,
+                    translation_key="disable_after_resume",
+                )
 
         # Determine if using date-based or duration-based scheduling
         if resume_at_dt is not None:
