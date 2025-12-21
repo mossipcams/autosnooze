@@ -783,6 +783,22 @@ class AutomationPauseCard extends LitElement {
       margin-top: 4px;
     }
 
+    /* Year Rollover Notification */
+    .year-notice {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 0.8em;
+      color: #2196f3;
+      margin-top: 4px;
+      padding: 4px 8px;
+      background: rgba(33, 150, 243, 0.1);
+      border-radius: 4px;
+    }
+    .year-notice ha-icon {
+      --mdc-icon-size: 14px;
+    }
+
     /* Schedule Datetime Inputs */
     .schedule-inputs {
       display: flex;
@@ -1153,11 +1169,23 @@ class AutomationPauseCard extends LitElement {
 
   _formatDateTime(isoString) {
     const date = new Date(isoString);
-    return date.toLocaleString(undefined, {
+    const now = new Date();
+    const isNextYear = date.getFullYear() > now.getFullYear();
+
+    const options = {
       weekday: "short",
+      month: "short",
+      day: "numeric",
       hour: "2-digit",
       minute: "2-digit",
-    });
+    };
+
+    // Include year if the date is in a different year
+    if (isNextYear) {
+      options.year = "numeric";
+    }
+
+    return date.toLocaleString(undefined, options);
   }
 
   _formatCountdown(resumeAt) {
@@ -1282,6 +1310,10 @@ class AutomationPauseCard extends LitElement {
 
     const toast = document.createElement("div");
     toast.className = "toast";
+    // Accessibility: announce toast to screen readers
+    toast.setAttribute("role", "alert");
+    toast.setAttribute("aria-live", "polite");
+    toast.setAttribute("aria-atomic", "true");
 
     if (showUndo && onUndo) {
       const textSpan = document.createElement("span");
@@ -1291,6 +1323,7 @@ class AutomationPauseCard extends LitElement {
       const undoBtn = document.createElement("button");
       undoBtn.className = "toast-undo-btn";
       undoBtn.textContent = "Undo";
+      undoBtn.setAttribute("aria-label", "Undo last action");
       undoBtn.addEventListener("click", (e) => {
         e.stopPropagation();
         onUndo();
@@ -1342,6 +1375,33 @@ class AutomationPauseCard extends LitElement {
     return result;
   }
 
+  _getScheduleYearInfo(month, day, time, referenceDate = null) {
+    // Returns { year, isNextYear } for displaying year rollover notification
+    if (!month || !day || !time) return null;
+    const now = new Date();
+    const currentYear = now.getFullYear();
+    let year = currentYear;
+    const paddedMonth = month.padStart(2, "0");
+    const paddedDay = day.padStart(2, "0");
+
+    const tentativeDate = new Date(`${year}-${paddedMonth}-${paddedDay}T${time}`);
+    if (tentativeDate.getTime() < now.getTime() - 60000) {
+      year += 1;
+    }
+
+    // If reference date is provided, check if we need to bump year further
+    if (referenceDate) {
+      const result = `${year}-${paddedMonth}-${paddedDay}T${time}`;
+      const resultTime = new Date(result).getTime();
+      const refTime = new Date(referenceDate).getTime();
+      if (resultTime <= refTime) {
+        year += 1;
+      }
+    }
+
+    return { year, isNextYear: year > currentYear };
+  }
+
   _hasResumeAt() {
     return this._resumeAtMonth && this._resumeAtDay && this._resumeAtTime;
   }
@@ -1355,7 +1415,7 @@ class AutomationPauseCard extends LitElement {
 
     if (this._scheduleMode) {
       if (!this._hasResumeAt()) {
-        this._showToast("Please set a resume date and time");
+        this._showToast("Please set a complete resume date and time (month, day, and time are all required)");
         return;
       }
 
@@ -1376,7 +1436,7 @@ class AutomationPauseCard extends LitElement {
 
       // Resume time must be in the future
       if (resumeTime <= now) {
-        this._showToast("Resume time must be in the future");
+        this._showToast("Resume time must be in the future. Please select a date and time that hasn't passed yet.");
         return;
       }
 
@@ -1385,7 +1445,7 @@ class AutomationPauseCard extends LitElement {
       if (disableAt) {
         const disableTime = new Date(disableAt).getTime();
         if (disableTime >= resumeTime) {
-          this._showToast("Pause time must be before resume time");
+          this._showToast("Pause time must be before resume time. The automation needs to be paused before it can resume.");
           return;
         }
       }
@@ -1467,7 +1527,7 @@ class AutomationPauseCard extends LitElement {
             this._showToast(`Restored ${count} automation${count !== 1 ? "s" : ""}`);
           } catch (e) {
             console.error("Undo failed:", e);
-            this._showToast("Failed to undo");
+            this._showToast("Failed to undo. The automations may have already been modified.");
           }
         },
       });
@@ -1481,7 +1541,18 @@ class AutomationPauseCard extends LitElement {
       this._resumeAtTime = "";
     } catch (e) {
       console.error("Snooze failed:", e);
-      this._showToast("Failed to pause automations");
+      const errorMsg = e?.message || "";
+      if (errorMsg.includes("not an automation")) {
+        this._showToast("Failed to pause: One or more selected items are not automations");
+      } else if (errorMsg.includes("duration") || errorMsg.includes("Duration")) {
+        this._showToast("Failed to pause: Please specify a valid duration (days, hours, or minutes)");
+      } else if (errorMsg.includes("future")) {
+        this._showToast("Failed to pause: Resume time must be in the future");
+      } else if (errorMsg.includes("before resume")) {
+        this._showToast("Failed to pause: Pause time must be before resume time");
+      } else {
+        this._showToast("Failed to pause automations. Check Home Assistant logs for details.");
+      }
     }
     this._loading = false;
   }
@@ -1499,10 +1570,15 @@ class AutomationPauseCard extends LitElement {
       await this.hass.callService("autosnooze", "cancel", {
         entity_id: entityId,
       });
-      this._showToast("Automation resumed");
+      this._showToast("Automation resumed successfully");
     } catch (e) {
       console.error("Wake failed:", e);
-      this._showToast("Failed to resume automation");
+      const errorMsg = e?.message || "";
+      if (errorMsg.includes("not snoozed")) {
+        this._showToast("This automation is not currently paused");
+      } else {
+        this._showToast("Failed to resume automation. Check Home Assistant logs for details.");
+      }
     }
   }
 
@@ -1514,10 +1590,10 @@ class AutomationPauseCard extends LitElement {
       this._wakeAllPending = false;
       try {
         await this.hass.callService("autosnooze", "cancel_all", {});
-        this._showToast("All automations resumed");
+        this._showToast("All automations resumed successfully");
       } catch (e) {
         console.error("Wake all failed:", e);
-        this._showToast("Failed to resume automations");
+        this._showToast("Failed to resume automations. Check Home Assistant logs for details.");
       }
     } else {
       // First click - start confirmation
@@ -1534,10 +1610,15 @@ class AutomationPauseCard extends LitElement {
       await this.hass.callService("autosnooze", "cancel_scheduled", {
         entity_id: entityId,
       });
-      this._showToast("Scheduled pause cancelled");
+      this._showToast("Scheduled pause cancelled successfully");
     } catch (e) {
       console.error("Cancel scheduled failed:", e);
-      this._showToast("Failed to cancel scheduled pause");
+      const errorMsg = e?.message || "";
+      if (errorMsg.includes("no scheduled")) {
+        this._showToast("This automation has no scheduled pause to cancel");
+      } else {
+        this._showToast("Failed to cancel scheduled pause. Check Home Assistant logs for details.");
+      }
     }
   }
 
@@ -1555,18 +1636,21 @@ class AutomationPauseCard extends LitElement {
 
     if (this._filterTab === "all") {
       if (filtered.length === 0) {
-        return html`<div class="list-empty">No automations found</div>`;
+        return html`<div class="list-empty" role="status">No automations found</div>`;
       }
       return filtered.map((a) => html`
         <div
           class="list-item ${this._selected.includes(a.id) ? "selected" : ""}"
           @click=${() => this._toggleSelection(a.id)}
+          role="option"
+          aria-selected=${this._selected.includes(a.id)}
         >
           <input
             type="checkbox"
             .checked=${this._selected.includes(a.id)}
             @click=${(e) => e.stopPropagation()}
             @change=${() => this._toggleSelection(a.id)}
+            aria-label="Select ${a.name}"
           />
           <div class="list-item-content">
             <div class="list-item-name">${a.name}</div>
@@ -1583,7 +1667,7 @@ class AutomationPauseCard extends LitElement {
           : this._getGroupedByLabel();
 
     if (grouped.length === 0) {
-      return html`<div class="list-empty">No automations found</div>`;
+      return html`<div class="list-empty" role="status">No automations found</div>`;
     }
 
     return grouped.map(([groupName, items]) => {
@@ -1595,16 +1679,20 @@ class AutomationPauseCard extends LitElement {
         <div
           class="group-header ${expanded ? "expanded" : ""}"
           @click=${() => this._toggleGroupExpansion(groupName)}
+          role="button"
+          aria-expanded=${expanded}
+          aria-label="${groupName} group, ${items.length} automations"
         >
-          <ha-icon icon="mdi:chevron-right"></ha-icon>
+          <ha-icon icon="mdi:chevron-right" aria-hidden="true"></ha-icon>
           <span>${groupName}</span>
-          <span class="group-badge">${items.length}</span>
+          <span class="group-badge" aria-label="${items.length} automations">${items.length}</span>
           <input
             type="checkbox"
             .checked=${groupSelected}
             .indeterminate=${someSelected}
             @click=${(e) => e.stopPropagation()}
             @change=${() => this._selectGroup(items)}
+            aria-label="Select all automations in ${groupName}"
           />
         </div>
         ${expanded
@@ -1616,18 +1704,21 @@ class AutomationPauseCard extends LitElement {
                 <div
                   class="list-item ${this._selected.includes(a.id) ? "selected" : ""}"
                   @click=${() => this._toggleSelection(a.id)}
+                  role="option"
+                  aria-selected=${this._selected.includes(a.id)}
                 >
                   <input
                     type="checkbox"
                     .checked=${this._selected.includes(a.id)}
                     @click=${(e) => e.stopPropagation()}
                     @change=${() => this._toggleSelection(a.id)}
+                    aria-label="Select ${a.name}"
                   />
                   <div class="list-item-content">
                     <div class="list-item-name">${a.name}</div>
                     ${metaInfo
                       ? html`<div class="list-item-meta">
-                          <ha-icon icon="mdi:home-outline"></ha-icon>${metaInfo}
+                          <ha-icon icon="mdi:home-outline" aria-hidden="true"></ha-icon>${metaInfo}
                         </div>`
                       : ""}
                   </div>
@@ -1681,34 +1772,46 @@ class AutomationPauseCard extends LitElement {
         <!-- Section A: Snooze Setup -->
         <div class="snooze-setup">
           <!-- Filter Tabs -->
-          <div class="filter-tabs">
+          <div class="filter-tabs" role="tablist" aria-label="Filter automations by">
             <button
               class="tab ${this._filterTab === "all" ? "active" : ""}"
               @click=${() => (this._filterTab = "all")}
+              role="tab"
+              aria-selected=${this._filterTab === "all"}
+              aria-controls="selection-list"
             >
               All
-              <span class="tab-count">${this._getAutomations().length}</span>
+              <span class="tab-count" aria-label="${this._getAutomations().length} automations">${this._getAutomations().length}</span>
             </button>
             <button
               class="tab ${this._filterTab === "areas" ? "active" : ""}"
               @click=${() => (this._filterTab = "areas")}
+              role="tab"
+              aria-selected=${this._filterTab === "areas"}
+              aria-controls="selection-list"
             >
               Areas
-              <span class="tab-count">${this._getAreaCount()}</span>
+              <span class="tab-count" aria-label="${this._getAreaCount()} areas">${this._getAreaCount()}</span>
             </button>
             <button
               class="tab ${this._filterTab === "categories" ? "active" : ""}"
               @click=${() => (this._filterTab = "categories")}
+              role="tab"
+              aria-selected=${this._filterTab === "categories"}
+              aria-controls="selection-list"
             >
               Categories
-              <span class="tab-count">${this._getCategoryCount()}</span>
+              <span class="tab-count" aria-label="${this._getCategoryCount()} categories">${this._getCategoryCount()}</span>
             </button>
             <button
               class="tab ${this._filterTab === "labels" ? "active" : ""}"
               @click=${() => (this._filterTab = "labels")}
+              role="tab"
+              aria-selected=${this._filterTab === "labels"}
+              aria-controls="selection-list"
             >
               Labels
-              <span class="tab-count">${this._getLabelCount()}</span>
+              <span class="tab-count" aria-label="${this._getLabelCount()} labels">${this._getLabelCount()}</span>
             </button>
           </div>
 
@@ -1719,111 +1822,164 @@ class AutomationPauseCard extends LitElement {
               placeholder="Search automations..."
               .value=${this._search}
               @input=${(e) => this._handleSearchInput(e)}
+              aria-label="Search automations by name"
             />
           </div>
 
           <!-- Selection Actions -->
           ${this._getFilteredAutomations().length > 0
             ? html`
-                <div class="selection-actions">
-                  <span>${this._selected.length} of ${this._getFilteredAutomations().length} selected</span>
-                  <button class="select-all-btn" @click=${() => this._selectAllVisible()}>
+                <div class="selection-actions" role="toolbar" aria-label="Selection actions">
+                  <span role="status" aria-live="polite">${this._selected.length} of ${this._getFilteredAutomations().length} selected</span>
+                  <button
+                    class="select-all-btn"
+                    @click=${() => this._selectAllVisible()}
+                    aria-label="${this._getFilteredAutomations().every((a) => this._selected.includes(a.id))
+                      ? "Deselect all visible automations"
+                      : "Select all visible automations"}"
+                  >
                     ${this._getFilteredAutomations().every((a) => this._selected.includes(a.id))
                       ? "Deselect All"
                       : "Select All"}
                   </button>
                   ${this._selected.length > 0
-                    ? html`<button class="select-all-btn" @click=${() => this._clearSelection()}>Clear</button>`
+                    ? html`<button class="select-all-btn" @click=${() => this._clearSelection()} aria-label="Clear selection">Clear</button>`
                     : ""}
                 </div>
               `
             : ""}
 
           <!-- Selection List -->
-          <div class="selection-list">${this._renderSelectionList()}</div>
+          <div class="selection-list" id="selection-list" role="listbox" aria-label="Automations list" aria-multiselectable="true">
+            ${this._renderSelectionList()}
+          </div>
 
           ${this._scheduleMode
             ? html`
                 <!-- Schedule Date/Time Inputs -->
-                <div class="schedule-inputs">
-                  <div class="datetime-field">
-                    <label>Pause at:</label>
-                    <div class="datetime-row">
-                      <select
-                        .value=${this._disableAtMonth}
-                        @change=${(e) => (this._disableAtMonth = e.target.value)}
-                      >
-                        <option value="">Month</option>
-                        ${this._renderMonthOptions()}
-                      </select>
-                      <select
-                        .value=${this._disableAtDay}
-                        @change=${(e) => (this._disableAtDay = e.target.value)}
-                      >
-                        <option value="">Day</option>
-                        ${this._renderDayOptions()}
-                      </select>
-                      <input
-                        type="time"
-                        .value=${this._disableAtTime}
-                        @input=${(e) => (this._disableAtTime = e.target.value)}
-                      />
+                ${(() => {
+                  // Calculate year info for displaying rollover notifications
+                  const disableYearInfo = this._getScheduleYearInfo(
+                    this._disableAtMonth, this._disableAtDay, this._disableAtTime
+                  );
+                  const disableAt = this._hasDisableAt()
+                    ? this._combineDateTime(this._disableAtMonth, this._disableAtDay, this._disableAtTime)
+                    : null;
+                  const resumeYearInfo = this._getScheduleYearInfo(
+                    this._resumeAtMonth, this._resumeAtDay, this._resumeAtTime, disableAt
+                  );
+                  return html`
+                    <div class="schedule-inputs">
+                      <div class="datetime-field">
+                        <label id="pause-at-label">Pause at:</label>
+                        <div class="datetime-row">
+                          <select
+                            .value=${this._disableAtMonth}
+                            @change=${(e) => (this._disableAtMonth = e.target.value)}
+                            aria-labelledby="pause-at-label"
+                            aria-label="Pause month"
+                          >
+                            <option value="">Month</option>
+                            ${this._renderMonthOptions()}
+                          </select>
+                          <select
+                            .value=${this._disableAtDay}
+                            @change=${(e) => (this._disableAtDay = e.target.value)}
+                            aria-labelledby="pause-at-label"
+                            aria-label="Pause day"
+                          >
+                            <option value="">Day</option>
+                            ${this._renderDayOptions()}
+                          </select>
+                          <input
+                            type="time"
+                            .value=${this._disableAtTime}
+                            @input=${(e) => (this._disableAtTime = e.target.value)}
+                            aria-labelledby="pause-at-label"
+                            aria-label="Pause time"
+                          />
+                        </div>
+                        <span class="field-hint">Leave empty to pause immediately</span>
+                        ${disableYearInfo?.isNextYear
+                          ? html`<span class="year-notice" role="status" aria-live="polite">
+                              <ha-icon icon="mdi:calendar-arrow-right"></ha-icon>
+                              Will be scheduled for ${disableYearInfo.year}
+                            </span>`
+                          : ""}
+                      </div>
+                      <div class="datetime-field">
+                        <label id="resume-at-label">Resume at:</label>
+                        <div class="datetime-row">
+                          <select
+                            .value=${this._resumeAtMonth}
+                            @change=${(e) => (this._resumeAtMonth = e.target.value)}
+                            aria-labelledby="resume-at-label"
+                            aria-label="Resume month"
+                          >
+                            <option value="">Month</option>
+                            ${this._renderMonthOptions()}
+                          </select>
+                          <select
+                            .value=${this._resumeAtDay}
+                            @change=${(e) => (this._resumeAtDay = e.target.value)}
+                            aria-labelledby="resume-at-label"
+                            aria-label="Resume day"
+                          >
+                            <option value="">Day</option>
+                            ${this._renderDayOptions()}
+                          </select>
+                          <input
+                            type="time"
+                            .value=${this._resumeAtTime}
+                            @input=${(e) => (this._resumeAtTime = e.target.value)}
+                            aria-labelledby="resume-at-label"
+                            aria-label="Resume time"
+                          />
+                        </div>
+                        ${resumeYearInfo?.isNextYear
+                          ? html`<span class="year-notice" role="status" aria-live="polite">
+                              <ha-icon icon="mdi:calendar-arrow-right"></ha-icon>
+                              Will resume in ${resumeYearInfo.year}
+                            </span>`
+                          : ""}
+                      </div>
+                      <div class="schedule-link" @click=${() => (this._scheduleMode = false)} role="button" tabindex="0" @keypress=${(e) => e.key === "Enter" && (this._scheduleMode = false)}>
+                        <ha-icon icon="mdi:timer-outline" aria-hidden="true"></ha-icon>
+                        Back to duration selection
+                      </div>
                     </div>
-                    <span class="field-hint">Leave empty to pause immediately</span>
-                  </div>
-                  <div class="datetime-field">
-                    <label>Resume at:</label>
-                    <div class="datetime-row">
-                      <select
-                        .value=${this._resumeAtMonth}
-                        @change=${(e) => (this._resumeAtMonth = e.target.value)}
-                      >
-                        <option value="">Month</option>
-                        ${this._renderMonthOptions()}
-                      </select>
-                      <select
-                        .value=${this._resumeAtDay}
-                        @change=${(e) => (this._resumeAtDay = e.target.value)}
-                      >
-                        <option value="">Day</option>
-                        ${this._renderDayOptions()}
-                      </select>
-                      <input
-                        type="time"
-                        .value=${this._resumeAtTime}
-                        @input=${(e) => (this._resumeAtTime = e.target.value)}
-                      />
-                    </div>
-                  </div>
-                  <div class="schedule-link" @click=${() => (this._scheduleMode = false)}>
-                    <ha-icon icon="mdi:timer-outline"></ha-icon>
-                    Back to duration selection
-                  </div>
-                </div>
+                  `;
+                })()}
               `
             : html`
                 <!-- Duration Selector -->
                 <div class="duration-selector">
-                  <div class="duration-section-header">Pause Duration</div>
-                  <div class="duration-pills">
+                  <div class="duration-section-header" id="duration-header">Pause Duration</div>
+                  <div class="duration-pills" role="radiogroup" aria-labelledby="duration-header">
                     ${durations.map(
-                      (d) => html`
-                        <button
-                          class="pill ${d.minutes === null
-                            ? this._showCustomInput ? "active" : ""
-                            : !this._showCustomInput && selectedDuration === d ? "active" : ""}"
-                          @click=${() => {
-                            if (d.minutes === null) {
-                              this._showCustomInput = !this._showCustomInput;
-                            } else {
-                              this._showCustomInput = false;
-                              this._setDuration(d.minutes);
-                            }
-                          }}
-                        >
-                          ${d.label}
-                        </button>
-                      `
+                      (d) => {
+                        const isActive = d.minutes === null
+                          ? this._showCustomInput
+                          : !this._showCustomInput && selectedDuration === d;
+                        return html`
+                          <button
+                            class="pill ${isActive ? "active" : ""}"
+                            @click=${() => {
+                              if (d.minutes === null) {
+                                this._showCustomInput = !this._showCustomInput;
+                              } else {
+                                this._showCustomInput = false;
+                                this._setDuration(d.minutes);
+                              }
+                            }}
+                            role="radio"
+                            aria-checked=${isActive}
+                            aria-label="${d.minutes === null ? "Custom duration" : `Pause for ${d.label}`}"
+                          >
+                            ${d.label}
+                          </button>
+                        `;
+                      }
                     )}
                   </div>
 
@@ -1835,15 +1991,18 @@ class AutomationPauseCard extends LitElement {
                         placeholder="e.g. 2h30m, 1d, 45m"
                         .value=${this._customDurationInput}
                         @input=${(e) => this._handleDurationInput(e.target.value)}
+                        aria-label="Custom duration"
+                        aria-invalid=${!durationValid}
+                        aria-describedby="duration-help"
                       />
                       ${durationPreview && durationValid
-                        ? html`<div class="duration-preview">Duration: ${durationPreview}</div>`
-                        : html`<div class="duration-help">Enter duration: 30m, 2h, 4h30m, 1d, 1d2h</div>`}
+                        ? html`<div class="duration-preview" role="status" aria-live="polite">Duration: ${durationPreview}</div>`
+                        : html`<div class="duration-help" id="duration-help">Enter duration: 30m, 2h, 4h30m, 1d, 1d2h</div>`}
                     </div>
                   ` : ""}
 
-                  <div class="schedule-link" @click=${() => (this._scheduleMode = true)}>
-                    <ha-icon icon="mdi:calendar-clock"></ha-icon>
+                  <div class="schedule-link" @click=${() => (this._scheduleMode = true)} role="button" tabindex="0" @keypress=${(e) => e.key === "Enter" && (this._scheduleMode = true)}>
+                    <ha-icon icon="mdi:calendar-clock" aria-hidden="true"></ha-icon>
                     Pick specific date/time instead
                   </div>
                 </div>
@@ -1857,6 +2016,12 @@ class AutomationPauseCard extends LitElement {
             (this._scheduleMode && !this._hasResumeAt()) ||
             this._loading}
             @click=${this._snooze}
+            aria-label="${this._loading
+              ? "Pausing automations"
+              : this._scheduleMode
+                ? `Schedule pause for ${this._selected.length} automation${this._selected.length !== 1 ? "s" : ""}`
+                : `Pause ${this._selected.length} automation${this._selected.length !== 1 ? "s" : ""}`}"
+            aria-busy=${this._loading}
           >
             ${this._loading
               ? "Pausing..."
@@ -1869,29 +2034,29 @@ class AutomationPauseCard extends LitElement {
         <!-- Section B: Active Pauses -->
         ${pausedCount > 0
           ? html`
-              <div class="snooze-list">
+              <div class="snooze-list" role="region" aria-label="Paused automations">
                 <div class="list-header">
-                  <ha-icon icon="mdi:bell-sleep"></ha-icon>
+                  <ha-icon icon="mdi:bell-sleep" aria-hidden="true"></ha-icon>
                   Paused Automations (${pausedCount})
                 </div>
 
                 ${this._getPausedGroupedByResumeTime().map(
                   (group) => html`
-                    <div class="pause-group">
+                    <div class="pause-group" role="group" aria-label="Automations resuming ${this._formatDateTime(group.resumeAt)}">
                       <div class="pause-group-header">
-                        <ha-icon icon="mdi:timer-outline"></ha-icon>
+                        <ha-icon icon="mdi:timer-outline" aria-hidden="true"></ha-icon>
                         ${group.disableAt
                           ? html`Resumes ${this._formatDateTime(group.resumeAt)}`
-                          : html`<span class="countdown" data-resume-at="${group.resumeAt}">${this._formatCountdown(group.resumeAt)}</span>`}
+                          : html`<span class="countdown" data-resume-at="${group.resumeAt}" aria-label="Time remaining: ${this._formatCountdown(group.resumeAt)}">${this._formatCountdown(group.resumeAt)}</span>`}
                       </div>
                       ${group.automations.map(
                         (auto) => html`
                           <div class="paused-item">
-                            <ha-icon class="paused-icon" icon="mdi:sleep"></ha-icon>
+                            <ha-icon class="paused-icon" icon="mdi:sleep" aria-hidden="true"></ha-icon>
                             <div class="paused-info">
                               <div class="paused-name">${auto.friendly_name || auto.id}</div>
                             </div>
-                            <button class="wake-btn" @click=${() => this._wake(auto.id)}>
+                            <button class="wake-btn" @click=${() => this._wake(auto.id)} aria-label="Resume ${auto.friendly_name || auto.id}">
                               Resume
                             </button>
                           </div>
@@ -1906,6 +2071,7 @@ class AutomationPauseCard extends LitElement {
                       <button
                         class="wake-all ${this._wakeAllPending ? "pending" : ""}"
                         @click=${this._handleWakeAll}
+                        aria-label="${this._wakeAllPending ? "Confirm resume all automations" : "Resume all paused automations"}"
                       >
                         ${this._wakeAllPending ? "Confirm Resume All" : "Resume All"}
                       </button>
@@ -1918,16 +2084,16 @@ class AutomationPauseCard extends LitElement {
         <!-- Section C: Scheduled Pauses -->
         ${scheduledCount > 0
           ? html`
-              <div class="scheduled-list">
+              <div class="scheduled-list" role="region" aria-label="Scheduled pauses">
                 <div class="list-header">
-                  <ha-icon icon="mdi:calendar-clock"></ha-icon>
+                  <ha-icon icon="mdi:calendar-clock" aria-hidden="true"></ha-icon>
                   Scheduled Pauses (${scheduledCount})
                 </div>
 
                 ${Object.entries(scheduled).map(
                   ([id, data]) => html`
-                    <div class="scheduled-item">
-                      <ha-icon class="scheduled-icon" icon="mdi:clock-outline"></ha-icon>
+                    <div class="scheduled-item" role="article" aria-label="Scheduled pause for ${data.friendly_name || id}">
+                      <ha-icon class="scheduled-icon" icon="mdi:clock-outline" aria-hidden="true"></ha-icon>
                       <div class="paused-info">
                         <div class="paused-name">
                           ${data.friendly_name || id}
@@ -1939,7 +2105,7 @@ class AutomationPauseCard extends LitElement {
                           Resumes: ${this._formatDateTime(data.resume_at)}
                         </div>
                       </div>
-                      <button class="cancel-scheduled-btn" @click=${() => this._cancelScheduled(id)}>
+                      <button class="cancel-scheduled-btn" @click=${() => this._cancelScheduled(id)} aria-label="Cancel scheduled pause for ${data.friendly_name || id}">
                         Cancel
                       </button>
                     </div>
