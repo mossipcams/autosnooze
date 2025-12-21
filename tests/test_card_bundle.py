@@ -399,6 +399,7 @@ class TestCDNCacheBusting:
     """
 
     CONST_PATH = PROJECT_ROOT / "custom_components" / "autosnooze" / "const.py"
+    INIT_PATH = PROJECT_ROOT / "custom_components" / "autosnooze" / "__init__.py"
     MANIFEST_PATH = PROJECT_ROOT / "custom_components" / "autosnooze" / "manifest.json"
 
     def test_card_url_uses_query_param_versioning(self) -> None:
