@@ -120,21 +120,21 @@ class AutomationPauseData:
 
 
 def get_source_code() -> str:
-    """Read the source code of __init__.py."""
-    init_path = Path(__file__).parent.parent / "custom_components" / "autosnooze" / "__init__.py"
-    return init_path.read_text()
+    """Read the source code of coordinator.py (where persistence logic lives)."""
+    coordinator_path = Path(__file__).parent.parent / "custom_components" / "autosnooze" / "coordinator.py"
+    return coordinator_path.read_text()
 
 
 def get_async_save_function(source: str) -> str:
-    """Extract the _async_save function from source."""
-    match = re.search(r"async def _async_save\([^)]+\)[^:]*:.*?(?=\n(?:async )?def |\nclass |\Z)", source, re.DOTALL)
+    """Extract the async_save function from source."""
+    match = re.search(r"async def async_save\([^)]+\)[^:]*:.*?(?=\n(?:async )?def |\nclass |\Z)", source, re.DOTALL)
     return match.group(0) if match else ""
 
 
 def get_async_load_stored_function(source: str) -> str:
-    """Extract the _async_load_stored function from source."""
+    """Extract the async_load_stored function from source."""
     match = re.search(
-        r"async def _async_load_stored\([^)]+\)[^:]*:.*?(?=\n(?:async )?def |\nclass |\Z)", source, re.DOTALL
+        r"async def async_load_stored\([^)]+\)[^:]*:.*?(?=\n(?:async )?def |\nclass |\Z)", source, re.DOTALL
     )
     return match.group(0) if match else ""
 
@@ -600,39 +600,39 @@ class TestValidateOnLoadSourceCode:
     """Tests that verify the source code has validation logic implemented."""
 
     def test_has_validation_function(self) -> None:
-        """Test that a _validate_stored_data function exists."""
+        """Test that a validate_stored_data function exists."""
         source = get_source_code()
 
-        has_validate_func = "_validate_stored_data" in source or "validate" in source.lower()
-        assert has_validate_func, "FEATURE NOT IMPLEMENTED: Should have a _validate_stored_data function"
+        has_validate_func = "validate_stored_data" in source or "validate" in source.lower()
+        assert has_validate_func, "FEATURE NOT IMPLEMENTED: Should have a validate_stored_data function"
 
     def test_load_stored_validates_schema(self) -> None:
-        """Test that _async_load_stored validates the data schema."""
+        """Test that async_load_stored validates the data schema."""
         source = get_source_code()
         func = get_async_load_stored_function(source)
 
         # Should either check isinstance directly or call a validation function
-        checks_type = "isinstance" in func or "_validate_stored_data" in func or "validate" in func.lower()
+        checks_type = "isinstance" in func or "validate_stored_data" in func or "validate" in func.lower()
         # Also verify validation function exists with isinstance checks
-        if "_validate_stored_data" in func:
+        if "validate_stored_data" in func:
             checks_type = checks_type and "isinstance" in source
 
-        assert checks_type, "FEATURE NOT IMPLEMENTED: _async_load_stored should validate data types with isinstance"
+        assert checks_type, "FEATURE NOT IMPLEMENTED: async_load_stored should validate data types with isinstance"
 
     def test_load_stored_validates_entity_id(self) -> None:
-        """Test that _async_load_stored validates entity IDs."""
+        """Test that async_load_stored validates entity IDs."""
         source = get_source_code()
         func = get_async_load_stored_function(source)
 
         # Should check entity_id format directly or via validation function
         checks_entity = (
-            'startswith("automation.' in func or "_validate_stored_data" in func or "validate" in func.lower()
+            'startswith("automation.' in func or "validate_stored_data" in func or "validate" in func.lower()
         )
         # Also verify validation function exists with entity_id check
-        if "_validate_stored_data" in func:
+        if "validate_stored_data" in func:
             checks_entity = checks_entity and 'startswith("automation.' in source
 
-        assert checks_entity, "FEATURE NOT IMPLEMENTED: _async_load_stored should validate entity IDs are automations"
+        assert checks_entity, "FEATURE NOT IMPLEMENTED: async_load_stored should validate entity IDs are automations"
 
     def test_load_stored_logs_validation_errors(self) -> None:
         """Test that validation errors are logged."""
@@ -1034,7 +1034,7 @@ class TestDeletedAutomationCleanupBehavior:
         mock_state.attributes = {"friendly_name": "Existing Automation"}
         mock_hass.states.get.return_value = mock_state
 
-        with patch("custom_components.autosnooze._schedule_resume"):
+        with patch("custom_components.autosnooze.coordinator.schedule_resume"):
             await _async_load_stored(mock_hass, data)
 
         # Existing automation SHOULD be in paused dict
@@ -1100,7 +1100,7 @@ class TestDeletedAutomationCleanupBehavior:
         mock_state.attributes = {"friendly_name": "Existing Scheduled"}
         mock_hass.states.get.return_value = mock_state
 
-        with patch("custom_components.autosnooze._schedule_disable"):
+        with patch("custom_components.autosnooze.coordinator.schedule_disable"):
             await _async_load_stored(mock_hass, data)
 
         # Existing automation SHOULD be in scheduled dict
@@ -1154,8 +1154,8 @@ class TestDeletedAutomationCleanupBehavior:
         mock_hass.states.get.side_effect = get_state
 
         with (
-            patch("custom_components.autosnooze._schedule_resume"),
-            patch("custom_components.autosnooze._schedule_disable"),
+            patch("custom_components.autosnooze.coordinator.schedule_resume"),
+            patch("custom_components.autosnooze.coordinator.schedule_disable"),
         ):
             await _async_load_stored(mock_hass, data)
 
@@ -1206,7 +1206,7 @@ class TestImplementationRequirements:
         source = get_source_code()
 
         requirements = {
-            "_validate_stored_data function exists": "_validate_stored_data" in source,
+            "validate_stored_data function exists": "validate_stored_data" in source,
             "Schema validation (isinstance checks)": "isinstance(paused" in source or "isinstance(stored" in source,
             "Entity ID validation": 'startswith("automation.' in source,
             "Logs validation warnings": True,  # Already logs some warnings
