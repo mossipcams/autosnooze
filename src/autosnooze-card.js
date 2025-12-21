@@ -4,6 +4,39 @@ import { LitElement, html, css } from "lit";
 const CARD_VERSION = "0.2.1";
 
 // ============================================================================
+// CONSTANTS
+// ============================================================================
+const TIME_MS = {
+  SECOND: 1000,
+  MINUTE: 60000,
+  HOUR: 3600000,
+  DAY: 86400000,
+};
+
+const MINUTES_PER = {
+  HOUR: 60,
+  DAY: 1440,
+};
+
+const UI_TIMING = {
+  SEARCH_DEBOUNCE_MS: 300,
+  TOAST_FADE_MS: 300,
+  WAKE_ALL_CONFIRM_MS: 3000,
+  TOAST_DURATION_MS: 5000,
+  COUNTDOWN_INTERVAL_MS: 1000,
+};
+
+const DEFAULT_DURATIONS = [
+  { label: "30m", minutes: 30 },
+  { label: "1h", minutes: 60 },
+  { label: "4h", minutes: 240 },
+  { label: "1 day", minutes: 1440 },
+  { label: "Custom", minutes: null },
+];
+
+const DEFAULT_SNOOZE_MINUTES = 30;
+
+// ============================================================================
 // CARD EDITOR
 // ============================================================================
 class AutomationPauseCardEditor extends LitElement {
@@ -115,8 +148,8 @@ class AutomationPauseCard extends LitElement {
     this.hass = {};
     this.config = {};
     this._selected = [];
-    this._duration = 1800000; // 30 minutes default
-    this._customDuration = { days: 0, hours: 0, minutes: 30 };
+    this._duration = DEFAULT_SNOOZE_MINUTES * TIME_MS.MINUTE;
+    this._customDuration = { days: 0, hours: 0, minutes: DEFAULT_SNOOZE_MINUTES };
     this._customDurationInput = "30m";
     this._loading = false;
     this._search = "";
@@ -178,7 +211,7 @@ class AutomationPauseCard extends LitElement {
       // Start interval aligned to second boundaries
       this._interval = window.setInterval(() => {
         this._updateCountdownIfNeeded();
-      }, 1000);
+      }, UI_TIMING.COUNTDOWN_INTERVAL_MS);
     }, msUntilNextSecond);
   }
 
@@ -305,7 +338,7 @@ class AutomationPauseCard extends LitElement {
     clearTimeout(this._searchTimeout);
     this._searchTimeout = setTimeout(() => {
       this._search = value;
-    }, 300);
+    }, UI_TIMING.SEARCH_DEBOUNCE_MS);
   }
 
   static getConfigElement() {
@@ -983,120 +1016,92 @@ class AutomationPauseCard extends LitElement {
     return filtered;
   }
 
-  _getAreaName(areaId) {
-    if (!areaId) return "Unassigned";
-
-    const area = this.hass.areas?.[areaId];
-    if (area?.name) return area.name;
-
-    return areaId
+  _formatRegistryId(id) {
+    // Convert snake_case IDs to Title Case (e.g., "living_room" -> "Living Room")
+    return id
       .replace(/_/g, " ")
       .replace(/\b\w/g, (c) => c.toUpperCase());
+  }
+
+  _getAreaName(areaId) {
+    if (!areaId) return "Unassigned";
+    return this.hass.areas?.[areaId]?.name || this._formatRegistryId(areaId);
   }
 
   _getLabelName(labelId) {
-    const label = this._labelRegistry[labelId];
-    if (label?.name) return label.name;
-
-    return labelId
-      .replace(/_/g, " ")
-      .replace(/\b\w/g, (c) => c.toUpperCase());
+    return this._labelRegistry[labelId]?.name || this._formatRegistryId(labelId);
   }
 
-  _getGroupedByArea() {
+  _groupAutomationsBy(getKeysFn, defaultGroupName) {
     const automations = this._getFilteredAutomations();
     const groups = {};
 
     automations.forEach((auto) => {
-      const areaName = this._getAreaName(auto.area_id);
-      if (!groups[areaName]) groups[areaName] = [];
-      groups[areaName].push(auto);
-    });
-
-    return Object.entries(groups).sort((a, b) =>
-      a[0] === "Unassigned" ? 1 : b[0] === "Unassigned" ? -1 : a[0].localeCompare(b[0])
-    );
-  }
-
-  _getGroupedByLabel() {
-    const automations = this._getFilteredAutomations();
-    const groups = {};
-
-    automations.forEach((auto) => {
-      if (!auto.labels || auto.labels.length === 0) {
-        if (!groups["Unlabeled"]) groups["Unlabeled"] = [];
-        groups["Unlabeled"].push(auto);
+      const keys = getKeysFn(auto);
+      if (!keys || keys.length === 0) {
+        if (!groups[defaultGroupName]) groups[defaultGroupName] = [];
+        groups[defaultGroupName].push(auto);
       } else {
-        auto.labels.forEach((labelId) => {
-          const labelName = this._getLabelName(labelId);
-          if (!groups[labelName]) groups[labelName] = [];
-          groups[labelName].push(auto);
+        keys.forEach((key) => {
+          if (!groups[key]) groups[key] = [];
+          groups[key].push(auto);
         });
       }
     });
 
     return Object.entries(groups).sort((a, b) =>
-      a[0] === "Unlabeled" ? 1 : b[0] === "Unlabeled" ? -1 : a[0].localeCompare(b[0])
+      a[0] === defaultGroupName ? 1 : b[0] === defaultGroupName ? -1 : a[0].localeCompare(b[0])
     );
   }
 
-  _getAreaCount() {
+  _getGroupedByArea() {
+    return this._groupAutomationsBy(
+      (auto) => auto.area_id ? [this._getAreaName(auto.area_id)] : null,
+      "Unassigned"
+    );
+  }
+
+  _getGroupedByLabel() {
+    return this._groupAutomationsBy(
+      (auto) => auto.labels?.length > 0 ? auto.labels.map((id) => this._getLabelName(id)) : null,
+      "Unlabeled"
+    );
+  }
+
+  _getUniqueCount(getValuesFn) {
     const automations = this._getAutomations();
-    const areas = new Set();
+    const uniqueValues = new Set();
     automations.forEach((auto) => {
-      if (auto.area_id) {
-        areas.add(auto.area_id);
+      const values = getValuesFn(auto);
+      if (values) {
+        values.forEach((v) => uniqueValues.add(v));
       }
     });
-    return areas.size;
+    return uniqueValues.size;
+  }
+
+  _getAreaCount() {
+    return this._getUniqueCount((auto) => auto.area_id ? [auto.area_id] : null);
   }
 
   _getLabelCount() {
-    const automations = this._getAutomations();
-    const labels = new Set();
-    automations.forEach((auto) => {
-      if (auto.labels && auto.labels.length > 0) {
-        auto.labels.forEach((l) => labels.add(l));
-      }
-    });
-    return labels.size;
+    return this._getUniqueCount((auto) => auto.labels?.length > 0 ? auto.labels : null);
   }
 
   _getCategoryName(categoryId) {
     if (!categoryId) return "Uncategorized";
-
-    const category = this._categoryRegistry[categoryId];
-    if (category?.name) return category.name;
-
-    return categoryId
-      .replace(/_/g, " ")
-      .replace(/\b\w/g, (c) => c.toUpperCase());
+    return this._categoryRegistry[categoryId]?.name || this._formatRegistryId(categoryId);
   }
 
   _getGroupedByCategory() {
-    const automations = this._getFilteredAutomations();
-    const groups = {};
-
-    automations.forEach((auto) => {
-      const categoryName = this._getCategoryName(auto.category_id);
-      if (!groups[categoryName]) groups[categoryName] = [];
-      groups[categoryName].push(auto);
-    });
-
-    return Object.entries(groups).sort((a, b) =>
-      a[0] === "Uncategorized" ? 1 : b[0] === "Uncategorized" ? -1 : a[0].localeCompare(b[0])
+    return this._groupAutomationsBy(
+      (auto) => auto.category_id ? [this._getCategoryName(auto.category_id)] : null,
+      "Uncategorized"
     );
   }
 
   _getCategoryCount() {
-    const automations = this._getAutomations();
-    const categories = new Set();
-    automations.forEach((auto) => {
-      if (auto.category_id) {
-        categories.add(auto.category_id);
-      }
-    });
-    return categories.size;
+    return this._getUniqueCount((auto) => auto.category_id ? [auto.category_id] : null);
   }
 
   _selectAllVisible() {
@@ -1172,10 +1177,10 @@ class AutomationPauseCard extends LitElement {
     const diff = new Date(resumeAt).getTime() - Date.now();
     if (diff <= 0) return "Resuming...";
 
-    const d = Math.floor(diff / 86400000);
-    const h = Math.floor((diff % 86400000) / 3600000);
-    const m = Math.floor((diff % 3600000) / 60000);
-    const s = Math.floor((diff % 60000) / 1000);
+    const d = Math.floor(diff / TIME_MS.DAY);
+    const h = Math.floor((diff % TIME_MS.DAY) / TIME_MS.HOUR);
+    const m = Math.floor((diff % TIME_MS.HOUR) / TIME_MS.MINUTE);
+    const s = Math.floor((diff % TIME_MS.MINUTE) / TIME_MS.SECOND);
 
     if (d > 0) return `${d}d ${h}h ${m}m`;
     if (h > 0) return `${h}h ${m}m ${s}s`;
@@ -1209,11 +1214,11 @@ class AutomationPauseCard extends LitElement {
   }
 
   _setDuration(minutes) {
-    this._duration = minutes * 60000;
+    this._duration = minutes * TIME_MS.MINUTE;
 
-    const days = Math.floor(minutes / 1440);
-    const hours = Math.floor((minutes % 1440) / 60);
-    const mins = minutes % 60;
+    const days = Math.floor(minutes / MINUTES_PER.DAY);
+    const hours = Math.floor((minutes % MINUTES_PER.DAY) / MINUTES_PER.HOUR);
+    const mins = minutes % MINUTES_PER.HOUR;
 
     this._customDuration = { days, hours, minutes: mins };
 
@@ -1226,8 +1231,8 @@ class AutomationPauseCard extends LitElement {
 
   _updateCustomDuration() {
     const { days, hours, minutes } = this._customDuration;
-    const totalMinutes = days * 1440 + hours * 60 + minutes;
-    this._duration = totalMinutes * 60000;
+    const totalMinutes = days * MINUTES_PER.DAY + hours * MINUTES_PER.HOUR + minutes;
+    this._duration = totalMinutes * TIME_MS.MINUTE;
   }
 
   _parseDurationInput(input) {
@@ -1317,9 +1322,9 @@ class AutomationPauseCard extends LitElement {
     this.shadowRoot?.appendChild(toast);
 
     setTimeout(() => {
-      toast.style.animation = "slideUp 0.3s ease-out reverse";
-      setTimeout(() => toast.remove(), 300);
-    }, 5000);
+      toast.style.animation = `slideUp ${UI_TIMING.TOAST_FADE_MS}ms ease-out reverse`;
+      setTimeout(() => toast.remove(), UI_TIMING.TOAST_FADE_MS);
+    }, UI_TIMING.TOAST_DURATION_MS);
   }
 
   _combineDateTime(date, time) {
@@ -1544,7 +1549,7 @@ class AutomationPauseCard extends LitElement {
       this._wakeAllTimeout = setTimeout(() => {
         this._wakeAllPending = false;
         this._wakeAllTimeout = null;
-      }, 3000);
+      }, UI_TIMING.WAKE_ALL_CONFIRM_MS);
     }
   };
 
@@ -1664,6 +1669,204 @@ class AutomationPauseCard extends LitElement {
     });
   }
 
+  _renderDurationSelector(selectedDuration, durationPreview, durationValid) {
+    return this._scheduleMode
+      ? html`
+          <!-- Schedule Date/Time Inputs -->
+          <div class="schedule-inputs">
+            <div class="datetime-field">
+              <label id="pause-at-label">Pause at:</label>
+              <div class="datetime-row">
+                <select
+                  .value=${this._disableAtDate}
+                  @change=${(e) => (this._disableAtDate = e.target.value)}
+                  aria-labelledby="pause-at-label"
+                  aria-label="Pause date"
+                >
+                  <option value="">Select date</option>
+                  ${this._renderDateOptions()}
+                </select>
+                <input
+                  type="time"
+                  .value=${this._disableAtTime}
+                  @input=${(e) => (this._disableAtTime = e.target.value)}
+                  aria-labelledby="pause-at-label"
+                  aria-label="Pause time"
+                />
+              </div>
+              <span class="field-hint">Leave empty to pause immediately</span>
+            </div>
+            <div class="datetime-field">
+              <label id="resume-at-label">Resume at:</label>
+              <div class="datetime-row">
+                <select
+                  .value=${this._resumeAtDate}
+                  @change=${(e) => (this._resumeAtDate = e.target.value)}
+                  aria-labelledby="resume-at-label"
+                  aria-label="Resume date"
+                >
+                  <option value="">Select date</option>
+                  ${this._renderDateOptions()}
+                </select>
+                <input
+                  type="time"
+                  .value=${this._resumeAtTime}
+                  @input=${(e) => (this._resumeAtTime = e.target.value)}
+                  aria-labelledby="resume-at-label"
+                  aria-label="Resume time"
+                />
+              </div>
+            </div>
+            <div class="schedule-link" @click=${() => (this._scheduleMode = false)} role="button" tabindex="0" @keypress=${(e) => e.key === "Enter" && (this._scheduleMode = false)}>
+              <ha-icon icon="mdi:timer-outline" aria-hidden="true"></ha-icon>
+              Back to duration selection
+            </div>
+          </div>
+        `
+      : html`
+          <!-- Duration Selector -->
+          <div class="duration-selector">
+            <div class="duration-section-header" id="duration-header">Pause Duration</div>
+            <div class="duration-pills" role="radiogroup" aria-labelledby="duration-header">
+              ${DEFAULT_DURATIONS.map(
+                (d) => {
+                  const isActive = d.minutes === null
+                    ? this._showCustomInput
+                    : !this._showCustomInput && selectedDuration === d;
+                  return html`
+                    <button
+                      class="pill ${isActive ? "active" : ""}"
+                      @click=${() => {
+                        if (d.minutes === null) {
+                          this._showCustomInput = !this._showCustomInput;
+                        } else {
+                          this._showCustomInput = false;
+                          this._setDuration(d.minutes);
+                        }
+                      }}
+                      role="radio"
+                      aria-checked=${isActive}
+                      aria-label="${d.minutes === null ? "Custom duration" : `Pause for ${d.label}`}"
+                    >
+                      ${d.label}
+                    </button>
+                  `;
+                }
+              )}
+            </div>
+
+            ${this._showCustomInput ? html`
+              <div class="custom-duration-input">
+                <input
+                  type="text"
+                  class="duration-input ${!durationValid ? "invalid" : ""}"
+                  placeholder="e.g. 2h30m, 1d, 45m"
+                  .value=${this._customDurationInput}
+                  @input=${(e) => this._handleDurationInput(e.target.value)}
+                  aria-label="Custom duration"
+                  aria-invalid=${!durationValid}
+                  aria-describedby="duration-help"
+                />
+                ${durationPreview && durationValid
+                  ? html`<div class="duration-preview" role="status" aria-live="polite">Duration: ${durationPreview}</div>`
+                  : html`<div class="duration-help" id="duration-help">Enter duration: 30m, 2h, 4h30m, 1d, 1d2h</div>`}
+              </div>
+            ` : ""}
+
+            <div class="schedule-link" @click=${() => (this._scheduleMode = true)} role="button" tabindex="0" @keypress=${(e) => e.key === "Enter" && (this._scheduleMode = true)}>
+              <ha-icon icon="mdi:calendar-clock" aria-hidden="true"></ha-icon>
+              Pick specific date/time instead
+            </div>
+          </div>
+        `;
+  }
+
+  _renderActivePauses(pausedCount) {
+    if (pausedCount === 0) return "";
+
+    return html`
+      <div class="snooze-list" role="region" aria-label="Paused automations">
+        <div class="list-header">
+          <ha-icon icon="mdi:bell-sleep" aria-hidden="true"></ha-icon>
+          Paused Automations (${pausedCount})
+        </div>
+
+        ${this._getPausedGroupedByResumeTime().map(
+          (group) => html`
+            <div class="pause-group" role="group" aria-label="Automations resuming ${this._formatDateTime(group.resumeAt)}">
+              <div class="pause-group-header">
+                <ha-icon icon="mdi:timer-outline" aria-hidden="true"></ha-icon>
+                ${group.disableAt
+                  ? html`Resumes ${this._formatDateTime(group.resumeAt)}`
+                  : html`<span class="countdown" data-resume-at="${group.resumeAt}" aria-label="Time remaining: ${this._formatCountdown(group.resumeAt)}">${this._formatCountdown(group.resumeAt)}</span>`}
+              </div>
+              ${group.automations.map(
+                (auto) => html`
+                  <div class="paused-item">
+                    <ha-icon class="paused-icon" icon="mdi:sleep" aria-hidden="true"></ha-icon>
+                    <div class="paused-info">
+                      <div class="paused-name">${auto.friendly_name || auto.id}</div>
+                    </div>
+                    <button class="wake-btn" @click=${() => this._wake(auto.id)} aria-label="Resume ${auto.friendly_name || auto.id}">
+                      Resume
+                    </button>
+                  </div>
+                `
+              )}
+            </div>
+          `
+        )}
+
+        ${pausedCount > 1
+          ? html`
+              <button
+                class="wake-all ${this._wakeAllPending ? "pending" : ""}"
+                @click=${this._handleWakeAll}
+                aria-label="${this._wakeAllPending ? "Confirm resume all automations" : "Resume all paused automations"}"
+              >
+                ${this._wakeAllPending ? "Confirm Resume All" : "Resume All"}
+              </button>
+            `
+          : ""}
+      </div>
+    `;
+  }
+
+  _renderScheduledPauses(scheduledCount, scheduled) {
+    if (scheduledCount === 0) return "";
+
+    return html`
+      <div class="scheduled-list" role="region" aria-label="Scheduled pauses">
+        <div class="list-header">
+          <ha-icon icon="mdi:calendar-clock" aria-hidden="true"></ha-icon>
+          Scheduled Pauses (${scheduledCount})
+        </div>
+
+        ${Object.entries(scheduled).map(
+          ([id, data]) => html`
+            <div class="scheduled-item" role="article" aria-label="Scheduled pause for ${data.friendly_name || id}">
+              <ha-icon class="scheduled-icon" icon="mdi:clock-outline" aria-hidden="true"></ha-icon>
+              <div class="paused-info">
+                <div class="paused-name">
+                  ${data.friendly_name || id}
+                </div>
+                <div class="scheduled-time">
+                  Disables: ${this._formatDateTime(data.disable_at || "now")}
+                </div>
+                <div class="paused-time">
+                  Resumes: ${this._formatDateTime(data.resume_at)}
+                </div>
+              </div>
+              <button class="cancel-scheduled-btn" @click=${() => this._cancelScheduled(id)} aria-label="Cancel scheduled pause for ${data.friendly_name || id}">
+                Cancel
+              </button>
+            </div>
+          `
+        )}
+      </div>
+    `;
+  }
+
   render() {
     if (!this.hass || !this.config) {
       return html``;
@@ -1674,20 +1877,12 @@ class AutomationPauseCard extends LitElement {
     const scheduled = this._getScheduled();
     const scheduledCount = Object.keys(scheduled).length;
 
-    const durations = [
-      { label: "30m", minutes: 30 },
-      { label: "1h", minutes: 60 },
-      { label: "4h", minutes: 240 },
-      { label: "1 day", minutes: 1440 },
-      { label: "Custom", minutes: null },
-    ];
-
     const currentDuration =
-      this._customDuration.days * 1440 +
-      this._customDuration.hours * 60 +
+      this._customDuration.days * MINUTES_PER.DAY +
+      this._customDuration.hours * MINUTES_PER.HOUR +
       this._customDuration.minutes;
 
-    const selectedDuration = durations.find((d) => d.minutes === currentDuration);
+    const selectedDuration = DEFAULT_DURATIONS.find((d) => d.minutes === currentDuration);
     const durationPreview = this._getDurationPreview();
     const durationValid = this._isDurationValid();
 
@@ -1788,115 +1983,7 @@ class AutomationPauseCard extends LitElement {
             ${this._renderSelectionList()}
           </div>
 
-          ${this._scheduleMode
-            ? html`
-                <!-- Schedule Date/Time Inputs -->
-                <div class="schedule-inputs">
-                  <div class="datetime-field">
-                    <label id="pause-at-label">Pause at:</label>
-                    <div class="datetime-row">
-                      <select
-                        .value=${this._disableAtDate}
-                        @change=${(e) => (this._disableAtDate = e.target.value)}
-                        aria-labelledby="pause-at-label"
-                        aria-label="Pause date"
-                      >
-                        <option value="">Select date</option>
-                        ${this._renderDateOptions()}
-                      </select>
-                      <input
-                        type="time"
-                        .value=${this._disableAtTime}
-                        @input=${(e) => (this._disableAtTime = e.target.value)}
-                        aria-labelledby="pause-at-label"
-                        aria-label="Pause time"
-                      />
-                    </div>
-                    <span class="field-hint">Leave empty to pause immediately</span>
-                  </div>
-                  <div class="datetime-field">
-                    <label id="resume-at-label">Resume at:</label>
-                    <div class="datetime-row">
-                      <select
-                        .value=${this._resumeAtDate}
-                        @change=${(e) => (this._resumeAtDate = e.target.value)}
-                        aria-labelledby="resume-at-label"
-                        aria-label="Resume date"
-                      >
-                        <option value="">Select date</option>
-                        ${this._renderDateOptions()}
-                      </select>
-                      <input
-                        type="time"
-                        .value=${this._resumeAtTime}
-                        @input=${(e) => (this._resumeAtTime = e.target.value)}
-                        aria-labelledby="resume-at-label"
-                        aria-label="Resume time"
-                      />
-                    </div>
-                  </div>
-                  <div class="schedule-link" @click=${() => (this._scheduleMode = false)} role="button" tabindex="0" @keypress=${(e) => e.key === "Enter" && (this._scheduleMode = false)}>
-                    <ha-icon icon="mdi:timer-outline" aria-hidden="true"></ha-icon>
-                    Back to duration selection
-                  </div>
-                </div>
-              `
-            : html`
-                <!-- Duration Selector -->
-                <div class="duration-selector">
-                  <div class="duration-section-header" id="duration-header">Pause Duration</div>
-                  <div class="duration-pills" role="radiogroup" aria-labelledby="duration-header">
-                    ${durations.map(
-                      (d) => {
-                        const isActive = d.minutes === null
-                          ? this._showCustomInput
-                          : !this._showCustomInput && selectedDuration === d;
-                        return html`
-                          <button
-                            class="pill ${isActive ? "active" : ""}"
-                            @click=${() => {
-                              if (d.minutes === null) {
-                                this._showCustomInput = !this._showCustomInput;
-                              } else {
-                                this._showCustomInput = false;
-                                this._setDuration(d.minutes);
-                              }
-                            }}
-                            role="radio"
-                            aria-checked=${isActive}
-                            aria-label="${d.minutes === null ? "Custom duration" : `Pause for ${d.label}`}"
-                          >
-                            ${d.label}
-                          </button>
-                        `;
-                      }
-                    )}
-                  </div>
-
-                  ${this._showCustomInput ? html`
-                    <div class="custom-duration-input">
-                      <input
-                        type="text"
-                        class="duration-input ${!durationValid ? "invalid" : ""}"
-                        placeholder="e.g. 2h30m, 1d, 45m"
-                        .value=${this._customDurationInput}
-                        @input=${(e) => this._handleDurationInput(e.target.value)}
-                        aria-label="Custom duration"
-                        aria-invalid=${!durationValid}
-                        aria-describedby="duration-help"
-                      />
-                      ${durationPreview && durationValid
-                        ? html`<div class="duration-preview" role="status" aria-live="polite">Duration: ${durationPreview}</div>`
-                        : html`<div class="duration-help" id="duration-help">Enter duration: 30m, 2h, 4h30m, 1d, 1d2h</div>`}
-                    </div>
-                  ` : ""}
-
-                  <div class="schedule-link" @click=${() => (this._scheduleMode = true)} role="button" tabindex="0" @keypress=${(e) => e.key === "Enter" && (this._scheduleMode = true)}>
-                    <ha-icon icon="mdi:calendar-clock" aria-hidden="true"></ha-icon>
-                    Pick specific date/time instead
-                  </div>
-                </div>
-              `}
+          ${this._renderDurationSelector(selectedDuration, durationPreview, durationValid)}
 
           <!-- Pause Button -->
           <button
@@ -1921,89 +2008,8 @@ class AutomationPauseCard extends LitElement {
           </button>
         </div>
 
-        <!-- Section B: Active Pauses -->
-        ${pausedCount > 0
-          ? html`
-              <div class="snooze-list" role="region" aria-label="Paused automations">
-                <div class="list-header">
-                  <ha-icon icon="mdi:bell-sleep" aria-hidden="true"></ha-icon>
-                  Paused Automations (${pausedCount})
-                </div>
-
-                ${this._getPausedGroupedByResumeTime().map(
-                  (group) => html`
-                    <div class="pause-group" role="group" aria-label="Automations resuming ${this._formatDateTime(group.resumeAt)}">
-                      <div class="pause-group-header">
-                        <ha-icon icon="mdi:timer-outline" aria-hidden="true"></ha-icon>
-                        ${group.disableAt
-                          ? html`Resumes ${this._formatDateTime(group.resumeAt)}`
-                          : html`<span class="countdown" data-resume-at="${group.resumeAt}" aria-label="Time remaining: ${this._formatCountdown(group.resumeAt)}">${this._formatCountdown(group.resumeAt)}</span>`}
-                      </div>
-                      ${group.automations.map(
-                        (auto) => html`
-                          <div class="paused-item">
-                            <ha-icon class="paused-icon" icon="mdi:sleep" aria-hidden="true"></ha-icon>
-                            <div class="paused-info">
-                              <div class="paused-name">${auto.friendly_name || auto.id}</div>
-                            </div>
-                            <button class="wake-btn" @click=${() => this._wake(auto.id)} aria-label="Resume ${auto.friendly_name || auto.id}">
-                              Resume
-                            </button>
-                          </div>
-                        `
-                      )}
-                    </div>
-                  `
-                )}
-
-                ${pausedCount > 1
-                  ? html`
-                      <button
-                        class="wake-all ${this._wakeAllPending ? "pending" : ""}"
-                        @click=${this._handleWakeAll}
-                        aria-label="${this._wakeAllPending ? "Confirm resume all automations" : "Resume all paused automations"}"
-                      >
-                        ${this._wakeAllPending ? "Confirm Resume All" : "Resume All"}
-                      </button>
-                    `
-                  : ""}
-              </div>
-            `
-          : ""}
-
-        <!-- Section C: Scheduled Pauses -->
-        ${scheduledCount > 0
-          ? html`
-              <div class="scheduled-list" role="region" aria-label="Scheduled pauses">
-                <div class="list-header">
-                  <ha-icon icon="mdi:calendar-clock" aria-hidden="true"></ha-icon>
-                  Scheduled Pauses (${scheduledCount})
-                </div>
-
-                ${Object.entries(scheduled).map(
-                  ([id, data]) => html`
-                    <div class="scheduled-item" role="article" aria-label="Scheduled pause for ${data.friendly_name || id}">
-                      <ha-icon class="scheduled-icon" icon="mdi:clock-outline" aria-hidden="true"></ha-icon>
-                      <div class="paused-info">
-                        <div class="paused-name">
-                          ${data.friendly_name || id}
-                        </div>
-                        <div class="scheduled-time">
-                          Disables: ${this._formatDateTime(data.disable_at || "now")}
-                        </div>
-                        <div class="paused-time">
-                          Resumes: ${this._formatDateTime(data.resume_at)}
-                        </div>
-                      </div>
-                      <button class="cancel-scheduled-btn" @click=${() => this._cancelScheduled(id)} aria-label="Cancel scheduled pause for ${data.friendly_name || id}">
-                        Cancel
-                      </button>
-                    </div>
-                  `
-                )}
-              </div>
-            `
-          : ""}
+        ${this._renderActivePauses(pausedCount)}
+        ${this._renderScheduledPauses(scheduledCount, scheduled)}
       </ha-card>
     `;
   }
