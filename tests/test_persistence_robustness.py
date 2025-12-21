@@ -125,6 +125,12 @@ def get_source_code() -> str:
     return coordinator_path.read_text()
 
 
+def get_const_source_code() -> str:
+    """Read the source code of const.py (where constants are defined)."""
+    const_path = Path(__file__).parent.parent / "custom_components" / "autosnooze" / "const.py"
+    return const_path.read_text()
+
+
 def get_async_save_function(source: str) -> str:
     """Extract the async_save function from source."""
     match = re.search(r"async def async_save\([^)]+\)[^:]*:.*?(?=\n(?:async )?def |\nclass |\Z)", source, re.DOTALL)
@@ -423,18 +429,19 @@ class TestRetrySaveSourceCode:
         )
 
     def test_async_save_catches_transient_errors(self) -> None:
-        """Test that _async_save specifically catches IOError/OSError."""
+        """Test that async_save specifically catches IOError/OSError."""
         source = get_source_code()
+        const_source = get_const_source_code()
         func = get_async_save_function(source)
 
         # Can use direct exception names or a TRANSIENT_ERRORS constant
         catches_transient = "IOError" in func or "OSError" in func or "TRANSIENT_ERRORS" in func
-        # Also check that TRANSIENT_ERRORS is defined with IOError/OSError in source
+        # Also check that TRANSIENT_ERRORS is defined with IOError/OSError in const.py
         if "TRANSIENT_ERRORS" in func:
-            has_transient_def = "IOError" in source and "OSError" in source
+            has_transient_def = "IOError" in const_source and "OSError" in const_source
             catches_transient = catches_transient and has_transient_def
 
-        assert catches_transient, "FEATURE NOT IMPLEMENTED: _async_save should catch IOError/OSError for retry"
+        assert catches_transient, "FEATURE NOT IMPLEMENTED: async_save should catch IOError/OSError for retry"
 
     def test_async_save_logs_retry_attempts(self) -> None:
         """Test that _async_save logs retry attempts."""
@@ -1183,10 +1190,11 @@ class TestImplementationRequirements:
     def test_retry_save_implementation_checklist(self) -> None:
         """Checklist of retry save requirements."""
         source = get_source_code()
+        const_source = get_const_source_code()
         func = get_async_save_function(source)
 
-        # Check if using TRANSIENT_ERRORS constant (which contains IOError/OSError)
-        uses_transient_const = "TRANSIENT_ERRORS" in func and "IOError" in source and "OSError" in source
+        # Check if using TRANSIENT_ERRORS constant (which contains IOError/OSError in const.py)
+        uses_transient_const = "TRANSIENT_ERRORS" in func and "IOError" in const_source and "OSError" in const_source
 
         requirements = {
             "Return bool (True/False)": "return True" in func and "return False" in func,
@@ -1199,7 +1207,7 @@ class TestImplementationRequirements:
 
         missing = [req for req, met in requirements.items() if not met]
 
-        assert not missing, f"FEATURES NOT IMPLEMENTED in _async_save:\n" + "\n".join(f"  - {req}" for req in missing)
+        assert not missing, f"FEATURES NOT IMPLEMENTED in async_save:\n" + "\n".join(f"  - {req}" for req in missing)
 
     def test_validate_on_load_implementation_checklist(self) -> None:
         """Checklist of validate on load requirements."""
