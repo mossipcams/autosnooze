@@ -973,7 +973,8 @@ class TestDeletedAutomationCleanupBehavior:
     @pytest.mark.asyncio
     async def test_deleted_paused_automation_is_cleaned_up(self, mock_hass: MagicMock, mock_store: MagicMock) -> None:
         """Test that deleted automations are removed from paused storage on load."""
-        from custom_components.autosnooze import _async_load_stored, AutomationPauseData
+        from custom_components.autosnooze.coordinator import async_load_stored as _async_load_stored
+        from custom_components.autosnooze.models import AutomationPauseData
 
         now = datetime.now(UTC)
         data = AutomationPauseData(store=mock_store)
@@ -1007,7 +1008,8 @@ class TestDeletedAutomationCleanupBehavior:
     @pytest.mark.asyncio
     async def test_existing_paused_automation_is_loaded(self, mock_hass: MagicMock, mock_store: MagicMock) -> None:
         """Test that existing automations are still loaded from paused storage."""
-        from custom_components.autosnooze import _async_load_stored, AutomationPauseData
+        from custom_components.autosnooze.coordinator import async_load_stored as _async_load_stored
+        from custom_components.autosnooze.models import AutomationPauseData
 
         now = datetime.now(UTC)
         data = AutomationPauseData(store=mock_store)
@@ -1043,7 +1045,8 @@ class TestDeletedAutomationCleanupBehavior:
         self, mock_hass: MagicMock, mock_store: MagicMock
     ) -> None:
         """Test that deleted automations are removed from scheduled storage on load."""
-        from custom_components.autosnooze import _async_load_stored, AutomationPauseData
+        from custom_components.autosnooze.coordinator import async_load_stored as _async_load_stored
+        from custom_components.autosnooze.models import AutomationPauseData
 
         now = datetime.now(UTC)
         data = AutomationPauseData(store=mock_store)
@@ -1074,7 +1077,8 @@ class TestDeletedAutomationCleanupBehavior:
     @pytest.mark.asyncio
     async def test_existing_scheduled_automation_is_loaded(self, mock_hass: MagicMock, mock_store: MagicMock) -> None:
         """Test that existing automations are still loaded from scheduled storage."""
-        from custom_components.autosnooze import _async_load_stored, AutomationPauseData
+        from custom_components.autosnooze.coordinator import async_load_stored as _async_load_stored
+        from custom_components.autosnooze.models import AutomationPauseData
 
         now = datetime.now(UTC)
         data = AutomationPauseData(store=mock_store)
@@ -1105,7 +1109,8 @@ class TestDeletedAutomationCleanupBehavior:
     @pytest.mark.asyncio
     async def test_mixed_deleted_and_existing_automations(self, mock_hass: MagicMock, mock_store: MagicMock) -> None:
         """Test that only deleted automations are cleaned up, existing ones remain."""
-        from custom_components.autosnooze import _async_load_stored, AutomationPauseData
+        from custom_components.autosnooze.coordinator import async_load_stored as _async_load_stored
+        from custom_components.autosnooze.models import AutomationPauseData
 
         now = datetime.now(UTC)
         data = AutomationPauseData(store=mock_store)
