@@ -165,11 +165,17 @@ describe('Defect #2: Categories Should Pull from HA Entity Registry - Structure'
   });
 
   test('Categories sorted alphabetically with Uncategorized last', () => {
-    const hasCorrectSort = sourceCode.includes(
+    // Check for hardcoded sort or generic sort with defaultGroupName parameter
+    const hasHardcodedSort = sourceCode.includes(
       'a[0] === "Uncategorized" ? 1 : b[0] === "Uncategorized" ? -1 : a[0].localeCompare(b[0])'
     );
+    const hasGenericSort = sourceCode.includes(
+      'a[0] === defaultGroupName ? 1 : b[0] === defaultGroupName ? -1 : a[0].localeCompare(b[0])'
+    );
+    // Also verify "Uncategorized" is passed as the default group name
+    const passesUncategorized = sourceCode.includes('"Uncategorized"');
 
-    expect(hasCorrectSort).toBe(true);
+    expect(hasHardcodedSort || (hasGenericSort && passesUncategorized)).toBe(true);
   });
 });
 

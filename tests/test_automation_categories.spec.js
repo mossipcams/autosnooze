@@ -292,7 +292,10 @@ describe('Source Structure Verification', () => {
 
   test('_getCategoryCount counts unique categories', () => {
     const methodBody = extractMethod('_getCategoryCount');
-    expect(methodBody).toContain('Set');
+    // Method may use Set directly or delegate to _getUniqueCount helper
+    const usesSetDirectly = methodBody.includes('Set');
+    const usesUniqueCountHelper = methodBody.includes('_getUniqueCount');
+    expect(usesSetDirectly || usesUniqueCountHelper).toBe(true);
     expect(methodBody).toContain('category_id');
   });
 
