@@ -175,13 +175,26 @@ describe('Defect #2: Categories Should Pull from HA Entity Registry - Structure'
 
 describe('Defect #3: Duration Buttons Mutual Exclusivity - Structure', () => {
   test('Preset buttons check _showCustomInput state', () => {
+    // Check if _showCustomInput is used either directly in class logic
+    // or in a variable that determines the active state
     const pillClassMatch = sourceCode.match(/class="pill \$\{([\s\S]*?)\}"/);
     const classLogic = pillClassMatch ? pillClassMatch[1] : '';
 
-    const checksShowCustomInput =
+    // Check direct class logic pattern
+    const checksShowCustomInputDirectly =
       classLogic.includes('!this._showCustomInput') ||
       classLogic.includes('_showCustomInput === false') ||
       classLogic.includes('!_showCustomInput');
+
+    // Check if isActive variable is used (refactored pattern) and _showCustomInput
+    // is checked when computing that variable
+    const usesIsActiveVariable = classLogic.includes('isActive');
+    const checksShowCustomInputInVariable =
+      sourceCode.includes('!this._showCustomInput && selectedDuration') ||
+      sourceCode.includes('!_showCustomInput && selectedDuration');
+
+    const checksShowCustomInput = checksShowCustomInputDirectly ||
+      (usesIsActiveVariable && checksShowCustomInputInVariable);
 
     expect(checksShowCustomInput).toBe(true);
   });

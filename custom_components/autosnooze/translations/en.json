@@ -139,10 +139,16 @@
   },
   "exceptions": {
     "invalid_duration": {
-      "message": "Duration must be greater than zero"
+      "message": "Duration must be greater than zero. Please specify at least one of: days, hours, or minutes."
     },
     "not_automation": {
-      "message": "{entity_id} is not an automation"
+      "message": "{entity_id} is not an automation entity. Only entities starting with 'automation.' can be snoozed."
+    },
+    "resume_time_past": {
+      "message": "Resume time must be in the future. Please select a date and time that hasn't passed yet."
+    },
+    "disable_after_resume": {
+      "message": "Pause time must be before resume time. The automation needs to be paused before it can resume."
     }
   }
 }
