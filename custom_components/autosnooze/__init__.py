@@ -33,9 +33,7 @@ __all__ = [
 ]
 
 
-async def async_setup_entry(
-    hass: HomeAssistant, entry: AutomationPauseConfigEntry
-) -> bool:
+async def async_setup_entry(hass: HomeAssistant, entry: AutomationPauseConfigEntry) -> bool:
     """Set up AutoSnooze from a config entry."""
     store = Store[dict[str, Any]](hass, STORAGE_VERSION, f"{DOMAIN}.storage")
     data = AutomationPauseData(store=store)
@@ -72,9 +70,7 @@ async def _async_register_static_path(hass: HomeAssistant) -> None:
     cache_headers=False prevents iOS WebView from caching the file for 31 days.
     """
     try:
-        await hass.http.async_register_static_paths(
-            [StaticPathConfig(CARD_URL, str(CARD_PATH), cache_headers=False)]
-        )
+        await hass.http.async_register_static_paths([StaticPathConfig(CARD_URL, str(CARD_PATH), cache_headers=False)])
         _LOGGER.debug("Registered static path: %s", CARD_URL)
     except RuntimeError:
         # Path already registered (happens on integration reload)
@@ -97,9 +93,7 @@ async def _async_register_lovelace_resource(hass: HomeAssistant) -> None:
     resources = getattr(lovelace_data, "resources", None)
     if resources is None:
         # Fallback for older HA versions
-        resources = (
-            lovelace_data.get("resources") if hasattr(lovelace_data, "get") else None
-        )
+        resources = lovelace_data.get("resources") if hasattr(lovelace_data, "get") else None
     if resources is None:
         _LOGGER.debug("Lovelace resources not available (YAML mode?)")
         return
@@ -135,17 +129,13 @@ async def _async_register_lovelace_resource(hass: HomeAssistant) -> None:
     # No existing resource found - create new one
     try:
         _LOGGER.debug("Creating new resource: %s", CARD_URL_VERSIONED)
-        await resources.async_create_item(
-            {"url": CARD_URL_VERSIONED, "res_type": "module"}
-        )
+        await resources.async_create_item({"url": CARD_URL_VERSIONED, "res_type": "module"})
         _LOGGER.info("Registered AutoSnooze card as Lovelace resource (v%s)", VERSION)
     except Exception as err:
         _LOGGER.warning("Failed to register Lovelace resource: %s", err)
 
 
-async def async_unload_entry(
-    hass: HomeAssistant, entry: AutomationPauseConfigEntry
-) -> bool:
+async def async_unload_entry(hass: HomeAssistant, entry: AutomationPauseConfigEntry) -> bool:
     """Unload config entry."""
     if unload_ok := await hass.config_entries.async_unload_platforms(entry, PLATFORMS):
         # Cancel all timers

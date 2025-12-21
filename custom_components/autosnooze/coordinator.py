@@ -23,9 +23,7 @@ from .models import (
 _LOGGER = logging.getLogger(__name__)
 
 
-async def async_set_automation_state(
-    hass: HomeAssistant, entity_id: str, *, enabled: bool
-) -> bool:
+async def async_set_automation_state(hass: HomeAssistant, entity_id: str, *, enabled: bool) -> bool:
     """Enable or disable an automation."""
     state = hass.states.get(entity_id)
     if state is None:
@@ -41,9 +39,7 @@ async def async_set_automation_state(
         )
         return True
     except Exception as err:
-        _LOGGER.error(
-            "Failed to %s %s: %s", "wake" if enabled else "snooze", entity_id, err
-        )
+        _LOGGER.error("Failed to %s %s: %s", "wake" if enabled else "snooze", entity_id, err)
         return False
 
 
@@ -82,9 +78,7 @@ def schedule_resume(
     data.timers[entity_id] = async_track_point_in_time(hass, on_timer, resume_at)
 
 
-async def async_resume(
-    hass: HomeAssistant, data: AutomationPauseData, entity_id: str
-) -> None:
+async def async_resume(hass: HomeAssistant, data: AutomationPauseData, entity_id: str) -> None:
     """Wake up a snoozed automation."""
     cancel_timer(data, entity_id)
     data.paused.pop(entity_id, None)
@@ -105,13 +99,9 @@ def schedule_disable(
 
     @callback
     def on_disable_timer(_now: datetime) -> None:
-        hass.async_create_task(
-            async_execute_scheduled_disable(hass, data, entity_id, scheduled.resume_at)
-        )
+        hass.async_create_task(async_execute_scheduled_disable(hass, data, entity_id, scheduled.resume_at))
 
-    data.scheduled_timers[entity_id] = async_track_point_in_time(
-        hass, on_disable_timer, scheduled.disable_at
-    )
+    data.scheduled_timers[entity_id] = async_track_point_in_time(hass, on_disable_timer, scheduled.disable_at)
 
 
 async def async_execute_scheduled_disable(
@@ -130,9 +120,7 @@ async def async_execute_scheduled_disable(
         return
 
     now = dt_util.utcnow()
-    friendly_name = (
-        scheduled.friendly_name if scheduled else get_friendly_name(hass, entity_id)
-    )
+    friendly_name = scheduled.friendly_name if scheduled else get_friendly_name(hass, entity_id)
     disable_at = scheduled.disable_at if scheduled else None
 
     data.paused[entity_id] = PausedAutomation(
@@ -149,9 +137,7 @@ async def async_execute_scheduled_disable(
     _LOGGER.info("Executed scheduled snooze for %s until %s", entity_id, resume_at)
 
 
-async def async_cancel_scheduled(
-    hass: HomeAssistant, data: AutomationPauseData, entity_id: str
-) -> None:
+async def async_cancel_scheduled(hass: HomeAssistant, data: AutomationPauseData, entity_id: str) -> None:
     """Cancel a scheduled snooze."""
     cancel_scheduled_timer(data, entity_id)
     data.scheduled.pop(entity_id, None)
@@ -369,9 +355,7 @@ async def async_load_stored(hass: HomeAssistant, data: AutomationPauseData) -> N
         try:
             # Check if automation still exists - clean up deleted automations
             if hass.states.get(entity_id) is None:
-                _LOGGER.info(
-                    "Cleaning up deleted automation from storage: %s", entity_id
-                )
+                _LOGGER.info("Cleaning up deleted automation from storage: %s", entity_id)
                 expired.append(entity_id)
                 continue
 
@@ -384,9 +368,7 @@ async def async_load_stored(hass: HomeAssistant, data: AutomationPauseData) -> N
                     data.paused[entity_id] = paused
                     schedule_resume(hass, data, entity_id, paused.resume_at)
                 else:
-                    _LOGGER.warning(
-                        "Failed to restore paused state for %s, skipping", entity_id
-                    )
+                    _LOGGER.warning("Failed to restore paused state for %s, skipping", entity_id)
         except (KeyError, ValueError) as err:
             _LOGGER.warning("Invalid stored data for %s: %s", entity_id, err)
             expired.append(entity_id)

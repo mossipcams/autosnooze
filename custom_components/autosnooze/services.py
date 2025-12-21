@@ -146,9 +146,7 @@ async def async_pause_automations(
             # If using date-based scheduling (resume_at_dt provided), store disable_at
             # to indicate this was a schedule-mode snooze (for UI display)
             schedule_mode_disable_at = (
-                disable_at
-                if disable_at is not None
-                else (now if resume_at_dt is not None else None)
+                disable_at if disable_at is not None else (now if resume_at_dt is not None else None)
             )
 
             data.paused[entity_id] = PausedAutomation(
@@ -182,9 +180,7 @@ def register_services(hass: HomeAssistant, data: AutomationPauseData) -> None:
         disable_at = ensure_utc_aware(call.data.get("disable_at"))
         resume_at_dt = ensure_utc_aware(call.data.get("resume_at"))
 
-        await async_pause_automations(
-            hass, data, entity_ids, days, hours, minutes, disable_at, resume_at_dt
-        )
+        await async_pause_automations(hass, data, entity_ids, days, hours, minutes, disable_at, resume_at_dt)
 
     async def handle_cancel(call: ServiceCall) -> None:
         """Handle wake service call (FR-10: Early Wake Up)."""
@@ -215,9 +211,7 @@ def register_services(hass: HomeAssistant, data: AutomationPauseData) -> None:
             _LOGGER.warning("No automations found in area(s): %s", area_ids)
             return
 
-        await async_pause_automations(
-            hass, data, entity_ids, days, hours, minutes, disable_at, resume_at_dt
-        )
+        await async_pause_automations(hass, data, entity_ids, days, hours, minutes, disable_at, resume_at_dt)
 
     async def handle_pause_by_label(call: ServiceCall) -> None:
         """Handle pause by label service call."""
@@ -235,9 +229,7 @@ def register_services(hass: HomeAssistant, data: AutomationPauseData) -> None:
             _LOGGER.warning("No automations found with label(s): %s", label_ids)
             return
 
-        await async_pause_automations(
-            hass, data, entity_ids, days, hours, minutes, disable_at, resume_at_dt
-        )
+        await async_pause_automations(hass, data, entity_ids, days, hours, minutes, disable_at, resume_at_dt)
 
     async def handle_cancel_scheduled(call: ServiceCall) -> None:
         """Handle cancel scheduled snooze service call."""
@@ -250,12 +242,6 @@ def register_services(hass: HomeAssistant, data: AutomationPauseData) -> None:
     hass.services.async_register(DOMAIN, "pause", handle_pause, schema=PAUSE_SCHEMA)
     hass.services.async_register(DOMAIN, "cancel", handle_cancel, schema=CANCEL_SCHEMA)
     hass.services.async_register(DOMAIN, "cancel_all", handle_cancel_all)
-    hass.services.async_register(
-        DOMAIN, "pause_by_area", handle_pause_by_area, schema=PAUSE_BY_AREA_SCHEMA
-    )
-    hass.services.async_register(
-        DOMAIN, "pause_by_label", handle_pause_by_label, schema=PAUSE_BY_LABEL_SCHEMA
-    )
-    hass.services.async_register(
-        DOMAIN, "cancel_scheduled", handle_cancel_scheduled, schema=CANCEL_SCHEMA
-    )
+    hass.services.async_register(DOMAIN, "pause_by_area", handle_pause_by_area, schema=PAUSE_BY_AREA_SCHEMA)
+    hass.services.async_register(DOMAIN, "pause_by_label", handle_pause_by_label, schema=PAUSE_BY_LABEL_SCHEMA)
+    hass.services.async_register(DOMAIN, "cancel_scheduled", handle_cancel_scheduled, schema=CANCEL_SCHEMA)
