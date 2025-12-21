@@ -1,7 +1,7 @@
 import { LitElement, html, css } from "lit";
 
-// Version 0.2.0 - Minor release
-const CARD_VERSION = "0.2.0";
+// Version 0.2.1 - Patch release
+const CARD_VERSION = "0.2.1";
 
 // ============================================================================
 // CARD EDITOR
