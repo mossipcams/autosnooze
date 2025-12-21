@@ -916,6 +916,254 @@ class TestPersistenceRobustnessIntegration:
 
 
 # =============================================================================
+# DELETED AUTOMATION CLEANUP TESTS
+# =============================================================================
+
+
+class TestDeletedAutomationCleanupSourceCode:
+    """Tests that verify deleted automation cleanup is implemented."""
+
+    def test_load_stored_checks_entity_existence_for_paused(self) -> None:
+        """Test that _async_load_stored checks if paused automations still exist."""
+        source = get_source_code()
+        func = get_async_load_stored_function(source)
+
+        # Should check entity existence before loading paused automations
+        # Look for states.get check in the paused automation loading section
+        checks_existence = "states.get" in func or "hass.states.get" in func
+        has_cleanup_log = "Cleaning up deleted automation" in func
+
+        assert checks_existence and has_cleanup_log, (
+            "FEATURE NOT IMPLEMENTED: _async_load_stored should check if paused "
+            "automations still exist and clean up deleted ones"
+        )
+
+    def test_load_stored_checks_entity_existence_for_scheduled(self) -> None:
+        """Test that _async_load_stored checks if scheduled automations still exist."""
+        source = get_source_code()
+        func = get_async_load_stored_function(source)
+
+        # Should check entity existence before loading scheduled snoozes
+        # Look for cleaning up from scheduled storage
+        has_scheduled_cleanup = "Cleaning up deleted automation from scheduled" in func
+
+        assert has_scheduled_cleanup, (
+            "FEATURE NOT IMPLEMENTED: _async_load_stored should check if scheduled "
+            "automations still exist and clean up deleted ones"
+        )
+
+
+class TestDeletedAutomationCleanupBehavior:
+    """Tests that specify the expected cleanup behavior for deleted automations."""
+
+    @pytest.fixture
+    def mock_store(self) -> MagicMock:
+        """Create mock store."""
+        store = MagicMock()
+        store.async_save = AsyncMock()
+        return store
+
+    @pytest.fixture
+    def mock_hass(self) -> MagicMock:
+        """Create mock Home Assistant instance."""
+        hass = MagicMock()
+        hass.services.async_call = AsyncMock()
+        return hass
+
+    @pytest.mark.asyncio
+    async def test_deleted_paused_automation_is_cleaned_up(self, mock_hass: MagicMock, mock_store: MagicMock) -> None:
+        """Test that deleted automations are removed from paused storage on load."""
+        from custom_components.autosnooze import _async_load_stored, AutomationPauseData
+
+        now = datetime.now(UTC)
+        data = AutomationPauseData(store=mock_store)
+
+        # Simulate stored data with an automation that no longer exists
+        stored_data = {
+            "paused": {
+                "automation.deleted": {
+                    "friendly_name": "Deleted Automation",
+                    "resume_at": (now + timedelta(hours=1)).isoformat(),
+                    "paused_at": now.isoformat(),
+                    "days": 0,
+                    "hours": 1,
+                    "minutes": 0,
+                },
+            },
+            "scheduled": {},
+        }
+        mock_store.async_load = AsyncMock(return_value=stored_data)
+
+        # Entity does not exist
+        mock_hass.states.get.return_value = None
+
+        await _async_load_stored(mock_hass, data)
+
+        # Deleted automation should NOT be in paused dict
+        assert "automation.deleted" not in data.paused
+        # Storage should be updated to remove the entry
+        mock_store.async_save.assert_called()
+
+    @pytest.mark.asyncio
+    async def test_existing_paused_automation_is_loaded(self, mock_hass: MagicMock, mock_store: MagicMock) -> None:
+        """Test that existing automations are still loaded from paused storage."""
+        from custom_components.autosnooze import _async_load_stored, AutomationPauseData
+
+        now = datetime.now(UTC)
+        data = AutomationPauseData(store=mock_store)
+
+        stored_data = {
+            "paused": {
+                "automation.existing": {
+                    "friendly_name": "Existing Automation",
+                    "resume_at": (now + timedelta(hours=1)).isoformat(),
+                    "paused_at": now.isoformat(),
+                    "days": 0,
+                    "hours": 1,
+                    "minutes": 0,
+                },
+            },
+            "scheduled": {},
+        }
+        mock_store.async_load = AsyncMock(return_value=stored_data)
+
+        # Entity exists
+        mock_state = MagicMock()
+        mock_state.attributes = {"friendly_name": "Existing Automation"}
+        mock_hass.states.get.return_value = mock_state
+
+        with patch("custom_components.autosnooze._schedule_resume"):
+            await _async_load_stored(mock_hass, data)
+
+        # Existing automation SHOULD be in paused dict
+        assert "automation.existing" in data.paused
+
+    @pytest.mark.asyncio
+    async def test_deleted_scheduled_automation_is_cleaned_up(
+        self, mock_hass: MagicMock, mock_store: MagicMock
+    ) -> None:
+        """Test that deleted automations are removed from scheduled storage on load."""
+        from custom_components.autosnooze import _async_load_stored, AutomationPauseData
+
+        now = datetime.now(UTC)
+        data = AutomationPauseData(store=mock_store)
+
+        # Simulate stored data with a scheduled snooze for a deleted automation
+        stored_data = {
+            "paused": {},
+            "scheduled": {
+                "automation.deleted_scheduled": {
+                    "friendly_name": "Deleted Scheduled",
+                    "disable_at": (now + timedelta(hours=1)).isoformat(),
+                    "resume_at": (now + timedelta(hours=2)).isoformat(),
+                },
+            },
+        }
+        mock_store.async_load = AsyncMock(return_value=stored_data)
+
+        # Entity does not exist
+        mock_hass.states.get.return_value = None
+
+        await _async_load_stored(mock_hass, data)
+
+        # Deleted automation should NOT be in scheduled dict
+        assert "automation.deleted_scheduled" not in data.scheduled
+        # Storage should be updated to remove the entry
+        mock_store.async_save.assert_called()
+
+    @pytest.mark.asyncio
+    async def test_existing_scheduled_automation_is_loaded(self, mock_hass: MagicMock, mock_store: MagicMock) -> None:
+        """Test that existing automations are still loaded from scheduled storage."""
+        from custom_components.autosnooze import _async_load_stored, AutomationPauseData
+
+        now = datetime.now(UTC)
+        data = AutomationPauseData(store=mock_store)
+
+        stored_data = {
+            "paused": {},
+            "scheduled": {
+                "automation.existing_scheduled": {
+                    "friendly_name": "Existing Scheduled",
+                    "disable_at": (now + timedelta(hours=1)).isoformat(),
+                    "resume_at": (now + timedelta(hours=2)).isoformat(),
+                },
+            },
+        }
+        mock_store.async_load = AsyncMock(return_value=stored_data)
+
+        # Entity exists
+        mock_state = MagicMock()
+        mock_state.attributes = {"friendly_name": "Existing Scheduled"}
+        mock_hass.states.get.return_value = mock_state
+
+        with patch("custom_components.autosnooze._schedule_disable"):
+            await _async_load_stored(mock_hass, data)
+
+        # Existing automation SHOULD be in scheduled dict
+        assert "automation.existing_scheduled" in data.scheduled
+
+    @pytest.mark.asyncio
+    async def test_mixed_deleted_and_existing_automations(self, mock_hass: MagicMock, mock_store: MagicMock) -> None:
+        """Test that only deleted automations are cleaned up, existing ones remain."""
+        from custom_components.autosnooze import _async_load_stored, AutomationPauseData
+
+        now = datetime.now(UTC)
+        data = AutomationPauseData(store=mock_store)
+
+        stored_data = {
+            "paused": {
+                "automation.deleted1": {
+                    "friendly_name": "Deleted 1",
+                    "resume_at": (now + timedelta(hours=1)).isoformat(),
+                    "paused_at": now.isoformat(),
+                },
+                "automation.existing1": {
+                    "friendly_name": "Existing 1",
+                    "resume_at": (now + timedelta(hours=1)).isoformat(),
+                    "paused_at": now.isoformat(),
+                },
+            },
+            "scheduled": {
+                "automation.deleted2": {
+                    "friendly_name": "Deleted 2",
+                    "disable_at": (now + timedelta(hours=1)).isoformat(),
+                    "resume_at": (now + timedelta(hours=2)).isoformat(),
+                },
+                "automation.existing2": {
+                    "friendly_name": "Existing 2",
+                    "disable_at": (now + timedelta(hours=1)).isoformat(),
+                    "resume_at": (now + timedelta(hours=2)).isoformat(),
+                },
+            },
+        }
+        mock_store.async_load = AsyncMock(return_value=stored_data)
+
+        # Return state for existing, None for deleted
+        def get_state(entity_id: str) -> MagicMock | None:
+            if "existing" in entity_id:
+                mock_state = MagicMock()
+                mock_state.attributes = {"friendly_name": entity_id}
+                return mock_state
+            return None
+
+        mock_hass.states.get.side_effect = get_state
+
+        with (
+            patch("custom_components.autosnooze._schedule_resume"),
+            patch("custom_components.autosnooze._schedule_disable"),
+        ):
+            await _async_load_stored(mock_hass, data)
+
+        # Deleted automations should be removed
+        assert "automation.deleted1" not in data.paused
+        assert "automation.deleted2" not in data.scheduled
+
+        # Existing automations should be loaded
+        assert "automation.existing1" in data.paused
+        assert "automation.existing2" in data.scheduled
+
+
+# =============================================================================
 # SUMMARY: What needs to be implemented
 # =============================================================================
 
