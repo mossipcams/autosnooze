@@ -267,42 +267,38 @@ describe('Snooze Operations', () => {
     test('calls pause service with schedule parameters', async () => {
       card._selected = ['automation.test'];
       card._scheduleMode = true;
-      card._resumeAtMonth = '12';
-      card._resumeAtDay = '25';
+      card._resumeAtDate = '2025-12-25';
       card._resumeAtTime = '12:00';
 
       await card._snooze();
 
       expect(mockHass.callService).toHaveBeenCalledWith('autosnooze', 'pause', {
         entity_id: ['automation.test'],
-        resume_at: expect.stringMatching(/^\d{4}-12-25T12:00$/),
+        resume_at: '2025-12-25T12:00',
       });
     });
 
     test('includes disable_at when set', async () => {
       card._selected = ['automation.test'];
       card._scheduleMode = true;
-      card._disableAtMonth = '12';
-      card._disableAtDay = '25';
+      card._disableAtDate = '2025-12-25';
       card._disableAtTime = '10:00';
-      card._resumeAtMonth = '12';
-      card._resumeAtDay = '25';
+      card._resumeAtDate = '2025-12-25';
       card._resumeAtTime = '12:00';
 
       await card._snooze();
 
       expect(mockHass.callService).toHaveBeenCalledWith('autosnooze', 'pause', {
         entity_id: ['automation.test'],
-        resume_at: expect.stringMatching(/^\d{4}-12-25T12:00$/),
-        disable_at: expect.stringMatching(/^\d{4}-12-25T10:00$/),
+        resume_at: '2025-12-25T12:00',
+        disable_at: '2025-12-25T10:00',
       });
     });
 
     test('shows toast when resume_at not set', async () => {
       card._selected = ['automation.test'];
       card._scheduleMode = true;
-      card._resumeAtMonth = '';
-      card._resumeAtDay = '';
+      card._resumeAtDate = '';
       card._resumeAtTime = '';
 
       await card._snooze();
@@ -313,20 +309,16 @@ describe('Snooze Operations', () => {
     test('clears schedule inputs after snooze', async () => {
       card._selected = ['automation.test'];
       card._scheduleMode = true;
-      card._disableAtMonth = '12';
-      card._disableAtDay = '25';
+      card._disableAtDate = '2025-12-25';
       card._disableAtTime = '10:00';
-      card._resumeAtMonth = '12';
-      card._resumeAtDay = '25';
+      card._resumeAtDate = '2025-12-25';
       card._resumeAtTime = '12:00';
 
       await card._snooze();
 
-      expect(card._disableAtMonth).toBe('');
-      expect(card._disableAtDay).toBe('');
+      expect(card._disableAtDate).toBe('');
       expect(card._disableAtTime).toBe('');
-      expect(card._resumeAtMonth).toBe('');
-      expect(card._resumeAtDay).toBe('');
+      expect(card._resumeAtDate).toBe('');
       expect(card._resumeAtTime).toBe('');
     });
   });
@@ -534,7 +526,7 @@ describe('Schedule Mode UI', () => {
 
     const selects = scheduleInputs.querySelectorAll('select');
     const timeInputs = scheduleInputs.querySelectorAll('input[type="time"]');
-    expect(selects.length).toBe(4); // 2 month + 2 day selects
+    expect(selects.length).toBe(2); // 1 date select for each field
     expect(timeInputs.length).toBe(2);
   });
 
@@ -1007,11 +999,9 @@ describe('Undo Functionality in Snooze', () => {
   test('undo after scheduled snooze calls cancel_scheduled service', async () => {
     card._selected = ['automation.test'];
     card._scheduleMode = true;
-    card._disableAtMonth = '12';
-    card._disableAtDay = '25';
+    card._disableAtDate = '2025-12-25';
     card._disableAtTime = '10:00';
-    card._resumeAtMonth = '12';
-    card._resumeAtDay = '25';
+    card._resumeAtDate = '2025-12-25';
     card._resumeAtTime = '12:00';
 
     await card._snooze();

@@ -97,11 +97,9 @@ class AutomationPauseCard extends LitElement {
     _filterTab: { state: true },
     _expandedGroups: { state: true },
     _scheduleMode: { state: true },
-    _disableAtMonth: { state: true },
-    _disableAtDay: { state: true },
+    _disableAtDate: { state: true },
     _disableAtTime: { state: true },
-    _resumeAtMonth: { state: true },
-    _resumeAtDay: { state: true },
+    _resumeAtDate: { state: true },
     _resumeAtTime: { state: true },
     _labelRegistry: { state: true },
     _categoryRegistry: { state: true },
@@ -125,11 +123,9 @@ class AutomationPauseCard extends LitElement {
     this._filterTab = "all";
     this._expandedGroups = {};
     this._scheduleMode = false;
-    this._disableAtMonth = "";
-    this._disableAtDay = "";
+    this._disableAtDate = "";
     this._disableAtTime = "";
-    this._resumeAtMonth = "";
-    this._resumeAtDay = "";
+    this._resumeAtDate = "";
     this._resumeAtTime = "";
     this._labelRegistry = {};
     this._categoryRegistry = {};
@@ -783,22 +779,6 @@ class AutomationPauseCard extends LitElement {
       margin-top: 4px;
     }
 
-    /* Year Rollover Notification */
-    .year-notice {
-      display: inline-flex;
-      align-items: center;
-      gap: 4px;
-      font-size: 0.8em;
-      color: #2196f3;
-      margin-top: 4px;
-      padding: 4px 8px;
-      background: rgba(33, 150, 243, 0.1);
-      border-radius: 4px;
-    }
-    .year-notice ha-icon {
-      --mdc-icon-size: 14px;
-    }
-
     /* Schedule Datetime Inputs */
     .schedule-inputs {
       display: flex;
@@ -1342,72 +1322,50 @@ class AutomationPauseCard extends LitElement {
     }, 5000);
   }
 
-  _combineDateTime(month, day, time, referenceDate = null) {
-    if (!month || !day || !time) return null;
-    const now = new Date();
-    let year = now.getFullYear();
-    const paddedMonth = month.padStart(2, "0");
-    const paddedDay = day.padStart(2, "0");
-
-    // Create tentative date with current year
-    const tentativeDate = new Date(`${year}-${paddedMonth}-${paddedDay}T${time}`);
-
-    // If the date is in the past, use next year
-    // Add a small buffer (1 minute) to avoid edge cases at exact current time
-    if (tentativeDate.getTime() < now.getTime() - 60000) {
-      year += 1;
-    }
-
-    let result = `${year}-${paddedMonth}-${paddedDay}T${time}`;
-
-    // If a reference date is provided (e.g., disable_at), ensure this date is after it
-    // This handles cases where disable_at wraps to next year but resume_at doesn't
-    if (referenceDate) {
-      const resultTime = new Date(result).getTime();
-      const refTime = new Date(referenceDate).getTime();
-      if (resultTime <= refTime) {
-        // Bump to next year to ensure resume is after disable
-        year += 1;
-        result = `${year}-${paddedMonth}-${paddedDay}T${time}`;
-      }
-    }
-
-    return result;
+  _combineDateTime(date, time) {
+    // date is ISO format like "2024-12-25", time is "HH:MM"
+    if (!date || !time) return null;
+    return `${date}T${time}`;
   }
 
-  _getScheduleYearInfo(month, day, time, referenceDate = null) {
-    // Returns { year, isNextYear } for displaying year rollover notification
-    if (!month || !day || !time) return null;
+  _renderDateOptions() {
+    // Generate options for next 365 days
+    const options = [];
     const now = new Date();
     const currentYear = now.getFullYear();
-    let year = currentYear;
-    const paddedMonth = month.padStart(2, "0");
-    const paddedDay = day.padStart(2, "0");
 
-    const tentativeDate = new Date(`${year}-${paddedMonth}-${paddedDay}T${time}`);
-    if (tentativeDate.getTime() < now.getTime() - 60000) {
-      year += 1;
+    for (let i = 0; i < 365; i++) {
+      const date = new Date(now);
+      date.setDate(date.getDate() + i);
+
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, "0");
+      const day = String(date.getDate()).padStart(2, "0");
+      const isoDate = `${year}-${month}-${day}`;
+
+      const dayName = date.toLocaleDateString("en-US", { weekday: "short" });
+      const monthName = date.toLocaleDateString("en-US", { month: "short" });
+      const dayNum = date.getDate();
+
+      // Show year only when different from current year
+      const label = year !== currentYear
+        ? `${dayName}, ${monthName} ${dayNum}, ${year}`
+        : `${dayName}, ${monthName} ${dayNum}`;
+
+      options.push({ value: isoDate, label });
     }
 
-    // If reference date is provided, check if we need to bump year further
-    if (referenceDate) {
-      const result = `${year}-${paddedMonth}-${paddedDay}T${time}`;
-      const resultTime = new Date(result).getTime();
-      const refTime = new Date(referenceDate).getTime();
-      if (resultTime <= refTime) {
-        year += 1;
-      }
-    }
-
-    return { year, isNextYear: year > currentYear };
+    return options.map(
+      (opt) => html`<option value="${opt.value}">${opt.label}</option>`
+    );
   }
 
   _hasResumeAt() {
-    return this._resumeAtMonth && this._resumeAtDay && this._resumeAtTime;
+    return this._resumeAtDate && this._resumeAtTime;
   }
 
   _hasDisableAt() {
-    return this._disableAtMonth && this._disableAtDay && this._disableAtTime;
+    return this._disableAtDate && this._disableAtTime;
   }
 
   async _snooze() {
@@ -1419,17 +1377,10 @@ class AutomationPauseCard extends LitElement {
         return;
       }
 
-      // Calculate disable_at first (if provided), then resume_at with disable_at as reference
-      // This ensures resume_at is always after disable_at even with year rollover
       const disableAt = this._hasDisableAt()
-        ? this._combineDateTime(this._disableAtMonth, this._disableAtDay, this._disableAtTime)
+        ? this._combineDateTime(this._disableAtDate, this._disableAtTime)
         : null;
-      const resumeAt = this._combineDateTime(
-        this._resumeAtMonth,
-        this._resumeAtDay,
-        this._resumeAtTime,
-        disableAt  // Pass disable_at as reference to ensure resume is after it
-      );
+      const resumeAt = this._combineDateTime(this._resumeAtDate, this._resumeAtTime);
 
       const now = Date.now();
       const resumeTime = new Date(resumeAt).getTime();
@@ -1462,16 +1413,10 @@ class AutomationPauseCard extends LitElement {
       let toastMessage;
 
       if (this._scheduleMode) {
-        // Calculate dates with proper year handling (same logic as validation above)
         const disableAt = this._hasDisableAt()
-          ? this._combineDateTime(this._disableAtMonth, this._disableAtDay, this._disableAtTime)
+          ? this._combineDateTime(this._disableAtDate, this._disableAtTime)
           : null;
-        const resumeAt = this._combineDateTime(
-          this._resumeAtMonth,
-          this._resumeAtDay,
-          this._resumeAtTime,
-          disableAt
-        );
+        const resumeAt = this._combineDateTime(this._resumeAtDate, this._resumeAtTime);
 
         const serviceData = {
           entity_id: this._selected,
@@ -1533,11 +1478,9 @@ class AutomationPauseCard extends LitElement {
       });
 
       this._selected = [];
-      this._disableAtMonth = "";
-      this._disableAtDay = "";
+      this._disableAtDate = "";
       this._disableAtTime = "";
-      this._resumeAtMonth = "";
-      this._resumeAtDay = "";
+      this._resumeAtDate = "";
       this._resumeAtTime = "";
     } catch (e) {
       console.error("Snooze failed:", e);
@@ -1620,15 +1563,6 @@ class AutomationPauseCard extends LitElement {
         this._showToast("Failed to cancel scheduled pause. Check Home Assistant logs for details.");
       }
     }
-  }
-
-  _renderMonthOptions() {
-    const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-    return months.map((m, i) => html`<option value="${i + 1}">${m}</option>`);
-  }
-
-  _renderDayOptions() {
-    return Array.from({ length: 31 }, (_, i) => html`<option value="${i + 1}">${i + 1}</option>`);
   }
 
   _renderSelectionList() {
@@ -1857,99 +1791,55 @@ class AutomationPauseCard extends LitElement {
           ${this._scheduleMode
             ? html`
                 <!-- Schedule Date/Time Inputs -->
-                ${(() => {
-                  // Calculate year info for displaying rollover notifications
-                  const disableYearInfo = this._getScheduleYearInfo(
-                    this._disableAtMonth, this._disableAtDay, this._disableAtTime
-                  );
-                  const disableAt = this._hasDisableAt()
-                    ? this._combineDateTime(this._disableAtMonth, this._disableAtDay, this._disableAtTime)
-                    : null;
-                  const resumeYearInfo = this._getScheduleYearInfo(
-                    this._resumeAtMonth, this._resumeAtDay, this._resumeAtTime, disableAt
-                  );
-                  return html`
-                    <div class="schedule-inputs">
-                      <div class="datetime-field">
-                        <label id="pause-at-label">Pause at:</label>
-                        <div class="datetime-row">
-                          <select
-                            .value=${this._disableAtMonth}
-                            @change=${(e) => (this._disableAtMonth = e.target.value)}
-                            aria-labelledby="pause-at-label"
-                            aria-label="Pause month"
-                          >
-                            <option value="">Month</option>
-                            ${this._renderMonthOptions()}
-                          </select>
-                          <select
-                            .value=${this._disableAtDay}
-                            @change=${(e) => (this._disableAtDay = e.target.value)}
-                            aria-labelledby="pause-at-label"
-                            aria-label="Pause day"
-                          >
-                            <option value="">Day</option>
-                            ${this._renderDayOptions()}
-                          </select>
-                          <input
-                            type="time"
-                            .value=${this._disableAtTime}
-                            @input=${(e) => (this._disableAtTime = e.target.value)}
-                            aria-labelledby="pause-at-label"
-                            aria-label="Pause time"
-                          />
-                        </div>
-                        <span class="field-hint">Leave empty to pause immediately</span>
-                        ${disableYearInfo?.isNextYear
-                          ? html`<span class="year-notice" role="status" aria-live="polite">
-                              <ha-icon icon="mdi:calendar-arrow-right"></ha-icon>
-                              Will be scheduled for ${disableYearInfo.year}
-                            </span>`
-                          : ""}
-                      </div>
-                      <div class="datetime-field">
-                        <label id="resume-at-label">Resume at:</label>
-                        <div class="datetime-row">
-                          <select
-                            .value=${this._resumeAtMonth}
-                            @change=${(e) => (this._resumeAtMonth = e.target.value)}
-                            aria-labelledby="resume-at-label"
-                            aria-label="Resume month"
-                          >
-                            <option value="">Month</option>
-                            ${this._renderMonthOptions()}
-                          </select>
-                          <select
-                            .value=${this._resumeAtDay}
-                            @change=${(e) => (this._resumeAtDay = e.target.value)}
-                            aria-labelledby="resume-at-label"
-                            aria-label="Resume day"
-                          >
-                            <option value="">Day</option>
-                            ${this._renderDayOptions()}
-                          </select>
-                          <input
-                            type="time"
-                            .value=${this._resumeAtTime}
-                            @input=${(e) => (this._resumeAtTime = e.target.value)}
-                            aria-labelledby="resume-at-label"
-                            aria-label="Resume time"
-                          />
-                        </div>
-                        ${resumeYearInfo?.isNextYear
-                          ? html`<span class="year-notice" role="status" aria-live="polite">
-                              <ha-icon icon="mdi:calendar-arrow-right"></ha-icon>
-                              Will resume in ${resumeYearInfo.year}
-                            </span>`
-                          : ""}
-                      </div>
-                      <div class="schedule-link" @click=${() => (this._scheduleMode = false)} role="button" tabindex="0" @keypress=${(e) => e.key === "Enter" && (this._scheduleMode = false)}>
-                        <ha-icon icon="mdi:timer-outline" aria-hidden="true"></ha-icon>
-                        Back to duration selection
-                      </div>
+                <div class="schedule-inputs">
+                  <div class="datetime-field">
+                    <label id="pause-at-label">Pause at:</label>
+                    <div class="datetime-row">
+                      <select
+                        .value=${this._disableAtDate}
+                        @change=${(e) => (this._disableAtDate = e.target.value)}
+                        aria-labelledby="pause-at-label"
+                        aria-label="Pause date"
+                      >
+                        <option value="">Select date</option>
+                        ${this._renderDateOptions()}
+                      </select>
+                      <input
+                        type="time"
+                        .value=${this._disableAtTime}
+                        @input=${(e) => (this._disableAtTime = e.target.value)}
+                        aria-labelledby="pause-at-label"
+                        aria-label="Pause time"
+                      />
                     </div>
-                  `;
-                })()}
+                    <span class="field-hint">Leave empty to pause immediately</span>
+                  </div>
+                  <div class="datetime-field">
+                    <label id="resume-at-label">Resume at:</label>
+                    <div class="datetime-row">
+                      <select
+                        .value=${this._resumeAtDate}
+                        @change=${(e) => (this._resumeAtDate = e.target.value)}
+                        aria-labelledby="resume-at-label"
+                        aria-label="Resume date"
+                      >
+                        <option value="">Select date</option>
+                        ${this._renderDateOptions()}
+                      </select>
+                      <input
+                        type="time"
+                        .value=${this._resumeAtTime}
+                        @input=${(e) => (this._resumeAtTime = e.target.value)}
+                        aria-labelledby="resume-at-label"
+                        aria-label="Resume time"
+                      />
+                    </div>
+                  </div>
+                  <div class="schedule-link" @click=${() => (this._scheduleMode = false)} role="button" tabindex="0" @keypress=${(e) => e.key === "Enter" && (this._scheduleMode = false)}>
+                    <ha-icon icon="mdi:timer-outline" aria-hidden="true"></ha-icon>
+                    Back to duration selection
+                  </div>
+                </div>
               `
             : html`
                 <!-- Duration Selector -->
