@@ -1,7 +1,7 @@
 import { LitElement, html, css } from "lit";
 
-// Version 0.2.0 - Minor release
-const CARD_VERSION = "0.2.0";
+// Version 0.2.1 - Patch release
+const CARD_VERSION = "0.2.1";
 
 // ============================================================================
 // CARD EDITOR
@@ -1309,7 +1309,7 @@ class AutomationPauseCard extends LitElement {
     }, 5000);
   }
 
-  _combineDateTime(month, day, time) {
+  _combineDateTime(month, day, time, referenceDate = null) {
     if (!month || !day || !time) return null;
     const now = new Date();
     let year = now.getFullYear();
@@ -1325,7 +1325,21 @@ class AutomationPauseCard extends LitElement {
       year += 1;
     }
 
-    return `${year}-${paddedMonth}-${paddedDay}T${time}`;
+    let result = `${year}-${paddedMonth}-${paddedDay}T${time}`;
+
+    // If a reference date is provided (e.g., disable_at), ensure this date is after it
+    // This handles cases where disable_at wraps to next year but resume_at doesn't
+    if (referenceDate) {
+      const resultTime = new Date(result).getTime();
+      const refTime = new Date(referenceDate).getTime();
+      if (resultTime <= refTime) {
+        // Bump to next year to ensure resume is after disable
+        year += 1;
+        result = `${year}-${paddedMonth}-${paddedDay}T${time}`;
+      }
+    }
+
+    return result;
   }
 
   _hasResumeAt() {
@@ -1345,11 +1359,17 @@ class AutomationPauseCard extends LitElement {
         return;
       }
 
-      // Validate schedule dates
-      const resumeAt = this._combineDateTime(this._resumeAtMonth, this._resumeAtDay, this._resumeAtTime);
+      // Calculate disable_at first (if provided), then resume_at with disable_at as reference
+      // This ensures resume_at is always after disable_at even with year rollover
       const disableAt = this._hasDisableAt()
         ? this._combineDateTime(this._disableAtMonth, this._disableAtDay, this._disableAtTime)
         : null;
+      const resumeAt = this._combineDateTime(
+        this._resumeAtMonth,
+        this._resumeAtDay,
+        this._resumeAtTime,
+        disableAt  // Pass disable_at as reference to ensure resume is after it
+      );
 
       const now = Date.now();
       const resumeTime = new Date(resumeAt).getTime();
@@ -1361,6 +1381,7 @@ class AutomationPauseCard extends LitElement {
       }
 
       // If disable time is set, it must be before resume time
+      // (This check is now mostly a safeguard since _combineDateTime handles it)
       if (disableAt) {
         const disableTime = new Date(disableAt).getTime();
         if (disableTime >= resumeTime) {
@@ -1381,8 +1402,16 @@ class AutomationPauseCard extends LitElement {
       let toastMessage;
 
       if (this._scheduleMode) {
-        const resumeAt = this._combineDateTime(this._resumeAtMonth, this._resumeAtDay, this._resumeAtTime);
-        const disableAt = this._combineDateTime(this._disableAtMonth, this._disableAtDay, this._disableAtTime);
+        // Calculate dates with proper year handling (same logic as validation above)
+        const disableAt = this._hasDisableAt()
+          ? this._combineDateTime(this._disableAtMonth, this._disableAtDay, this._disableAtTime)
+          : null;
+        const resumeAt = this._combineDateTime(
+          this._resumeAtMonth,
+          this._resumeAtDay,
+          this._resumeAtTime,
+          disableAt
+        );
 
         const serviceData = {
           entity_id: this._selected,
