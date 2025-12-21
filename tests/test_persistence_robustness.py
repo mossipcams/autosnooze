@@ -971,9 +971,7 @@ class TestDeletedAutomationCleanupBehavior:
         return hass
 
     @pytest.mark.asyncio
-    async def test_deleted_paused_automation_is_cleaned_up(
-        self, mock_hass: MagicMock, mock_store: MagicMock
-    ) -> None:
+    async def test_deleted_paused_automation_is_cleaned_up(self, mock_hass: MagicMock, mock_store: MagicMock) -> None:
         """Test that deleted automations are removed from paused storage on load."""
         from custom_components.autosnooze import _async_load_stored, AutomationPauseData
 
@@ -1007,9 +1005,7 @@ class TestDeletedAutomationCleanupBehavior:
         mock_store.async_save.assert_called()
 
     @pytest.mark.asyncio
-    async def test_existing_paused_automation_is_loaded(
-        self, mock_hass: MagicMock, mock_store: MagicMock
-    ) -> None:
+    async def test_existing_paused_automation_is_loaded(self, mock_hass: MagicMock, mock_store: MagicMock) -> None:
         """Test that existing automations are still loaded from paused storage."""
         from custom_components.autosnooze import _async_load_stored, AutomationPauseData
 
@@ -1076,9 +1072,7 @@ class TestDeletedAutomationCleanupBehavior:
         mock_store.async_save.assert_called()
 
     @pytest.mark.asyncio
-    async def test_existing_scheduled_automation_is_loaded(
-        self, mock_hass: MagicMock, mock_store: MagicMock
-    ) -> None:
+    async def test_existing_scheduled_automation_is_loaded(self, mock_hass: MagicMock, mock_store: MagicMock) -> None:
         """Test that existing automations are still loaded from scheduled storage."""
         from custom_components.autosnooze import _async_load_stored, AutomationPauseData
 
@@ -1109,9 +1103,7 @@ class TestDeletedAutomationCleanupBehavior:
         assert "automation.existing_scheduled" in data.scheduled
 
     @pytest.mark.asyncio
-    async def test_mixed_deleted_and_existing_automations(
-        self, mock_hass: MagicMock, mock_store: MagicMock
-    ) -> None:
+    async def test_mixed_deleted_and_existing_automations(self, mock_hass: MagicMock, mock_store: MagicMock) -> None:
         """Test that only deleted automations are cleaned up, existing ones remain."""
         from custom_components.autosnooze import _async_load_stored, AutomationPauseData
 
@@ -1156,8 +1148,10 @@ class TestDeletedAutomationCleanupBehavior:
 
         mock_hass.states.get.side_effect = get_state
 
-        with patch("custom_components.autosnooze._schedule_resume"), \
-             patch("custom_components.autosnooze._schedule_disable"):
+        with (
+            patch("custom_components.autosnooze._schedule_resume"),
+            patch("custom_components.autosnooze._schedule_disable"),
+        ):
             await _async_load_stored(mock_hass, data)
 
         # Deleted automations should be removed
