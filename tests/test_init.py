@@ -9,19 +9,29 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 # Import actual classes from the module to get real coverage
-from custom_components.autosnooze import (
+from homeassistant.const import ATTR_ENTITY_ID, ATTR_FRIENDLY_NAME
+
+from custom_components.autosnooze.models import (
     PausedAutomation,
     ScheduledSnooze,
     AutomationPauseData,
-    _get_friendly_name,
-    _cancel_timer,
-    _cancel_scheduled_timer,
-    _set_automation_state,
-    _async_save,
-    _async_resume,
-    ATTR_ENTITY_ID,
-    ATTR_FRIENDLY_NAME,
 )
+from custom_components.autosnooze.coordinator import (
+    get_friendly_name,
+    cancel_timer,
+    cancel_scheduled_timer,
+    async_set_automation_state,
+    async_save,
+    async_resume,
+)
+
+# Backwards compatibility aliases for tests
+_get_friendly_name = get_friendly_name
+_cancel_timer = cancel_timer
+_cancel_scheduled_timer = cancel_scheduled_timer
+_set_automation_state = async_set_automation_state
+_async_save = async_save
+_async_resume = async_resume
 
 UTC = timezone.utc
 

@@ -398,6 +398,7 @@ class TestCDNCacheBusting:
     in the Home Assistant ecosystem used by HACS and most community cards.
     """
 
+    CONST_PATH = PROJECT_ROOT / "custom_components" / "autosnooze" / "const.py"
     INIT_PATH = PROJECT_ROOT / "custom_components" / "autosnooze" / "__init__.py"
     MANIFEST_PATH = PROJECT_ROOT / "custom_components" / "autosnooze" / "manifest.json"
 
@@ -411,7 +412,7 @@ class TestCDNCacheBusting:
 
         Uses root-level path (like browser_mod) for reverse proxy compatibility.
         """
-        content = self.INIT_PATH.read_text()
+        content = self.CONST_PATH.read_text()
 
         # Base URL should be root-level (like browser_mod) for proxy compatibility
         assert 'CARD_URL = "/autosnooze-card.js"' in content, (
@@ -437,7 +438,7 @@ class TestCDNCacheBusting:
 
         This test prevents regression to a non-working URL path.
         """
-        content = self.INIT_PATH.read_text()
+        content = self.CONST_PATH.read_text()
 
         # Verify root-level path is used (no subdirectory)
         assert 'CARD_URL = "/autosnooze-card.js"' in content, (

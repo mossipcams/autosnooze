@@ -6,7 +6,8 @@ from homeassistant.components.sensor import SensorEntity
 from homeassistant.core import callback
 from homeassistant.helpers.device_registry import DeviceEntryType, DeviceInfo
 
-from . import DOMAIN, VERSION, AutomationPauseConfigEntry
+from .const import DOMAIN, VERSION
+from .models import AutomationPauseConfigEntry
 
 
 async def async_setup_entry(

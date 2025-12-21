@@ -1,0 +1,78 @@
+"""Constants for AutoSnooze integration."""
+
+from __future__ import annotations
+
+import json
+from pathlib import Path
+
+import voluptuous as vol
+
+from homeassistant.const import ATTR_ENTITY_ID
+from homeassistant.helpers import config_validation as cv
+
+DOMAIN = "autosnooze"
+PLATFORMS = ["sensor"]
+STORAGE_VERSION = 2
+
+# Retry configuration for save operations
+MAX_SAVE_RETRIES = 3
+SAVE_RETRY_DELAYS = [0.1, 0.2, 0.4]  # Exponential backoff delays in seconds
+TRANSIENT_ERRORS = (IOError, OSError)  # Errors that should trigger retry
+
+# Read version from manifest for cache-busting
+MANIFEST_PATH = Path(__file__).parent / "manifest.json"
+with open(MANIFEST_PATH, encoding="utf-8") as manifest_file:
+    MANIFEST = json.load(manifest_file)
+VERSION = MANIFEST.get("version", "0.0.0")
+
+# Card paths
+CARD_PATH = Path(__file__).parent / "www" / "autosnooze-card.js"
+CARD_URL = "/autosnooze-card.js"
+CARD_URL_VERSIONED = f"/autosnooze-card.js?v={VERSION}"
+
+# Service schemas
+# FR-05: Duration Input - days, hours, minutes parameters
+# Also supports date-based scheduling with disable_at/resume_at
+PAUSE_SCHEMA = vol.Schema(
+    {
+        vol.Required(ATTR_ENTITY_ID): cv.entity_ids,
+        # Duration-based (existing)
+        vol.Optional("days", default=0): cv.positive_int,
+        vol.Optional("hours", default=0): cv.positive_int,
+        vol.Optional("minutes", default=0): cv.positive_int,
+        # Date-based (new) - overrides duration if provided
+        vol.Optional("disable_at"): cv.datetime,
+        vol.Optional("resume_at"): cv.datetime,
+    }
+)
+
+# FR-10: Early Wake Up
+CANCEL_SCHEMA = vol.Schema(
+    {
+        vol.Required(ATTR_ENTITY_ID): cv.entity_ids,
+    }
+)
+
+# Pause by area
+PAUSE_BY_AREA_SCHEMA = vol.Schema(
+    {
+        vol.Required("area_id"): vol.Any(cv.string, [cv.string]),
+        vol.Optional("days", default=0): cv.positive_int,
+        vol.Optional("hours", default=0): cv.positive_int,
+        vol.Optional("minutes", default=0): cv.positive_int,
+        vol.Optional("disable_at"): cv.datetime,
+        vol.Optional("resume_at"): cv.datetime,
+    }
+)
+
+# Pause by label
+PAUSE_BY_LABEL_SCHEMA = vol.Schema(
+    {
+        vol.Required("label_id"): vol.Any(cv.string, [cv.string]),
+        vol.Optional("days", default=0): cv.positive_int,
+        vol.Optional("hours", default=0): cv.positive_int,
+        vol.Optional("minutes", default=0): cv.positive_int,
+        vol.Optional("disable_at"): cv.datetime,
+        vol.Optional("resume_at"): cv.datetime,
+    }
+)
