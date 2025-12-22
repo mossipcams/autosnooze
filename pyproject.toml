@@ -73,5 +73,5 @@ exclude_lines = [
     "raise NotImplementedError",
     "if TYPE_CHECKING:",
 ]
-fail_under = 70
+fail_under = 85
 show_missing = true
