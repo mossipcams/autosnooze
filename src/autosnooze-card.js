@@ -36,6 +36,14 @@ const DEFAULT_DURATIONS = [
 
 const DEFAULT_SNOOZE_MINUTES = 30;
 
+// Error translation key to user-friendly message mapping
+const ERROR_MESSAGES = {
+  not_automation: "Failed to pause: One or more selected items are not automations",
+  invalid_duration: "Failed to pause: Please specify a valid duration (days, hours, or minutes)",
+  resume_time_past: "Failed to pause: Resume time must be in the future",
+  disable_after_resume: "Failed to pause: Pause time must be before resume time",
+};
+
 // ============================================================================
 // CARD EDITOR
 // ============================================================================
@@ -228,74 +236,64 @@ class AutomationPauseCard extends LitElement {
     }
   }
 
-  async _fetchLabelRegistry() {
-    if (this._labelsFetched || !this.hass?.connection) return;
+  async _fetchRegistry(config) {
+    const { fetchedFlag, messageType, messageParams, idKey, targetProp, filterFn, logName } = config;
+
+    if (this[fetchedFlag] || !this.hass?.connection) return;
 
     try {
-      const labels = await this.hass.connection.sendMessagePromise({
-        type: "config/label_registry/list",
-      });
+      const message = { type: messageType, ...messageParams };
+      const items = await this.hass.connection.sendMessagePromise(message);
 
-      const labelMap = {};
-      if (Array.isArray(labels)) {
-        labels.forEach((label) => {
-          labelMap[label.label_id] = label;
+      const itemMap = {};
+      if (Array.isArray(items)) {
+        const filtered = filterFn ? items.filter(filterFn) : items;
+        filtered.forEach((item) => {
+          itemMap[item[idKey]] = item;
         });
       }
 
-      this._labelRegistry = labelMap;
-      this._labelsFetched = true;
+      this[targetProp] = itemMap;
+      this[fetchedFlag] = true;
     } catch (err) {
-      console.warn("[AutoSnooze] Failed to fetch label registry:", err);
+      console.warn(`[AutoSnooze] Failed to fetch ${logName}:`, err);
     }
+  }
+
+  async _fetchLabelRegistry() {
+    await this._fetchRegistry({
+      fetchedFlag: "_labelsFetched",
+      messageType: "config/label_registry/list",
+      messageParams: {},
+      idKey: "label_id",
+      targetProp: "_labelRegistry",
+      filterFn: null,
+      logName: "label registry",
+    });
   }
 
   async _fetchCategoryRegistry() {
-    if (this._categoriesFetched || !this.hass?.connection) return;
-
-    try {
-      const categories = await this.hass.connection.sendMessagePromise({
-        type: "config/category_registry/list",
-        scope: "automation",
-      });
-
-      const categoryMap = {};
-      if (Array.isArray(categories)) {
-        categories.forEach((category) => {
-          categoryMap[category.category_id] = category;
-        });
-      }
-
-      this._categoryRegistry = categoryMap;
-      this._categoriesFetched = true;
-    } catch (err) {
-      console.warn("[AutoSnooze] Failed to fetch category registry:", err);
-    }
+    await this._fetchRegistry({
+      fetchedFlag: "_categoriesFetched",
+      messageType: "config/category_registry/list",
+      messageParams: { scope: "automation" },
+      idKey: "category_id",
+      targetProp: "_categoryRegistry",
+      filterFn: null,
+      logName: "category registry",
+    });
   }
 
   async _fetchEntityRegistry() {
-    if (this._entityRegistryFetched || !this.hass?.connection) return;
-
-    try {
-      const entities = await this.hass.connection.sendMessagePromise({
-        type: "config/entity_registry/list",
-      });
-
-      // Build map directly from list response (includes categories data)
-      const entityMap = {};
-      if (Array.isArray(entities)) {
-        entities
-          .filter((e) => e.entity_id.startsWith("automation."))
-          .forEach((entity) => {
-            entityMap[entity.entity_id] = entity;
-          });
-      }
-
-      this._entityRegistry = entityMap;
-      this._entityRegistryFetched = true;
-    } catch (err) {
-      console.warn("[AutoSnooze] Failed to fetch entity registry:", err);
-    }
+    await this._fetchRegistry({
+      fetchedFlag: "_entityRegistryFetched",
+      messageType: "config/entity_registry/list",
+      messageParams: {},
+      idKey: "entity_id",
+      targetProp: "_entityRegistry",
+      filterFn: (e) => e.entity_id.startsWith("automation."),
+      logName: "entity registry",
+    });
   }
 
   updated(changedProps) {
@@ -1284,6 +1282,25 @@ class AutomationPauseCard extends LitElement {
     return this._parseDurationInput(this._customDurationInput) !== null;
   }
 
+  _getErrorMessage(error, defaultMessage) {
+    // Check for HA translation key in error (preferred method)
+    const translationKey = error?.translation_key || error?.data?.translation_key;
+    if (translationKey && ERROR_MESSAGES[translationKey]) {
+      return ERROR_MESSAGES[translationKey];
+    }
+
+    // Fallback: check error message for known patterns
+    const errorMsg = error?.message || "";
+    for (const [key, message] of Object.entries(ERROR_MESSAGES)) {
+      // Match translation key patterns in error message
+      if (errorMsg.includes(key) || errorMsg.toLowerCase().includes(key.replace(/_/g, " "))) {
+        return message;
+      }
+    }
+
+    return `${defaultMessage}. Check Home Assistant logs for details.`;
+  }
+
   _showToast(message, options = {}) {
     const { showUndo = false, onUndo = null } = options;
 
@@ -1333,11 +1350,17 @@ class AutomationPauseCard extends LitElement {
     return `${date}T${time}`;
   }
 
+  _getLocale() {
+    // Use Home Assistant's locale setting, fallback to browser default
+    return this.hass?.locale?.language || undefined;
+  }
+
   _renderDateOptions() {
     // Generate options for next 365 days
     const options = [];
     const now = new Date();
     const currentYear = now.getFullYear();
+    const locale = this._getLocale();
 
     for (let i = 0; i < 365; i++) {
       const date = new Date(now);
@@ -1348,8 +1371,8 @@ class AutomationPauseCard extends LitElement {
       const day = String(date.getDate()).padStart(2, "0");
       const isoDate = `${year}-${month}-${day}`;
 
-      const dayName = date.toLocaleDateString("en-US", { weekday: "short" });
-      const monthName = date.toLocaleDateString("en-US", { month: "short" });
+      const dayName = date.toLocaleDateString(locale, { weekday: "short" });
+      const monthName = date.toLocaleDateString(locale, { month: "short" });
       const dayNum = date.getDate();
 
       // Show year only when different from current year
@@ -1489,18 +1512,7 @@ class AutomationPauseCard extends LitElement {
       this._resumeAtTime = "";
     } catch (e) {
       console.error("Snooze failed:", e);
-      const errorMsg = e?.message || "";
-      if (errorMsg.includes("not an automation")) {
-        this._showToast("Failed to pause: One or more selected items are not automations");
-      } else if (errorMsg.includes("duration") || errorMsg.includes("Duration")) {
-        this._showToast("Failed to pause: Please specify a valid duration (days, hours, or minutes)");
-      } else if (errorMsg.includes("future")) {
-        this._showToast("Failed to pause: Resume time must be in the future");
-      } else if (errorMsg.includes("before resume")) {
-        this._showToast("Failed to pause: Pause time must be before resume time");
-      } else {
-        this._showToast("Failed to pause automations. Check Home Assistant logs for details.");
-      }
+      this._showToast(this._getErrorMessage(e, "Failed to pause automations"));
     }
     this._loading = false;
   }
@@ -1521,12 +1533,7 @@ class AutomationPauseCard extends LitElement {
       this._showToast("Automation resumed successfully");
     } catch (e) {
       console.error("Wake failed:", e);
-      const errorMsg = e?.message || "";
-      if (errorMsg.includes("not snoozed")) {
-        this._showToast("This automation is not currently paused");
-      } else {
-        this._showToast("Failed to resume automation. Check Home Assistant logs for details.");
-      }
+      this._showToast(this._getErrorMessage(e, "Failed to resume automation"));
     }
   }
 
@@ -1561,12 +1568,7 @@ class AutomationPauseCard extends LitElement {
       this._showToast("Scheduled pause cancelled successfully");
     } catch (e) {
       console.error("Cancel scheduled failed:", e);
-      const errorMsg = e?.message || "";
-      if (errorMsg.includes("no scheduled")) {
-        this._showToast("This automation has no scheduled pause to cancel");
-      } else {
-        this._showToast("Failed to cancel scheduled pause. Check Home Assistant logs for details.");
-      }
+      this._showToast(this._getErrorMessage(e, "Failed to cancel scheduled pause"));
     }
   }
 

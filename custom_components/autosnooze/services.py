@@ -195,41 +195,45 @@ def register_services(hass: HomeAssistant, data: AutomationPauseData) -> None:
         for entity_id in list(data.paused.keys()):
             await async_resume(hass, data, entity_id)
 
-    async def handle_pause_by_area(call: ServiceCall) -> None:
-        """Handle pause by area service call."""
-        area_id = call.data["area_id"]
-        area_ids = [area_id] if isinstance(area_id, str) else area_id
+    async def _handle_pause_by_filter(
+        call: ServiceCall,
+        filter_key: str,
+        get_automations_fn,
+        not_found_msg: str,
+    ) -> None:
+        """Handle pause by area/label service calls (shared logic)."""
+        filter_value = call.data[filter_key]
+        filter_ids = [filter_value] if isinstance(filter_value, str) else filter_value
         days = call.data.get("days", 0)
         hours = call.data.get("hours", 0)
         minutes = call.data.get("minutes", 0)
-        # Ensure datetimes from service calls are UTC-aware
         disable_at = ensure_utc_aware(call.data.get("disable_at"))
         resume_at_dt = ensure_utc_aware(call.data.get("resume_at"))
 
-        entity_ids = get_automations_by_area(hass, area_ids)
+        entity_ids = get_automations_fn(hass, filter_ids)
         if not entity_ids:
-            _LOGGER.warning("No automations found in area(s): %s", area_ids)
+            _LOGGER.warning(not_found_msg, filter_ids)
             return
 
         await async_pause_automations(hass, data, entity_ids, days, hours, minutes, disable_at, resume_at_dt)
+
+    async def handle_pause_by_area(call: ServiceCall) -> None:
+        """Handle pause by area service call."""
+        await _handle_pause_by_filter(
+            call,
+            "area_id",
+            get_automations_by_area,
+            "No automations found in area(s): %s",
+        )
 
     async def handle_pause_by_label(call: ServiceCall) -> None:
         """Handle pause by label service call."""
-        label_id = call.data["label_id"]
-        label_ids = [label_id] if isinstance(label_id, str) else label_id
-        days = call.data.get("days", 0)
-        hours = call.data.get("hours", 0)
-        minutes = call.data.get("minutes", 0)
-        # Ensure datetimes from service calls are UTC-aware
-        disable_at = ensure_utc_aware(call.data.get("disable_at"))
-        resume_at_dt = ensure_utc_aware(call.data.get("resume_at"))
-
-        entity_ids = get_automations_by_label(hass, label_ids)
-        if not entity_ids:
-            _LOGGER.warning("No automations found with label(s): %s", label_ids)
-            return
-
-        await async_pause_automations(hass, data, entity_ids, days, hours, minutes, disable_at, resume_at_dt)
+        await _handle_pause_by_filter(
+            call,
+            "label_id",
+            get_automations_by_label,
+            "No automations found with label(s): %s",
+        )
 
     async def handle_cancel_scheduled(call: ServiceCall) -> None:
         """Handle cancel scheduled snooze service call."""

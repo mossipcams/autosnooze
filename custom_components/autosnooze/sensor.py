@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
+
 from homeassistant.components.sensor import SensorEntity
 from homeassistant.core import callback
 from homeassistant.helpers.device_registry import DeviceEntryType, DeviceInfo
@@ -36,7 +38,7 @@ class AutoSnoozeCountSensor(SensorEntity):
             entry_type=DeviceEntryType.SERVICE,
             sw_version=VERSION,
         )
-        self._unsub: callable | None = None
+        self._unsub: Callable[[], None] | None = None
 
     async def async_added_to_hass(self) -> None:
         """Register listener when added."""
