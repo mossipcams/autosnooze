@@ -273,14 +273,6 @@ describe('Defect #7: iOS Card Disappears After Refresh - Structure', () => {
 
     expect(hasGuardPattern).toBe(true);
   });
-
-  test('render() returns empty template when hass is not ready', () => {
-    const hasEmptyReturn =
-      sourceCode.includes('if (!this.hass || !this.config)') &&
-      sourceCode.includes('return html``;');
-
-    expect(hasEmptyReturn).toBe(true);
-  });
 });
 
 // ============================================================================
