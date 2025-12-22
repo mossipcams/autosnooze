@@ -1089,25 +1089,25 @@ describe('Error Message Handling', () => {
   test('_getErrorMessage returns message for known translation_key', () => {
     const error = { translation_key: 'not_automation' };
     const result = card._getErrorMessage(error, 'Default');
-    expect(result).toBe('Failed to pause: One or more selected items are not automations');
+    expect(result).toBe('Failed to snooze: One or more selected items are not automations');
   });
 
   test('_getErrorMessage returns message for translation_key in data', () => {
     const error = { data: { translation_key: 'invalid_duration' } };
     const result = card._getErrorMessage(error, 'Default');
-    expect(result).toBe('Failed to pause: Please specify a valid duration (days, hours, or minutes)');
+    expect(result).toBe('Failed to snooze: Please specify a valid duration (days, hours, or minutes)');
   });
 
   test('_getErrorMessage matches error message patterns', () => {
     const error = { message: 'Something with resume_time_past in it' };
     const result = card._getErrorMessage(error, 'Default');
-    expect(result).toBe('Failed to pause: Resume time must be in the future');
+    expect(result).toBe('Failed to snooze: Resume time must be in the future');
   });
 
   test('_getErrorMessage matches lowercase patterns with spaces', () => {
     const error = { message: 'Something about disable after resume' };
     const result = card._getErrorMessage(error, 'Default');
-    expect(result).toBe('Failed to pause: Pause time must be before resume time');
+    expect(result).toBe('Failed to snooze: Snooze time must be before resume time');
   });
 
   test('_getErrorMessage returns default for unknown errors', () => {
@@ -1188,7 +1188,7 @@ describe('Schedule Mode Validation', () => {
 
     const toast = card.shadowRoot.querySelector('.toast');
     expect(toast).not.toBeNull();
-    expect(toast.textContent).toContain('Pause time must be before resume time');
+    expect(toast.textContent).toContain('Snooze time must be before resume time');
   });
 });
 
@@ -1439,7 +1439,7 @@ describe('Schedule Mode Inputs', () => {
     card._scheduleMode = true;
     await card.updateComplete;
 
-    const dateSelect = card.shadowRoot.querySelector('select[aria-label="Pause date"]');
+    const dateSelect = card.shadowRoot.querySelector('select[aria-label="Snooze date"]');
     const option = dateSelect.querySelector('option:not([value=""])');
     if (option) {
       dateSelect.value = option.value;
@@ -1454,7 +1454,7 @@ describe('Schedule Mode Inputs', () => {
     card._scheduleMode = true;
     await card.updateComplete;
 
-    const timeInput = card.shadowRoot.querySelector('input[type="time"][aria-label="Pause time"]');
+    const timeInput = card.shadowRoot.querySelector('input[type="time"][aria-label="Snooze time"]');
     timeInput.value = '14:30';
     timeInput.dispatchEvent(new Event('input', { bubbles: true }));
     await card.updateComplete;
