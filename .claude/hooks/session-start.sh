@@ -44,7 +44,7 @@ fi
 # Run Python tests with coverage (requires Home Assistant test fixtures)
 if python -c "import pytest_homeassistant_custom_component" 2>/dev/null; then
     echo "Running Python tests..."
-    pytest tests/ -v --cov=custom_components/autosnooze --cov-fail-under=60
+    pytest tests/ -v --cov=custom_components/autosnooze --cov-fail-under=70
 else
     echo "WARN: pytest_homeassistant_custom_component not available, skipping Python tests"
     echo "      Python tests will run in GitHub Actions CI instead"
