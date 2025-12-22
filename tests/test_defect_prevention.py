@@ -15,24 +15,6 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from custom_components.autosnooze.coordinator import (
-    async_save,
-    validate_stored_data,
-    validate_stored_entry,
-)
-from custom_components.autosnooze.models import (
-    AutomationPauseData,
-    PausedAutomation,
-    ScheduledSnooze,
-    ensure_utc_aware,
-    parse_datetime_utc,
-)
-from custom_components.autosnooze.services import (
-    async_pause_automations,
-    get_automations_by_area,
-    get_automations_by_label,
-)
-
 UTC = timezone.utc
 
 
@@ -49,6 +31,9 @@ class TestDurationValidation:
         """Test that duration with all zeros is rejected."""
         from homeassistant.exceptions import ServiceValidationError
 
+        from custom_components.autosnooze.models import AutomationPauseData
+        from custom_components.autosnooze.services import async_pause_automations
+
         mock_hass = MagicMock()
         mock_store = MagicMock()
         mock_store.async_save = AsyncMock()
@@ -64,13 +49,21 @@ class TestDurationValidation:
                 minutes=0,
             )
 
-        assert "duration" in str(exc_info.value).lower() or exc_info.value.translation_key == "invalid_duration"
+        assert (
+            "duration" in str(exc_info.value).lower()
+            or exc_info.value.translation_key == "invalid_duration"
+        )
 
     @pytest.mark.asyncio
     async def test_accepts_single_nonzero_value(self) -> None:
         """Test that duration with at least one non-zero value is accepted."""
+        from custom_components.autosnooze.models import AutomationPauseData
+        from custom_components.autosnooze.services import async_pause_automations
+
         mock_hass = MagicMock()
-        mock_hass.states.get.return_value = MagicMock(attributes={"friendly_name": "Test"})
+        mock_hass.states.get.return_value = MagicMock(
+            attributes={"friendly_name": "Test"}
+        )
         mock_hass.services.async_call = AsyncMock()
 
         mock_store = MagicMock()
@@ -92,8 +85,13 @@ class TestDurationValidation:
     @pytest.mark.asyncio
     async def test_accepts_only_days_nonzero(self) -> None:
         """Test that duration with only days non-zero is accepted."""
+        from custom_components.autosnooze.models import AutomationPauseData
+        from custom_components.autosnooze.services import async_pause_automations
+
         mock_hass = MagicMock()
-        mock_hass.states.get.return_value = MagicMock(attributes={"friendly_name": "Test"})
+        mock_hass.states.get.return_value = MagicMock(
+            attributes={"friendly_name": "Test"}
+        )
         mock_hass.services.async_call = AsyncMock()
 
         mock_store = MagicMock()
@@ -115,8 +113,13 @@ class TestDurationValidation:
     @pytest.mark.asyncio
     async def test_handles_large_duration_values(self) -> None:
         """Test that very large duration values are handled."""
+        from custom_components.autosnooze.models import AutomationPauseData
+        from custom_components.autosnooze.services import async_pause_automations
+
         mock_hass = MagicMock()
-        mock_hass.states.get.return_value = MagicMock(attributes={"friendly_name": "Test"})
+        mock_hass.states.get.return_value = MagicMock(
+            attributes={"friendly_name": "Test"}
+        )
         mock_hass.services.async_call = AsyncMock()
 
         mock_store = MagicMock()
@@ -149,6 +152,9 @@ class TestScheduleValidation:
         """Test that resume_at in the past is rejected."""
         from homeassistant.exceptions import ServiceValidationError
 
+        from custom_components.autosnooze.models import AutomationPauseData
+        from custom_components.autosnooze.services import async_pause_automations
+
         mock_hass = MagicMock()
         mock_store = MagicMock()
         mock_store.async_save = AsyncMock()
@@ -172,6 +178,9 @@ class TestScheduleValidation:
         """Test that resume_at at exactly current time is rejected."""
         from homeassistant.exceptions import ServiceValidationError
 
+        from custom_components.autosnooze.models import AutomationPauseData
+        from custom_components.autosnooze.services import async_pause_automations
+
         mock_hass = MagicMock()
         mock_store = MagicMock()
         mock_store.async_save = AsyncMock()
@@ -193,8 +202,13 @@ class TestScheduleValidation:
     @pytest.mark.asyncio
     async def test_accepts_resume_at_in_future(self) -> None:
         """Test that resume_at in the future is accepted."""
+        from custom_components.autosnooze.models import AutomationPauseData
+        from custom_components.autosnooze.services import async_pause_automations
+
         mock_hass = MagicMock()
-        mock_hass.states.get.return_value = MagicMock(attributes={"friendly_name": "Test"})
+        mock_hass.states.get.return_value = MagicMock(
+            attributes={"friendly_name": "Test"}
+        )
         mock_hass.services.async_call = AsyncMock()
 
         mock_store = MagicMock()
@@ -218,6 +232,9 @@ class TestScheduleValidation:
     async def test_rejects_disable_at_after_resume_at(self) -> None:
         """Test that disable_at after resume_at is rejected."""
         from homeassistant.exceptions import ServiceValidationError
+
+        from custom_components.autosnooze.models import AutomationPauseData
+        from custom_components.autosnooze.services import async_pause_automations
 
         mock_hass = MagicMock()
         mock_store = MagicMock()
@@ -244,6 +261,9 @@ class TestScheduleValidation:
         """Test that disable_at equal to resume_at is rejected."""
         from homeassistant.exceptions import ServiceValidationError
 
+        from custom_components.autosnooze.models import AutomationPauseData
+        from custom_components.autosnooze.services import async_pause_automations
+
         mock_hass = MagicMock()
         mock_store = MagicMock()
         mock_store.async_save = AsyncMock()
@@ -266,8 +286,13 @@ class TestScheduleValidation:
     @pytest.mark.asyncio
     async def test_accepts_disable_at_before_resume_at(self) -> None:
         """Test that disable_at before resume_at is accepted for future schedule."""
+        from custom_components.autosnooze.models import AutomationPauseData
+        from custom_components.autosnooze.services import async_pause_automations
+
         mock_hass = MagicMock()
-        mock_hass.states.get.return_value = MagicMock(attributes={"friendly_name": "Test"})
+        mock_hass.states.get.return_value = MagicMock(
+            attributes={"friendly_name": "Test"}
+        )
         mock_hass.services.async_call = AsyncMock()
 
         mock_store = MagicMock()
@@ -303,6 +328,9 @@ class TestEntityValidation:
         """Test that non-automation entities are rejected."""
         from homeassistant.exceptions import ServiceValidationError
 
+        from custom_components.autosnooze.models import AutomationPauseData
+        from custom_components.autosnooze.services import async_pause_automations
+
         mock_hass = MagicMock()
         mock_store = MagicMock()
         mock_store.async_save = AsyncMock()
@@ -323,6 +351,9 @@ class TestEntityValidation:
         """Test that switch entities are rejected."""
         from homeassistant.exceptions import ServiceValidationError
 
+        from custom_components.autosnooze.models import AutomationPauseData
+        from custom_components.autosnooze.services import async_pause_automations
+
         mock_hass = MagicMock()
         mock_store = MagicMock()
         mock_store.async_save = AsyncMock()
@@ -341,8 +372,13 @@ class TestEntityValidation:
     @pytest.mark.asyncio
     async def test_accepts_automation_entity(self) -> None:
         """Test that automation entities are accepted."""
+        from custom_components.autosnooze.models import AutomationPauseData
+        from custom_components.autosnooze.services import async_pause_automations
+
         mock_hass = MagicMock()
-        mock_hass.states.get.return_value = MagicMock(attributes={"friendly_name": "Test"})
+        mock_hass.states.get.return_value = MagicMock(
+            attributes={"friendly_name": "Test"}
+        )
         mock_hass.services.async_call = AsyncMock()
 
         mock_store = MagicMock()
@@ -370,6 +406,8 @@ class TestDatetimeParsing:
 
     def test_parse_datetime_utc_with_timezone(self) -> None:
         """Test parsing datetime with timezone info."""
+        from custom_components.autosnooze.models import parse_datetime_utc
+
         dt_str = "2024-12-25T14:30:00+00:00"
         result = parse_datetime_utc(dt_str)
 
@@ -380,6 +418,8 @@ class TestDatetimeParsing:
 
     def test_parse_datetime_utc_without_timezone(self) -> None:
         """Test parsing datetime without timezone assumes UTC."""
+        from custom_components.autosnooze.models import parse_datetime_utc
+
         dt_str = "2024-12-25T14:30:00"
         result = parse_datetime_utc(dt_str)
 
@@ -387,20 +427,28 @@ class TestDatetimeParsing:
 
     def test_parse_datetime_utc_invalid_string(self) -> None:
         """Test that invalid datetime string raises ValueError."""
+        from custom_components.autosnooze.models import parse_datetime_utc
+
         with pytest.raises(ValueError):
             parse_datetime_utc("not-a-datetime")
 
     def test_parse_datetime_utc_empty_string(self) -> None:
         """Test that empty string raises ValueError."""
+        from custom_components.autosnooze.models import parse_datetime_utc
+
         with pytest.raises(ValueError):
             parse_datetime_utc("")
 
     def test_ensure_utc_aware_with_none(self) -> None:
         """Test ensure_utc_aware returns None for None input."""
+        from custom_components.autosnooze.models import ensure_utc_aware
+
         assert ensure_utc_aware(None) is None
 
     def test_ensure_utc_aware_with_naive_datetime(self) -> None:
         """Test ensure_utc_aware adds UTC to naive datetime."""
+        from custom_components.autosnooze.models import ensure_utc_aware
+
         naive_dt = datetime(2024, 12, 25, 14, 30, 0)
         result = ensure_utc_aware(naive_dt)
 
@@ -408,6 +456,8 @@ class TestDatetimeParsing:
 
     def test_ensure_utc_aware_with_aware_datetime(self) -> None:
         """Test ensure_utc_aware preserves aware datetime."""
+        from custom_components.autosnooze.models import ensure_utc_aware
+
         aware_dt = datetime(2024, 12, 25, 14, 30, 0, tzinfo=timezone.utc)
         result = ensure_utc_aware(aware_dt)
 
@@ -425,6 +475,8 @@ class TestStorageValidation:
 
     def test_validate_stored_entry_with_float_days(self) -> None:
         """Test that float days value is rejected."""
+        from custom_components.autosnooze.coordinator import validate_stored_entry
+
         now = datetime.now(UTC)
         data = {
             "resume_at": (now + timedelta(hours=1)).isoformat(),
@@ -438,6 +490,8 @@ class TestStorageValidation:
 
     def test_validate_stored_entry_with_string_hours(self) -> None:
         """Test that string hours value is rejected."""
+        from custom_components.autosnooze.coordinator import validate_stored_entry
+
         now = datetime.now(UTC)
         data = {
             "resume_at": (now + timedelta(hours=1)).isoformat(),
@@ -451,6 +505,8 @@ class TestStorageValidation:
 
     def test_validate_stored_entry_with_none_resume_at(self) -> None:
         """Test that None resume_at is rejected."""
+        from custom_components.autosnooze.coordinator import validate_stored_entry
+
         now = datetime.now(UTC)
         data = {
             "resume_at": None,  # None instead of datetime string
@@ -463,6 +519,8 @@ class TestStorageValidation:
 
     def test_validate_stored_entry_with_empty_entity_id(self) -> None:
         """Test that empty entity_id is rejected."""
+        from custom_components.autosnooze.coordinator import validate_stored_entry
+
         now = datetime.now(UTC)
         data = {
             "resume_at": (now + timedelta(hours=1)).isoformat(),
@@ -475,6 +533,8 @@ class TestStorageValidation:
 
     def test_validate_stored_data_with_mixed_valid_invalid(self) -> None:
         """Test that mixed valid/invalid entries are filtered correctly."""
+        from custom_components.autosnooze.coordinator import validate_stored_data
+
         now = datetime.now(UTC)
         storage_data = {
             "paused": {
@@ -504,12 +564,16 @@ class TestStorageValidation:
 
     def test_validate_stored_data_with_completely_empty(self) -> None:
         """Test that completely empty storage returns empty dicts."""
+        from custom_components.autosnooze.coordinator import validate_stored_data
+
         result = validate_stored_data({})
 
         assert result == {"paused": {}, "scheduled": {}}
 
     def test_validate_stored_data_with_missing_keys(self) -> None:
         """Test that missing paused/scheduled keys return empty dicts."""
+        from custom_components.autosnooze.coordinator import validate_stored_data
+
         result = validate_stored_data({"some_other_key": "value"})
 
         assert result == {"paused": {}, "scheduled": {}}
@@ -526,6 +590,9 @@ class TestPersistenceEdgeCases:
     @pytest.mark.asyncio
     async def test_save_with_none_store(self) -> None:
         """Test that save handles None store gracefully."""
+        from custom_components.autosnooze.coordinator import async_save
+        from custom_components.autosnooze.models import AutomationPauseData
+
         data = AutomationPauseData(store=None)
 
         result = await async_save(data)
@@ -536,6 +603,9 @@ class TestPersistenceEdgeCases:
     @pytest.mark.asyncio
     async def test_save_with_empty_data(self) -> None:
         """Test that save works with empty paused/scheduled dicts."""
+        from custom_components.autosnooze.coordinator import async_save
+        from custom_components.autosnooze.models import AutomationPauseData
+
         mock_store = MagicMock()
         mock_store.async_save = AsyncMock()
         data = AutomationPauseData(store=mock_store)
@@ -556,6 +626,8 @@ class TestPausedAutomationModel:
 
     def test_to_dict_includes_all_fields(self) -> None:
         """Test that to_dict includes all required fields."""
+        from custom_components.autosnooze.models import PausedAutomation
+
         now = datetime.now(UTC)
         resume_at = now + timedelta(hours=1)
 
@@ -581,6 +653,8 @@ class TestPausedAutomationModel:
 
     def test_to_dict_includes_disable_at_when_set(self) -> None:
         """Test that to_dict includes disable_at when set."""
+        from custom_components.autosnooze.models import PausedAutomation
+
         now = datetime.now(UTC)
         resume_at = now + timedelta(hours=2)
 
@@ -598,6 +672,8 @@ class TestPausedAutomationModel:
 
     def test_to_dict_excludes_disable_at_when_none(self) -> None:
         """Test that to_dict excludes disable_at when None."""
+        from custom_components.autosnooze.models import PausedAutomation
+
         now = datetime.now(UTC)
         resume_at = now + timedelta(hours=1)
 
@@ -615,6 +691,8 @@ class TestPausedAutomationModel:
 
     def test_from_dict_creates_valid_object(self) -> None:
         """Test that from_dict creates a valid PausedAutomation."""
+        from custom_components.autosnooze.models import PausedAutomation
+
         now = datetime.now(UTC)
         resume_at = now + timedelta(hours=1)
 
@@ -635,6 +713,8 @@ class TestPausedAutomationModel:
 
     def test_from_dict_uses_entity_id_as_fallback_name(self) -> None:
         """Test that from_dict uses entity_id when friendly_name is missing."""
+        from custom_components.autosnooze.models import PausedAutomation
+
         now = datetime.now(UTC)
         resume_at = now + timedelta(hours=1)
 
@@ -659,6 +739,8 @@ class TestScheduledSnoozeModel:
 
     def test_to_dict_includes_all_fields(self) -> None:
         """Test that to_dict includes all required fields."""
+        from custom_components.autosnooze.models import ScheduledSnooze
+
         now = datetime.now(UTC)
         disable_at = now + timedelta(hours=1)
         resume_at = now + timedelta(hours=2)
@@ -678,6 +760,8 @@ class TestScheduledSnoozeModel:
 
     def test_from_dict_creates_valid_object(self) -> None:
         """Test that from_dict creates a valid ScheduledSnooze."""
+        from custom_components.autosnooze.models import ScheduledSnooze
+
         now = datetime.now(UTC)
         disable_at = now + timedelta(hours=1)
         resume_at = now + timedelta(hours=2)
@@ -704,6 +788,8 @@ class TestAutomationPauseDataModel:
 
     def test_listener_add_and_notify(self) -> None:
         """Test adding listener and notifying."""
+        from custom_components.autosnooze.models import AutomationPauseData
+
         data = AutomationPauseData()
         listener = MagicMock()
 
@@ -714,6 +800,8 @@ class TestAutomationPauseDataModel:
 
     def test_listener_removal(self) -> None:
         """Test that listener removal function works."""
+        from custom_components.autosnooze.models import AutomationPauseData
+
         data = AutomationPauseData()
         listener = MagicMock()
 
@@ -726,6 +814,11 @@ class TestAutomationPauseDataModel:
 
     def test_get_paused_dict_with_items(self) -> None:
         """Test get_paused_dict returns correct format."""
+        from custom_components.autosnooze.models import (
+            AutomationPauseData,
+            PausedAutomation,
+        )
+
         now = datetime.now(UTC)
         data = AutomationPauseData()
         data.paused["automation.test"] = PausedAutomation(
@@ -742,6 +835,11 @@ class TestAutomationPauseDataModel:
 
     def test_get_scheduled_dict_with_items(self) -> None:
         """Test get_scheduled_dict returns correct format."""
+        from custom_components.autosnooze.models import (
+            AutomationPauseData,
+            ScheduledSnooze,
+        )
+
         now = datetime.now(UTC)
         data = AutomationPauseData()
         data.scheduled["automation.test"] = ScheduledSnooze(
@@ -782,10 +880,14 @@ class TestAreaFilteringEdgeCases:
 
     def test_empty_area_list_returns_empty(self) -> None:
         """Test that empty area list returns empty result."""
+        from custom_components.autosnooze.services import get_automations_by_area
+
         mock_hass = MagicMock()
         mock_entity_reg = MagicMock()
         mock_entity_reg.entities = {
-            "automation.test": create_mock_entity("automation.test", area_id="living_room"),
+            "automation.test": create_mock_entity(
+                "automation.test", area_id="living_room"
+            ),
         }
 
         with patch(
@@ -798,10 +900,14 @@ class TestAreaFilteringEdgeCases:
 
     def test_nonexistent_area_returns_empty(self) -> None:
         """Test that nonexistent area returns empty result."""
+        from custom_components.autosnooze.services import get_automations_by_area
+
         mock_hass = MagicMock()
         mock_entity_reg = MagicMock()
         mock_entity_reg.entities = {
-            "automation.test": create_mock_entity("automation.test", area_id="living_room"),
+            "automation.test": create_mock_entity(
+                "automation.test", area_id="living_room"
+            ),
         }
 
         with patch(
@@ -818,10 +924,14 @@ class TestLabelFilteringEdgeCases:
 
     def test_empty_label_list_returns_empty(self) -> None:
         """Test that empty label list returns empty result."""
+        from custom_components.autosnooze.services import get_automations_by_label
+
         mock_hass = MagicMock()
         mock_entity_reg = MagicMock()
         mock_entity_reg.entities = {
-            "automation.test": create_mock_entity("automation.test", labels={"test_label"}),
+            "automation.test": create_mock_entity(
+                "automation.test", labels={"test_label"}
+            ),
         }
 
         with patch(
@@ -834,10 +944,14 @@ class TestLabelFilteringEdgeCases:
 
     def test_nonexistent_label_returns_empty(self) -> None:
         """Test that nonexistent label returns empty result."""
+        from custom_components.autosnooze.services import get_automations_by_label
+
         mock_hass = MagicMock()
         mock_entity_reg = MagicMock()
         mock_entity_reg.entities = {
-            "automation.test": create_mock_entity("automation.test", labels={"some_label"}),
+            "automation.test": create_mock_entity(
+                "automation.test", labels={"some_label"}
+            ),
         }
 
         with patch(
@@ -850,6 +964,8 @@ class TestLabelFilteringEdgeCases:
 
     def test_entity_with_empty_labels_set_not_matched(self) -> None:
         """Test that entity with empty labels set is not matched."""
+        from custom_components.autosnooze.services import get_automations_by_label
+
         mock_hass = MagicMock()
         mock_entity_reg = MagicMock()
         mock_entity_reg.entities = {
