@@ -156,7 +156,9 @@ async def async_unload_entry(hass: HomeAssistant, entry: AutomationPauseConfigEn
         data.listeners.clear()
 
         # Only remove services if this is the last entry
-        if not hass.config_entries.async_loaded_entries(DOMAIN):
+        # Note: During unload, our entry is still LOADED until this function returns,
+        # so we check for <= 1 (only our entry remains in the loaded list)
+        if len(hass.config_entries.async_loaded_entries(DOMAIN)) <= 1:
             for service in (
                 "pause",
                 "cancel",

@@ -1,7 +1,7 @@
 node_modules/
 __pycache__/
 *.pyc
-.claude/
+# Claude Code - keep hooks, ignore user-specific files
 CLAUDE.md
 .devcontainer/
 config/

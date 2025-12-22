@@ -102,7 +102,7 @@ jobs:
         run: pytest tests/ -v --cov=custom_components/autosnooze --cov-report=term-missing --cov-report=xml
         env:
           TZ: UTC
-        # Note: Python coverage threshold not enforced yet - needs verification
+        # Python coverage threshold enforced via pyproject.toml (60% minimum)
 
       # === Build ===
       - name: Build card
