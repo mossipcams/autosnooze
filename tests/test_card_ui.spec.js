@@ -1,11 +1,19 @@
 /**
  * Tests for AutoSnooze Card UI Components
  *
- * These tests import and execute the actual source code for real coverage.
+ * This file contains comprehensive tests for:
+ * - Card registration and configuration
+ * - UI rendering and interactions
+ * - Selection, duration, and grouping logic
+ * - Snooze operations and service calls
+ * - Toast notifications and error handling
  */
 
-// Import the actual source module to get coverage
 import '../src/autosnooze-card.js';
+
+// =============================================================================
+// CARD REGISTRATION
+// =============================================================================
 
 describe('AutoSnooze Card Registration', () => {
   test('registers autosnooze-card custom element', () => {
@@ -22,6 +30,10 @@ describe('AutoSnooze Card Registration', () => {
     expect(CardClass.getStubConfig().title).toBe('AutoSnooze');
   });
 });
+
+// =============================================================================
+// CARD EDITOR
+// =============================================================================
 
 describe('AutoSnooze Card Editor', () => {
   let editor;
@@ -65,7 +77,6 @@ describe('AutoSnooze Card Editor', () => {
       editor.addEventListener('config-changed', (e) => resolve(e.detail));
     });
 
-    // Simulate _valueChanged
     editor._valueChanged('title', 'New Title');
 
     const detail = await eventPromise;
@@ -86,7 +97,27 @@ describe('AutoSnooze Card Editor', () => {
       expect(detail.config.title).toBe('Test');
     });
   });
+
+  test('dispatches config-changed event via input', async () => {
+    editor.setConfig({ title: 'My Card' });
+    await editor.updateComplete;
+
+    const eventSpy = jest.fn();
+    editor.addEventListener('config-changed', eventSpy);
+
+    const input = editor.shadowRoot.querySelector('input[type="text"]');
+    input.value = 'New Title';
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+
+    expect(eventSpy).toHaveBeenCalled();
+    const detail = eventSpy.mock.calls[0][0].detail;
+    expect(detail.config.title).toBe('New Title');
+  });
 });
+
+// =============================================================================
+// MAIN CARD COMPONENT
+// =============================================================================
 
 describe('AutoSnooze Card Main Component', () => {
   let card;
@@ -297,6 +328,24 @@ describe('AutoSnooze Card Main Component', () => {
       const result = card._formatCountdown(futureTime);
       expect(result).toMatch(/\d+m \d+s/);
     });
+
+    test('_formatCountdown handles hours correctly', () => {
+      const futureTime = new Date(Date.now() + 3700000).toISOString(); // ~1 hour
+      const result = card._formatCountdown(futureTime);
+      expect(result).toMatch(/\d+h/);
+    });
+
+    test('_formatCountdown handles days correctly', () => {
+      const futureTime = new Date(Date.now() + 90000000).toISOString(); // ~1 day
+      const result = card._formatCountdown(futureTime);
+      expect(result).toMatch(/\d+d/);
+    });
+
+    test('_formatDateTime formats ISO string', () => {
+      const result = card._formatDateTime('2024-12-25T14:30:00Z');
+      expect(result).toBeDefined();
+      expect(typeof result).toBe('string');
+    });
   });
 
   describe('Area/Label Helpers', () => {
@@ -318,6 +367,15 @@ describe('AutoSnooze Card Main Component', () => {
 
     test('_getCategoryName returns "Uncategorized" for null', () => {
       expect(card._getCategoryName(null)).toBe('Uncategorized');
+    });
+
+    test('_getLabelName returns label name from registry', () => {
+      card._labelRegistry = { lighting: { name: 'Lighting' } };
+      expect(card._getLabelName('lighting')).toBe('Lighting');
+    });
+
+    test('_getLabelName formats label_id if not in registry', () => {
+      expect(card._getLabelName('my_custom_label')).toBe('My Custom Label');
     });
   });
 
@@ -411,17 +469,42 @@ describe('AutoSnooze Card Main Component', () => {
       const btn = card.shadowRoot.querySelector('.snooze-btn');
       expect(btn.disabled).toBe(true);
     });
+
+    test('renders flat list in "all" tab', async () => {
+      card._filterTab = 'all';
+      await card.updateComplete;
+      const listItems = card.shadowRoot.querySelectorAll('.list-item');
+      expect(listItems.length).toBe(2);
+    });
+
+    test('renders grouped list in "areas" tab', async () => {
+      card._filterTab = 'areas';
+      await card.updateComplete;
+      const groupHeaders = card.shadowRoot.querySelectorAll('.group-header');
+      expect(groupHeaders.length).toBeGreaterThan(0);
+    });
+
+    test('renders empty message when no automations match filter', async () => {
+      card._search = 'nonexistent';
+      await card.updateComplete;
+      const emptyMsg = card.shadowRoot.querySelector('.list-empty');
+      expect(emptyMsg).not.toBeNull();
+    });
+
+    test('renders selection actions bar', async () => {
+      await card.updateComplete;
+      const selectionActions = card.shadowRoot.querySelector('.selection-actions');
+      expect(selectionActions).not.toBeNull();
+    });
   });
 
   describe('Group Expansion', () => {
     test('_toggleGroupExpansion toggles group state', () => {
       expect(card._expandedGroups['Test']).toBeUndefined();
       card._toggleGroupExpansion('Test');
-      // After first toggle, check it's defined
       expect(card._expandedGroups['Test']).toBeDefined();
       const firstState = card._expandedGroups['Test'];
       card._toggleGroupExpansion('Test');
-      // After second toggle, it should be opposite
       expect(card._expandedGroups['Test']).toBe(!firstState);
     });
 
@@ -462,6 +545,13 @@ describe('AutoSnooze Card Main Component', () => {
       expect(card._wakeAllPending).toBe(false);
       jest.useRealTimers();
     });
+
+    test('handles service error on second click', async () => {
+      card._wakeAllPending = true;
+      mockHass.callService.mockRejectedValueOnce(new Error('Service failed'));
+      await card._handleWakeAll();
+      expect(card._wakeAllPending).toBe(false);
+    });
   });
 
   describe('Search Input Handling', () => {
@@ -471,18 +561,143 @@ describe('AutoSnooze Card Main Component', () => {
       const event = { target: { value: 'test' } };
       card._handleSearchInput(event);
 
-      // Search should not update immediately
       expect(card._search).toBe('');
-
-      // Fast forward debounce timeout
       jest.advanceTimersByTime(350);
-
       expect(card._search).toBe('test');
 
       jest.useRealTimers();
     });
   });
+
+  describe('Custom Duration Input', () => {
+    test('clicking custom pill toggles custom input visibility', async () => {
+      await card.updateComplete;
+      const pills = card.shadowRoot.querySelectorAll('.pill');
+      const customPill = pills[pills.length - 1];
+
+      customPill.click();
+      await card.updateComplete;
+
+      expect(card._showCustomInput).toBe(true);
+    });
+
+    test('custom duration input renders when visible', async () => {
+      card._showCustomInput = true;
+      await card.updateComplete;
+
+      const customInput = card.shadowRoot.querySelector('.custom-duration-input');
+      expect(customInput).not.toBeNull();
+    });
+
+    test('custom input hidden when _showCustomInput is false', async () => {
+      card._showCustomInput = false;
+      await card.updateComplete;
+
+      const customInput = card.shadowRoot.querySelector('.custom-duration-input');
+      expect(customInput).toBeNull();
+    });
+
+    test('_handleDurationInput updates custom duration state', () => {
+      card._handleDurationInput('2h30m');
+      expect(card._customDurationInput).toBe('2h30m');
+      expect(card._customDuration).toEqual({ days: 0, hours: 2, minutes: 30 });
+    });
+
+    test('_handleDurationInput handles invalid input gracefully', () => {
+      card._handleDurationInput('invalid');
+      expect(card._customDurationInput).toBe('invalid');
+    });
+
+    test('clicking preset pill hides custom input', async () => {
+      card._showCustomInput = true;
+      await card.updateComplete;
+
+      const pills = card.shadowRoot.querySelectorAll('.pill');
+      const presetPill = pills[0];
+      presetPill.click();
+      await card.updateComplete;
+
+      expect(card._showCustomInput).toBe(false);
+    });
+  });
+
+  describe('Filter Tab Interactions', () => {
+    test('clicking Areas tab changes filter to areas', async () => {
+      const tabs = card.shadowRoot.querySelectorAll('.tab');
+      const areasTab = Array.from(tabs).find((t) => t.textContent.includes('Areas'));
+
+      areasTab.click();
+      await card.updateComplete;
+
+      expect(card._filterTab).toBe('areas');
+    });
+
+    test('clicking Categories tab changes filter to categories', async () => {
+      const tabs = card.shadowRoot.querySelectorAll('.tab');
+      const categoriesTab = Array.from(tabs).find((t) => t.textContent.includes('Categories'));
+
+      categoriesTab.click();
+      await card.updateComplete;
+
+      expect(card._filterTab).toBe('categories');
+    });
+
+    test('clicking Labels tab changes filter to labels', async () => {
+      const tabs = card.shadowRoot.querySelectorAll('.tab');
+      const labelsTab = Array.from(tabs).find((t) => t.textContent.includes('Labels'));
+
+      labelsTab.click();
+      await card.updateComplete;
+
+      expect(card._filterTab).toBe('labels');
+    });
+
+    test('clicking All tab changes filter to all', async () => {
+      card._filterTab = 'areas';
+      await card.updateComplete;
+
+      const tabs = card.shadowRoot.querySelectorAll('.tab');
+      const allTab = Array.from(tabs).find((t) => t.textContent.includes('All'));
+
+      allTab.click();
+      await card.updateComplete;
+
+      expect(card._filterTab).toBe('all');
+    });
+  });
+
+  describe('List Item Interactions', () => {
+    test('clicking list item selects automation', async () => {
+      const listItem = card.shadowRoot.querySelector('.list-item');
+      listItem.click();
+      await card.updateComplete;
+
+      expect(card._selected.length).toBe(1);
+    });
+
+    test('checkbox change toggles selection', async () => {
+      const checkbox = card.shadowRoot.querySelector('.list-item input[type="checkbox"]');
+      checkbox.click();
+      await card.updateComplete;
+
+      expect(card._selected.length).toBe(1);
+    });
+
+    test('checkbox click stops propagation', async () => {
+      const checkbox = card.shadowRoot.querySelector('.list-item input[type="checkbox"]');
+      const clickEvent = new MouseEvent('click', { bubbles: true });
+      const stopPropSpy = jest.spyOn(clickEvent, 'stopPropagation');
+
+      checkbox.dispatchEvent(clickEvent);
+
+      expect(stopPropSpy).toHaveBeenCalled();
+    });
+  });
 });
+
+// =============================================================================
+// LIFECYCLE METHODS
+// =============================================================================
 
 describe('Lifecycle Methods', () => {
   let card;
@@ -520,7 +735,6 @@ describe('Lifecycle Methods', () => {
     document.body.appendChild(card);
     await card.updateComplete;
 
-    // Should have set up sync timeout
     expect(card._syncTimeout).not.toBeNull();
 
     jest.useRealTimers();
@@ -530,7 +744,6 @@ describe('Lifecycle Methods', () => {
     document.body.appendChild(card);
     await card.updateComplete;
 
-    // Set up mock interval and timeout
     card._interval = setInterval(() => {}, 1000);
     card._syncTimeout = setTimeout(() => {}, 1000);
     card._searchTimeout = setTimeout(() => {}, 1000);
@@ -540,5 +753,982 @@ describe('Lifecycle Methods', () => {
     expect(card._interval).toBeNull();
     expect(card._syncTimeout).toBeNull();
     expect(card._searchTimeout).toBeNull();
+  });
+
+  test('_updateCountdownIfNeeded updates countdown elements', async () => {
+    document.body.appendChild(card);
+    await card.updateComplete;
+
+    const countdownEl = document.createElement('span');
+    countdownEl.className = 'countdown';
+    countdownEl.dataset.resumeAt = new Date(Date.now() + 3600000).toISOString();
+    card.shadowRoot.appendChild(countdownEl);
+
+    card._updateCountdownIfNeeded();
+
+    expect(countdownEl.textContent).toMatch(/\d+/);
+  });
+
+  test('_updateCountdownIfNeeded handles no countdown elements', () => {
+    expect(() => card._updateCountdownIfNeeded()).not.toThrow();
+  });
+});
+
+// =============================================================================
+// LABEL AND AREA GROUPING
+// =============================================================================
+
+describe('Label and Area Grouping', () => {
+  let card;
+  let mockHass;
+
+  beforeEach(async () => {
+    mockHass = createMockHass({
+      states: {
+        'automation.living_room_lights': {
+          entity_id: 'automation.living_room_lights',
+          state: 'on',
+          attributes: { friendly_name: 'Living Room Lights' },
+        },
+        'automation.bedroom_fan': {
+          entity_id: 'automation.bedroom_fan',
+          state: 'on',
+          attributes: { friendly_name: 'Bedroom Fan' },
+        },
+        'automation.kitchen_motion': {
+          entity_id: 'automation.kitchen_motion',
+          state: 'on',
+          attributes: { friendly_name: 'Kitchen Motion' },
+        },
+        'sensor.autosnooze_status': {
+          state: 'idle',
+          attributes: { paused_count: 0, scheduled_count: 0 },
+        },
+        'sensor.autosnooze_snoozed_automations': {
+          state: '0',
+          attributes: { paused_automations: {}, scheduled_snoozes: {} },
+        },
+      },
+      entities: {
+        'automation.living_room_lights': { area_id: 'living_room', labels: ['lighting'] },
+        'automation.bedroom_fan': { area_id: 'bedroom', labels: ['climate', 'comfort'] },
+        'automation.kitchen_motion': { area_id: null, labels: [] },
+      },
+    });
+
+    const CardClass = customElements.get('autosnooze-card');
+    card = new CardClass();
+    card.setConfig({ title: 'AutoSnooze' });
+    card.hass = mockHass;
+
+    card._labelRegistry = {
+      lighting: { name: 'Lighting' },
+      climate: { name: 'Climate Control' },
+      comfort: { name: 'Comfort' },
+    };
+
+    card._automationsCache = null;
+    card._automationsCacheKey = null;
+
+    document.body.appendChild(card);
+    await card.updateComplete;
+  });
+
+  afterEach(() => {
+    if (card && card.parentNode) {
+      card.parentNode.removeChild(card);
+    }
+  });
+
+  describe('_getGroupedByArea', () => {
+    test('groups automations by area', () => {
+      const grouped = card._getGroupedByArea();
+      expect(grouped.length).toBeGreaterThan(0);
+
+      const groupNames = grouped.map((g) => g[0]);
+      expect(groupNames).toContain('Living Room');
+      expect(groupNames).toContain('Bedroom');
+    });
+
+    test('puts unassigned automations in "Unassigned" group', () => {
+      const grouped = card._getGroupedByArea();
+      const unassigned = grouped.find((g) => g[0] === 'Unassigned');
+      expect(unassigned).toBeDefined();
+      expect(unassigned[1].length).toBe(1);
+    });
+
+    test('sorts groups alphabetically with Unassigned last', () => {
+      const grouped = card._getGroupedByArea();
+      const groupNames = grouped.map((g) => g[0]);
+
+      expect(groupNames[groupNames.length - 1]).toBe('Unassigned');
+
+      const nonUnassigned = groupNames.filter((n) => n !== 'Unassigned');
+      const sorted = [...nonUnassigned].sort();
+      expect(nonUnassigned).toEqual(sorted);
+    });
+  });
+
+  describe('_getGroupedByLabel', () => {
+    test('groups automations by label', () => {
+      const grouped = card._getGroupedByLabel();
+      expect(grouped.length).toBeGreaterThan(0);
+
+      const groupNames = grouped.map((g) => g[0]);
+      expect(groupNames).toContain('Lighting');
+      expect(groupNames.some((n) => n.toLowerCase().includes('climate'))).toBe(true);
+    });
+
+    test('puts unlabeled automations in "Unlabeled" group', () => {
+      const grouped = card._getGroupedByLabel();
+      const unlabeled = grouped.find((g) => g[0] === 'Unlabeled');
+      expect(unlabeled).toBeDefined();
+    });
+
+    test('automation with multiple labels appears in multiple groups', () => {
+      const grouped = card._getGroupedByLabel();
+      const groupsWithBedroomFan = grouped.filter((g) =>
+        g[1].some((a) => a.id === 'automation.bedroom_fan')
+      );
+
+      expect(groupsWithBedroomFan.length).toBe(2);
+    });
+
+    test('sorts groups alphabetically with Unlabeled last', () => {
+      const grouped = card._getGroupedByLabel();
+      const groupNames = grouped.map((g) => g[0]);
+
+      expect(groupNames[groupNames.length - 1]).toBe('Unlabeled');
+    });
+  });
+
+  describe('_getLabelCount', () => {
+    test('returns count of unique labels', () => {
+      const count = card._getLabelCount();
+      expect(count).toBe(3);
+    });
+  });
+
+  test('shows empty message when grouped view has no automations', async () => {
+    card.hass = createMockHass({
+      states: {
+        'sensor.autosnooze_status': {
+          state: 'idle',
+          attributes: { paused_count: 0, scheduled_count: 0 },
+        },
+        'sensor.autosnooze_snoozed_automations': {
+          state: '0',
+          attributes: { paused_automations: {}, scheduled_snoozes: {} },
+        },
+      },
+      entities: {},
+    });
+    card._filterTab = 'areas';
+    await card.updateComplete;
+
+    const emptyMessage = card.shadowRoot.querySelector('.list-empty');
+    expect(emptyMessage).not.toBeNull();
+    expect(emptyMessage.textContent).toContain('No automations found');
+  });
+});
+
+// =============================================================================
+// SNOOZE OPERATIONS
+// =============================================================================
+
+describe('Snooze Operations', () => {
+  let card;
+  let mockHass;
+
+  beforeEach(async () => {
+    mockHass = createMockHass({
+      states: {
+        'automation.test': {
+          entity_id: 'automation.test',
+          state: 'on',
+          attributes: { friendly_name: 'Test Automation' },
+        },
+        'sensor.autosnooze_status': {
+          state: 'idle',
+          attributes: { paused_count: 0, scheduled_count: 0 },
+        },
+        'sensor.autosnooze_snoozed_automations': {
+          state: '0',
+          attributes: { paused_automations: {}, scheduled_snoozes: {} },
+        },
+      },
+    });
+
+    const CardClass = customElements.get('autosnooze-card');
+    card = new CardClass();
+    card.setConfig({ title: 'AutoSnooze' });
+    card.hass = mockHass;
+    document.body.appendChild(card);
+    await card.updateComplete;
+  });
+
+  afterEach(() => {
+    if (card && card.parentNode) {
+      card.parentNode.removeChild(card);
+    }
+  });
+
+  describe('_snooze - Duration Mode', () => {
+    test('calls pause service with duration parameters', async () => {
+      card._selected = ['automation.test'];
+      card._customDuration = { days: 0, hours: 1, minutes: 30 };
+      card._scheduleMode = false;
+
+      await card._snooze();
+
+      expect(mockHass.callService).toHaveBeenCalledWith('autosnooze', 'pause', {
+        entity_id: ['automation.test'],
+        days: 0,
+        hours: 1,
+        minutes: 30,
+      });
+    });
+
+    test('clears selection after snooze', async () => {
+      card._selected = ['automation.test'];
+      card._customDuration = { days: 0, hours: 0, minutes: 30 };
+
+      await card._snooze();
+
+      expect(card._selected).toEqual([]);
+    });
+
+    test('does nothing when no selection', async () => {
+      card._selected = [];
+
+      await card._snooze();
+
+      expect(mockHass.callService).not.toHaveBeenCalled();
+    });
+
+    test('does nothing when duration is zero', async () => {
+      card._selected = ['automation.test'];
+      card._duration = 0;
+      card._customDuration = { days: 0, hours: 0, minutes: 0 };
+
+      await card._snooze();
+
+      expect(mockHass.callService).not.toHaveBeenCalled();
+    });
+
+    test('does nothing when loading', async () => {
+      card._selected = ['automation.test'];
+      card._loading = true;
+
+      await card._snooze();
+
+      expect(mockHass.callService).not.toHaveBeenCalled();
+    });
+
+    test('handles service error gracefully', async () => {
+      card._selected = ['automation.test'];
+      card._customDuration = { days: 0, hours: 0, minutes: 30 };
+      mockHass.callService.mockRejectedValueOnce(new Error('Service failed'));
+
+      await card._snooze();
+
+      expect(card._loading).toBe(false);
+    });
+  });
+
+  describe('_snooze - Schedule Mode', () => {
+    test('calls pause service with schedule parameters', async () => {
+      card._selected = ['automation.test'];
+      card._scheduleMode = true;
+      card._resumeAtDate = '2025-12-25';
+      card._resumeAtTime = '12:00';
+
+      await card._snooze();
+
+      expect(mockHass.callService).toHaveBeenCalledWith('autosnooze', 'pause', {
+        entity_id: ['automation.test'],
+        resume_at: '2025-12-25T12:00',
+      });
+    });
+
+    test('includes disable_at when set', async () => {
+      card._selected = ['automation.test'];
+      card._scheduleMode = true;
+      card._disableAtDate = '2025-12-25';
+      card._disableAtTime = '10:00';
+      card._resumeAtDate = '2025-12-25';
+      card._resumeAtTime = '12:00';
+
+      await card._snooze();
+
+      expect(mockHass.callService).toHaveBeenCalledWith('autosnooze', 'pause', {
+        entity_id: ['automation.test'],
+        resume_at: '2025-12-25T12:00',
+        disable_at: '2025-12-25T10:00',
+      });
+    });
+
+    test('shows toast when resume_at not set', async () => {
+      card._selected = ['automation.test'];
+      card._scheduleMode = true;
+      card._resumeAtDate = '';
+      card._resumeAtTime = '';
+
+      await card._snooze();
+
+      expect(mockHass.callService).not.toHaveBeenCalled();
+    });
+
+    test('clears schedule inputs after snooze', async () => {
+      card._selected = ['automation.test'];
+      card._scheduleMode = true;
+      card._disableAtDate = '2025-12-25';
+      card._disableAtTime = '10:00';
+      card._resumeAtDate = '2025-12-25';
+      card._resumeAtTime = '12:00';
+
+      await card._snooze();
+
+      expect(card._disableAtDate).toBe('');
+      expect(card._disableAtTime).toBe('');
+      expect(card._resumeAtDate).toBe('');
+      expect(card._resumeAtTime).toBe('');
+    });
+  });
+
+  describe('_wake', () => {
+    test('calls cancel service for entity', async () => {
+      await card._wake('automation.test');
+
+      expect(mockHass.callService).toHaveBeenCalledWith('autosnooze', 'cancel', {
+        entity_id: 'automation.test',
+      });
+    });
+
+    test('handles service error gracefully', async () => {
+      mockHass.callService.mockRejectedValueOnce(new Error('Service failed'));
+
+      await card._wake('automation.test');
+    });
+  });
+
+  describe('_cancelScheduled', () => {
+    test('calls cancel_scheduled service', async () => {
+      await card._cancelScheduled('automation.test');
+
+      expect(mockHass.callService).toHaveBeenCalledWith('autosnooze', 'cancel_scheduled', {
+        entity_id: 'automation.test',
+      });
+    });
+
+    test('handles service error gracefully', async () => {
+      mockHass.callService.mockRejectedValueOnce(new Error('Service failed'));
+
+      await card._cancelScheduled('automation.test');
+    });
+  });
+});
+
+// =============================================================================
+// TOAST NOTIFICATIONS
+// =============================================================================
+
+describe('Toast Notifications', () => {
+  let card;
+  let mockHass;
+
+  beforeEach(async () => {
+    mockHass = createMockHass({
+      states: {
+        'automation.test': {
+          entity_id: 'automation.test',
+          state: 'on',
+          attributes: { friendly_name: 'Test Automation' },
+        },
+        'sensor.autosnooze_status': {
+          state: 'idle',
+          attributes: { paused_count: 0, scheduled_count: 0 },
+        },
+        'sensor.autosnooze_snoozed_automations': {
+          state: '0',
+          attributes: { paused_automations: {}, scheduled_snoozes: {} },
+        },
+      },
+    });
+
+    const CardClass = customElements.get('autosnooze-card');
+    card = new CardClass();
+    card.setConfig({ title: 'AutoSnooze' });
+    card.hass = mockHass;
+    document.body.appendChild(card);
+    await card.updateComplete;
+  });
+
+  afterEach(() => {
+    if (card && card.parentNode) {
+      card.parentNode.removeChild(card);
+    }
+  });
+
+  test('_showToast creates toast element', () => {
+    card._showToast('Test message');
+
+    const toast = card.shadowRoot.querySelector('.toast');
+    expect(toast).not.toBeNull();
+    expect(toast.textContent).toContain('Test message');
+  });
+
+  test('_showToast removes existing toast', () => {
+    card._showToast('First message');
+    card._showToast('Second message');
+
+    const toasts = card.shadowRoot.querySelectorAll('.toast');
+    expect(toasts.length).toBe(1);
+    expect(toasts[0].textContent).toContain('Second message');
+  });
+
+  test('_showToast with undo option creates undo button', () => {
+    card._showToast('Test message', {
+      showUndo: true,
+      onUndo: jest.fn(),
+    });
+
+    const toast = card.shadowRoot.querySelector('.toast');
+    const undoBtn = toast.querySelector('.toast-undo-btn');
+    expect(undoBtn).not.toBeNull();
+    expect(undoBtn.textContent).toBe('Undo');
+  });
+
+  test('clicking undo button calls onUndo callback', () => {
+    const onUndoMock = jest.fn();
+    card._showToast('Test message', {
+      showUndo: true,
+      onUndo: onUndoMock,
+    });
+
+    const undoBtn = card.shadowRoot.querySelector('.toast-undo-btn');
+    undoBtn.click();
+
+    expect(onUndoMock).toHaveBeenCalled();
+  });
+
+  test('clicking undo button removes toast', () => {
+    card._showToast('Test message', {
+      showUndo: true,
+      onUndo: jest.fn(),
+    });
+
+    const undoBtn = card.shadowRoot.querySelector('.toast-undo-btn');
+    undoBtn.click();
+
+    const toast = card.shadowRoot.querySelector('.toast');
+    expect(toast).toBeNull();
+  });
+
+  test('toast auto-removes after timeout', () => {
+    jest.useFakeTimers();
+
+    card._showToast('Test message');
+
+    expect(card.shadowRoot.querySelector('.toast')).not.toBeNull();
+
+    jest.advanceTimersByTime(5300);
+
+    expect(card.shadowRoot.querySelector('.toast')).toBeNull();
+
+    jest.useRealTimers();
+  });
+});
+
+// =============================================================================
+// SCHEDULE MODE UI
+// =============================================================================
+
+describe('Schedule Mode UI', () => {
+  let card;
+  let mockHass;
+
+  beforeEach(async () => {
+    mockHass = createMockHass({
+      states: {
+        'automation.test': {
+          entity_id: 'automation.test',
+          state: 'on',
+          attributes: { friendly_name: 'Test Automation' },
+        },
+        'sensor.autosnooze_status': {
+          state: 'idle',
+          attributes: { paused_count: 0, scheduled_count: 0 },
+        },
+        'sensor.autosnooze_snoozed_automations': {
+          state: '0',
+          attributes: { paused_automations: {}, scheduled_snoozes: {} },
+        },
+      },
+    });
+
+    const CardClass = customElements.get('autosnooze-card');
+    card = new CardClass();
+    card.setConfig({ title: 'AutoSnooze' });
+    card.hass = mockHass;
+    document.body.appendChild(card);
+    await card.updateComplete;
+  });
+
+  afterEach(() => {
+    if (card && card.parentNode) {
+      card.parentNode.removeChild(card);
+    }
+  });
+
+  test('renders schedule inputs when schedule mode is enabled', async () => {
+    card._scheduleMode = true;
+    await card.updateComplete;
+
+    const scheduleInputs = card.shadowRoot.querySelector('.schedule-inputs');
+    expect(scheduleInputs).not.toBeNull();
+
+    const selects = scheduleInputs.querySelectorAll('select');
+    const timeInputs = scheduleInputs.querySelectorAll('input[type="time"]');
+    expect(selects.length).toBe(2);
+    expect(timeInputs.length).toBe(2);
+  });
+
+  test('renders duration selector when schedule mode is disabled', async () => {
+    card._scheduleMode = false;
+    await card.updateComplete;
+
+    const durationSelector = card.shadowRoot.querySelector('.duration-selector');
+    expect(durationSelector).not.toBeNull();
+  });
+
+  test('schedule link changes mode', async () => {
+    card._scheduleMode = false;
+    await card.updateComplete;
+
+    const scheduleLink = card.shadowRoot.querySelector('.schedule-link');
+    scheduleLink.click();
+
+    expect(card._scheduleMode).toBe(true);
+  });
+
+  test('clicking back link switches to duration mode', async () => {
+    card._scheduleMode = true;
+    await card.updateComplete;
+
+    const backLink = card.shadowRoot.querySelector('.schedule-link');
+    backLink.click();
+    await card.updateComplete;
+
+    expect(card._scheduleMode).toBe(false);
+  });
+
+  test('schedule time input updates state', async () => {
+    card._scheduleMode = true;
+    await card.updateComplete;
+
+    const timeInput = card.shadowRoot.querySelector('input[type="time"][aria-label="Snooze time"]');
+    timeInput.value = '14:30';
+    timeInput.dispatchEvent(new Event('input', { bubbles: true }));
+    await card.updateComplete;
+
+    expect(card._disableAtTime).toBe('14:30');
+  });
+
+  test('resume time input updates state', async () => {
+    card._scheduleMode = true;
+    await card.updateComplete;
+
+    const timeInput = card.shadowRoot.querySelector('input[type="time"][aria-label="Resume time"]');
+    timeInput.value = '16:00';
+    timeInput.dispatchEvent(new Event('input', { bubbles: true }));
+    await card.updateComplete;
+
+    expect(card._resumeAtTime).toBe('16:00');
+  });
+});
+
+// =============================================================================
+// SCHEDULE MODE VALIDATION
+// =============================================================================
+
+describe('Schedule Mode Validation', () => {
+  let card;
+  let mockHass;
+
+  beforeEach(async () => {
+    mockHass = createMockHass({
+      states: {
+        'automation.test': {
+          entity_id: 'automation.test',
+          state: 'on',
+          attributes: { friendly_name: 'Test Automation' },
+        },
+        'sensor.autosnooze_status': {
+          state: 'idle',
+          attributes: { paused_count: 0, scheduled_count: 0 },
+        },
+        'sensor.autosnooze_snoozed_automations': {
+          state: '0',
+          attributes: { paused_automations: {}, scheduled_snoozes: {} },
+        },
+      },
+    });
+
+    const CardClass = customElements.get('autosnooze-card');
+    card = new CardClass();
+    card.setConfig({ title: 'AutoSnooze' });
+    card.hass = mockHass;
+    document.body.appendChild(card);
+    await card.updateComplete;
+  });
+
+  afterEach(() => {
+    if (card && card.parentNode) {
+      card.parentNode.removeChild(card);
+    }
+  });
+
+  test('shows error when resume time is in the past', async () => {
+    card._selected = ['automation.test'];
+    card._scheduleMode = true;
+
+    const pastDate = new Date(Date.now() - 86400000);
+    card._resumeAtDate = pastDate.toISOString().split('T')[0];
+    card._resumeAtTime = '10:00';
+    card._disableAtDate = '';
+    card._disableAtTime = '';
+
+    await card._snooze();
+
+    const toast = card.shadowRoot.querySelector('.toast');
+    expect(toast).not.toBeNull();
+    expect(toast.textContent).toContain('Resume time must be in the future');
+  });
+
+  test('shows error when disable time is after resume time', async () => {
+    card._selected = ['automation.test'];
+    card._scheduleMode = true;
+
+    const futureDate = new Date(Date.now() + 86400000);
+    const dateStr = futureDate.toISOString().split('T')[0];
+    card._resumeAtDate = dateStr;
+    card._resumeAtTime = '10:00';
+    card._disableAtDate = dateStr;
+    card._disableAtTime = '12:00';
+
+    await card._snooze();
+
+    const toast = card.shadowRoot.querySelector('.toast');
+    expect(toast).not.toBeNull();
+    expect(toast.textContent).toContain('Snooze time must be before resume time');
+  });
+});
+
+// =============================================================================
+// RENDERING WITH PAUSED/SCHEDULED AUTOMATIONS
+// =============================================================================
+
+describe('Rendering with Paused/Scheduled Automations', () => {
+  let card;
+  let mockHass;
+
+  beforeEach(async () => {
+    mockHass = createMockHass({
+      states: {
+        'automation.test': {
+          entity_id: 'automation.test',
+          state: 'on',
+          attributes: { friendly_name: 'Test Automation' },
+        },
+        'sensor.autosnooze_status': {
+          state: 'active',
+          attributes: { paused_count: 2, scheduled_count: 1 },
+        },
+        'sensor.autosnooze_snoozed_automations': {
+          state: '3',
+          attributes: {
+            paused_automations: {
+              'automation.paused1': {
+                friendly_name: 'Paused Auto 1',
+                resume_at: new Date(Date.now() + 3600000).toISOString(),
+              },
+              'automation.paused2': {
+                friendly_name: 'Paused Auto 2',
+                resume_at: new Date(Date.now() + 7200000).toISOString(),
+                disable_at: new Date(Date.now() - 1800000).toISOString(),
+              },
+            },
+            scheduled_snoozes: {
+              'automation.scheduled1': {
+                friendly_name: 'Scheduled Auto 1',
+                disable_at: new Date(Date.now() + 3600000).toISOString(),
+                resume_at: new Date(Date.now() + 7200000).toISOString(),
+              },
+            },
+          },
+        },
+      },
+    });
+
+    const CardClass = customElements.get('autosnooze-card');
+    card = new CardClass();
+    card.setConfig({ title: 'AutoSnooze' });
+    card.hass = mockHass;
+    document.body.appendChild(card);
+    await card.updateComplete;
+  });
+
+  afterEach(() => {
+    if (card && card.parentNode) {
+      card.parentNode.removeChild(card);
+    }
+  });
+
+  test('renders snooze-list section when automations are paused', async () => {
+    const snoozeList = card.shadowRoot.querySelector('.snooze-list');
+    expect(snoozeList).not.toBeNull();
+  });
+
+  test('renders paused automation items', async () => {
+    const pausedItems = card.shadowRoot.querySelectorAll('.paused-item');
+    expect(pausedItems.length).toBe(2);
+  });
+
+  test('renders wake buttons for paused items', async () => {
+    const wakeButtons = card.shadowRoot.querySelectorAll('.wake-btn');
+    expect(wakeButtons.length).toBe(2);
+  });
+
+  test('renders Wake All button when multiple paused', async () => {
+    const wakeAllBtn = card.shadowRoot.querySelector('.wake-all');
+    expect(wakeAllBtn).not.toBeNull();
+  });
+
+  test('renders scheduled-list section when snoozes are scheduled', async () => {
+    const scheduledList = card.shadowRoot.querySelector('.scheduled-list');
+    expect(scheduledList).not.toBeNull();
+  });
+
+  test('renders scheduled snooze items', async () => {
+    const scheduledItems = card.shadowRoot.querySelectorAll('.scheduled-item');
+    expect(scheduledItems.length).toBe(1);
+  });
+
+  test('renders cancel buttons for scheduled items', async () => {
+    const cancelButtons = card.shadowRoot.querySelectorAll('.cancel-scheduled-btn');
+    expect(cancelButtons.length).toBe(1);
+  });
+
+  test('renders status summary in header', async () => {
+    const summary = card.shadowRoot.querySelector('.status-summary');
+    expect(summary).not.toBeNull();
+    expect(summary.textContent).toContain('active');
+  });
+
+  test('clicking wake button calls _wake', async () => {
+    const wakeSpy = jest.spyOn(card, '_wake');
+    const wakeBtn = card.shadowRoot.querySelector('.wake-btn');
+    wakeBtn.click();
+
+    expect(wakeSpy).toHaveBeenCalled();
+    wakeSpy.mockRestore();
+  });
+
+  test('clicking cancel scheduled button calls _cancelScheduled', async () => {
+    const cancelSpy = jest.spyOn(card, '_cancelScheduled');
+    const cancelBtn = card.shadowRoot.querySelector('.cancel-scheduled-btn');
+    cancelBtn.click();
+
+    expect(cancelSpy).toHaveBeenCalled();
+    cancelSpy.mockRestore();
+  });
+});
+
+// =============================================================================
+// UNDO FUNCTIONALITY
+// =============================================================================
+
+describe('Undo Functionality in Snooze', () => {
+  let card;
+  let mockHass;
+
+  beforeEach(async () => {
+    mockHass = createMockHass({
+      states: {
+        'automation.test': {
+          entity_id: 'automation.test',
+          state: 'on',
+          attributes: { friendly_name: 'Test Automation' },
+        },
+        'sensor.autosnooze_status': {
+          state: 'idle',
+          attributes: { paused_count: 0, scheduled_count: 0 },
+        },
+        'sensor.autosnooze_snoozed_automations': {
+          state: '0',
+          attributes: { paused_automations: {}, scheduled_snoozes: {} },
+        },
+      },
+    });
+
+    const CardClass = customElements.get('autosnooze-card');
+    card = new CardClass();
+    card.setConfig({ title: 'AutoSnooze' });
+    card.hass = mockHass;
+    document.body.appendChild(card);
+    await card.updateComplete;
+  });
+
+  afterEach(() => {
+    if (card && card.parentNode) {
+      card.parentNode.removeChild(card);
+    }
+  });
+
+  test('snooze shows undo button in toast', async () => {
+    card._selected = ['automation.test'];
+    card._customDuration = { days: 0, hours: 0, minutes: 30 };
+
+    await card._snooze();
+
+    const undoBtn = card.shadowRoot.querySelector('.toast-undo-btn');
+    expect(undoBtn).not.toBeNull();
+  });
+
+  test('undo after snooze calls cancel service', async () => {
+    card._selected = ['automation.test'];
+    card._customDuration = { days: 0, hours: 0, minutes: 30 };
+
+    await card._snooze();
+
+    const undoBtn = card.shadowRoot.querySelector('.toast-undo-btn');
+    undoBtn.click();
+
+    await new Promise((resolve) => setTimeout(resolve, 10));
+
+    expect(mockHass.callService).toHaveBeenCalledWith('autosnooze', 'cancel', {
+      entity_id: 'automation.test',
+    });
+  });
+
+  test('undo after scheduled snooze calls cancel_scheduled service', async () => {
+    card._selected = ['automation.test'];
+    card._scheduleMode = true;
+    card._disableAtDate = '2025-12-25';
+    card._disableAtTime = '10:00';
+    card._resumeAtDate = '2025-12-25';
+    card._resumeAtTime = '12:00';
+
+    await card._snooze();
+
+    const undoBtn = card.shadowRoot.querySelector('.toast-undo-btn');
+    undoBtn.click();
+
+    await new Promise((resolve) => setTimeout(resolve, 10));
+
+    expect(mockHass.callService).toHaveBeenCalledWith('autosnooze', 'cancel_scheduled', {
+      entity_id: 'automation.test',
+    });
+  });
+
+  test('undo restores selection', async () => {
+    card._selected = ['automation.test'];
+    card._customDuration = { days: 0, hours: 0, minutes: 30 };
+
+    await card._snooze();
+
+    const undoBtn = card.shadowRoot.querySelector('.toast-undo-btn');
+    undoBtn.click();
+
+    await new Promise((resolve) => setTimeout(resolve, 10));
+
+    expect(card._selected).toContain('automation.test');
+  });
+
+  test('undo handles errors gracefully', async () => {
+    card._selected = ['automation.test'];
+    card._customDuration = { days: 0, hours: 0, minutes: 30 };
+
+    await card._snooze();
+
+    mockHass.callService.mockRejectedValueOnce(new Error('Cancel failed'));
+
+    const undoBtn = card.shadowRoot.querySelector('.toast-undo-btn');
+
+    undoBtn.click();
+    await new Promise((resolve) => setTimeout(resolve, 10));
+  });
+});
+
+// =============================================================================
+// ERROR MESSAGE HANDLING
+// =============================================================================
+
+describe('Error Message Handling', () => {
+  let card;
+  let mockHass;
+
+  beforeEach(async () => {
+    mockHass = createMockHass({
+      states: {
+        'automation.test': {
+          entity_id: 'automation.test',
+          state: 'on',
+          attributes: { friendly_name: 'Test Automation' },
+        },
+        'sensor.autosnooze_status': {
+          state: 'idle',
+          attributes: { paused_count: 0, scheduled_count: 0 },
+        },
+        'sensor.autosnooze_snoozed_automations': {
+          state: '0',
+          attributes: { paused_automations: {}, scheduled_snoozes: {} },
+        },
+      },
+    });
+
+    const CardClass = customElements.get('autosnooze-card');
+    card = new CardClass();
+    card.setConfig({ title: 'AutoSnooze' });
+    card.hass = mockHass;
+    document.body.appendChild(card);
+    await card.updateComplete;
+  });
+
+  afterEach(() => {
+    if (card && card.parentNode) {
+      card.parentNode.removeChild(card);
+    }
+  });
+
+  test('_getErrorMessage returns message for known translation_key', () => {
+    const error = { translation_key: 'not_automation' };
+    const result = card._getErrorMessage(error, 'Default');
+    expect(result).toBe('Failed to snooze: One or more selected items are not automations');
+  });
+
+  test('_getErrorMessage returns message for translation_key in data', () => {
+    const error = { data: { translation_key: 'invalid_duration' } };
+    const result = card._getErrorMessage(error, 'Default');
+    expect(result).toBe('Failed to snooze: Please specify a valid duration (days, hours, or minutes)');
+  });
+
+  test('_getErrorMessage matches error message patterns', () => {
+    const error = { message: 'Something with resume_time_past in it' };
+    const result = card._getErrorMessage(error, 'Default');
+    expect(result).toBe('Failed to snooze: Resume time must be in the future');
+  });
+
+  test('_getErrorMessage matches lowercase patterns with spaces', () => {
+    const error = { message: 'Something about disable after resume' };
+    const result = card._getErrorMessage(error, 'Default');
+    expect(result).toBe('Failed to snooze: Snooze time must be before resume time');
+  });
+
+  test('_getErrorMessage returns default for unknown errors', () => {
+    const error = { message: 'Unknown error xyz' };
+    const result = card._getErrorMessage(error, 'My Default');
+    expect(result).toBe('My Default. Check Home Assistant logs for details.');
   });
 });
