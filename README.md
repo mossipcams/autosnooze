@@ -226,6 +226,18 @@ The card should register automatically. If it doesn't:
    - URL: `/autosnooze-card.js`
    - Type: **JavaScript module**
 
+**For YAML mode dashboards:** The automatic registration only works with storage mode (UI-managed) dashboards. If you use YAML mode for Lovelace, add the resource manually to your `configuration.yaml`:
+
+```yaml
+lovelace:
+  mode: yaml
+  resources:
+    - url: /autosnooze-card.js
+      type: module
+```
+
+Or add it directly to your dashboard YAML file under `resources:`.
+
 
 ### Automations not re-enabling
 1. Check **Developer Tools → States** for the sensor state

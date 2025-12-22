@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from typing import Any
 
@@ -23,6 +24,11 @@ from .models import AutomationPauseConfigEntry, AutomationPauseData
 from .services import register_services
 
 _LOGGER = logging.getLogger(__name__)
+
+# Retry configuration for Lovelace resource registration
+# Lovelace may not be fully initialized when homeassistant_started fires
+LOVELACE_REGISTER_MAX_RETRIES = 3
+LOVELACE_REGISTER_RETRY_DELAY = 2  # seconds
 
 # Re-export for backwards compatibility
 __all__ = [
@@ -80,16 +86,44 @@ async def _async_register_static_path(hass: HomeAssistant) -> None:
         pass
 
 
-async def _async_register_lovelace_resource(hass: HomeAssistant) -> None:
+async def _async_register_lovelace_resource(
+    hass: HomeAssistant,
+    retry_count: int = 0,
+) -> None:
     """Register the card as a Lovelace resource.
 
     Following HACS pattern: use namespace prefix to identify OUR resources only.
     See: https://github.com/hacs/integration/pull/4402
+
+    Includes retry logic because Lovelace may not be fully initialized when
+    homeassistant_started fires. This is the root cause of "Custom element
+    doesn't exist" errors - the resource registration silently fails.
     """
     lovelace_data = hass.data.get("lovelace")
     if lovelace_data is None:
-        _LOGGER.debug("No lovelace data found in hass.data")
+        # Lovelace not initialized yet - retry if we haven't exhausted retries
+        if retry_count < LOVELACE_REGISTER_MAX_RETRIES:
+            _LOGGER.debug(
+                "Lovelace not initialized yet, retrying in %ds (attempt %d/%d)",
+                LOVELACE_REGISTER_RETRY_DELAY,
+                retry_count + 1,
+                LOVELACE_REGISTER_MAX_RETRIES,
+            )
+            await asyncio.sleep(LOVELACE_REGISTER_RETRY_DELAY)
+            return await _async_register_lovelace_resource(hass, retry_count + 1)
+
+        _LOGGER.warning(
+            "Could not auto-register card: Lovelace not initialized after %d retries. "
+            "Add resource manually: Settings → Dashboards → Resources → /autosnooze-card.js (module)",
+            LOVELACE_REGISTER_MAX_RETRIES,
+        )
         return
+
+    # Log Lovelace mode for debugging (helps identify auto-gen vs storage vs yaml)
+    lovelace_mode = getattr(lovelace_data, "mode", None)
+    if lovelace_mode is None and hasattr(lovelace_data, "get"):
+        lovelace_mode = lovelace_data.get("mode")
+    _LOGGER.debug("Lovelace mode detected: %s", lovelace_mode)
 
     # Version-aware resource access (HA 2025.2.0+ uses attribute, older uses dict)
     # See: https://github.com/hacs/integration/pull/4402
@@ -97,8 +131,37 @@ async def _async_register_lovelace_resource(hass: HomeAssistant) -> None:
     if resources is None:
         # Fallback for older HA versions
         resources = lovelace_data.get("resources") if hasattr(lovelace_data, "get") else None
+
+    # In YAML mode, resources is None. In storage/auto-gen mode, it should exist.
+    # See: https://github.com/hacs/integration/issues/1659
     if resources is None:
-        _LOGGER.debug("Lovelace resources not available (YAML mode?)")
+        # Resources not available - could be YAML mode or not yet loaded
+        # Retry if we haven't exhausted retries (resources may load after lovelace_data)
+        if retry_count < LOVELACE_REGISTER_MAX_RETRIES:
+            _LOGGER.debug(
+                "Lovelace resources not available yet (mode=%s), retrying in %ds (attempt %d/%d)",
+                lovelace_mode,
+                LOVELACE_REGISTER_RETRY_DELAY,
+                retry_count + 1,
+                LOVELACE_REGISTER_MAX_RETRIES,
+            )
+            await asyncio.sleep(LOVELACE_REGISTER_RETRY_DELAY)
+            return await _async_register_lovelace_resource(hass, retry_count + 1)
+
+        _LOGGER.warning(
+            "Could not auto-register card: Lovelace in YAML mode (mode=%s). "
+            "Add to configuration.yaml: lovelace: resources: [{url: /autosnooze-card.js, type: module}]",
+            lovelace_mode,
+        )
+        return
+
+    # Verify resources has the expected interface
+    if not hasattr(resources, "async_create_item") or not hasattr(resources, "async_items"):
+        _LOGGER.warning(
+            "Could not auto-register card: Lovelace resources API not available (mode=%s). "
+            "Add resource manually: Settings → Dashboards → Resources → /autosnooze-card.js (module)",
+            lovelace_mode,
+        )
         return
 
     # Namespace: our base URL without query params (like HACS does)
