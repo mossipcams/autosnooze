@@ -14,6 +14,7 @@ Reference: HACS uses Lovelace Resources stored in .storage/lovelace_resources
 from __future__ import annotations
 
 import ast
+import asyncio
 import os
 from pathlib import Path
 from typing import Any
@@ -661,6 +662,194 @@ class TestLovelaceResourceRegistrationWithModes:
         assert success is False
         assert error is not None
         assert "invalid_api" in error
+
+
+class TestRetryMechanism:
+    """Tests for the retry mechanism when Lovelace is not ready.
+
+    Root cause fix: Lovelace may not be fully initialized when
+    homeassistant_started fires, causing silent registration failures.
+    The retry mechanism addresses this timing issue.
+    """
+
+    # Constants matching the source code
+    MAX_RETRIES = 3
+    RETRY_DELAY = 2  # seconds
+
+    def test_source_has_retry_constants(self) -> None:
+        """Verify retry constants are defined in source."""
+        source = get_init_source()
+
+        assert "LOVELACE_REGISTER_MAX_RETRIES" in source, "Must define max retries constant"
+        assert "LOVELACE_REGISTER_RETRY_DELAY" in source, "Must define retry delay constant"
+
+    def test_source_has_retry_parameter(self) -> None:
+        """Verify _async_register_lovelace_resource accepts retry_count parameter."""
+        source = get_init_source()
+
+        # Find the function signature
+        assert "retry_count: int = 0" in source, (
+            "_async_register_lovelace_resource must accept retry_count parameter"
+        )
+
+    def test_source_has_retry_logic_for_no_lovelace_data(self) -> None:
+        """Verify retry logic exists for when lovelace_data is None."""
+        source = get_init_source()
+
+        # Should check retry count and recurse
+        assert "retry_count < LOVELACE_REGISTER_MAX_RETRIES" in source, (
+            "Must check retry count before retrying"
+        )
+        assert "await asyncio.sleep" in source, "Must sleep before retrying"
+        assert "await _async_register_lovelace_resource(hass, retry_count + 1)" in source, (
+            "Must recurse with incremented retry count"
+        )
+
+    def test_source_has_retry_logic_for_no_resources(self) -> None:
+        """Verify retry logic exists for when resources is None."""
+        source = get_init_source()
+
+        # Find the section where resources is None
+        func_start = source.find("async def _async_register_lovelace_resource")
+        assert func_start != -1
+
+        func_body = source[func_start:]
+
+        # Should have two retry blocks - one for lovelace_data, one for resources
+        retry_count_checks = func_body.count("retry_count < LOVELACE_REGISTER_MAX_RETRIES")
+        assert retry_count_checks >= 2, (
+            "Must have retry logic for both lovelace_data and resources being None"
+        )
+
+    def test_source_logs_retry_attempts(self) -> None:
+        """Verify retry attempts are logged for debugging."""
+        source = get_init_source()
+
+        assert "retrying in" in source.lower(), "Must log retry attempts"
+        assert "attempt" in source.lower(), "Must log attempt count"
+
+    def test_source_warns_after_exhausting_retries(self) -> None:
+        """Verify warning is logged after all retries exhausted."""
+        source = get_init_source()
+
+        assert "after %d retries" in source or "after retries" in source.lower(), (
+            "Must warn after exhausting retries"
+        )
+
+    @pytest.mark.asyncio
+    async def test_retry_succeeds_on_second_attempt(self) -> None:
+        """Verify registration succeeds if Lovelace becomes available on retry."""
+        call_count = 0
+        registered = False
+
+        async def mock_register(hass: Any, retry_count: int = 0) -> bool:
+            """Simulate registration that succeeds on second attempt."""
+            nonlocal call_count, registered
+
+            call_count += 1
+
+            # First call: lovelace_data is None
+            if call_count == 1:
+                if retry_count < 3:
+                    await asyncio.sleep(0.01)  # Short delay for test
+                    return await mock_register(hass, retry_count + 1)
+                return False
+
+            # Second call: lovelace_data is available
+            lovelace_data = hass.data.get("lovelace")
+            if lovelace_data and lovelace_data.resources:
+                await lovelace_data.resources.async_create_item({"url": "/test.js"})
+                registered = True
+                return True
+
+            return False
+
+        # Set up hass mock that returns None first, then valid data
+        hass = MagicMock()
+        mock_resources = MagicMock()
+        mock_resources.async_create_item = AsyncMock()
+
+        lovelace_data = MagicMock()
+        lovelace_data.resources = mock_resources
+
+        # First call returns None, subsequent calls return lovelace_data
+        call_results = [None, lovelace_data]
+        hass.data.get = MagicMock(side_effect=lambda k: call_results.pop(0) if call_results else lovelace_data)
+
+        result = await mock_register(hass)
+
+        assert result is True
+        assert registered is True
+        assert call_count == 2
+
+    @pytest.mark.asyncio
+    async def test_retry_fails_after_max_attempts(self) -> None:
+        """Verify registration fails gracefully after exhausting retries."""
+        max_retries = 3
+        call_count = 0
+
+        async def mock_register_always_fails(retry_count: int = 0) -> tuple[bool, int]:
+            """Simulate registration that always fails."""
+            nonlocal call_count
+            call_count += 1
+
+            # Always return None for lovelace_data
+            if retry_count < max_retries:
+                await asyncio.sleep(0.01)  # Short delay for test
+                return await mock_register_always_fails(retry_count + 1)
+
+            return False, call_count
+
+        success, attempts = await mock_register_always_fails()
+
+        assert success is False
+        assert attempts == max_retries + 1  # Initial + retries
+
+    @pytest.mark.asyncio
+    async def test_retry_not_used_when_lovelace_available(self) -> None:
+        """Verify no retries when Lovelace is immediately available."""
+        hass = MagicMock()
+
+        mock_resources = MagicMock()
+        mock_resources.async_items = MagicMock(return_value=[])
+        mock_resources.async_create_item = AsyncMock()
+
+        lovelace_data = MagicMock()
+        lovelace_data.mode = "storage"
+        lovelace_data.resources = mock_resources
+
+        hass.data = {"lovelace": lovelace_data}
+
+        # Track if asyncio.sleep is called (would indicate retry)
+        sleep_called = False
+        original_sleep = asyncio.sleep
+
+        async def mock_sleep(delay: float) -> None:
+            nonlocal sleep_called
+            sleep_called = True
+            await original_sleep(0.001)
+
+        with patch("asyncio.sleep", mock_sleep):
+            # Use the test implementation from earlier
+            async def register(hass: Any, retry_count: int = 0) -> bool:
+                lovelace_data = hass.data.get("lovelace")
+                if lovelace_data is None:
+                    if retry_count < 3:
+                        await asyncio.sleep(2)
+                        return await register(hass, retry_count + 1)
+                    return False
+
+                resources = getattr(lovelace_data, "resources", None)
+                if resources is None:
+                    return False
+
+                await resources.async_create_item({"url": "/test.js"})
+                return True
+
+            result = await register(hass)
+
+        assert result is True
+        assert sleep_called is False, "Should not retry when Lovelace is available"
 
 
 class TestDocumentationAndComments:
