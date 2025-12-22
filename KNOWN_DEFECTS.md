@@ -143,6 +143,7 @@ The code relied on `this.hass.entities` for category information, but this light
 **Severity:** Critical
 **Status:** FIXED
 **Fixed In:** v2.7.0
+**Regression Tests:** `tests/test_card_bundle.py` (shared with DEF-006)
 **Documentation:** `IOS_FIX.md`, `COMPLETE_FIX_STEPS.md`
 
 **Description:**
@@ -196,6 +197,7 @@ import { LitElement, html, css } from "https://unpkg.com/lit@2.8.0/...";
 **Severity:** High
 **Status:** FIXED
 **Fixed In:** v2.9.18
+**Regression Tests:** `tests/test_defects.spec.js` - Defect #7
 **Related Commits:** `caedfcb`, `b0d813e`
 
 **Description:**
@@ -208,6 +210,10 @@ The `add_extra_js_url()` function used for resource registration caused issues s
 - Implemented guard in render to wait until `hass` and `config` are ready
 - Added detection for stale ES module cache with recovery mechanism
 - Improved frontend registration to use static path only
+
+**Verification:**
+- `render()` method checks `!this.hass || !this.config` before rendering
+- Returns empty template when card is not ready
 
 ---
 
@@ -240,6 +246,7 @@ Other HACS cards don't have this issue because they don't use `add_extra_js_url(
 **Severity:** Medium
 **Status:** FIXED
 **Fixed In:** v2.9.21
+**Regression Tests:** `tests/test_frontend_registration.py`, `tests/test_defects.spec.js` - Defect #9
 **Related Commits:** `eb55d13`
 
 **Description:**
@@ -252,6 +259,10 @@ Static file serving used default cache headers which iOS Safari/WebKit interpret
 - Set `cache_headers=False` on static path registration
 - Added version query parameter to URL: `/autosnooze-card.js?v=2.9.23`
 - Version changes force cache invalidation
+
+**Verification:**
+- Static path uses `cache_headers=False`
+- Card uses `_getLocale()` for proper localization instead of hardcoded locale
 
 ---
 

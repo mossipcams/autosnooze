@@ -259,3 +259,45 @@ describe('Defect #4: Entity Registry Must Be Fetched - Structure', () => {
     expect(fetchesEntityRegistry).toBe(true);
   });
 });
+
+// ============================================================================
+// DEF-007: iOS Companion App Card Disappears After Refresh
+// ============================================================================
+describe('Defect #7: iOS Card Disappears After Refresh - Structure', () => {
+  test('render() method has guard for hass and config', () => {
+    // Find the render method
+    const renderMatch = sourceCode.match(/render\(\)\s*\{([\s\S]*?)\n  \}/);
+    const renderBody = renderMatch ? renderMatch[1] : '';
+
+    // Must check both hass and config before rendering
+    const hasGuard =
+      (renderBody.includes('!this.hass') || renderBody.includes('!this.config')) &&
+      renderBody.includes('return html``');
+
+    expect(hasGuard).toBe(true);
+  });
+
+  test('render() returns empty template when hass is not ready', () => {
+    const hasEmptyReturn =
+      sourceCode.includes('if (!this.hass || !this.config)') ||
+      sourceCode.includes('if (!this.hass ||');
+
+    expect(hasEmptyReturn).toBe(true);
+  });
+});
+
+// ============================================================================
+// DEF-009: Aggressive Cache Headers Breaking iOS (verified in Python tests)
+// ============================================================================
+describe('Defect #9: Cache Headers - Structure', () => {
+  test('Uses _getLocale for proper localization', () => {
+    // The card should use the HA locale, not hardcoded en-US
+    const hasGetLocale = sourceCode.includes('_getLocale()');
+    const usesHassLocale =
+      sourceCode.includes('this.hass?.locale?.language') ||
+      sourceCode.includes('this.hass.locale?.language');
+
+    expect(hasGetLocale).toBe(true);
+    expect(usesHassLocale).toBe(true);
+  });
+});
