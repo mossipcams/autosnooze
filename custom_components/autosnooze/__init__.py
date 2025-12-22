@@ -94,16 +94,35 @@ async def _async_register_lovelace_resource(hass: HomeAssistant) -> None:
         )
         return
 
+    # Log Lovelace mode for debugging (helps identify auto-gen vs storage vs yaml)
+    lovelace_mode = getattr(lovelace_data, "mode", None)
+    if lovelace_mode is None and hasattr(lovelace_data, "get"):
+        lovelace_mode = lovelace_data.get("mode")
+    _LOGGER.debug("Lovelace mode detected: %s", lovelace_mode)
+
     # Version-aware resource access (HA 2025.2.0+ uses attribute, older uses dict)
     # See: https://github.com/hacs/integration/pull/4402
     resources = getattr(lovelace_data, "resources", None)
     if resources is None:
         # Fallback for older HA versions
         resources = lovelace_data.get("resources") if hasattr(lovelace_data, "get") else None
+
+    # In YAML mode, resources is None. In storage/auto-gen mode, it should exist.
+    # See: https://github.com/hacs/integration/issues/1659
     if resources is None:
         _LOGGER.warning(
-            "Could not auto-register card: Lovelace in YAML mode. "
-            "Add to configuration.yaml: lovelace: resources: [{url: /autosnooze-card.js, type: module}]"
+            "Could not auto-register card: Lovelace in YAML mode (mode=%s). "
+            "Add to configuration.yaml: lovelace: resources: [{url: /autosnooze-card.js, type: module}]",
+            lovelace_mode,
+        )
+        return
+
+    # Verify resources has the expected interface
+    if not hasattr(resources, "async_create_item") or not hasattr(resources, "async_items"):
+        _LOGGER.warning(
+            "Could not auto-register card: Lovelace resources API not available (mode=%s). "
+            "Add resource manually: Settings → Dashboards → Resources → /autosnooze-card.js (module)",
+            lovelace_mode,
         )
         return
 
