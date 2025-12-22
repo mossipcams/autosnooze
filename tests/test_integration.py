@@ -120,36 +120,26 @@ class TestConfigFlow:
 
     async def test_user_flow_shows_form(self, hass: HomeAssistant) -> None:
         """Test that user flow shows the form initially."""
-        result = await hass.config_entries.flow.async_init(
-            DOMAIN, context={"source": "user"}
-        )
+        result = await hass.config_entries.flow.async_init(DOMAIN, context={"source": "user"})
 
         assert result["type"] == "form"
         assert result["step_id"] == "user"
 
     async def test_user_flow_creates_entry(self, hass: HomeAssistant) -> None:
         """Test that submitting the form creates an entry."""
-        result = await hass.config_entries.flow.async_init(
-            DOMAIN, context={"source": "user"}
-        )
+        result = await hass.config_entries.flow.async_init(DOMAIN, context={"source": "user"})
 
         # Submit the form
-        result = await hass.config_entries.flow.async_configure(
-            result["flow_id"], user_input={}
-        )
+        result = await hass.config_entries.flow.async_configure(result["flow_id"], user_input={})
 
         assert result["type"] == "create_entry"
         assert result["title"] == "AutoSnooze"
         assert result["data"] == {}
 
-    async def test_user_flow_aborts_if_already_configured(
-        self, hass: HomeAssistant, setup_integration
-    ) -> None:
+    async def test_user_flow_aborts_if_already_configured(self, hass: HomeAssistant, setup_integration) -> None:
         """Test that flow aborts if already configured."""
         # Try to set up again
-        result = await hass.config_entries.flow.async_init(
-            DOMAIN, context={"source": "user"}
-        )
+        result = await hass.config_entries.flow.async_init(DOMAIN, context={"source": "user"})
 
         assert result["type"] == "abort"
         assert result["reason"] == "already_configured"
@@ -163,9 +153,7 @@ class TestConfigFlow:
 class TestSensor:
     """Test the sensor platform."""
 
-    async def test_sensor_is_created(
-        self, hass: HomeAssistant, setup_integration
-    ) -> None:
+    async def test_sensor_is_created(self, hass: HomeAssistant, setup_integration) -> None:
         """Test that the sensor entity is created."""
         state = hass.states.get("sensor.autosnooze_snoozed_count")
         # Note: The sensor might have a different entity_id based on translation
@@ -176,18 +164,14 @@ class TestSensor:
         ]
         assert len(autosnooze_sensors) >= 0  # Sensor creation depends on platform setup
 
-    async def test_sensor_initial_state_is_zero(
-        self, hass: HomeAssistant, setup_integration
-    ) -> None:
+    async def test_sensor_initial_state_is_zero(self, hass: HomeAssistant, setup_integration) -> None:
         """Test that sensor starts at 0."""
         entry = setup_integration
         # Access runtime data to check initial state
         data = entry.runtime_data
         assert len(data.paused) == 0
 
-    async def test_sensor_attributes_include_paused_automations(
-        self, hass: HomeAssistant, setup_integration
-    ) -> None:
+    async def test_sensor_attributes_include_paused_automations(self, hass: HomeAssistant, setup_integration) -> None:
         """Test that sensor attributes include paused automations dict."""
         entry = setup_integration
         data = entry.runtime_data
@@ -207,9 +191,7 @@ class TestSensor:
 class TestPauseService:
     """Test the pause service."""
 
-    async def test_pause_service_is_registered(
-        self, hass: HomeAssistant, setup_integration
-    ) -> None:
+    async def test_pause_service_is_registered(self, hass: HomeAssistant, setup_integration) -> None:
         """Test that the pause service is registered."""
         assert hass.services.has_service(DOMAIN, "pause")
 
@@ -254,9 +236,7 @@ class TestPauseService:
 
         assert "duration" in str(exc_info.value).lower() or exc_info.value.translation_key == "invalid_duration"
 
-    async def test_pause_non_automation_raises(
-        self, hass: HomeAssistant, setup_integration
-    ) -> None:
+    async def test_pause_non_automation_raises(self, hass: HomeAssistant, setup_integration) -> None:
         """Test that pausing a non-automation entity raises error."""
         with pytest.raises(ServiceValidationError) as exc_info:
             await hass.services.async_call(
@@ -316,15 +296,11 @@ class TestPauseService:
 class TestCancelService:
     """Test the cancel service."""
 
-    async def test_cancel_service_is_registered(
-        self, hass: HomeAssistant, setup_integration
-    ) -> None:
+    async def test_cancel_service_is_registered(self, hass: HomeAssistant, setup_integration) -> None:
         """Test that the cancel service is registered."""
         assert hass.services.has_service(DOMAIN, "cancel")
 
-    async def test_cancel_paused_automation(
-        self, hass: HomeAssistant, setup_integration_with_automations
-    ) -> None:
+    async def test_cancel_paused_automation(self, hass: HomeAssistant, setup_integration_with_automations) -> None:
         """Test canceling a paused automation."""
         entry = setup_integration_with_automations
         data = entry.runtime_data
@@ -361,15 +337,11 @@ class TestCancelService:
 class TestCancelAllService:
     """Test the cancel_all service."""
 
-    async def test_cancel_all_service_is_registered(
-        self, hass: HomeAssistant, setup_integration
-    ) -> None:
+    async def test_cancel_all_service_is_registered(self, hass: HomeAssistant, setup_integration) -> None:
         """Test that the cancel_all service is registered."""
         assert hass.services.has_service(DOMAIN, "cancel_all")
 
-    async def test_cancel_all_clears_all_paused(
-        self, hass: HomeAssistant, setup_integration_with_automations
-    ) -> None:
+    async def test_cancel_all_clears_all_paused(self, hass: HomeAssistant, setup_integration_with_automations) -> None:
         """Test that cancel_all clears all paused automations."""
         entry = setup_integration_with_automations
         data = entry.runtime_data
@@ -406,15 +378,11 @@ class TestCancelAllService:
 class TestPauseByAreaService:
     """Test the pause_by_area service."""
 
-    async def test_pause_by_area_service_is_registered(
-        self, hass: HomeAssistant, setup_integration
-    ) -> None:
+    async def test_pause_by_area_service_is_registered(self, hass: HomeAssistant, setup_integration) -> None:
         """Test that the pause_by_area service is registered."""
         assert hass.services.has_service(DOMAIN, "pause_by_area")
 
-    async def test_pause_by_area_finds_automations(
-        self, hass: HomeAssistant, setup_integration
-    ) -> None:
+    async def test_pause_by_area_finds_automations(self, hass: HomeAssistant, setup_integration) -> None:
         """Test that pause_by_area finds automations in the area."""
         entry = setup_integration
 
@@ -457,15 +425,11 @@ class TestPauseByAreaService:
 class TestPauseByLabelService:
     """Test the pause_by_label service."""
 
-    async def test_pause_by_label_service_is_registered(
-        self, hass: HomeAssistant, setup_integration
-    ) -> None:
+    async def test_pause_by_label_service_is_registered(self, hass: HomeAssistant, setup_integration) -> None:
         """Test that the pause_by_label service is registered."""
         assert hass.services.has_service(DOMAIN, "pause_by_label")
 
-    async def test_pause_by_label_finds_automations(
-        self, hass: HomeAssistant, setup_integration
-    ) -> None:
+    async def test_pause_by_label_finds_automations(self, hass: HomeAssistant, setup_integration) -> None:
         """Test that pause_by_label finds automations with the label."""
         entry = setup_integration
 
@@ -508,9 +472,7 @@ class TestPauseByLabelService:
 class TestCancelScheduledService:
     """Test the cancel_scheduled service."""
 
-    async def test_cancel_scheduled_service_is_registered(
-        self, hass: HomeAssistant, setup_integration
-    ) -> None:
+    async def test_cancel_scheduled_service_is_registered(self, hass: HomeAssistant, setup_integration) -> None:
         """Test that the cancel_scheduled service is registered."""
         assert hass.services.has_service(DOMAIN, "cancel_scheduled")
 
@@ -523,32 +485,24 @@ class TestCancelScheduledService:
 class TestSetupEntry:
     """Test async_setup_entry."""
 
-    async def test_setup_entry_loads_successfully(
-        self, hass: HomeAssistant, setup_integration
-    ) -> None:
+    async def test_setup_entry_loads_successfully(self, hass: HomeAssistant, setup_integration) -> None:
         """Test that setup_entry loads successfully."""
         entry = setup_integration
         assert entry.state == ConfigEntryState.LOADED
 
-    async def test_setup_entry_registers_services(
-        self, hass: HomeAssistant, setup_integration
-    ) -> None:
+    async def test_setup_entry_registers_services(self, hass: HomeAssistant, setup_integration) -> None:
         """Test that setup_entry registers all services."""
         services = ["pause", "cancel", "cancel_all", "pause_by_area", "pause_by_label", "cancel_scheduled"]
         for service in services:
             assert hass.services.has_service(DOMAIN, service), f"Service {service} not registered"
 
-    async def test_setup_entry_creates_runtime_data(
-        self, hass: HomeAssistant, setup_integration
-    ) -> None:
+    async def test_setup_entry_creates_runtime_data(self, hass: HomeAssistant, setup_integration) -> None:
         """Test that setup_entry creates runtime data."""
         entry = setup_integration
         assert hasattr(entry, "runtime_data")
         assert entry.runtime_data is not None
 
-    async def test_setup_entry_initializes_store(
-        self, hass: HomeAssistant, setup_integration
-    ) -> None:
+    async def test_setup_entry_initializes_store(self, hass: HomeAssistant, setup_integration) -> None:
         """Test that setup_entry initializes the store."""
         entry = setup_integration
         data = entry.runtime_data
@@ -558,9 +512,7 @@ class TestSetupEntry:
 class TestUnloadEntry:
     """Test async_unload_entry."""
 
-    async def test_unload_entry_succeeds(
-        self, hass: HomeAssistant, setup_integration
-    ) -> None:
+    async def test_unload_entry_succeeds(self, hass: HomeAssistant, setup_integration) -> None:
         """Test that unload_entry succeeds."""
         entry = setup_integration
 
@@ -570,9 +522,7 @@ class TestUnloadEntry:
 
         assert entry.state == ConfigEntryState.NOT_LOADED
 
-    async def test_unload_entry_cancels_timers(
-        self, hass: HomeAssistant, setup_integration_with_automations
-    ) -> None:
+    async def test_unload_entry_cancels_timers(self, hass: HomeAssistant, setup_integration_with_automations) -> None:
         """Test that unload_entry cancels all timers."""
         entry = setup_integration_with_automations
         data = entry.runtime_data
@@ -588,9 +538,7 @@ class TestUnloadEntry:
         # Timer should have been called and dict cleared
         mock_unsub.assert_called_once()
 
-    async def test_unload_entry_removes_services(
-        self, hass: HomeAssistant, setup_integration
-    ) -> None:
+    async def test_unload_entry_removes_services(self, hass: HomeAssistant, setup_integration) -> None:
         """Test that unload_entry removes services when last entry."""
         entry = setup_integration
 
@@ -604,9 +552,7 @@ class TestUnloadEntry:
         # Services should be removed
         assert not hass.services.has_service(DOMAIN, "pause")
 
-    async def test_unload_entry_clears_listeners(
-        self, hass: HomeAssistant, setup_integration
-    ) -> None:
+    async def test_unload_entry_clears_listeners(self, hass: HomeAssistant, setup_integration) -> None:
         """Test that unload_entry clears listeners."""
         entry = setup_integration
         data = entry.runtime_data
@@ -631,9 +577,7 @@ class TestUnloadEntry:
 class TestStaticPathRegistration:
     """Test static path registration."""
 
-    async def test_registers_static_path(
-        self, hass: HomeAssistant, setup_integration
-    ) -> None:
+    async def test_registers_static_path(self, hass: HomeAssistant, setup_integration) -> None:
         """Test that static path is registered."""
         # Check that http.async_register_static_paths was called
         hass.http.async_register_static_paths.assert_called()
@@ -647,16 +591,12 @@ class TestStaticPathRegistration:
 class TestLovelaceResourceRegistration:
     """Test Lovelace resource registration."""
 
-    async def test_creates_lovelace_resource(
-        self, hass: HomeAssistant, setup_integration
-    ) -> None:
+    async def test_creates_lovelace_resource(self, hass: HomeAssistant, setup_integration) -> None:
         """Test that Lovelace resource is created."""
         mock_resources = hass.data["lovelace"].resources
         mock_resources.async_create_item.assert_called()
 
-    async def test_lovelace_resource_url_includes_version(
-        self, hass: HomeAssistant, setup_integration
-    ) -> None:
+    async def test_lovelace_resource_url_includes_version(self, hass: HomeAssistant, setup_integration) -> None:
         """Test that Lovelace resource URL includes version."""
         mock_resources = hass.data["lovelace"].resources
         call_args = mock_resources.async_create_item.call_args
