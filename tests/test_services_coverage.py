@@ -41,15 +41,9 @@ class TestGetAutomationsByArea:
         mock_hass = MagicMock()
         mock_entity_reg = MagicMock()
         mock_entity_reg.entities = {
-            "automation.test1": create_mock_entity(
-                "automation.test1", area_id="living_room"
-            ),
-            "automation.test2": create_mock_entity(
-                "automation.test2", area_id="bedroom"
-            ),
-            "automation.test3": create_mock_entity(
-                "automation.test3", area_id="living_room"
-            ),
+            "automation.test1": create_mock_entity("automation.test1", area_id="living_room"),
+            "automation.test2": create_mock_entity("automation.test2", area_id="bedroom"),
+            "automation.test3": create_mock_entity("automation.test3", area_id="living_room"),
         }
 
         with patch(
@@ -67,9 +61,7 @@ class TestGetAutomationsByArea:
         mock_hass = MagicMock()
         mock_entity_reg = MagicMock()
         mock_entity_reg.entities = {
-            "automation.test1": create_mock_entity(
-                "automation.test1", area_id="bedroom"
-            ),
+            "automation.test1": create_mock_entity("automation.test1", area_id="bedroom"),
         }
 
         with patch(
@@ -85,15 +77,9 @@ class TestGetAutomationsByArea:
         mock_hass = MagicMock()
         mock_entity_reg = MagicMock()
         mock_entity_reg.entities = {
-            "automation.test1": create_mock_entity(
-                "automation.test1", area_id="living_room"
-            ),
-            "light.test2": create_mock_entity(
-                "light.test2", domain="light", area_id="living_room"
-            ),
-            "switch.test3": create_mock_entity(
-                "switch.test3", domain="switch", area_id="living_room"
-            ),
+            "automation.test1": create_mock_entity("automation.test1", area_id="living_room"),
+            "light.test2": create_mock_entity("light.test2", domain="light", area_id="living_room"),
+            "switch.test3": create_mock_entity("switch.test3", domain="switch", area_id="living_room"),
         }
 
         with patch(
@@ -109,15 +95,9 @@ class TestGetAutomationsByArea:
         mock_hass = MagicMock()
         mock_entity_reg = MagicMock()
         mock_entity_reg.entities = {
-            "automation.test1": create_mock_entity(
-                "automation.test1", area_id="living_room"
-            ),
-            "automation.test2": create_mock_entity(
-                "automation.test2", area_id="bedroom"
-            ),
-            "automation.test3": create_mock_entity(
-                "automation.test3", area_id="kitchen"
-            ),
+            "automation.test1": create_mock_entity("automation.test1", area_id="living_room"),
+            "automation.test2": create_mock_entity("automation.test2", area_id="bedroom"),
+            "automation.test3": create_mock_entity("automation.test3", area_id="kitchen"),
         }
 
         with patch(
@@ -135,12 +115,8 @@ class TestGetAutomationsByArea:
         mock_hass = MagicMock()
         mock_entity_reg = MagicMock()
         mock_entity_reg.entities = {
-            "automation.test1": create_mock_entity(
-                "automation.test1", area_id=None
-            ),
-            "automation.test2": create_mock_entity(
-                "automation.test2", area_id="living_room"
-            ),
+            "automation.test1": create_mock_entity("automation.test1", area_id=None),
+            "automation.test2": create_mock_entity("automation.test2", area_id="living_room"),
         }
 
         with patch(
@@ -160,15 +136,9 @@ class TestGetAutomationsByLabel:
         mock_hass = MagicMock()
         mock_entity_reg = MagicMock()
         mock_entity_reg.entities = {
-            "automation.test1": create_mock_entity(
-                "automation.test1", labels={"snooze", "important"}
-            ),
-            "automation.test2": create_mock_entity(
-                "automation.test2", labels={"other"}
-            ),
-            "automation.test3": create_mock_entity(
-                "automation.test3", labels={"snooze"}
-            ),
+            "automation.test1": create_mock_entity("automation.test1", labels={"snooze", "important"}),
+            "automation.test2": create_mock_entity("automation.test2", labels={"other"}),
+            "automation.test3": create_mock_entity("automation.test3", labels={"snooze"}),
         }
 
         with patch(
@@ -186,9 +156,7 @@ class TestGetAutomationsByLabel:
         mock_hass = MagicMock()
         mock_entity_reg = MagicMock()
         mock_entity_reg.entities = {
-            "automation.test1": create_mock_entity(
-                "automation.test1", labels={"other"}
-            ),
+            "automation.test1": create_mock_entity("automation.test1", labels={"other"}),
         }
 
         with patch(
@@ -204,12 +172,8 @@ class TestGetAutomationsByLabel:
         mock_hass = MagicMock()
         mock_entity_reg = MagicMock()
         mock_entity_reg.entities = {
-            "automation.test1": create_mock_entity(
-                "automation.test1", labels={"snooze"}
-            ),
-            "light.test2": create_mock_entity(
-                "light.test2", domain="light", labels={"snooze"}
-            ),
+            "automation.test1": create_mock_entity("automation.test1", labels={"snooze"}),
+            "light.test2": create_mock_entity("light.test2", domain="light", labels={"snooze"}),
         }
 
         with patch(
@@ -225,15 +189,9 @@ class TestGetAutomationsByLabel:
         mock_hass = MagicMock()
         mock_entity_reg = MagicMock()
         mock_entity_reg.entities = {
-            "automation.test1": create_mock_entity(
-                "automation.test1", labels={"label1"}
-            ),
-            "automation.test2": create_mock_entity(
-                "automation.test2", labels={"label2"}
-            ),
-            "automation.test3": create_mock_entity(
-                "automation.test3", labels={"label3"}
-            ),
+            "automation.test1": create_mock_entity("automation.test1", labels={"label1"}),
+            "automation.test2": create_mock_entity("automation.test2", labels={"label2"}),
+            "automation.test3": create_mock_entity("automation.test3", labels={"label3"}),
         }
 
         with patch(
@@ -252,14 +210,14 @@ class TestGetAutomationsByLabel:
         mock_entity_reg = MagicMock()
         mock_entity_reg.entities = {
             "automation.test1": create_mock_entity(
-                "automation.test1", labels=None  # No labels
+                "automation.test1",
+                labels=None,  # No labels
             ),
             "automation.test2": create_mock_entity(
-                "automation.test2", labels=set()  # Empty labels
+                "automation.test2",
+                labels=set(),  # Empty labels
             ),
-            "automation.test3": create_mock_entity(
-                "automation.test3", labels={"snooze"}
-            ),
+            "automation.test3": create_mock_entity("automation.test3", labels={"snooze"}),
         }
 
         with patch(
@@ -275,9 +233,7 @@ class TestGetAutomationsByLabel:
         mock_hass = MagicMock()
         mock_entity_reg = MagicMock()
         mock_entity_reg.entities = {
-            "automation.test1": create_mock_entity(
-                "automation.test1", labels={"a", "b", "c"}
-            ),
+            "automation.test1": create_mock_entity("automation.test1", labels={"a", "b", "c"}),
         }
 
         with patch(
@@ -299,9 +255,7 @@ class TestAsyncPauseAutomations:
         from custom_components.autosnooze.models import AutomationPauseData
 
         mock_hass = MagicMock()
-        mock_hass.states.get.return_value = MagicMock(
-            attributes={"friendly_name": "Test"}
-        )
+        mock_hass.states.get.return_value = MagicMock(attributes={"friendly_name": "Test"})
         mock_hass.services.async_call = AsyncMock()
 
         mock_store = MagicMock()
@@ -335,9 +289,7 @@ class TestAsyncPauseAutomations:
         from custom_components.autosnooze.models import AutomationPauseData
 
         mock_hass = MagicMock()
-        mock_hass.states.get.return_value = MagicMock(
-            attributes={"friendly_name": "Test"}
-        )
+        mock_hass.states.get.return_value = MagicMock(attributes={"friendly_name": "Test"})
         mock_hass.services.async_call = AsyncMock()
 
         mock_store = MagicMock()
@@ -406,9 +358,7 @@ class TestAsyncPauseAutomations:
         from custom_components.autosnooze.models import AutomationPauseData
 
         mock_hass = MagicMock()
-        mock_hass.states.get.return_value = MagicMock(
-            attributes={"friendly_name": "Test"}
-        )
+        mock_hass.states.get.return_value = MagicMock(attributes={"friendly_name": "Test"})
         mock_hass.services.async_call = AsyncMock()
 
         mock_store = MagicMock()

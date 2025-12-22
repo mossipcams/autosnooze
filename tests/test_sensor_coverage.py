@@ -68,9 +68,7 @@ class TestAutoSnoozeCountSensor:
         """Test that native_value returns 0 when no paused automations."""
         assert sensor.native_value == 0
 
-    def test_native_value_returns_count(
-        self, sensor: AutoSnoozeCountSensor, data: AutomationPauseData
-    ) -> None:
+    def test_native_value_returns_count(self, sensor: AutoSnoozeCountSensor, data: AutomationPauseData) -> None:
         """Test that native_value returns count of paused automations."""
         now = datetime.now(UTC)
         data.paused["automation.test1"] = PausedAutomation(
@@ -88,9 +86,7 @@ class TestAutoSnoozeCountSensor:
 
         assert sensor.native_value == 2
 
-    def test_extra_state_attributes_empty(
-        self, sensor: AutoSnoozeCountSensor, data: AutomationPauseData
-    ) -> None:
+    def test_extra_state_attributes_empty(self, sensor: AutoSnoozeCountSensor, data: AutomationPauseData) -> None:
         """Test extra_state_attributes when no data."""
         attrs = sensor.extra_state_attributes
 
@@ -99,9 +95,7 @@ class TestAutoSnoozeCountSensor:
         assert attrs["paused_automations"] == {}
         assert attrs["scheduled_snoozes"] == {}
 
-    def test_extra_state_attributes_with_data(
-        self, sensor: AutoSnoozeCountSensor, data: AutomationPauseData
-    ) -> None:
+    def test_extra_state_attributes_with_data(self, sensor: AutoSnoozeCountSensor, data: AutomationPauseData) -> None:
         """Test extra_state_attributes with paused and scheduled data."""
         now = datetime.now(UTC)
         data.paused["automation.test1"] = PausedAutomation(
@@ -159,9 +153,7 @@ class TestAutoSnoozeCountSensor:
         assert len(data.listeners) == 0
 
     @pytest.mark.asyncio
-    async def test_async_will_remove_from_hass_handles_no_listener(
-        self, sensor: AutoSnoozeCountSensor
-    ) -> None:
+    async def test_async_will_remove_from_hass_handles_no_listener(self, sensor: AutoSnoozeCountSensor) -> None:
         """Test that async_will_remove_from_hass handles case when no listener registered."""
         assert sensor._unsub is None
 
@@ -170,9 +162,7 @@ class TestAutoSnoozeCountSensor:
 
         assert sensor._unsub is None
 
-    def test_native_value_updates_after_pause(
-        self, sensor: AutoSnoozeCountSensor, data: AutomationPauseData
-    ) -> None:
+    def test_native_value_updates_after_pause(self, sensor: AutoSnoozeCountSensor, data: AutomationPauseData) -> None:
         """Test that native_value reflects changes to paused dict."""
         now = datetime.now(UTC)
 

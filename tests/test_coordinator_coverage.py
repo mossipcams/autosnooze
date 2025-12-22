@@ -554,9 +554,7 @@ class TestAsyncExecuteScheduledDisable:
         )
 
         with patch("custom_components.autosnooze.coordinator.schedule_resume"):
-            await async_execute_scheduled_disable(
-                mock_hass, data, "automation.test", now + timedelta(hours=1)
-            )
+            await async_execute_scheduled_disable(mock_hass, data, "automation.test", now + timedelta(hours=1))
 
         assert data.paused["automation.test"].friendly_name == "Original Name"
 
@@ -576,9 +574,7 @@ class TestAsyncExecuteScheduledDisable:
 
         now = datetime.now(UTC)
         with patch("custom_components.autosnooze.coordinator.schedule_resume"):
-            await async_execute_scheduled_disable(
-                mock_hass, data, "automation.test", now + timedelta(hours=1)
-            )
+            await async_execute_scheduled_disable(mock_hass, data, "automation.test", now + timedelta(hours=1))
 
         listener.assert_called()
 
