@@ -453,36 +453,28 @@ class TestWarningLogsOnRegistrationFailure:
         source = get_init_source()
 
         # Should have warning with mode info
-        assert "Could not auto-register card: Lovelace in YAML mode" in source, (
-            "Must warn user when in YAML mode"
-        )
+        assert "Could not auto-register card: Lovelace in YAML mode" in source, "Must warn user when in YAML mode"
 
     def test_source_has_warning_for_missing_api(self) -> None:
         """Verify warning is logged when resources API is missing."""
         source = get_init_source()
 
         # Should have warning for API not available
-        assert "Lovelace resources API not available" in source, (
-            "Must warn user when resources API is not available"
-        )
+        assert "Lovelace resources API not available" in source, "Must warn user when resources API is not available"
 
     def test_source_includes_mode_in_warnings(self) -> None:
         """Verify mode is included in warning messages for debugging."""
         source = get_init_source()
 
         # Check that mode is logged in warnings
-        assert "mode=%s" in source or "mode=" in source, (
-            "Warnings should include mode for debugging"
-        )
+        assert "mode=%s" in source or "mode=" in source, "Warnings should include mode for debugging"
 
     def test_source_has_manual_instructions_in_warnings(self) -> None:
         """Verify warnings include manual setup instructions."""
         source = get_init_source()
 
         # Should include instructions
-        assert "Settings → Dashboards → Resources" in source, (
-            "Warnings should include manual setup instructions"
-        )
+        assert "Settings → Dashboards → Resources" in source, "Warnings should include manual setup instructions"
 
 
 class TestLovelaceResourceRegistrationWithModes:
@@ -688,18 +680,14 @@ class TestRetryMechanism:
         source = get_init_source()
 
         # Find the function signature
-        assert "retry_count: int = 0" in source, (
-            "_async_register_lovelace_resource must accept retry_count parameter"
-        )
+        assert "retry_count: int = 0" in source, "_async_register_lovelace_resource must accept retry_count parameter"
 
     def test_source_has_retry_logic_for_no_lovelace_data(self) -> None:
         """Verify retry logic exists for when lovelace_data is None."""
         source = get_init_source()
 
         # Should check retry count and recurse
-        assert "retry_count < LOVELACE_REGISTER_MAX_RETRIES" in source, (
-            "Must check retry count before retrying"
-        )
+        assert "retry_count < LOVELACE_REGISTER_MAX_RETRIES" in source, "Must check retry count before retrying"
         assert "await asyncio.sleep" in source, "Must sleep before retrying"
         assert "await _async_register_lovelace_resource(hass, retry_count + 1)" in source, (
             "Must recurse with incremented retry count"
@@ -717,9 +705,7 @@ class TestRetryMechanism:
 
         # Should have two retry blocks - one for lovelace_data, one for resources
         retry_count_checks = func_body.count("retry_count < LOVELACE_REGISTER_MAX_RETRIES")
-        assert retry_count_checks >= 2, (
-            "Must have retry logic for both lovelace_data and resources being None"
-        )
+        assert retry_count_checks >= 2, "Must have retry logic for both lovelace_data and resources being None"
 
     def test_source_logs_retry_attempts(self) -> None:
         """Verify retry attempts are logged for debugging."""
@@ -732,9 +718,7 @@ class TestRetryMechanism:
         """Verify warning is logged after all retries exhausted."""
         source = get_init_source()
 
-        assert "after %d retries" in source or "after retries" in source.lower(), (
-            "Must warn after exhausting retries"
-        )
+        assert "after %d retries" in source or "after retries" in source.lower(), "Must warn after exhausting retries"
 
     @pytest.mark.asyncio
     async def test_retry_succeeds_on_second_attempt(self) -> None:
