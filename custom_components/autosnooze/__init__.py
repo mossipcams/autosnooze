@@ -88,7 +88,10 @@ async def _async_register_lovelace_resource(hass: HomeAssistant) -> None:
     """
     lovelace_data = hass.data.get("lovelace")
     if lovelace_data is None:
-        _LOGGER.debug("No lovelace data found in hass.data")
+        _LOGGER.warning(
+            "Could not auto-register card: Lovelace not initialized. "
+            "Add resource manually: Settings → Dashboards → Resources → /autosnooze-card.js (module)"
+        )
         return
 
     # Version-aware resource access (HA 2025.2.0+ uses attribute, older uses dict)
@@ -98,7 +101,10 @@ async def _async_register_lovelace_resource(hass: HomeAssistant) -> None:
         # Fallback for older HA versions
         resources = lovelace_data.get("resources") if hasattr(lovelace_data, "get") else None
     if resources is None:
-        _LOGGER.debug("Lovelace resources not available (YAML mode?)")
+        _LOGGER.warning(
+            "Could not auto-register card: Lovelace in YAML mode. "
+            "Add to configuration.yaml: lovelace: resources: [{url: /autosnooze-card.js, type: module}]"
+        )
         return
 
     # Namespace: our base URL without query params (like HACS does)
