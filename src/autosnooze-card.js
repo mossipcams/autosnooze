@@ -1,7 +1,7 @@
 import { LitElement, html, css } from "lit";
 
-// Version 0.2.1 - Patch release
-const CARD_VERSION = "0.2.1";
+// Version 0.2.2 - Change "Pause" to "Snooze" in UI
+const CARD_VERSION = "0.2.2";
 
 // ============================================================================
 // CONSTANTS
@@ -38,10 +38,10 @@ const DEFAULT_SNOOZE_MINUTES = 30;
 
 // Error translation key to user-friendly message mapping
 const ERROR_MESSAGES = {
-  not_automation: "Failed to pause: One or more selected items are not automations",
-  invalid_duration: "Failed to pause: Please specify a valid duration (days, hours, or minutes)",
-  resume_time_past: "Failed to pause: Resume time must be in the future",
-  disable_after_resume: "Failed to pause: Pause time must be before resume time",
+  not_automation: "Failed to snooze: One or more selected items are not automations",
+  invalid_duration: "Failed to snooze: Please specify a valid duration (days, hours, or minutes)",
+  resume_time_past: "Failed to snooze: Resume time must be in the future",
+  disable_after_resume: "Failed to snooze: Snooze time must be before resume time",
 };
 
 // ============================================================================
@@ -1424,7 +1424,7 @@ class AutomationPauseCard extends LitElement {
       if (disableAt) {
         const disableTime = new Date(disableAt).getTime();
         if (disableTime >= resumeTime) {
-          this._showToast("Pause time must be before resume time. The automation needs to be paused before it can resume.");
+          this._showToast("Snooze time must be before resume time. The automation needs to be snoozed before it can resume.");
           return;
         }
       }
@@ -1458,9 +1458,9 @@ class AutomationPauseCard extends LitElement {
         await this.hass.callService("autosnooze", "pause", serviceData);
 
         if (disableAt) {
-          toastMessage = `Scheduled ${count} automation${count !== 1 ? "s" : ""} to pause`;
+          toastMessage = `Scheduled ${count} automation${count !== 1 ? "s" : ""} to snooze`;
         } else {
-          toastMessage = `Paused ${count} automation${count !== 1 ? "s" : ""} until ${this._formatDateTime(resumeAt)}`;
+          toastMessage = `Snoozed ${count} automation${count !== 1 ? "s" : ""} until ${this._formatDateTime(resumeAt)}`;
         }
       } else {
         const { days, hours, minutes } = this._customDuration;
@@ -1473,7 +1473,7 @@ class AutomationPauseCard extends LitElement {
         });
 
         const durationText = this._formatDuration(days, hours, minutes);
-        toastMessage = `Paused ${count} automation${count !== 1 ? "s" : ""} for ${durationText}`;
+        toastMessage = `Snoozed ${count} automation${count !== 1 ? "s" : ""} for ${durationText}`;
       }
 
       // Show toast with undo option
@@ -1512,7 +1512,7 @@ class AutomationPauseCard extends LitElement {
       this._resumeAtTime = "";
     } catch (e) {
       console.error("Snooze failed:", e);
-      this._showToast(this._getErrorMessage(e, "Failed to pause automations"));
+      this._showToast(this._getErrorMessage(e, "Failed to snooze automations"));
     }
     this._loading = false;
   }
@@ -1565,10 +1565,10 @@ class AutomationPauseCard extends LitElement {
       await this.hass.callService("autosnooze", "cancel_scheduled", {
         entity_id: entityId,
       });
-      this._showToast("Scheduled pause cancelled successfully");
+      this._showToast("Scheduled snooze cancelled successfully");
     } catch (e) {
       console.error("Cancel scheduled failed:", e);
-      this._showToast(this._getErrorMessage(e, "Failed to cancel scheduled pause"));
+      this._showToast(this._getErrorMessage(e, "Failed to cancel scheduled snooze"));
     }
   }
 
@@ -1677,13 +1677,13 @@ class AutomationPauseCard extends LitElement {
           <!-- Schedule Date/Time Inputs -->
           <div class="schedule-inputs">
             <div class="datetime-field">
-              <label id="pause-at-label">Pause at:</label>
+              <label id="snooze-at-label">Snooze at:</label>
               <div class="datetime-row">
                 <select
                   .value=${this._disableAtDate}
                   @change=${(e) => (this._disableAtDate = e.target.value)}
-                  aria-labelledby="pause-at-label"
-                  aria-label="Pause date"
+                  aria-labelledby="snooze-at-label"
+                  aria-label="Snooze date"
                 >
                   <option value="">Select date</option>
                   ${this._renderDateOptions()}
@@ -1692,11 +1692,11 @@ class AutomationPauseCard extends LitElement {
                   type="time"
                   .value=${this._disableAtTime}
                   @input=${(e) => (this._disableAtTime = e.target.value)}
-                  aria-labelledby="pause-at-label"
-                  aria-label="Pause time"
+                  aria-labelledby="snooze-at-label"
+                  aria-label="Snooze time"
                 />
               </div>
-              <span class="field-hint">Leave empty to pause immediately</span>
+              <span class="field-hint">Leave empty to snooze immediately</span>
             </div>
             <div class="datetime-field">
               <label id="resume-at-label">Resume at:</label>
@@ -1728,7 +1728,7 @@ class AutomationPauseCard extends LitElement {
       : html`
           <!-- Duration Selector -->
           <div class="duration-selector">
-            <div class="duration-section-header" id="duration-header">Pause Duration</div>
+            <div class="duration-section-header" id="duration-header">Snooze Duration</div>
             <div class="duration-pills" role="radiogroup" aria-labelledby="duration-header">
               ${DEFAULT_DURATIONS.map(
                 (d) => {
@@ -1748,7 +1748,7 @@ class AutomationPauseCard extends LitElement {
                       }}
                       role="radio"
                       aria-checked=${isActive}
-                      aria-label="${d.minutes === null ? "Custom duration" : `Pause for ${d.label}`}"
+                      aria-label="${d.minutes === null ? "Custom duration" : `Snooze for ${d.label}`}"
                     >
                       ${d.label}
                     </button>
@@ -1787,10 +1787,10 @@ class AutomationPauseCard extends LitElement {
     if (pausedCount === 0) return "";
 
     return html`
-      <div class="snooze-list" role="region" aria-label="Paused automations">
+      <div class="snooze-list" role="region" aria-label="Snoozed automations">
         <div class="list-header">
           <ha-icon icon="mdi:bell-sleep" aria-hidden="true"></ha-icon>
-          Paused Automations (${pausedCount})
+          Snoozed Automations (${pausedCount})
         </div>
 
         ${this._getPausedGroupedByResumeTime().map(
@@ -1838,10 +1838,10 @@ class AutomationPauseCard extends LitElement {
     if (scheduledCount === 0) return "";
 
     return html`
-      <div class="scheduled-list" role="region" aria-label="Scheduled pauses">
+      <div class="scheduled-list" role="region" aria-label="Scheduled snoozes">
         <div class="list-header">
           <ha-icon icon="mdi:calendar-clock" aria-hidden="true"></ha-icon>
-          Scheduled Pauses (${scheduledCount})
+          Scheduled Snoozes (${scheduledCount})
         </div>
 
         ${Object.entries(scheduled).map(
@@ -1987,7 +1987,7 @@ class AutomationPauseCard extends LitElement {
 
           ${this._renderDurationSelector(selectedDuration, durationPreview, durationValid)}
 
-          <!-- Pause Button -->
+          <!-- Snooze Button -->
           <button
             class="snooze-btn"
             ?disabled=${this._selected.length === 0 ||
@@ -1996,17 +1996,17 @@ class AutomationPauseCard extends LitElement {
             this._loading}
             @click=${this._snooze}
             aria-label="${this._loading
-              ? "Pausing automations"
+              ? "Snoozing automations"
               : this._scheduleMode
-                ? `Schedule pause for ${this._selected.length} automation${this._selected.length !== 1 ? "s" : ""}`
-                : `Pause ${this._selected.length} automation${this._selected.length !== 1 ? "s" : ""}`}"
+                ? `Schedule snooze for ${this._selected.length} automation${this._selected.length !== 1 ? "s" : ""}`
+                : `Snooze ${this._selected.length} automation${this._selected.length !== 1 ? "s" : ""}`}"
             aria-busy=${this._loading}
           >
             ${this._loading
-              ? "Pausing..."
+              ? "Snoozing..."
               : this._scheduleMode
                 ? `Schedule${this._selected.length > 0 ? ` (${this._selected.length})` : ""}`
-                : `Pause${this._selected.length > 0 ? ` (${this._selected.length})` : ""}`}
+                : `Snooze${this._selected.length > 0 ? ` (${this._selected.length})` : ""}`}
           </button>
         </div>
 
