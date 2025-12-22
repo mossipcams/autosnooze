@@ -49,10 +49,7 @@ class TestDurationValidation:
                 minutes=0,
             )
 
-        assert (
-            "duration" in str(exc_info.value).lower()
-            or exc_info.value.translation_key == "invalid_duration"
-        )
+        assert "duration" in str(exc_info.value).lower() or exc_info.value.translation_key == "invalid_duration"
 
     @pytest.mark.asyncio
     async def test_accepts_single_nonzero_value(self) -> None:
@@ -61,9 +58,7 @@ class TestDurationValidation:
         from custom_components.autosnooze.services import async_pause_automations
 
         mock_hass = MagicMock()
-        mock_hass.states.get.return_value = MagicMock(
-            attributes={"friendly_name": "Test"}
-        )
+        mock_hass.states.get.return_value = MagicMock(attributes={"friendly_name": "Test"})
         mock_hass.services.async_call = AsyncMock()
 
         mock_store = MagicMock()
@@ -89,9 +84,7 @@ class TestDurationValidation:
         from custom_components.autosnooze.services import async_pause_automations
 
         mock_hass = MagicMock()
-        mock_hass.states.get.return_value = MagicMock(
-            attributes={"friendly_name": "Test"}
-        )
+        mock_hass.states.get.return_value = MagicMock(attributes={"friendly_name": "Test"})
         mock_hass.services.async_call = AsyncMock()
 
         mock_store = MagicMock()
@@ -117,9 +110,7 @@ class TestDurationValidation:
         from custom_components.autosnooze.services import async_pause_automations
 
         mock_hass = MagicMock()
-        mock_hass.states.get.return_value = MagicMock(
-            attributes={"friendly_name": "Test"}
-        )
+        mock_hass.states.get.return_value = MagicMock(attributes={"friendly_name": "Test"})
         mock_hass.services.async_call = AsyncMock()
 
         mock_store = MagicMock()
@@ -206,9 +197,7 @@ class TestScheduleValidation:
         from custom_components.autosnooze.services import async_pause_automations
 
         mock_hass = MagicMock()
-        mock_hass.states.get.return_value = MagicMock(
-            attributes={"friendly_name": "Test"}
-        )
+        mock_hass.states.get.return_value = MagicMock(attributes={"friendly_name": "Test"})
         mock_hass.services.async_call = AsyncMock()
 
         mock_store = MagicMock()
@@ -290,9 +279,7 @@ class TestScheduleValidation:
         from custom_components.autosnooze.services import async_pause_automations
 
         mock_hass = MagicMock()
-        mock_hass.states.get.return_value = MagicMock(
-            attributes={"friendly_name": "Test"}
-        )
+        mock_hass.states.get.return_value = MagicMock(attributes={"friendly_name": "Test"})
         mock_hass.services.async_call = AsyncMock()
 
         mock_store = MagicMock()
@@ -376,9 +363,7 @@ class TestEntityValidation:
         from custom_components.autosnooze.services import async_pause_automations
 
         mock_hass = MagicMock()
-        mock_hass.states.get.return_value = MagicMock(
-            attributes={"friendly_name": "Test"}
-        )
+        mock_hass.states.get.return_value = MagicMock(attributes={"friendly_name": "Test"})
         mock_hass.services.async_call = AsyncMock()
 
         mock_store = MagicMock()
@@ -885,9 +870,7 @@ class TestAreaFilteringEdgeCases:
         mock_hass = MagicMock()
         mock_entity_reg = MagicMock()
         mock_entity_reg.entities = {
-            "automation.test": create_mock_entity(
-                "automation.test", area_id="living_room"
-            ),
+            "automation.test": create_mock_entity("automation.test", area_id="living_room"),
         }
 
         with patch(
@@ -905,9 +888,7 @@ class TestAreaFilteringEdgeCases:
         mock_hass = MagicMock()
         mock_entity_reg = MagicMock()
         mock_entity_reg.entities = {
-            "automation.test": create_mock_entity(
-                "automation.test", area_id="living_room"
-            ),
+            "automation.test": create_mock_entity("automation.test", area_id="living_room"),
         }
 
         with patch(
@@ -929,9 +910,7 @@ class TestLabelFilteringEdgeCases:
         mock_hass = MagicMock()
         mock_entity_reg = MagicMock()
         mock_entity_reg.entities = {
-            "automation.test": create_mock_entity(
-                "automation.test", labels={"test_label"}
-            ),
+            "automation.test": create_mock_entity("automation.test", labels={"test_label"}),
         }
 
         with patch(
@@ -949,9 +928,7 @@ class TestLabelFilteringEdgeCases:
         mock_hass = MagicMock()
         mock_entity_reg = MagicMock()
         mock_entity_reg.entities = {
-            "automation.test": create_mock_entity(
-                "automation.test", labels={"some_label"}
-            ),
+            "automation.test": create_mock_entity("automation.test", labels={"some_label"}),
         }
 
         with patch(
