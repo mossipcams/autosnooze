@@ -7,7 +7,7 @@ pytest-homeassistant-custom-component fixtures.
 from __future__ import annotations
 
 from datetime import timedelta
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 from homeassistant.config_entries import ConfigEntry, ConfigEntryState
@@ -54,16 +54,12 @@ async def mock_dependencies(hass: HomeAssistant):
         hass.http = MagicMock()
     hass.http.async_register_static_paths = AsyncMock()
 
-    # Mark dependency integrations as loaded
+    # Mark dependency integrations as loaded in hass.config.components
+    # This tells HA these integrations are already set up
     for dep in ["frontend", "http", "lovelace"]:
         hass.config.components.add(dep)
 
-    # Patch dependency processing to skip checks
-    with patch(
-        "homeassistant.setup.async_process_deps_reqs",
-        return_value=None,
-    ):
-        yield
+    yield
 
 
 @pytest.fixture
