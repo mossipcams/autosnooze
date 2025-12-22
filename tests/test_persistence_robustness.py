@@ -4,6 +4,8 @@ These tests verify:
 1. Deleted automation cleanup on load
 2. Data validation during load
 3. Graceful handling of corrupted storage
+4. Retry logic for save operations
+5. Validation of stored data structure
 """
 
 from __future__ import annotations
@@ -204,33 +206,30 @@ class TestDeletedAutomationCleanup:
         }
         mock_store.async_load = AsyncMock(return_value=stored_data)
 
-        # Return state for existing, None for deleted
-        def get_state(entity_id: str) -> MagicMock | None:
-            if "existing" in entity_id:
-                mock_state = MagicMock()
-                mock_state.attributes = {"friendly_name": entity_id}
-                return mock_state
-            return None
+        def mock_get_state(entity_id: str):
+            if "deleted" in entity_id:
+                return None
+            mock_state = MagicMock()
+            mock_state.attributes = {"friendly_name": entity_id}
+            return mock_state
 
-        mock_hass.states.get.side_effect = get_state
+        mock_hass.states.get.side_effect = mock_get_state
 
-        with (
-            patch("custom_components.autosnooze.coordinator.schedule_resume"),
-            patch("custom_components.autosnooze.coordinator.schedule_disable"),
+        with patch("custom_components.autosnooze.coordinator.schedule_resume"), patch(
+            "custom_components.autosnooze.coordinator.schedule_disable"
         ):
             await _async_load_stored(mock_hass, data)
-
-        # Deleted automations should be removed
-        assert "automation.deleted1" not in data.paused
-        assert "automation.deleted2" not in data.scheduled
 
         # Existing automations should be loaded
         assert "automation.existing1" in data.paused
         assert "automation.existing2" in data.scheduled
+        # Deleted automations should NOT be loaded
+        assert "automation.deleted1" not in data.paused
+        assert "automation.deleted2" not in data.scheduled
 
 
 class TestStorageValidation:
-    """Tests for storage data validation during load."""
+    """Tests for storage data validation logic."""
 
     @pytest.fixture
     def mock_store(self) -> MagicMock:
@@ -244,52 +243,32 @@ class TestStorageValidation:
         """Create mock Home Assistant instance."""
         hass = MagicMock()
         hass.services.async_call = AsyncMock()
+        mock_state = MagicMock()
+        mock_state.attributes = {"friendly_name": "Test"}
+        hass.states.get.return_value = mock_state
         return hass
 
     @pytest.mark.asyncio
-    async def test_handles_empty_storage(self, mock_hass: MagicMock, mock_store: MagicMock) -> None:
-        """Test that empty storage is handled gracefully."""
-        from custom_components.autosnooze.coordinator import async_load_stored as _async_load_stored
+    async def test_handles_completely_invalid_storage_data(self, mock_hass: MagicMock, mock_store: MagicMock) -> None:
+        """Test that completely invalid storage (not a dict) is handled gracefully."""
+        from custom_components.autosnooze.coordinator import async_load_stored
         from custom_components.autosnooze.models import AutomationPauseData
 
         data = AutomationPauseData(store=mock_store)
-        mock_store.async_load = AsyncMock(return_value=None)
+        # Return invalid data (not a dict)
+        mock_store.async_load = AsyncMock(return_value="invalid_string_data")
 
-        await _async_load_stored(mock_hass, data)
+        # Should not crash
+        await async_load_stored(mock_hass, data)
 
+        # Should have no loaded data
         assert len(data.paused) == 0
         assert len(data.scheduled) == 0
 
     @pytest.mark.asyncio
-    async def test_handles_missing_paused_key(self, mock_hass: MagicMock, mock_store: MagicMock) -> None:
-        """Test that missing 'paused' key is handled gracefully."""
-        from custom_components.autosnooze.coordinator import async_load_stored as _async_load_stored
-        from custom_components.autosnooze.models import AutomationPauseData
-
-        data = AutomationPauseData(store=mock_store)
-        mock_store.async_load = AsyncMock(return_value={"scheduled": {}})
-
-        await _async_load_stored(mock_hass, data)
-
-        assert len(data.paused) == 0
-
-    @pytest.mark.asyncio
-    async def test_handles_missing_scheduled_key(self, mock_hass: MagicMock, mock_store: MagicMock) -> None:
-        """Test that missing 'scheduled' key is handled gracefully."""
-        from custom_components.autosnooze.coordinator import async_load_stored as _async_load_stored
-        from custom_components.autosnooze.models import AutomationPauseData
-
-        data = AutomationPauseData(store=mock_store)
-        mock_store.async_load = AsyncMock(return_value={"paused": {}})
-
-        await _async_load_stored(mock_hass, data)
-
-        assert len(data.scheduled) == 0
-
-    @pytest.mark.asyncio
-    async def test_skips_entries_with_invalid_datetime(self, mock_hass: MagicMock, mock_store: MagicMock) -> None:
-        """Test that entries with invalid datetime are skipped."""
-        from custom_components.autosnooze.coordinator import async_load_stored as _async_load_stored
+    async def test_handles_missing_required_fields(self, mock_hass: MagicMock, mock_store: MagicMock) -> None:
+        """Test that entries with missing required fields are skipped."""
+        from custom_components.autosnooze.coordinator import async_load_stored
         from custom_components.autosnooze.models import AutomationPauseData
 
         now = datetime.now(UTC)
@@ -297,14 +276,9 @@ class TestStorageValidation:
 
         stored_data = {
             "paused": {
-                "automation.valid": {
-                    "friendly_name": "Valid",
-                    "resume_at": (now + timedelta(hours=1)).isoformat(),
-                    "paused_at": now.isoformat(),
-                },
                 "automation.invalid": {
                     "friendly_name": "Invalid",
-                    "resume_at": "not-a-datetime",
+                    # Missing resume_at
                     "paused_at": now.isoformat(),
                 },
             },
@@ -312,21 +286,118 @@ class TestStorageValidation:
         }
         mock_store.async_load = AsyncMock(return_value=stored_data)
 
-        # Both entities exist
-        mock_state = MagicMock()
-        mock_state.attributes = {"friendly_name": "Test"}
-        mock_hass.states.get.return_value = mock_state
+        await async_load_stored(mock_hass, data)
 
-        with patch("custom_components.autosnooze.coordinator.schedule_resume"):
-            await _async_load_stored(mock_hass, data)
-
-        # Valid entry should be loaded, invalid should be skipped
-        assert "automation.valid" in data.paused
+        # Invalid entry should be skipped
         assert "automation.invalid" not in data.paused
 
+    @pytest.mark.asyncio
+    async def test_handles_invalid_datetime_formats(self, mock_hass: MagicMock, mock_store: MagicMock) -> None:
+        """Test that entries with invalid datetime formats are skipped."""
+        from custom_components.autosnooze.coordinator import async_load_stored
+        from custom_components.autosnooze.models import AutomationPauseData
 
-class TestSaveFailureRecovery:
-    """Tests for save failure handling."""
+        data = AutomationPauseData(store=mock_store)
+
+        stored_data = {
+            "paused": {
+                "automation.invalid": {
+                    "friendly_name": "Invalid",
+                    "resume_at": "not-a-datetime",
+                    "paused_at": "also-not-a-datetime",
+                },
+            },
+            "scheduled": {},
+        }
+        mock_store.async_load = AsyncMock(return_value=stored_data)
+
+        await async_load_stored(mock_hass, data)
+
+        # Invalid entry should be skipped
+        assert "automation.invalid" not in data.paused
+
+    @pytest.mark.asyncio
+    async def test_handles_negative_duration_values(self, mock_hass: MagicMock, mock_store: MagicMock) -> None:
+        """Test that entries with negative duration values are skipped."""
+        from custom_components.autosnooze.coordinator import async_load_stored
+        from custom_components.autosnooze.models import AutomationPauseData
+
+        now = datetime.now(UTC)
+        data = AutomationPauseData(store=mock_store)
+
+        stored_data = {
+            "paused": {
+                "automation.invalid": {
+                    "friendly_name": "Invalid",
+                    "resume_at": (now + timedelta(hours=1)).isoformat(),
+                    "paused_at": now.isoformat(),
+                    "days": -1,  # Invalid
+                },
+            },
+            "scheduled": {},
+        }
+        mock_store.async_load = AsyncMock(return_value=stored_data)
+
+        await async_load_stored(mock_hass, data)
+
+        # Invalid entry should be skipped
+        assert "automation.invalid" not in data.paused
+
+    @pytest.mark.asyncio
+    async def test_handles_invalid_entity_id_format(self, mock_hass: MagicMock, mock_store: MagicMock) -> None:
+        """Test that entries with non-automation entity IDs are skipped."""
+        from custom_components.autosnooze.coordinator import async_load_stored
+        from custom_components.autosnooze.models import AutomationPauseData
+
+        now = datetime.now(UTC)
+        data = AutomationPauseData(store=mock_store)
+
+        stored_data = {
+            "paused": {
+                "light.not_automation": {
+                    "friendly_name": "Not an automation",
+                    "resume_at": (now + timedelta(hours=1)).isoformat(),
+                    "paused_at": now.isoformat(),
+                },
+            },
+            "scheduled": {},
+        }
+        mock_store.async_load = AsyncMock(return_value=stored_data)
+
+        await async_load_stored(mock_hass, data)
+
+        # Invalid entity ID should be skipped
+        assert "light.not_automation" not in data.paused
+
+    @pytest.mark.asyncio
+    async def test_scheduled_validation_disable_after_resume(self, mock_hass: MagicMock, mock_store: MagicMock) -> None:
+        """Test that scheduled entries with disable_at >= resume_at are skipped."""
+        from custom_components.autosnooze.coordinator import async_load_stored
+        from custom_components.autosnooze.models import AutomationPauseData
+
+        now = datetime.now(UTC)
+        data = AutomationPauseData(store=mock_store)
+
+        stored_data = {
+            "paused": {},
+            "scheduled": {
+                "automation.invalid": {
+                    "friendly_name": "Invalid",
+                    "disable_at": (now + timedelta(hours=2)).isoformat(),
+                    "resume_at": (now + timedelta(hours=1)).isoformat(),  # Before disable_at
+                },
+            },
+        }
+        mock_store.async_load = AsyncMock(return_value=stored_data)
+
+        await async_load_stored(mock_hass, data)
+
+        # Invalid scheduled entry should be skipped
+        assert "automation.invalid" not in data.scheduled
+
+
+class TestSaveRetryLogic:
+    """Tests for save operation retry logic with exponential backoff."""
 
     @pytest.fixture
     def mock_store(self) -> MagicMock:
@@ -336,25 +407,217 @@ class TestSaveFailureRecovery:
         return store
 
     @pytest.mark.asyncio
-    async def test_save_failure_does_not_corrupt_runtime_state(self, mock_store: MagicMock) -> None:
-        """Test that failed saves don't affect runtime data."""
-        from custom_components.autosnooze.coordinator import async_save as _async_save
-        from custom_components.autosnooze.models import AutomationPauseData, PausedAutomation
-
-        mock_store.async_save = AsyncMock(side_effect=IOError("Disk error"))
+    async def test_save_succeeds_on_first_attempt(self, mock_store: MagicMock) -> None:
+        """Test that save returns True on first successful attempt."""
+        from custom_components.autosnooze.coordinator import async_save
+        from custom_components.autosnooze.models import AutomationPauseData
 
         data = AutomationPauseData(store=mock_store)
+        mock_store.async_save = AsyncMock()
+
+        result = await async_save(data)
+
+        assert result is True
+        assert mock_store.async_save.call_count == 1
+
+    @pytest.mark.asyncio
+    async def test_save_retries_on_transient_errors(self, mock_store: MagicMock) -> None:
+        """Test that save retries on IOError/OSError."""
+        from custom_components.autosnooze.coordinator import async_save
+        from custom_components.autosnooze.models import AutomationPauseData
+
+        data = AutomationPauseData(store=mock_store)
+        # Fail twice, then succeed
+        mock_store.async_save = AsyncMock(side_effect=[IOError("Network error"), IOError("Network error"), None])
+
+        result = await async_save(data)
+
+        assert result is True
+        assert mock_store.async_save.call_count == 3
+
+    @pytest.mark.asyncio
+    async def test_save_returns_false_after_all_retries_exhausted(self, mock_store: MagicMock) -> None:
+        """Test that save returns False after MAX_SAVE_RETRIES exhausted."""
+        from custom_components.autosnooze.coordinator import async_save
+        from custom_components.autosnooze.models import AutomationPauseData
+
+        data = AutomationPauseData(store=mock_store)
+        # Always fail with transient error
+        mock_store.async_save = AsyncMock(side_effect=IOError("Network error"))
+
+        result = await async_save(data)
+
+        assert result is False
+        # Should try: initial + MAX_SAVE_RETRIES (3) = 4 total attempts
+        assert mock_store.async_save.call_count == 4
+
+    @pytest.mark.asyncio
+    async def test_save_does_not_retry_non_transient_errors(self, mock_store: MagicMock) -> None:
+        """Test that save does not retry on non-transient errors."""
+        from custom_components.autosnooze.coordinator import async_save
+        from custom_components.autosnooze.models import AutomationPauseData
+
+        data = AutomationPauseData(store=mock_store)
+        # Non-transient error (ValueError)
+        mock_store.async_save = AsyncMock(side_effect=ValueError("Invalid data"))
+
+        result = await async_save(data)
+
+        assert result is False
+        # Should only try once (no retries for non-transient errors)
+        assert mock_store.async_save.call_count == 1
+
+    @pytest.mark.asyncio
+    async def test_save_returns_true_when_no_store(self) -> None:
+        """Test that save returns True when store is None."""
+        from custom_components.autosnooze.coordinator import async_save
+        from custom_components.autosnooze.models import AutomationPauseData
+
+        data = AutomationPauseData(store=None)
+
+        result = await async_save(data)
+
+        assert result is True
+
+
+class TestExpiredAutomationHandling:
+    """Tests for handling expired automations on load."""
+
+    @pytest.fixture
+    def mock_store(self) -> MagicMock:
+        """Create mock store."""
+        store = MagicMock()
+        store.async_save = AsyncMock()
+        return store
+
+    @pytest.fixture
+    def mock_hass(self) -> MagicMock:
+        """Create mock Home Assistant instance."""
+        hass = MagicMock()
+        hass.services.async_call = AsyncMock()
+        mock_state = MagicMock()
+        mock_state.attributes = {"friendly_name": "Test"}
+        hass.states.get.return_value = mock_state
+        return hass
+
+    @pytest.mark.asyncio
+    async def test_expired_paused_automation_is_resumed(self, mock_hass: MagicMock, mock_store: MagicMock) -> None:
+        """Test that expired paused automations are automatically resumed on load."""
+        from custom_components.autosnooze.coordinator import async_load_stored
+        from custom_components.autosnooze.models import AutomationPauseData
+
         now = datetime.now(UTC)
-        data.paused["automation.test"] = PausedAutomation(
-            entity_id="automation.test",
-            friendly_name="Test",
-            resume_at=now + timedelta(hours=1),
-            paused_at=now,
-        )
+        data = AutomationPauseData(store=mock_store)
 
-        # Save should fail but not raise
-        await _async_save(data)
+        stored_data = {
+            "paused": {
+                "automation.expired": {
+                    "friendly_name": "Expired",
+                    "resume_at": (now - timedelta(hours=1)).isoformat(),  # In the past
+                    "paused_at": (now - timedelta(hours=2)).isoformat(),
+                },
+            },
+            "scheduled": {},
+        }
+        mock_store.async_load = AsyncMock(return_value=stored_data)
 
-        # Runtime data should be unchanged even after save failure
-        assert "automation.test" in data.paused
-        assert data.paused["automation.test"].friendly_name == "Test"
+        with patch("custom_components.autosnooze.coordinator.async_set_automation_state") as mock_set_state:
+            mock_set_state.return_value = True
+            await async_load_stored(mock_hass, data)
+
+            # Should have called to enable the expired automation
+            mock_set_state.assert_called_with(mock_hass, "automation.expired", enabled=True)
+
+        # Expired automation should NOT be in paused dict
+        assert "automation.expired" not in data.paused
+
+    @pytest.mark.asyncio
+    async def test_expired_scheduled_automation_is_handled(self, mock_hass: MagicMock, mock_store: MagicMock) -> None:
+        """Test that expired scheduled automations are handled correctly on load."""
+        from custom_components.autosnooze.coordinator import async_load_stored
+        from custom_components.autosnooze.models import AutomationPauseData
+
+        now = datetime.now(UTC)
+        data = AutomationPauseData(store=mock_store)
+
+        stored_data = {
+            "paused": {},
+            "scheduled": {
+                "automation.expired_scheduled": {
+                    "friendly_name": "Expired Scheduled",
+                    "disable_at": (now - timedelta(hours=2)).isoformat(),  # Past
+                    "resume_at": (now - timedelta(hours=1)).isoformat(),  # Also past
+                },
+            },
+        }
+        mock_store.async_load = AsyncMock(return_value=stored_data)
+
+        await async_load_stored(mock_hass, data)
+
+        # Fully expired scheduled automation should NOT be loaded
+        assert "automation.expired_scheduled" not in data.scheduled
+        assert "automation.expired_scheduled" not in data.paused
+
+
+class TestStorageLoadErrorHandling:
+    """Tests for error handling during storage load."""
+
+    @pytest.fixture
+    def mock_store(self) -> MagicMock:
+        """Create mock store."""
+        store = MagicMock()
+        store.async_save = AsyncMock()
+        return store
+
+    @pytest.fixture
+    def mock_hass(self) -> MagicMock:
+        """Create mock Home Assistant instance."""
+        hass = MagicMock()
+        return hass
+
+    @pytest.mark.asyncio
+    async def test_handles_storage_load_exception(self, mock_hass: MagicMock, mock_store: MagicMock) -> None:
+        """Test that exceptions during storage load are handled gracefully."""
+        from custom_components.autosnooze.coordinator import async_load_stored
+        from custom_components.autosnooze.models import AutomationPauseData
+
+        data = AutomationPauseData(store=mock_store)
+        mock_store.async_load = AsyncMock(side_effect=Exception("Storage corrupted"))
+
+        # Should not crash
+        await async_load_stored(mock_hass, data)
+
+        # Should have no loaded data
+        assert len(data.paused) == 0
+        assert len(data.scheduled) == 0
+
+    @pytest.mark.asyncio
+    async def test_handles_none_storage_data(self, mock_hass: MagicMock, mock_store: MagicMock) -> None:
+        """Test that None storage data is handled gracefully."""
+        from custom_components.autosnooze.coordinator import async_load_stored
+        from custom_components.autosnooze.models import AutomationPauseData
+
+        data = AutomationPauseData(store=mock_store)
+        mock_store.async_load = AsyncMock(return_value=None)
+
+        # Should not crash
+        await async_load_stored(mock_hass, data)
+
+        # Should have no loaded data
+        assert len(data.paused) == 0
+        assert len(data.scheduled) == 0
+
+    @pytest.mark.asyncio
+    async def test_handles_no_store_configured(self, mock_hass: MagicMock) -> None:
+        """Test that load handles missing store gracefully."""
+        from custom_components.autosnooze.coordinator import async_load_stored
+        from custom_components.autosnooze.models import AutomationPauseData
+
+        data = AutomationPauseData(store=None)
+
+        # Should not crash
+        await async_load_stored(mock_hass, data)
+
+        # Should have no loaded data
+        assert len(data.paused) == 0
+        assert len(data.scheduled) == 0
