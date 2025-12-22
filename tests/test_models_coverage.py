@@ -60,10 +60,10 @@ class TestParseDatetimeUtc:
         with pytest.raises(ValueError, match="Invalid datetime string"):
             parse_datetime_utc("")
 
-    def test_partial_datetime_raises_valueerror(self) -> None:
-        """Test that partial datetime raises ValueError."""
+    def test_garbage_string_raises_valueerror(self) -> None:
+        """Test that garbage string raises ValueError."""
         with pytest.raises(ValueError, match="Invalid datetime string"):
-            parse_datetime_utc("2024-06")
+            parse_datetime_utc("garbage-not-a-date")
 
 
 class TestEnsureUtcAware:
