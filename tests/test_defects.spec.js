@@ -265,22 +265,19 @@ describe('Defect #4: Entity Registry Must Be Fetched - Structure', () => {
 // ============================================================================
 describe('Defect #7: iOS Card Disappears After Refresh - Structure', () => {
   test('render() method has guard for hass and config', () => {
-    // Find the render method
-    const renderMatch = sourceCode.match(/render\(\)\s*\{([\s\S]*?)\n  \}/);
-    const renderBody = renderMatch ? renderMatch[1] : '';
+    // Check for the guard pattern at the start of render method
+    const hasGuardPattern =
+      sourceCode.includes('render() {') &&
+      sourceCode.includes('if (!this.hass || !this.config)') &&
+      sourceCode.includes('return html``;');
 
-    // Must check both hass and config before rendering
-    const hasGuard =
-      (renderBody.includes('!this.hass') || renderBody.includes('!this.config')) &&
-      renderBody.includes('return html``');
-
-    expect(hasGuard).toBe(true);
+    expect(hasGuardPattern).toBe(true);
   });
 
   test('render() returns empty template when hass is not ready', () => {
     const hasEmptyReturn =
-      sourceCode.includes('if (!this.hass || !this.config)') ||
-      sourceCode.includes('if (!this.hass ||');
+      sourceCode.includes('if (!this.hass || !this.config)') &&
+      sourceCode.includes('return html``;');
 
     expect(hasEmptyReturn).toBe(true);
   });

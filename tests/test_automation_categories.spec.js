@@ -272,7 +272,9 @@ describe('Entity Registry Fetch - Structure', () => {
   });
 
   test('sets _entityRegistryFetched flag', () => {
-    expect(methodBody).toContain('_entityRegistryFetched = true');
+    // The flag is now set via the generic _fetchRegistry helper
+    // Check that fetchedFlag parameter references _entityRegistryFetched
+    expect(methodBody).toContain('fetchedFlag: "_entityRegistryFetched"');
   });
 });
 
