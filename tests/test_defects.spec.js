@@ -279,8 +279,7 @@ describe('Defect #7: iOS Card Disappears After Refresh - Structure', () => {
 // DEF-009: Aggressive Cache Headers Breaking iOS (verified in Python tests)
 // ============================================================================
 describe('Defect #9: Cache Headers - Structure', () => {
-  test('Uses _getLocale for proper localization', () => {
-    // The card should use the HA locale, not hardcoded en-US
+  test('_getLocale helper exists and uses hass locale', () => {
     const hasGetLocale = sourceCode.includes('_getLocale()');
     const usesHassLocale =
       sourceCode.includes('this.hass?.locale?.language') ||
@@ -288,5 +287,33 @@ describe('Defect #9: Cache Headers - Structure', () => {
 
     expect(hasGetLocale).toBe(true);
     expect(usesHassLocale).toBe(true);
+  });
+
+  test('no hardcoded en-US in date/time formatting', () => {
+    // Find all toLocaleDateString, toLocaleTimeString, toLocaleString calls
+    const localeMethodPattern = /toLocale(?:Date|Time)?String\s*\(\s*["']en-US["']/g;
+    const intlPattern = /Intl\.DateTimeFormat\s*\(\s*["']en-US["']/g;
+
+    const hardcodedLocaleMatches = sourceCode.match(localeMethodPattern) || [];
+    const hardcodedIntlMatches = sourceCode.match(intlPattern) || [];
+
+    expect(hardcodedLocaleMatches.length).toBe(0);
+    expect(hardcodedIntlMatches.length).toBe(0);
+  });
+
+  test('date/time formatting uses _getLocale or hass locale', () => {
+    // Find all toLocaleDateString calls and verify they use locale variable
+    const toLocaleDateStringCalls = sourceCode.match(/toLocaleDateString\s*\([^)]+\)/g) || [];
+
+    // Each call should use locale variable (from _getLocale) not hardcoded string
+    const usesLocaleVar = toLocaleDateStringCalls.every(
+      (call) =>
+        call.includes('locale') ||
+        call.includes('_getLocale') ||
+        call.includes('this.hass')
+    );
+
+    expect(toLocaleDateStringCalls.length).toBeGreaterThan(0);
+    expect(usesLocaleVar).toBe(true);
   });
 });
