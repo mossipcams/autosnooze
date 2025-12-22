@@ -7,7 +7,7 @@ pytest-homeassistant-custom-component fixtures.
 from __future__ import annotations
 
 from datetime import timedelta
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from homeassistant.config_entries import ConfigEntry, ConfigEntryState
@@ -65,14 +65,17 @@ async def setup_integration(hass: HomeAssistant, mock_config_entry: MockConfigEn
 
     # Mark dependency integrations as loaded to satisfy manifest requirements
     # This prevents "Could not setup dependencies" errors
-    hass.data["integrations"] = hass.data.get("integrations", {})
     for dep in ["frontend", "http", "lovelace"]:
-        if dep not in hass.config.components:
-            hass.config.components.add(dep)
+        hass.config.components.add(dep)
 
-    # Set up the integration
-    await hass.config_entries.async_setup(mock_config_entry.entry_id)
-    await hass.async_block_till_done()
+    # Patch the dependency/requirements processing to skip checks for our mocked deps
+    with patch(
+        "homeassistant.setup.async_process_deps_reqs",
+        return_value=None,
+    ):
+        # Set up the integration
+        await hass.config_entries.async_setup(mock_config_entry.entry_id)
+        await hass.async_block_till_done()
 
     # Return the actual entry from config_entries which has runtime_data set
     return hass.config_entries.async_get_entry(mock_config_entry.entry_id)
