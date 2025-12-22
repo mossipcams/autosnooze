@@ -56,8 +56,18 @@ async def mock_dependencies(hass: HomeAssistant):
 
     # Mark dependency integrations as loaded in hass.config.components
     # This tells HA these integrations are already set up
-    for dep in ["frontend", "http", "lovelace"]:
+    for dep in ["frontend", "http", "lovelace", "automation"]:
         hass.config.components.add(dep)
+
+    # Register mock automation services (turn_on, turn_off, toggle)
+    # These are needed because the pause service calls automation.turn_off
+    async def mock_automation_service(call):
+        """Mock automation service handler."""
+        pass
+
+    hass.services.async_register("automation", "turn_on", mock_automation_service)
+    hass.services.async_register("automation", "turn_off", mock_automation_service)
+    hass.services.async_register("automation", "toggle", mock_automation_service)
 
     yield
 
