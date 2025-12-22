@@ -1,1 +1,9 @@
+# Run lint-staged for formatting and linting
 npx lint-staged
+
+# Run quick tests (fail fast, no coverage for speed)
+echo "Running JavaScript tests..."
+npm test -- --bail --onlyChanged
+
+echo "Running Python tests..."
+python -m pytest tests/ -x -q --tb=short
