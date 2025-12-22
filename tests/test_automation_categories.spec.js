@@ -1,24 +1,16 @@
 /**
- * Unit Tests for Automation Categories Feature
+ * Tests for Automation Categories Feature
  *
  * These tests verify the automation categories implementation where:
  * - Automations are grouped by category when viewing the Categories tab
  * - Categories are fetched from Home Assistant's category registry
  * - Category names are resolved via registry lookup with fallback
  * - Uncategorized automations are grouped together and sorted last
- *
- * This file contains both:
- * - Import-based tests (for runtime coverage)
- * - Static analysis tests (for structure verification)
  */
 
-// Import the actual source module to get coverage
 import '../src/autosnooze-card.js';
 
-// ============================================================================
-// RUNTIME TESTS - Import and execute actual code
-// ============================================================================
-describe('Categories Feature - Runtime Tests', () => {
+describe('Categories Feature', () => {
   let card;
   let mockHass;
 
@@ -127,7 +119,6 @@ describe('Categories Feature - Runtime Tests', () => {
     });
 
     test('_getCategoryCount returns 0 when no categories assigned', () => {
-      // Clear all categories
       card._entityRegistry = {
         'automation.test': {
           entity_id: 'automation.test',
@@ -200,79 +191,18 @@ describe('Categories Feature - Runtime Tests', () => {
       await card.updateComplete;
       expect(card._filterTab).toBe('categories');
     });
+
+    test('renders category groups in categories tab', async () => {
+      card._filterTab = 'categories';
+      await card.updateComplete;
+
+      const groupHeaders = card.shadowRoot.querySelectorAll('.group-header');
+      expect(groupHeaders.length).toBeGreaterThan(0);
+    });
   });
 });
 
-// ============================================================================
-// STATIC ANALYSIS TESTS - Verify source code structure
-// ============================================================================
-const fs = require('fs');
-const path = require('path');
-
-const SOURCE_FILE = path.join(__dirname, '../src/autosnooze-card.js');
-const sourceCode = fs.readFileSync(SOURCE_FILE, 'utf8');
-
-function extractMethod(methodName) {
-  const patterns = [
-    new RegExp(`^\\s+async\\s+${methodName}\\s*\\(`, 'm'),
-    new RegExp(`^\\s+${methodName}\\s*\\(`, 'm'),
-  ];
-
-  let methodStart = -1;
-  for (const pattern of patterns) {
-    const match = sourceCode.match(pattern);
-    if (match) {
-      methodStart = match.index;
-      break;
-    }
-  }
-
-  if (methodStart === -1) return null;
-
-  const braceStart = sourceCode.indexOf('{', methodStart);
-  if (braceStart === -1) return null;
-
-  let braceCount = 1;
-  let i = braceStart + 1;
-  while (braceCount > 0 && i < sourceCode.length) {
-    if (sourceCode[i] === '{') braceCount++;
-    if (sourceCode[i] === '}') braceCount--;
-    i++;
-  }
-
-  return sourceCode.substring(methodStart, i);
-}
-
-describe('Category Registry Fetch - Structure', () => {
-  const methodBody = extractMethod('_fetchCategoryRegistry');
-
-  test('_fetchCategoryRegistry method exists', () => {
-    expect(methodBody).not.toBeNull();
-  });
-
-  test('fetches from config/category_registry/list', () => {
-    expect(methodBody).toContain('config/category_registry/list');
-  });
-
-  test('uses automation scope', () => {
-    expect(methodBody).toContain('scope');
-    expect(methodBody).toContain('"automation"');
-  });
-});
-
-describe('Entity Registry Fetch - Structure', () => {
-  const methodBody = extractMethod('_fetchEntityRegistry');
-
-  test('_fetchEntityRegistry method exists', () => {
-    expect(methodBody).not.toBeNull();
-  });
-
-  test('fetches from config/entity_registry/list', () => {
-    expect(methodBody).toContain('config/entity_registry/list');
-  });
-});
-
-describe('Entity Registry Fetch - Behavioral', () => {
+describe('Entity Registry Fetch', () => {
   let card;
   let fetchRegistrySpy;
 
@@ -281,7 +211,6 @@ describe('Entity Registry Fetch - Behavioral', () => {
     card = new CardClass();
     card.setConfig({ title: 'AutoSnooze' });
 
-    // Set up mock hass with connection
     card.hass = createMockHass({
       states: {
         'sensor.autosnooze_snoozed_automations': {
@@ -291,18 +220,15 @@ describe('Entity Registry Fetch - Behavioral', () => {
       },
     });
 
-    // Mock the connection to return entity registry data
     card.hass.connection = {
       sendMessagePromise: jest.fn().mockResolvedValue([
         { entity_id: 'automation.test', categories: { automation: 'cat_test' }, labels: [] },
       ]),
     };
 
-    // Reset the fetched flag so we can test the fetch
     card._entityRegistryFetched = false;
     card._entityRegistry = {};
 
-    // Spy on _fetchRegistry
     fetchRegistrySpy = jest.spyOn(card, '_fetchRegistry');
   });
 
@@ -310,12 +236,13 @@ describe('Entity Registry Fetch - Behavioral', () => {
     fetchRegistrySpy.mockRestore();
   });
 
-  test('_fetchEntityRegistry calls _fetchRegistry with correct fetchedFlag', async () => {
+  test('_fetchEntityRegistry calls _fetchRegistry with correct parameters', async () => {
     await card._fetchEntityRegistry();
 
     expect(fetchRegistrySpy).toHaveBeenCalledTimes(1);
     const callArg = fetchRegistrySpy.mock.calls[0][0];
     expect(callArg.fetchedFlag).toBe('_entityRegistryFetched');
+    expect(callArg.messageType).toBe('config/entity_registry/list');
   });
 
   test('_fetchEntityRegistry sets _entityRegistryFetched flag to true', async () => {
@@ -334,43 +261,72 @@ describe('Entity Registry Fetch - Behavioral', () => {
     expect(card._entityRegistry['automation.test']).toBeDefined();
     expect(card._entityRegistry['automation.test'].entity_id).toBe('automation.test');
   });
+
+  test('_fetchEntityRegistry filters to only automation entities', async () => {
+    card.hass.connection.sendMessagePromise.mockResolvedValueOnce([
+      { entity_id: 'automation.test', categories: {}, labels: [] },
+      { entity_id: 'light.test', categories: {}, labels: [] },
+      { entity_id: 'switch.test', categories: {}, labels: [] },
+    ]);
+
+    await card._fetchEntityRegistry();
+
+    expect(card._entityRegistry['automation.test']).toBeDefined();
+    expect(card._entityRegistry['light.test']).toBeUndefined();
+    expect(card._entityRegistry['switch.test']).toBeUndefined();
+  });
 });
 
-describe('Source Structure Verification', () => {
-  test('_getAutomations extracts category_id from _entityRegistry', () => {
-    const methodBody = extractMethod('_getAutomations');
-    expect(methodBody).toContain('category_id');
-    expect(methodBody).toContain('categories');
-    expect(methodBody).toContain('_entityRegistry');
+describe('Category Registry Fetch', () => {
+  let card;
+
+  beforeEach(async () => {
+    const CardClass = customElements.get('autosnooze-card');
+    card = new CardClass();
+    card.setConfig({ title: 'AutoSnooze' });
+
+    card.hass = createMockHass({
+      states: {
+        'sensor.autosnooze_snoozed_automations': {
+          state: '0',
+          attributes: { paused_automations: {}, scheduled_snoozes: {} },
+        },
+      },
+    });
+
+    card.hass.connection = {
+      sendMessagePromise: jest.fn().mockResolvedValue([
+        { category_id: 'cat_lighting', name: 'Lighting' },
+        { category_id: 'cat_security', name: 'Security' },
+      ]),
+    };
+
+    card._categoriesFetched = false;
+    card._categoryRegistry = {};
   });
 
-  test('_getGroupedByCategory uses category_id', () => {
-    const methodBody = extractMethod('_getGroupedByCategory');
-    expect(methodBody).toContain('auto.category_id');
-    expect(methodBody).toContain('_getCategoryName');
+  test('_fetchCategoryRegistry fetches with automation scope', async () => {
+    await card._fetchCategoryRegistry();
+
+    expect(card.hass.connection.sendMessagePromise).toHaveBeenCalledWith({
+      type: 'config/category_registry/list',
+      scope: 'automation',
+    });
   });
 
-  test('_getCategoryCount counts unique categories', () => {
-    const methodBody = extractMethod('_getCategoryCount');
-    // Method may use Set directly or delegate to _getUniqueCount helper
-    const usesSetDirectly = methodBody.includes('Set');
-    const usesUniqueCountHelper = methodBody.includes('_getUniqueCount');
-    expect(usesSetDirectly || usesUniqueCountHelper).toBe(true);
-    expect(methodBody).toContain('category_id');
+  test('_fetchCategoryRegistry populates _categoryRegistry', async () => {
+    await card._fetchCategoryRegistry();
+
+    expect(card._categoryRegistry['cat_lighting']).toBeDefined();
+    expect(card._categoryRegistry['cat_lighting'].name).toBe('Lighting');
+    expect(card._categoryRegistry['cat_security']).toBeDefined();
   });
 
-  test('All required methods exist', () => {
-    expect(extractMethod('_fetchCategoryRegistry')).not.toBeNull();
-    expect(extractMethod('_fetchEntityRegistry')).not.toBeNull();
-    expect(extractMethod('_getCategoryName')).not.toBeNull();
-    expect(extractMethod('_getGroupedByCategory')).not.toBeNull();
-    expect(extractMethod('_getCategoryCount')).not.toBeNull();
-  });
+  test('_fetchCategoryRegistry sets _categoriesFetched flag', async () => {
+    expect(card._categoriesFetched).toBe(false);
 
-  test('All required state properties exist', () => {
-    expect(sourceCode).toContain('_categoryRegistry');
-    expect(sourceCode).toContain('_entityRegistry');
-    expect(sourceCode).toContain('_categoriesFetched');
-    expect(sourceCode).toContain('_entityRegistryFetched');
+    await card._fetchCategoryRegistry();
+
+    expect(card._categoriesFetched).toBe(true);
   });
 });
