@@ -10,11 +10,6 @@ from homeassistant.components.http import StaticPathConfig
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.storage import Store
 
-# Retry configuration for Lovelace resource registration
-# Lovelace may not be fully initialized when homeassistant_started fires
-LOVELACE_REGISTER_MAX_RETRIES = 3
-LOVELACE_REGISTER_RETRY_DELAY = 2  # seconds
-
 from .const import (
     CARD_PATH,
     CARD_URL,
@@ -29,6 +24,11 @@ from .models import AutomationPauseConfigEntry, AutomationPauseData
 from .services import register_services
 
 _LOGGER = logging.getLogger(__name__)
+
+# Retry configuration for Lovelace resource registration
+# Lovelace may not be fully initialized when homeassistant_started fires
+LOVELACE_REGISTER_MAX_RETRIES = 3
+LOVELACE_REGISTER_RETRY_DELAY = 2  # seconds
 
 # Re-export for backwards compatibility
 __all__ = [
