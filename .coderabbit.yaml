@@ -1,0 +1,43 @@
+# yaml-language-server: $schema=https://coderabbit.ai/integrations/schema.v2.json
+language: "en-US"
+
+early_access: false
+
+reviews:
+  auto_review:
+    enabled: true
+    drafts: false
+    base_branches:
+      - main
+      - dev
+  path_filters:
+    - "!**/node_modules/**"
+    - "!**/coverage/**"
+    - "!**/*.min.js"
+    - "!**/package-lock.json"
+  path_instructions:
+    - path: "custom_components/**/*.py"
+      instructions: |
+        This is a Home Assistant custom integration. Review for:
+        - Home Assistant best practices and patterns
+        - Proper async/await usage
+        - Correct entity lifecycle management
+        - Config flow validation
+    - path: "src/**/*.js"
+      instructions: |
+        This is a Lovelace custom card using lit-element. Review for:
+        - Proper lit-element lifecycle methods
+        - Reactive property declarations
+        - Template rendering best practices
+        - Home Assistant frontend patterns
+    - path: "tests/**"
+      instructions: |
+        Test files. Ensure good coverage and meaningful assertions.
+  tools:
+    ruff:
+      enabled: true
+    eslint:
+      enabled: true
+
+chat:
+  auto_reply: true
