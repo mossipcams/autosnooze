@@ -528,6 +528,8 @@ class TestLovelaceResourceRegistrationWithModes:
         lovelace_data = MagicMock()
         lovelace_data.mode = "yaml"
         lovelace_data.resources = None
+        # Configure get() to also return None for resources
+        lovelace_data.get = MagicMock(return_value=None)
 
         hass.data = {"lovelace": lovelace_data}
         return hass
@@ -723,26 +725,29 @@ class TestRetryMechanism:
     @pytest.mark.asyncio
     async def test_retry_succeeds_on_second_attempt(self) -> None:
         """Verify registration succeeds if Lovelace becomes available on retry."""
-        call_count = 0
+        attempt_count = 0
         registered = False
 
         async def mock_register(hass: Any, retry_count: int = 0) -> bool:
-            """Simulate registration that succeeds on second attempt."""
-            nonlocal call_count, registered
+            """Simulate registration that succeeds on retry after Lovelace becomes available."""
+            nonlocal attempt_count, registered
 
-            call_count += 1
+            attempt_count += 1
 
-            # First call: lovelace_data is None
-            if call_count == 1:
+            # Check lovelace data (simulating real behavior)
+            lovelace_data = hass.data.get("lovelace")
+
+            if lovelace_data is None:
+                # Lovelace not ready - retry if allowed
                 if retry_count < 3:
                     await asyncio.sleep(0.01)  # Short delay for test
                     return await mock_register(hass, retry_count + 1)
                 return False
 
-            # Second call: lovelace_data is available
-            lovelace_data = hass.data.get("lovelace")
-            if lovelace_data and lovelace_data.resources:
-                await lovelace_data.resources.async_create_item({"url": "/test.js"})
+            # Lovelace is available - register
+            resources = getattr(lovelace_data, "resources", None)
+            if resources:
+                await resources.async_create_item({"url": "/test.js"})
                 registered = True
                 return True
 
@@ -756,7 +761,7 @@ class TestRetryMechanism:
         lovelace_data = MagicMock()
         lovelace_data.resources = mock_resources
 
-        # First call returns None, subsequent calls return lovelace_data
+        # First call returns None (lovelace not ready), subsequent calls return lovelace_data
         call_results = [None, lovelace_data]
         hass.data.get = MagicMock(side_effect=lambda k: call_results.pop(0) if call_results else lovelace_data)
 
@@ -764,7 +769,7 @@ class TestRetryMechanism:
 
         assert result is True
         assert registered is True
-        assert call_count == 2
+        assert attempt_count == 2  # First attempt (None) + retry (success)
 
     @pytest.mark.asyncio
     async def test_retry_fails_after_max_attempts(self) -> None:
