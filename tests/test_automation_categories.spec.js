@@ -270,11 +270,69 @@ describe('Entity Registry Fetch - Structure', () => {
   test('fetches from config/entity_registry/list', () => {
     expect(methodBody).toContain('config/entity_registry/list');
   });
+});
 
-  test('sets _entityRegistryFetched flag', () => {
-    // The flag is now set via the generic _fetchRegistry helper
-    // Check that fetchedFlag parameter references _entityRegistryFetched
-    expect(methodBody).toContain('fetchedFlag: "_entityRegistryFetched"');
+describe('Entity Registry Fetch - Behavioral', () => {
+  let card;
+  let fetchRegistrySpy;
+
+  beforeEach(async () => {
+    const CardClass = customElements.get('autosnooze-card');
+    card = new CardClass();
+    card.setConfig({ title: 'AutoSnooze' });
+
+    // Set up mock hass with connection
+    card.hass = createMockHass({
+      states: {
+        'sensor.autosnooze_snoozed_automations': {
+          state: '0',
+          attributes: { paused_automations: {}, scheduled_snoozes: {} },
+        },
+      },
+    });
+
+    // Mock the connection to return entity registry data
+    card.hass.connection = {
+      sendMessagePromise: jest.fn().mockResolvedValue([
+        { entity_id: 'automation.test', categories: { automation: 'cat_test' }, labels: [] },
+      ]),
+    };
+
+    // Reset the fetched flag so we can test the fetch
+    card._entityRegistryFetched = false;
+    card._entityRegistry = {};
+
+    // Spy on _fetchRegistry
+    fetchRegistrySpy = jest.spyOn(card, '_fetchRegistry');
+  });
+
+  afterEach(() => {
+    fetchRegistrySpy.mockRestore();
+  });
+
+  test('_fetchEntityRegistry calls _fetchRegistry with correct fetchedFlag', async () => {
+    await card._fetchEntityRegistry();
+
+    expect(fetchRegistrySpy).toHaveBeenCalledTimes(1);
+    const callArg = fetchRegistrySpy.mock.calls[0][0];
+    expect(callArg.fetchedFlag).toBe('_entityRegistryFetched');
+  });
+
+  test('_fetchEntityRegistry sets _entityRegistryFetched flag to true', async () => {
+    expect(card._entityRegistryFetched).toBe(false);
+
+    await card._fetchEntityRegistry();
+
+    expect(card._entityRegistryFetched).toBe(true);
+  });
+
+  test('_fetchEntityRegistry populates _entityRegistry', async () => {
+    expect(Object.keys(card._entityRegistry).length).toBe(0);
+
+    await card._fetchEntityRegistry();
+
+    expect(card._entityRegistry['automation.test']).toBeDefined();
+    expect(card._entityRegistry['automation.test'].entity_id).toBe('automation.test');
   });
 });
 
