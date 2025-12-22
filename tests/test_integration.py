@@ -33,6 +33,39 @@ def auto_enable_custom_integrations(enable_custom_integrations):
     yield
 
 
+@pytest.fixture(autouse=True)
+async def mock_dependencies(hass: HomeAssistant):
+    """Mock dependencies required by AutoSnooze for all tests.
+
+    This fixture runs automatically for every test to ensure the manifest
+    dependencies (frontend, http, lovelace) are properly mocked.
+    """
+    # Mock the Lovelace resources
+    mock_resources = MagicMock()
+    mock_resources.async_items.return_value = []
+    mock_resources.async_create_item = AsyncMock()
+    mock_resources.async_update_item = AsyncMock()
+    mock_lovelace = MagicMock()
+    mock_lovelace.resources = mock_resources
+    hass.data["lovelace"] = mock_lovelace
+
+    # Mock HTTP
+    if not hasattr(hass, "http") or hass.http is None:
+        hass.http = MagicMock()
+    hass.http.async_register_static_paths = AsyncMock()
+
+    # Mark dependency integrations as loaded
+    for dep in ["frontend", "http", "lovelace"]:
+        hass.config.components.add(dep)
+
+    # Patch dependency processing to skip checks
+    with patch(
+        "homeassistant.setup.async_process_deps_reqs",
+        return_value=None,
+    ):
+        yield
+
+
 @pytest.fixture
 def mock_config_entry() -> MockConfigEntry:
     """Create a mock config entry."""
@@ -47,35 +80,16 @@ def mock_config_entry() -> MockConfigEntry:
 
 @pytest.fixture
 async def setup_integration(hass: HomeAssistant, mock_config_entry: MockConfigEntry):
-    """Set up the AutoSnooze integration."""
+    """Set up the AutoSnooze integration.
+
+    Note: Dependencies (frontend, http, lovelace) are already mocked by the
+    autouse mock_dependencies fixture.
+    """
     mock_config_entry.add_to_hass(hass)
 
-    # Mock the Lovelace resources to avoid registration issues
-    mock_resources = MagicMock()
-    mock_resources.async_items.return_value = []
-    mock_resources.async_create_item = AsyncMock()
-    mock_lovelace = MagicMock()
-    mock_lovelace.resources = mock_resources
-    hass.data["lovelace"] = mock_lovelace
-
-    # Mock HTTP static path registration
-    if not hasattr(hass, "http") or hass.http is None:
-        hass.http = MagicMock()
-    hass.http.async_register_static_paths = AsyncMock()
-
-    # Mark dependency integrations as loaded to satisfy manifest requirements
-    # This prevents "Could not setup dependencies" errors
-    for dep in ["frontend", "http", "lovelace"]:
-        hass.config.components.add(dep)
-
-    # Patch the dependency/requirements processing to skip checks for our mocked deps
-    with patch(
-        "homeassistant.setup.async_process_deps_reqs",
-        return_value=None,
-    ):
-        # Set up the integration
-        await hass.config_entries.async_setup(mock_config_entry.entry_id)
-        await hass.async_block_till_done()
+    # Set up the integration
+    await hass.config_entries.async_setup(mock_config_entry.entry_id)
+    await hass.async_block_till_done()
 
     # Return the actual entry from config_entries which has runtime_data set
     return hass.config_entries.async_get_entry(mock_config_entry.entry_id)
