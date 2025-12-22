@@ -35,8 +35,14 @@ else
     echo "WARN: ruff not installed, skipping Python linting"
 fi
 
-# Note: Python tests require pytest_homeassistant_custom_component
-# which may not be available in all environments. Run manually if needed:
-# pip install -r requirements_test.txt && pytest tests/ -v
+# Install Python test dependencies if needed
+if [ -f "requirements_test.txt" ]; then
+    echo "Installing Python test dependencies..."
+    pip install -q -r requirements_test.txt
+fi
+
+# Run Python tests with coverage
+echo "Running Python tests..."
+pytest tests/ -v --cov=custom_components/autosnooze --cov-fail-under=70
 
 echo "=== SessionStart checks passed ==="
