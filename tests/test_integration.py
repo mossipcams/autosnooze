@@ -6,8 +6,7 @@ pytest-homeassistant-custom-component fixtures.
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
-from typing import Any
+from datetime import timedelta
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -16,14 +15,11 @@ from homeassistant.const import ATTR_ENTITY_ID
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ServiceValidationError
 from homeassistant.helpers import entity_registry as er
-from homeassistant.setup import async_setup_component
 from homeassistant.util import dt as dt_util
+from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.autosnooze import DOMAIN
 from custom_components.autosnooze.const import VERSION
-
-# Use pytest_homeassistant_custom_component fixtures
-pytest_plugins = ["pytest_homeassistant_custom_component"]
 
 
 # =============================================================================
@@ -31,40 +27,28 @@ pytest_plugins = ["pytest_homeassistant_custom_component"]
 # =============================================================================
 
 
+@pytest.fixture(autouse=True)
+def auto_enable_custom_integrations(enable_custom_integrations):
+    """Enable custom integrations for all tests."""
+    yield
+
+
 @pytest.fixture
-def mock_config_entry():
+def mock_config_entry() -> MockConfigEntry:
     """Create a mock config entry."""
-    from homeassistant.config_entries import ConfigEntry
-
-    entry = MagicMock(spec=ConfigEntry)
-    entry.entry_id = "test_entry_id"
-    entry.domain = DOMAIN
-    entry.data = {}
-    entry.options = {}
-    entry.unique_id = DOMAIN
-    entry.title = "AutoSnooze"
-    entry.version = 1
-    entry.state = ConfigEntryState.NOT_LOADED
-    return entry
-
-
-@pytest.fixture
-async def setup_integration(hass: HomeAssistant):
-    """Set up the AutoSnooze integration."""
-    from homeassistant.config_entries import ConfigEntry
-
-    # Create a real config entry
-    entry = ConfigEntry(
-        version=1,
-        minor_version=1,
+    return MockConfigEntry(
         domain=DOMAIN,
         title="AutoSnooze",
         data={},
-        source="user",
-        entry_id="test_entry_id",
         unique_id=DOMAIN,
+        version=1,
     )
-    entry.add_to_hass(hass)
+
+
+@pytest.fixture
+async def setup_integration(hass: HomeAssistant, mock_config_entry: MockConfigEntry):
+    """Set up the AutoSnooze integration."""
+    mock_config_entry.add_to_hass(hass)
 
     # Mock the Lovelace resources to avoid registration issues
     mock_resources = MagicMock()
@@ -75,21 +59,19 @@ async def setup_integration(hass: HomeAssistant):
     hass.data["lovelace"] = mock_lovelace
 
     # Mock HTTP static path registration
-    hass.http = MagicMock()
+    if not hasattr(hass, "http") or hass.http is None:
+        hass.http = MagicMock()
     hass.http.async_register_static_paths = AsyncMock()
 
-    # Set hass as running to avoid startup listener
-    hass._state = "RUNNING"  # Workaround for is_running check
-
     # Set up the integration
-    await hass.config_entries.async_setup(entry.entry_id)
+    await hass.config_entries.async_setup(mock_config_entry.entry_id)
     await hass.async_block_till_done()
 
-    return entry
+    return mock_config_entry
 
 
 @pytest.fixture
-async def setup_integration_with_automations(hass: HomeAssistant, setup_integration):
+async def setup_integration_with_automations(hass: HomeAssistant, setup_integration: MockConfigEntry):
     """Set up integration with mock automations."""
     # Add mock automation states
     hass.states.async_set(
@@ -136,7 +118,9 @@ class TestConfigFlow:
         assert result["title"] == "AutoSnooze"
         assert result["data"] == {}
 
-    async def test_user_flow_aborts_if_already_configured(self, hass: HomeAssistant, setup_integration) -> None:
+    async def test_user_flow_aborts_if_already_configured(
+        self, hass: HomeAssistant, setup_integration: MockConfigEntry
+    ) -> None:
         """Test that flow aborts if already configured."""
         # Try to set up again
         result = await hass.config_entries.flow.async_init(DOMAIN, context={"source": "user"})
@@ -153,25 +137,16 @@ class TestConfigFlow:
 class TestSensor:
     """Test the sensor platform."""
 
-    async def test_sensor_is_created(self, hass: HomeAssistant, setup_integration) -> None:
-        """Test that the sensor entity is created."""
-        state = hass.states.get("sensor.autosnooze_snoozed_count")
-        # Note: The sensor might have a different entity_id based on translation
-        # Let's check if any autosnooze sensor exists
-        all_states = hass.states.async_all()
-        autosnooze_sensors = [
-            s for s in all_states if s.entity_id.startswith("sensor.") and "autosnooze" in s.entity_id.lower()
-        ]
-        assert len(autosnooze_sensors) >= 0  # Sensor creation depends on platform setup
-
-    async def test_sensor_initial_state_is_zero(self, hass: HomeAssistant, setup_integration) -> None:
+    async def test_sensor_initial_state_is_zero(self, hass: HomeAssistant, setup_integration: MockConfigEntry) -> None:
         """Test that sensor starts at 0."""
         entry = setup_integration
         # Access runtime data to check initial state
         data = entry.runtime_data
         assert len(data.paused) == 0
 
-    async def test_sensor_attributes_include_paused_automations(self, hass: HomeAssistant, setup_integration) -> None:
+    async def test_sensor_attributes_include_paused_automations(
+        self, hass: HomeAssistant, setup_integration: MockConfigEntry
+    ) -> None:
         """Test that sensor attributes include paused automations dict."""
         entry = setup_integration
         data = entry.runtime_data
@@ -191,18 +166,18 @@ class TestSensor:
 class TestPauseService:
     """Test the pause service."""
 
-    async def test_pause_service_is_registered(self, hass: HomeAssistant, setup_integration) -> None:
+    async def test_pause_service_is_registered(self, hass: HomeAssistant, setup_integration: MockConfigEntry) -> None:
         """Test that the pause service is registered."""
         assert hass.services.has_service(DOMAIN, "pause")
 
     async def test_pause_automation_with_duration(
-        self, hass: HomeAssistant, setup_integration_with_automations
+        self, hass: HomeAssistant, setup_integration_with_automations: MockConfigEntry
     ) -> None:
         """Test pausing an automation with duration."""
         entry = setup_integration_with_automations
 
-        # Mock the automation service call
-        with patch.object(hass.services, "async_call", new_callable=AsyncMock) as mock_call:
+        # Call the pause service
+        with patch.object(hass.services, "async_call", wraps=hass.services.async_call) as mock_call:
             await hass.services.async_call(
                 DOMAIN,
                 "pause",
@@ -218,7 +193,7 @@ class TestPauseService:
         assert "automation.test_automation_1" in data.paused
 
     async def test_pause_automation_with_zero_duration_raises(
-        self, hass: HomeAssistant, setup_integration_with_automations
+        self, hass: HomeAssistant, setup_integration_with_automations: MockConfigEntry
     ) -> None:
         """Test that zero duration raises ServiceValidationError."""
         with pytest.raises(ServiceValidationError) as exc_info:
@@ -236,7 +211,7 @@ class TestPauseService:
 
         assert "duration" in str(exc_info.value).lower() or exc_info.value.translation_key == "invalid_duration"
 
-    async def test_pause_non_automation_raises(self, hass: HomeAssistant, setup_integration) -> None:
+    async def test_pause_non_automation_raises(self, hass: HomeAssistant, setup_integration: MockConfigEntry) -> None:
         """Test that pausing a non-automation entity raises error."""
         with pytest.raises(ServiceValidationError) as exc_info:
             await hass.services.async_call(
@@ -252,7 +227,7 @@ class TestPauseService:
         assert exc_info.value.translation_key == "not_automation"
 
     async def test_pause_with_resume_at_in_past_raises(
-        self, hass: HomeAssistant, setup_integration_with_automations
+        self, hass: HomeAssistant, setup_integration_with_automations: MockConfigEntry
     ) -> None:
         """Test that resume_at in the past raises error."""
         past_time = dt_util.utcnow() - timedelta(hours=1)
@@ -271,7 +246,7 @@ class TestPauseService:
         assert exc_info.value.translation_key == "resume_time_past"
 
     async def test_pause_with_disable_at_after_resume_at_raises(
-        self, hass: HomeAssistant, setup_integration_with_automations
+        self, hass: HomeAssistant, setup_integration_with_automations: MockConfigEntry
     ) -> None:
         """Test that disable_at after resume_at raises error."""
         now = dt_util.utcnow()
@@ -296,39 +271,39 @@ class TestPauseService:
 class TestCancelService:
     """Test the cancel service."""
 
-    async def test_cancel_service_is_registered(self, hass: HomeAssistant, setup_integration) -> None:
+    async def test_cancel_service_is_registered(self, hass: HomeAssistant, setup_integration: MockConfigEntry) -> None:
         """Test that the cancel service is registered."""
         assert hass.services.has_service(DOMAIN, "cancel")
 
-    async def test_cancel_paused_automation(self, hass: HomeAssistant, setup_integration_with_automations) -> None:
+    async def test_cancel_paused_automation(
+        self, hass: HomeAssistant, setup_integration_with_automations: MockConfigEntry
+    ) -> None:
         """Test canceling a paused automation."""
         entry = setup_integration_with_automations
         data = entry.runtime_data
 
         # First pause an automation
-        with patch.object(hass.services, "async_call", new_callable=AsyncMock):
-            await hass.services.async_call(
-                DOMAIN,
-                "pause",
-                {
-                    ATTR_ENTITY_ID: ["automation.test_automation_1"],
-                    "hours": 1,
-                },
-                blocking=True,
-            )
+        await hass.services.async_call(
+            DOMAIN,
+            "pause",
+            {
+                ATTR_ENTITY_ID: ["automation.test_automation_1"],
+                "hours": 1,
+            },
+            blocking=True,
+        )
 
         assert "automation.test_automation_1" in data.paused
 
         # Now cancel it
-        with patch.object(hass.services, "async_call", new_callable=AsyncMock):
-            await hass.services.async_call(
-                DOMAIN,
-                "cancel",
-                {
-                    ATTR_ENTITY_ID: ["automation.test_automation_1"],
-                },
-                blocking=True,
-            )
+        await hass.services.async_call(
+            DOMAIN,
+            "cancel",
+            {
+                ATTR_ENTITY_ID: ["automation.test_automation_1"],
+            },
+            blocking=True,
+        )
 
         # Should be removed from paused
         assert "automation.test_automation_1" not in data.paused
@@ -337,40 +312,42 @@ class TestCancelService:
 class TestCancelAllService:
     """Test the cancel_all service."""
 
-    async def test_cancel_all_service_is_registered(self, hass: HomeAssistant, setup_integration) -> None:
+    async def test_cancel_all_service_is_registered(
+        self, hass: HomeAssistant, setup_integration: MockConfigEntry
+    ) -> None:
         """Test that the cancel_all service is registered."""
         assert hass.services.has_service(DOMAIN, "cancel_all")
 
-    async def test_cancel_all_clears_all_paused(self, hass: HomeAssistant, setup_integration_with_automations) -> None:
+    async def test_cancel_all_clears_all_paused(
+        self, hass: HomeAssistant, setup_integration_with_automations: MockConfigEntry
+    ) -> None:
         """Test that cancel_all clears all paused automations."""
         entry = setup_integration_with_automations
         data = entry.runtime_data
 
         # Pause multiple automations
-        with patch.object(hass.services, "async_call", new_callable=AsyncMock):
-            await hass.services.async_call(
-                DOMAIN,
-                "pause",
-                {
-                    ATTR_ENTITY_ID: [
-                        "automation.test_automation_1",
-                        "automation.test_automation_2",
-                    ],
-                    "hours": 1,
-                },
-                blocking=True,
-            )
+        await hass.services.async_call(
+            DOMAIN,
+            "pause",
+            {
+                ATTR_ENTITY_ID: [
+                    "automation.test_automation_1",
+                    "automation.test_automation_2",
+                ],
+                "hours": 1,
+            },
+            blocking=True,
+        )
 
         assert len(data.paused) == 2
 
         # Cancel all
-        with patch.object(hass.services, "async_call", new_callable=AsyncMock):
-            await hass.services.async_call(
-                DOMAIN,
-                "cancel_all",
-                {},
-                blocking=True,
-            )
+        await hass.services.async_call(
+            DOMAIN,
+            "cancel_all",
+            {},
+            blocking=True,
+        )
 
         assert len(data.paused) == 0
 
@@ -378,11 +355,15 @@ class TestCancelAllService:
 class TestPauseByAreaService:
     """Test the pause_by_area service."""
 
-    async def test_pause_by_area_service_is_registered(self, hass: HomeAssistant, setup_integration) -> None:
+    async def test_pause_by_area_service_is_registered(
+        self, hass: HomeAssistant, setup_integration: MockConfigEntry
+    ) -> None:
         """Test that the pause_by_area service is registered."""
         assert hass.services.has_service(DOMAIN, "pause_by_area")
 
-    async def test_pause_by_area_finds_automations(self, hass: HomeAssistant, setup_integration) -> None:
+    async def test_pause_by_area_finds_automations(
+        self, hass: HomeAssistant, setup_integration: MockConfigEntry
+    ) -> None:
         """Test that pause_by_area finds automations in the area."""
         entry = setup_integration
 
@@ -407,16 +388,15 @@ class TestPauseByAreaService:
         )
 
         # Pause by area
-        with patch.object(hass.services, "async_call", new_callable=AsyncMock):
-            await hass.services.async_call(
-                DOMAIN,
-                "pause_by_area",
-                {
-                    "area_id": "living_room",
-                    "hours": 1,
-                },
-                blocking=True,
-            )
+        await hass.services.async_call(
+            DOMAIN,
+            "pause_by_area",
+            {
+                "area_id": "living_room",
+                "hours": 1,
+            },
+            blocking=True,
+        )
 
         data = entry.runtime_data
         assert "automation.test_area_automation" in data.paused
@@ -425,11 +405,15 @@ class TestPauseByAreaService:
 class TestPauseByLabelService:
     """Test the pause_by_label service."""
 
-    async def test_pause_by_label_service_is_registered(self, hass: HomeAssistant, setup_integration) -> None:
+    async def test_pause_by_label_service_is_registered(
+        self, hass: HomeAssistant, setup_integration: MockConfigEntry
+    ) -> None:
         """Test that the pause_by_label service is registered."""
         assert hass.services.has_service(DOMAIN, "pause_by_label")
 
-    async def test_pause_by_label_finds_automations(self, hass: HomeAssistant, setup_integration) -> None:
+    async def test_pause_by_label_finds_automations(
+        self, hass: HomeAssistant, setup_integration: MockConfigEntry
+    ) -> None:
         """Test that pause_by_label finds automations with the label."""
         entry = setup_integration
 
@@ -454,16 +438,15 @@ class TestPauseByLabelService:
         )
 
         # Pause by label
-        with patch.object(hass.services, "async_call", new_callable=AsyncMock):
-            await hass.services.async_call(
-                DOMAIN,
-                "pause_by_label",
-                {
-                    "label_id": "snooze_this",
-                    "hours": 1,
-                },
-                blocking=True,
-            )
+        await hass.services.async_call(
+            DOMAIN,
+            "pause_by_label",
+            {
+                "label_id": "snooze_this",
+                "hours": 1,
+            },
+            blocking=True,
+        )
 
         data = entry.runtime_data
         assert "automation.test_label_automation" in data.paused
@@ -472,7 +455,9 @@ class TestPauseByLabelService:
 class TestCancelScheduledService:
     """Test the cancel_scheduled service."""
 
-    async def test_cancel_scheduled_service_is_registered(self, hass: HomeAssistant, setup_integration) -> None:
+    async def test_cancel_scheduled_service_is_registered(
+        self, hass: HomeAssistant, setup_integration: MockConfigEntry
+    ) -> None:
         """Test that the cancel_scheduled service is registered."""
         assert hass.services.has_service(DOMAIN, "cancel_scheduled")
 
@@ -485,24 +470,37 @@ class TestCancelScheduledService:
 class TestSetupEntry:
     """Test async_setup_entry."""
 
-    async def test_setup_entry_loads_successfully(self, hass: HomeAssistant, setup_integration) -> None:
+    async def test_setup_entry_loads_successfully(
+        self, hass: HomeAssistant, setup_integration: MockConfigEntry
+    ) -> None:
         """Test that setup_entry loads successfully."""
         entry = setup_integration
         assert entry.state == ConfigEntryState.LOADED
 
-    async def test_setup_entry_registers_services(self, hass: HomeAssistant, setup_integration) -> None:
+    async def test_setup_entry_registers_services(
+        self, hass: HomeAssistant, setup_integration: MockConfigEntry
+    ) -> None:
         """Test that setup_entry registers all services."""
-        services = ["pause", "cancel", "cancel_all", "pause_by_area", "pause_by_label", "cancel_scheduled"]
+        services = [
+            "pause",
+            "cancel",
+            "cancel_all",
+            "pause_by_area",
+            "pause_by_label",
+            "cancel_scheduled",
+        ]
         for service in services:
             assert hass.services.has_service(DOMAIN, service), f"Service {service} not registered"
 
-    async def test_setup_entry_creates_runtime_data(self, hass: HomeAssistant, setup_integration) -> None:
+    async def test_setup_entry_creates_runtime_data(
+        self, hass: HomeAssistant, setup_integration: MockConfigEntry
+    ) -> None:
         """Test that setup_entry creates runtime data."""
         entry = setup_integration
         assert hasattr(entry, "runtime_data")
         assert entry.runtime_data is not None
 
-    async def test_setup_entry_initializes_store(self, hass: HomeAssistant, setup_integration) -> None:
+    async def test_setup_entry_initializes_store(self, hass: HomeAssistant, setup_integration: MockConfigEntry) -> None:
         """Test that setup_entry initializes the store."""
         entry = setup_integration
         data = entry.runtime_data
@@ -512,7 +510,7 @@ class TestSetupEntry:
 class TestUnloadEntry:
     """Test async_unload_entry."""
 
-    async def test_unload_entry_succeeds(self, hass: HomeAssistant, setup_integration) -> None:
+    async def test_unload_entry_succeeds(self, hass: HomeAssistant, setup_integration: MockConfigEntry) -> None:
         """Test that unload_entry succeeds."""
         entry = setup_integration
 
@@ -522,7 +520,9 @@ class TestUnloadEntry:
 
         assert entry.state == ConfigEntryState.NOT_LOADED
 
-    async def test_unload_entry_cancels_timers(self, hass: HomeAssistant, setup_integration_with_automations) -> None:
+    async def test_unload_entry_cancels_timers(
+        self, hass: HomeAssistant, setup_integration_with_automations: MockConfigEntry
+    ) -> None:
         """Test that unload_entry cancels all timers."""
         entry = setup_integration_with_automations
         data = entry.runtime_data
@@ -538,7 +538,7 @@ class TestUnloadEntry:
         # Timer should have been called and dict cleared
         mock_unsub.assert_called_once()
 
-    async def test_unload_entry_removes_services(self, hass: HomeAssistant, setup_integration) -> None:
+    async def test_unload_entry_removes_services(self, hass: HomeAssistant, setup_integration: MockConfigEntry) -> None:
         """Test that unload_entry removes services when last entry."""
         entry = setup_integration
 
@@ -552,7 +552,7 @@ class TestUnloadEntry:
         # Services should be removed
         assert not hass.services.has_service(DOMAIN, "pause")
 
-    async def test_unload_entry_clears_listeners(self, hass: HomeAssistant, setup_integration) -> None:
+    async def test_unload_entry_clears_listeners(self, hass: HomeAssistant, setup_integration: MockConfigEntry) -> None:
         """Test that unload_entry clears listeners."""
         entry = setup_integration
         data = entry.runtime_data
@@ -577,7 +577,7 @@ class TestUnloadEntry:
 class TestStaticPathRegistration:
     """Test static path registration."""
 
-    async def test_registers_static_path(self, hass: HomeAssistant, setup_integration) -> None:
+    async def test_registers_static_path(self, hass: HomeAssistant, setup_integration: MockConfigEntry) -> None:
         """Test that static path is registered."""
         # Check that http.async_register_static_paths was called
         hass.http.async_register_static_paths.assert_called()
@@ -591,12 +591,14 @@ class TestStaticPathRegistration:
 class TestLovelaceResourceRegistration:
     """Test Lovelace resource registration."""
 
-    async def test_creates_lovelace_resource(self, hass: HomeAssistant, setup_integration) -> None:
+    async def test_creates_lovelace_resource(self, hass: HomeAssistant, setup_integration: MockConfigEntry) -> None:
         """Test that Lovelace resource is created."""
         mock_resources = hass.data["lovelace"].resources
         mock_resources.async_create_item.assert_called()
 
-    async def test_lovelace_resource_url_includes_version(self, hass: HomeAssistant, setup_integration) -> None:
+    async def test_lovelace_resource_url_includes_version(
+        self, hass: HomeAssistant, setup_integration: MockConfigEntry
+    ) -> None:
         """Test that Lovelace resource URL includes version."""
         mock_resources = hass.data["lovelace"].resources
         call_args = mock_resources.async_create_item.call_args
