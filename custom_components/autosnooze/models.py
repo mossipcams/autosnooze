@@ -41,14 +41,18 @@ def parse_datetime_utc(dt_str: str) -> datetime:
     return parsed
 
 
-def ensure_utc_aware(dt: datetime | None) -> datetime | None:
+def ensure_utc_aware(dt: datetime | None, hass: Any = None) -> datetime | None:
     """Ensure a datetime object is UTC-aware.
 
     Handles datetime objects that may come from service calls via cv.datetime,
     which can return offset-naive datetimes when the input lacks timezone info.
 
+    DEF-013 FIX: Naive datetimes from user input are assumed to be in local
+    timezone (not UTC), then converted to UTC for consistent storage.
+
     Args:
         dt: A datetime object or None
+        hass: Home Assistant instance (optional, for timezone lookup)
 
     Returns:
         UTC-aware datetime object, or None if input was None
@@ -56,8 +60,14 @@ def ensure_utc_aware(dt: datetime | None) -> datetime | None:
     if dt is None:
         return None
     if dt.tzinfo is None:
-        return dt.replace(tzinfo=timezone.utc)
-    return dt
+        # DEF-013 FIX: Assume naive datetimes are in local timezone, not UTC
+        # This matches user expectations when entering times without timezone
+        local_tz = dt_util.get_default_time_zone()
+        dt = dt.replace(tzinfo=local_tz)
+        # Convert to UTC for consistent internal handling
+        return dt.astimezone(timezone.utc)
+    # Already timezone-aware, convert to UTC
+    return dt.astimezone(timezone.utc)
 
 
 @dataclass
