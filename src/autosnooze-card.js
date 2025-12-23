@@ -1,7 +1,7 @@
 import { LitElement, html, css } from "lit";
 
-// Version 0.2.3 - Fix timezone handling in schedule mode
-const CARD_VERSION = "0.2.3";
+// Version 0.2.4 - Add validation buffer to prevent duplicate error messages
+const CARD_VERSION = "0.2.4";
 
 // ============================================================================
 // CONSTANTS
@@ -24,6 +24,9 @@ const UI_TIMING = {
   WAKE_ALL_CONFIRM_MS: 3000,
   TOAST_DURATION_MS: 5000,
   COUNTDOWN_INTERVAL_MS: 1000,
+  // Buffer for time validation to prevent race conditions between frontend and backend
+  // This ensures times very close to "now" are rejected by frontend before reaching backend
+  TIME_VALIDATION_BUFFER_MS: 5000,
 };
 
 const DEFAULT_DURATIONS = [
@@ -1422,11 +1425,13 @@ class AutomationPauseCard extends LitElement {
         : null;
       const resumeAt = this._combineDateTime(this._resumeAtDate, this._resumeAtTime);
 
-      const now = Date.now();
+      // Add buffer to prevent race condition where frontend validates but backend rejects
+      // because time passed between validation and service call
+      const nowWithBuffer = Date.now() + UI_TIMING.TIME_VALIDATION_BUFFER_MS;
       const resumeTime = new Date(resumeAt).getTime();
 
-      // Resume time must be in the future
-      if (resumeTime <= now) {
+      // Resume time must be in the future (with buffer for backend timing)
+      if (resumeTime <= nowWithBuffer) {
         this._showToast("Resume time must be in the future. Please select a date and time that hasn't passed yet.");
         return;
       }
