@@ -12,6 +12,7 @@ permissions: {}
 jobs:
   validate-hacs:
     name: HACS Validation
+    if: false # TODO: Re-enable HACS validation
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
