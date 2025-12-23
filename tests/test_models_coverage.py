@@ -74,8 +74,12 @@ class TestEnsureUtcAware:
         result = ensure_utc_aware(None)
         assert result is None
 
-    def test_naive_datetime_gets_utc_timezone(self) -> None:
-        """Test that naive datetime gets UTC timezone added."""
+    def test_naive_datetime_treated_as_local_converted_to_utc(self) -> None:
+        """Test that naive datetime is treated as local time and converted to UTC.
+
+        DEF-013 FIX: Naive datetimes are now assumed to be in local timezone,
+        then converted to UTC for consistent storage.
+        """
         naive_dt = datetime(2024, 6, 15, 12, 0, 0)
         assert naive_dt.tzinfo is None
 
@@ -83,26 +87,31 @@ class TestEnsureUtcAware:
 
         assert result is not None
         assert result.tzinfo == UTC
-        assert result.hour == 12
+        # The hour may differ from 12 depending on local timezone offset
 
-    def test_aware_datetime_unchanged(self) -> None:
-        """Test that already-aware datetime is returned unchanged."""
+    def test_utc_aware_datetime_returned_as_utc(self) -> None:
+        """Test that UTC-aware datetime is returned as UTC."""
         aware_dt = datetime(2024, 6, 15, 12, 0, 0, tzinfo=UTC)
 
         result = ensure_utc_aware(aware_dt)
 
-        assert result is aware_dt  # Same object
         assert result.tzinfo == UTC
+        assert result.hour == 12  # UTC stays the same
 
-    def test_non_utc_aware_datetime_preserved(self) -> None:
-        """Test that non-UTC aware datetime's timezone is preserved."""
+    def test_non_utc_aware_datetime_converted_to_utc(self) -> None:
+        """Test that non-UTC aware datetime is converted to UTC.
+
+        DEF-013 FIX: All aware datetimes are now converted to UTC for
+        consistent internal handling.
+        """
         other_tz = timezone(timedelta(hours=5))
         aware_dt = datetime(2024, 6, 15, 12, 0, 0, tzinfo=other_tz)
 
         result = ensure_utc_aware(aware_dt)
 
-        assert result is aware_dt
-        assert result.tzinfo == other_tz
+        assert result.tzinfo == UTC
+        # 12:00 +05:00 = 07:00 UTC
+        assert result.hour == 7
 
 
 class TestPausedAutomationWithDisableAt:

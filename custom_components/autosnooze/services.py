@@ -21,6 +21,7 @@ from .const import (
 from .coordinator import (
     async_cancel_scheduled,
     async_resume,
+    async_resume_batch,
     async_save,
     async_set_automation_state,
     get_friendly_name,
@@ -77,6 +78,17 @@ async def async_pause_automations(
     if not entity_ids:
         return
 
+    # DEF-010 FIX: Validate ALL entity IDs upfront before any state changes
+    # This ensures atomic behavior - either all validations pass or none are processed
+    for entity_id in entity_ids:
+        if not entity_id.startswith("automation."):
+            raise ServiceValidationError(
+                f"{entity_id} is not an automation",
+                translation_domain=DOMAIN,
+                translation_key="not_automation",
+                translation_placeholders={"entity_id": entity_id},
+            )
+
     now = dt_util.utcnow()
 
     # Ensure incoming datetimes are UTC-aware to prevent comparison errors
@@ -118,14 +130,7 @@ async def async_pause_automations(
     # Use lock to prevent concurrent state modifications
     async with data.lock:
         for entity_id in entity_ids:
-            if not entity_id.startswith("automation."):
-                raise ServiceValidationError(
-                    f"{entity_id} is not an automation",
-                    translation_domain=DOMAIN,
-                    translation_key="not_automation",
-                    translation_placeholders={"entity_id": entity_id},
-                )
-
+            # Validation already done above (DEF-010 fix)
             friendly_name = get_friendly_name(hass, entity_id)
 
             if use_scheduled:
@@ -190,16 +195,23 @@ def register_services(hass: HomeAssistant, data: AutomationPauseData) -> None:
 
     async def handle_cancel(call: ServiceCall) -> None:
         """Handle wake service call (FR-10: Early Wake Up)."""
-        for entity_id in call.data[ATTR_ENTITY_ID]:
+        # DEF-011 FIX: Use batch resume for efficiency
+        entity_ids = call.data[ATTR_ENTITY_ID]
+        valid_ids = []
+        for entity_id in entity_ids:
             if entity_id not in data.paused:
                 _LOGGER.warning("Automation %s is not snoozed", entity_id)
                 continue
-            await async_resume(hass, data, entity_id)
+            valid_ids.append(entity_id)
+        if valid_ids:
+            await async_resume_batch(hass, data, valid_ids)
 
     async def handle_cancel_all(_call: ServiceCall) -> None:
         """Handle wake all service call."""
-        for entity_id in list(data.paused.keys()):
-            await async_resume(hass, data, entity_id)
+        # DEF-011 FIX: Use batch resume for single disk write
+        entity_ids = list(data.paused.keys())
+        if entity_ids:
+            await async_resume_batch(hass, data, entity_ids)
 
     async def _handle_pause_by_filter(
         call: ServiceCall,
