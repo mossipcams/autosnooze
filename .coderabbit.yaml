@@ -16,6 +16,18 @@ reviews:
     - "!**/*.min.js"
     - "!**/package-lock.json"
     - "!**/*.md"
+    - "!LICENSE"
+    - "!.gitignore"
+    - "!hacs.json"
+    - "!**/*.png"
+    - "!**/*.jpg"
+    - "!**/*.svg"
+    - "!**/*.ico"
+    - "!**/*.gif"
+    - "!docs/**"
+    - "!.github/ISSUE_TEMPLATE/**"
+    - "!.github/dependabot.yml"
+    - "!.husky/**"
   path_instructions:
     - path: "custom_components/**/*.py"
       instructions: |
