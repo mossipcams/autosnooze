@@ -2,13 +2,18 @@
 
 from __future__ import annotations
 
+import asyncio
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
+import logging
 from typing import Any, TypeAlias
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.helpers.storage import Store
 from homeassistant.util import dt as dt_util
+
+_LOGGER = logging.getLogger(__name__)
 
 
 def parse_datetime_utc(dt_str: str) -> datetime:
@@ -134,20 +139,46 @@ class AutomationPauseData:
 
     paused: dict[str, PausedAutomation] = field(default_factory=dict)
     scheduled: dict[str, ScheduledSnooze] = field(default_factory=dict)
-    timers: dict[str, Any] = field(default_factory=dict)
-    scheduled_timers: dict[str, Any] = field(default_factory=dict)
-    listeners: list[Any] = field(default_factory=list)
+    timers: dict[str, Callable[[], None]] = field(default_factory=dict)
+    scheduled_timers: dict[str, Callable[[], None]] = field(default_factory=dict)
+    listeners: list[Callable[[], None]] = field(default_factory=list)
     store: Store | None = None
+    # Lock to prevent concurrent state modifications (race conditions)
+    lock: asyncio.Lock = field(default_factory=asyncio.Lock)
+    # Flag to track if integration is unloaded (prevents post-unload operations)
+    unloaded: bool = False
+    # Unsub function for homeassistant_started listener (to cancel on early unload)
+    startup_listener_unsub: Callable[[], None] | None = None
 
-    def add_listener(self, callback_fn: Any) -> Any:
-        """Add state change listener, return removal function."""
+    def add_listener(self, callback_fn: Callable[[], None]) -> Callable[[], None]:
+        """Add state change listener, return removal function.
+
+        The removal function is safe to call multiple times.
+        """
         self.listeners.append(callback_fn)
-        return lambda: self.listeners.remove(callback_fn)
+
+        def remove() -> None:
+            try:
+                self.listeners.remove(callback_fn)
+            except ValueError:
+                # Already removed - this is safe to ignore
+                pass
+
+        return remove
 
     def notify(self) -> None:
-        """Notify all listeners of state change."""
-        for listener in self.listeners:
-            listener()
+        """Notify all listeners of state change.
+
+        Uses a copy of the listeners list to prevent RuntimeError
+        if a listener modifies the list during iteration.
+        """
+        if self.unloaded:
+            return
+        for listener in list(self.listeners):
+            try:
+                listener()
+            except Exception:
+                _LOGGER.exception("Error in state change listener")
 
     def get_paused_dict(self) -> dict[str, dict[str, Any]]:
         """Get snoozed automations as serializable dict."""

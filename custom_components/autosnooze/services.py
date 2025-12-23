@@ -73,6 +73,10 @@ async def async_pause_automations(
     resume_at_dt: datetime | None = None,
 ) -> None:
     """Pause automations with duration or dates."""
+    # Early return if no entities provided (avoids unnecessary save/notify)
+    if not entity_ids:
+        return
+
     now = dt_util.utcnow()
 
     # Ensure incoming datetimes are UTC-aware to prevent comparison errors
@@ -111,59 +115,61 @@ async def async_pause_automations(
         resume_at = now + timedelta(days=days, hours=hours, minutes=minutes)
         use_scheduled = False
 
-    for entity_id in entity_ids:
-        if not entity_id.startswith("automation."):
-            raise ServiceValidationError(
-                f"{entity_id} is not an automation",
-                translation_domain=DOMAIN,
-                translation_key="not_automation",
-                translation_placeholders={"entity_id": entity_id},
-            )
+    # Use lock to prevent concurrent state modifications
+    async with data.lock:
+        for entity_id in entity_ids:
+            if not entity_id.startswith("automation."):
+                raise ServiceValidationError(
+                    f"{entity_id} is not an automation",
+                    translation_domain=DOMAIN,
+                    translation_key="not_automation",
+                    translation_placeholders={"entity_id": entity_id},
+                )
 
-        friendly_name = get_friendly_name(hass, entity_id)
+            friendly_name = get_friendly_name(hass, entity_id)
 
-        if use_scheduled:
-            # Schedule future disable
-            scheduled = ScheduledSnooze(
-                entity_id=entity_id,
-                friendly_name=friendly_name,
-                disable_at=disable_at,
-                resume_at=resume_at,
-            )
-            data.scheduled[entity_id] = scheduled
-            schedule_disable(hass, data, entity_id, scheduled)
-            _LOGGER.info(
-                "Scheduled snooze for %s: disable at %s, resume at %s",
-                entity_id,
-                disable_at,
-                resume_at,
-            )
-        else:
-            # Immediate disable
-            if not await async_set_automation_state(hass, entity_id, enabled=False):
-                continue
+            if use_scheduled:
+                # Schedule future disable
+                scheduled = ScheduledSnooze(
+                    entity_id=entity_id,
+                    friendly_name=friendly_name,
+                    disable_at=disable_at,
+                    resume_at=resume_at,
+                )
+                data.scheduled[entity_id] = scheduled
+                schedule_disable(hass, data, entity_id, scheduled)
+                _LOGGER.info(
+                    "Scheduled snooze for %s: disable at %s, resume at %s",
+                    entity_id,
+                    disable_at,
+                    resume_at,
+                )
+            else:
+                # Immediate disable
+                if not await async_set_automation_state(hass, entity_id, enabled=False):
+                    continue
 
-            # If using date-based scheduling (resume_at_dt provided), store disable_at
-            # to indicate this was a schedule-mode snooze (for UI display)
-            schedule_mode_disable_at = (
-                disable_at if disable_at is not None else (now if resume_at_dt is not None else None)
-            )
+                # If using date-based scheduling (resume_at_dt provided), store disable_at
+                # to indicate this was a schedule-mode snooze (for UI display)
+                schedule_mode_disable_at = (
+                    disable_at if disable_at is not None else (now if resume_at_dt is not None else None)
+                )
 
-            data.paused[entity_id] = PausedAutomation(
-                entity_id=entity_id,
-                friendly_name=friendly_name,
-                resume_at=resume_at,
-                paused_at=now,
-                days=days,
-                hours=hours,
-                minutes=minutes,
-                disable_at=schedule_mode_disable_at,
-            )
+                data.paused[entity_id] = PausedAutomation(
+                    entity_id=entity_id,
+                    friendly_name=friendly_name,
+                    resume_at=resume_at,
+                    paused_at=now,
+                    days=days,
+                    hours=hours,
+                    minutes=minutes,
+                    disable_at=schedule_mode_disable_at,
+                )
 
-            schedule_resume(hass, data, entity_id, resume_at)
-            _LOGGER.info("Snoozed %s until %s", entity_id, resume_at)
+                schedule_resume(hass, data, entity_id, resume_at)
+                _LOGGER.info("Snoozed %s until %s", entity_id, resume_at)
 
-    await async_save(data)
+        await async_save(data)
     data.notify()
 
 

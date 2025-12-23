@@ -27,6 +27,7 @@ class AutoSnoozeCountSensor(SensorEntity):
     _attr_has_entity_name = True
     _attr_translation_key = "snoozed_count"
     _attr_icon = "mdi:sleep"
+    _attr_should_poll = False  # Updates via listener, no polling needed
 
     def __init__(self, entry: AutomationPauseConfigEntry) -> None:
         """Initialize sensor."""

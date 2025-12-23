@@ -73,6 +73,9 @@ def schedule_resume(
 
     @callback
     def on_timer(_now: datetime) -> None:
+        # Check if integration is unloaded to prevent post-unload operations
+        if data.unloaded:
+            return
         hass.async_create_task(async_resume(hass, data, entity_id))
 
     data.timers[entity_id] = async_track_point_in_time(hass, on_timer, resume_at)
@@ -80,10 +83,14 @@ def schedule_resume(
 
 async def async_resume(hass: HomeAssistant, data: AutomationPauseData, entity_id: str) -> None:
     """Wake up a snoozed automation."""
-    cancel_timer(data, entity_id)
-    data.paused.pop(entity_id, None)
-    await async_set_automation_state(hass, entity_id, enabled=True)
-    await async_save(data)
+    # Check if integration is unloaded to prevent post-unload operations
+    if data.unloaded:
+        return
+    async with data.lock:
+        cancel_timer(data, entity_id)
+        data.paused.pop(entity_id, None)
+        await async_set_automation_state(hass, entity_id, enabled=True)
+        await async_save(data)
     data.notify()
     _LOGGER.info("Woke automation: %s", entity_id)
 
@@ -99,6 +106,9 @@ def schedule_disable(
 
     @callback
     def on_disable_timer(_now: datetime) -> None:
+        # Check if integration is unloaded to prevent post-unload operations
+        if data.unloaded:
+            return
         hass.async_create_task(async_execute_scheduled_disable(hass, data, entity_id, scheduled.resume_at))
 
     data.scheduled_timers[entity_id] = async_track_point_in_time(hass, on_disable_timer, scheduled.disable_at)
@@ -111,37 +121,45 @@ async def async_execute_scheduled_disable(
     resume_at: datetime,
 ) -> None:
     """Execute a scheduled disable - disable automation and schedule resume."""
-    cancel_scheduled_timer(data, entity_id)
-    scheduled = data.scheduled.pop(entity_id, None)
-
-    if not await async_set_automation_state(hass, entity_id, enabled=False):
-        await async_save(data)
-        data.notify()
+    # Check if integration is unloaded to prevent post-unload operations
+    if data.unloaded:
         return
+    async with data.lock:
+        cancel_scheduled_timer(data, entity_id)
+        scheduled = data.scheduled.pop(entity_id, None)
 
-    now = dt_util.utcnow()
-    friendly_name = scheduled.friendly_name if scheduled else get_friendly_name(hass, entity_id)
-    disable_at = scheduled.disable_at if scheduled else None
+        if not await async_set_automation_state(hass, entity_id, enabled=False):
+            await async_save(data)
+            data.notify()
+            return
 
-    data.paused[entity_id] = PausedAutomation(
-        entity_id=entity_id,
-        friendly_name=friendly_name,
-        resume_at=resume_at,
-        paused_at=now,
-        disable_at=disable_at,
-    )
+        now = dt_util.utcnow()
+        friendly_name = scheduled.friendly_name if scheduled else get_friendly_name(hass, entity_id)
+        disable_at = scheduled.disable_at if scheduled else None
 
-    schedule_resume(hass, data, entity_id, resume_at)
-    await async_save(data)
+        data.paused[entity_id] = PausedAutomation(
+            entity_id=entity_id,
+            friendly_name=friendly_name,
+            resume_at=resume_at,
+            paused_at=now,
+            disable_at=disable_at,
+        )
+
+        schedule_resume(hass, data, entity_id, resume_at)
+        await async_save(data)
     data.notify()
     _LOGGER.info("Executed scheduled snooze for %s until %s", entity_id, resume_at)
 
 
 async def async_cancel_scheduled(hass: HomeAssistant, data: AutomationPauseData, entity_id: str) -> None:
     """Cancel a scheduled snooze."""
-    cancel_scheduled_timer(data, entity_id)
-    data.scheduled.pop(entity_id, None)
-    await async_save(data)
+    # Check if integration is unloaded to prevent post-unload operations
+    if data.unloaded:
+        return
+    async with data.lock:
+        cancel_scheduled_timer(data, entity_id)
+        data.scheduled.pop(entity_id, None)
+        await async_save(data)
     data.notify()
     _LOGGER.info("Cancelled scheduled snooze for: %s", entity_id)
 
@@ -421,3 +439,6 @@ async def async_load_stored(hass: HomeAssistant, data: AutomationPauseData) -> N
 
     if expired or expired_scheduled:
         await async_save(data)
+
+    # Notify listeners to update UI with loaded state
+    data.notify()
