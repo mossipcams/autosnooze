@@ -9,7 +9,7 @@
 **Temporarily pause Home Assistant automations with automatic re-enabling.**
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/mossipcams/autosnooze/main/docs/images/card-main.jpeg" alt="AutoSnooze Card" width="400">
+  <img src="https://raw.githubusercontent.com/mossipcams/autosnooze/main/docs/images/card-main.jpg" alt="AutoSnooze Card" width="400">
   <img src="https://raw.githubusercontent.com/mossipcams/autosnooze/main/docs/images/card-snoozed.jpeg" alt="Snoozed Automations" width="400">
 </p>
 
