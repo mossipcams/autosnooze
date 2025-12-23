@@ -1,7 +1,7 @@
 import { LitElement, html, css } from "lit";
 
-// Version 0.2.4 - Add validation buffer to prevent duplicate error messages
-const CARD_VERSION = "0.2.4";
+// Version 0.2.5 - Add mobile responsive layout for better phone experience
+const CARD_VERSION = "0.2.5";
 
 // ============================================================================
 // CONSTANTS
@@ -948,6 +948,236 @@ class AutomationPauseCard extends LitElement {
       to {
         transform: translateX(-50%) translateY(0);
         opacity: 1;
+      }
+    }
+
+    /* Mobile Responsive Styles */
+    @media (max-width: 480px) {
+      ha-card {
+        padding: 10px;
+      }
+
+      .header {
+        font-size: 1.1em;
+        margin-bottom: 12px;
+      }
+
+      .status-summary {
+        font-size: 0.8em;
+      }
+
+      /* Compact tabs to fit in single row */
+      .filter-tabs {
+        gap: 4px;
+        margin-bottom: 8px;
+        padding-bottom: 6px;
+      }
+
+      .tab {
+        padding: 5px 8px;
+        font-size: 0.8em;
+        border-radius: 12px;
+      }
+
+      .tab-count {
+        padding: 1px 5px;
+        font-size: 0.75em;
+      }
+
+      /* Compact search */
+      .search-box {
+        margin-bottom: 8px;
+      }
+
+      .search-box input {
+        padding: 8px 10px;
+        font-size: 0.9em;
+      }
+
+      /* Compact selection actions */
+      .selection-actions {
+        padding: 6px 10px;
+        margin-bottom: 6px;
+        font-size: 0.85em;
+        gap: 6px;
+      }
+
+      .select-all-btn {
+        padding: 3px 8px;
+        font-size: 0.8em;
+      }
+
+      /* Reduced selection list height */
+      .selection-list {
+        max-height: 180px;
+        margin-bottom: 10px;
+      }
+
+      .list-item {
+        padding: 10px;
+        gap: 8px;
+        min-height: 42px;
+      }
+
+      .list-item-name {
+        font-size: 0.9em;
+      }
+
+      .group-header {
+        padding: 8px 10px;
+        font-size: 0.85em;
+      }
+
+      /* Compact duration selector */
+      .snooze-setup {
+        margin-bottom: 12px;
+      }
+
+      .duration-section-header {
+        font-size: 0.85em;
+        margin-bottom: 6px;
+      }
+
+      .duration-pills {
+        gap: 6px;
+        margin-bottom: 6px;
+      }
+
+      .pill {
+        padding: 6px 10px;
+        font-size: 0.85em;
+        border-radius: 16px;
+      }
+
+      .duration-input {
+        padding: 8px 10px;
+        font-size: 0.9em;
+      }
+
+      .schedule-link {
+        margin-top: 8px;
+        padding: 6px 0;
+        font-size: 0.85em;
+      }
+
+      /* Compact schedule inputs */
+      .schedule-inputs {
+        padding: 10px;
+        gap: 10px;
+        margin-bottom: 10px;
+      }
+
+      .datetime-row {
+        flex-wrap: wrap;
+      }
+
+      .datetime-row select {
+        flex: 1 1 100%;
+        min-width: 0;
+      }
+
+      .datetime-row input[type="time"] {
+        flex: 1;
+        width: auto;
+        min-width: 100px;
+      }
+
+      .field-hint {
+        font-size: 0.75em;
+      }
+
+      /* Compact snooze button */
+      .snooze-btn {
+        padding: 12px;
+        font-size: 0.95em;
+      }
+
+      /* Compact active snoozes section */
+      .snooze-list {
+        padding: 10px;
+        margin-top: 12px;
+      }
+
+      .list-header {
+        font-size: 0.95em;
+        margin-bottom: 10px;
+        gap: 6px;
+      }
+
+      .pause-group {
+        margin-bottom: 6px;
+      }
+
+      .pause-group-header {
+        padding: 6px 10px;
+        font-size: 0.8em;
+      }
+
+      /* Stack paused items vertically on mobile */
+      .paused-item {
+        flex-wrap: wrap;
+        padding: 8px 10px;
+        gap: 6px;
+      }
+
+      .paused-icon {
+        display: none;
+      }
+
+      .paused-info {
+        flex: 1 1 100%;
+        min-width: 0;
+      }
+
+      .paused-name {
+        font-size: 0.9em;
+      }
+
+      .wake-btn {
+        margin-left: auto;
+        padding: 5px 10px;
+        font-size: 0.8em;
+      }
+
+      .wake-all {
+        padding: 8px;
+        font-size: 0.85em;
+      }
+
+      /* Compact scheduled section */
+      .scheduled-list {
+        padding: 10px;
+        margin-top: 10px;
+      }
+
+      .scheduled-item {
+        flex-wrap: wrap;
+        padding: 10px;
+        gap: 6px;
+        margin-bottom: 6px;
+      }
+
+      .scheduled-icon {
+        display: none;
+      }
+
+      .scheduled-time,
+      .paused-time {
+        font-size: 0.8em;
+      }
+
+      .cancel-scheduled-btn {
+        margin-left: auto;
+        padding: 5px 10px;
+        font-size: 0.8em;
+      }
+
+      /* Adjust toast for mobile */
+      .toast {
+        bottom: 10px;
+        padding: 10px 16px;
+        font-size: 0.9em;
+        max-width: calc(100vw - 20px);
       }
     }
   `;
