@@ -132,7 +132,9 @@ class AutomationPauseCard extends LitElement {
   static properties = {
     hass: {
       type: Object,
-      // Force re-render on every hass assignment since HA may mutate in place
+      // Force re-render on every hass assignment to handle rapid state updates.
+      // HA's state propagation chain uses reference equality, and during rapid
+      // operations Lit's default hasChanged may not detect nested state changes.
       hasChanged: () => true,
     },
     config: { type: Object },
@@ -158,9 +160,6 @@ class AutomationPauseCard extends LitElement {
     _wakeAllPending: { state: true },
   };
 
-  // DEBUG: Track hass updates
-  _debugLastPausedCount = 0;
-
   updated(changedProps) {
     super.updated(changedProps);
     if (changedProps.has("hass") && this.hass?.connection) {
@@ -172,14 +171,6 @@ class AutomationPauseCard extends LitElement {
       }
       if (!this._entityRegistryFetched) {
         this._fetchEntityRegistry();
-      }
-
-      // DEBUG: Log when hass changes
-      const sensor = this.hass?.states?.["sensor.autosnooze_snoozed_automations"];
-      const pausedCount = Object.keys(sensor?.attributes?.paused_automations || {}).length;
-      if (pausedCount !== this._debugLastPausedCount) {
-        console.log(`[AutoSnooze DEBUG] hass updated: paused count ${this._debugLastPausedCount} -> ${pausedCount}`);
-        this._debugLastPausedCount = pausedCount;
       }
     }
   }
@@ -1659,9 +1650,6 @@ class AutomationPauseCard extends LitElement {
   async _snooze() {
     if (this._selected.length === 0 || this._loading) return;
 
-    // DEBUG: Log snooze start
-    console.log(`[AutoSnooze DEBUG] _snooze() started, selected=${this._selected.length}`);
-
     if (this._scheduleMode) {
       if (!this._hasResumeAt()) {
         this._showToast("Please set a complete resume date and time (month, day, and time are all required)");
@@ -1775,11 +1763,6 @@ class AutomationPauseCard extends LitElement {
       this._disableAtTime = "";
       this._resumeAtDate = "";
       this._resumeAtTime = "";
-
-      // DEBUG: Log snooze complete with current sensor state
-      const debugSensor = this.hass?.states?.["sensor.autosnooze_snoozed_automations"];
-      const debugPausedNow = Object.keys(debugSensor?.attributes?.paused_automations || {}).length;
-      console.log(`[AutoSnooze DEBUG] _snooze() complete, sensor shows pausedCount=${debugPausedNow}`);
     } catch (e) {
       console.error("Snooze failed:", e);
       this._showToast(this._getErrorMessage(e, "Failed to snooze automations"));
@@ -2143,11 +2126,6 @@ class AutomationPauseCard extends LitElement {
     if (!this.hass || !this.config) {
       return html``;
     }
-
-    // DEBUG: Log render with paused count
-    const debugPaused = this._getPaused();
-    const debugPausedCount = Object.keys(debugPaused).length;
-    console.log(`[AutoSnooze DEBUG] render() called, pausedCount=${debugPausedCount}, groups=${this._getPausedGroupedByResumeTime().length}`);
 
     const paused = this._getPaused();
     const pausedCount = Object.keys(paused).length;
