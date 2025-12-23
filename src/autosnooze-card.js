@@ -130,7 +130,11 @@ class AutomationPauseCardEditor extends LitElement {
 // ============================================================================
 class AutomationPauseCard extends LitElement {
   static properties = {
-    hass: { type: Object },
+    hass: {
+      type: Object,
+      // Force re-render on every hass assignment since HA may mutate in place
+      hasChanged: () => true,
+    },
     config: { type: Object },
     _selected: { state: true },
     _duration: { state: true },
