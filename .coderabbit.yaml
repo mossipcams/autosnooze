@@ -15,6 +15,7 @@ reviews:
     - "!**/coverage/**"
     - "!**/*.min.js"
     - "!**/package-lock.json"
+    - "!**/*.md"
   path_instructions:
     - path: "custom_components/**/*.py"
       instructions: |
