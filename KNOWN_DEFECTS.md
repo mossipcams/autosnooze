@@ -3,7 +3,7 @@
 This document tracks known defects, their status, and resolution details for the AutoSnooze project.
 
 **Last Updated:** 2025-12-23
-**Current Version:** 2.9.29
+**Current Version:** 0.2.5
 
 ---
 
@@ -32,11 +32,11 @@ This document tracks known defects, their status, and resolution details for the
 | DEF-007 | iOS Companion app card disappears after refresh | High | FIXED | v2.9.18 |
 | DEF-008 | add_extra_js_url causing iOS refresh issues | High | FIXED | v2.9.20 |
 | DEF-009 | Aggressive cache headers breaking iOS | Medium | FIXED | v2.9.21 |
-| DEF-010 | Non-atomic batch operations cause partial state | High | FIXED | v2.9.30 |
-| DEF-011 | Excessive disk I/O in batch cancel operations | Medium | FIXED | v2.9.30 |
-| DEF-012 | Orphaned storage entries on failed state restoration | Medium | FIXED | v2.9.30 |
-| DEF-013 | Naive datetime assumption treats local time as UTC | Medium | FIXED | v2.9.30 |
-| DEF-014 | Scheduled entry lost on failed timer execution | Low | FIXED | v2.9.30 |
+| DEF-010 | Non-atomic batch operations cause partial state | High | FIXED | v0.2.6 |
+| DEF-011 | Excessive disk I/O in batch cancel operations | Medium | FIXED | v0.2.6 |
+| DEF-012 | Orphaned storage entries on failed state restoration | Medium | FIXED | v0.2.6 |
+| DEF-013 | Naive datetime assumption treats local time as UTC | Medium | FIXED | v0.2.6 |
+| DEF-014 | Scheduled entry lost on failed timer execution | Low | FIXED | v0.2.6 |
 | DEF-015 | TOCTOU race condition in async_load_stored | Low | WONTFIX | - |
 
 ---
@@ -276,7 +276,7 @@ Static file serving used default cache headers which iOS Safari/WebKit interpret
 
 **Severity:** High
 **Status:** FIXED
-**Fixed In:** v2.9.30
+**Fixed In:** v0.2.6
 **File:** `custom_components/autosnooze/services.py`
 **Lines:** 80-89
 
@@ -316,7 +316,7 @@ async with data.lock:
 
 **Severity:** Medium
 **Status:** FIXED
-**Fixed In:** v2.9.30
+**Fixed In:** v0.2.6
 **File:** `custom_components/autosnooze/services.py`, `custom_components/autosnooze/coordinator.py`
 
 **Description:**
@@ -351,7 +351,7 @@ async def async_resume_batch(hass, data, entity_ids) -> None:
 
 **Severity:** Medium
 **Status:** FIXED
-**Fixed In:** v2.9.30
+**Fixed In:** v0.2.6
 **File:** `custom_components/autosnooze/coordinator.py`
 **Lines:** 412-425
 
@@ -385,7 +385,7 @@ else:
 
 **Severity:** Medium
 **Status:** FIXED
-**Fixed In:** v2.9.30
+**Fixed In:** v0.2.6
 **File:** `custom_components/autosnooze/models.py`
 **Lines:** 44-70
 
@@ -421,7 +421,7 @@ return dt.astimezone(timezone.utc)
 
 **Severity:** Low
 **Status:** FIXED
-**Fixed In:** v2.9.30
+**Fixed In:** v0.2.6
 **File:** `custom_components/autosnooze/coordinator.py`
 **Lines:** 141-182
 
