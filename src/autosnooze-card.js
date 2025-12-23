@@ -130,7 +130,7 @@ class AutomationPauseCardEditor extends LitElement {
 // ============================================================================
 class AutomationPauseCard extends LitElement {
   static properties = {
-    hass: { type: Object },
+    // Note: hass is handled via setter to ensure reliable updates
     config: { type: Object },
     _selected: { state: true },
     _duration: { state: true },
@@ -152,11 +152,47 @@ class AutomationPauseCard extends LitElement {
     _automationsCache: { state: true },
     _automationsCacheKey: { state: true },
     _wakeAllPending: { state: true },
+    // Reactive property for sensor state - triggers re-render when sensor updates
+    _sensorState: { state: true },
   };
+
+  // Use setter for hass to reliably detect sensor state changes
+  // This pattern is recommended for HA custom cards to avoid missed updates
+  set hass(hass) {
+    const oldHass = this._hass;
+    this._hass = hass;
+
+    // Extract sensor state - changes to this reactive property trigger re-render
+    // This ensures snooze list updates are always detected
+    const newSensorState = hass?.states?.["sensor.autosnooze_snoozed_automations"];
+    if (newSensorState !== this._sensorState) {
+      this._sensorState = newSensorState;
+    }
+
+    // Invalidate automation cache when states change so next render gets fresh data
+    // The cache in _getAutomations() uses reference equality on hass.states
+    if (hass?.states !== oldHass?.states) {
+      this._lastHassStates = null;
+    }
+  }
+
+  get hass() {
+    return this._hass;
+  }
+
+  updated(changedProps) {
+    super.updated(changedProps);
+    // Fetch registries when sensor state updates (indicates hass is ready)
+    if (changedProps.has("_sensorState") && this._hass?.connection) {
+      if (!this._labelsFetched) this._fetchLabelRegistry();
+      if (!this._categoriesFetched) this._fetchCategoryRegistry();
+      if (!this._entityRegistryFetched) this._fetchEntityRegistry();
+    }
+  }
 
   constructor() {
     super();
-    this.hass = {};
+    this._hass = {};
     this.config = {};
     this._selected = [];
     this._duration = DEFAULT_SNOOZE_MINUTES * TIME_MS.MINUTE;
@@ -186,6 +222,7 @@ class AutomationPauseCard extends LitElement {
     this._searchTimeout = null;
     this._wakeAllPending = false;
     this._wakeAllTimeout = null;
+    this._sensorState = null;
   }
 
   connectedCallback() {
@@ -297,21 +334,6 @@ class AutomationPauseCard extends LitElement {
       filterFn: (e) => e.entity_id.startsWith("automation."),
       logName: "entity registry",
     });
-  }
-
-  updated(changedProps) {
-    super.updated(changedProps);
-    if (changedProps.has("hass") && this.hass?.connection) {
-      if (!this._labelsFetched) {
-        this._fetchLabelRegistry();
-      }
-      if (!this._categoriesFetched) {
-        this._fetchCategoryRegistry();
-      }
-      if (!this._entityRegistryFetched) {
-        this._fetchEntityRegistry();
-      }
-    }
   }
 
   disconnectedCallback() {
@@ -1352,8 +1374,7 @@ class AutomationPauseCard extends LitElement {
   }
 
   _getPaused() {
-    const entity = this.hass?.states["sensor.autosnooze_snoozed_automations"];
-    return entity?.attributes?.paused_automations || {};
+    return this._sensorState?.attributes?.paused_automations || {};
   }
 
   _getPausedGroupedByResumeTime() {
@@ -1379,8 +1400,7 @@ class AutomationPauseCard extends LitElement {
   }
 
   _getScheduled() {
-    const entity = this.hass?.states["sensor.autosnooze_snoozed_automations"];
-    return entity?.attributes?.scheduled_snoozes || {};
+    return this._sensorState?.attributes?.scheduled_snoozes || {};
   }
 
   _formatDateTime(isoString) {
