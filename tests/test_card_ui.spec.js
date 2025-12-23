@@ -1037,7 +1037,7 @@ describe('Snooze Operations', () => {
   });
 
   describe('_snooze - Schedule Mode', () => {
-    test('calls pause service with schedule parameters', async () => {
+    test('calls pause service with schedule parameters including timezone', async () => {
       card._selected = ['automation.test'];
       card._scheduleMode = true;
       card._resumeAtDate = '2025-12-25';
@@ -1045,13 +1045,16 @@ describe('Snooze Operations', () => {
 
       await card._snooze();
 
-      expect(mockHass.callService).toHaveBeenCalledWith('autosnooze', 'pause', {
-        entity_id: ['automation.test'],
-        resume_at: '2025-12-25T12:00',
-      });
+      expect(mockHass.callService).toHaveBeenCalled();
+      const callArgs = mockHass.callService.mock.calls[0];
+      expect(callArgs[0]).toBe('autosnooze');
+      expect(callArgs[1]).toBe('pause');
+      expect(callArgs[2].entity_id).toEqual(['automation.test']);
+      // Datetime should include timezone offset (e.g., +00:00 or -05:00)
+      expect(callArgs[2].resume_at).toMatch(/^2025-12-25T12:00[+-]\d{2}:\d{2}$/);
     });
 
-    test('includes disable_at when set', async () => {
+    test('includes disable_at with timezone when set', async () => {
       card._selected = ['automation.test'];
       card._scheduleMode = true;
       card._disableAtDate = '2025-12-25';
@@ -1061,11 +1064,14 @@ describe('Snooze Operations', () => {
 
       await card._snooze();
 
-      expect(mockHass.callService).toHaveBeenCalledWith('autosnooze', 'pause', {
-        entity_id: ['automation.test'],
-        resume_at: '2025-12-25T12:00',
-        disable_at: '2025-12-25T10:00',
-      });
+      expect(mockHass.callService).toHaveBeenCalled();
+      const callArgs = mockHass.callService.mock.calls[0];
+      expect(callArgs[0]).toBe('autosnooze');
+      expect(callArgs[1]).toBe('pause');
+      expect(callArgs[2].entity_id).toEqual(['automation.test']);
+      // Datetime should include timezone offset
+      expect(callArgs[2].resume_at).toMatch(/^2025-12-25T12:00[+-]\d{2}:\d{2}$/);
+      expect(callArgs[2].disable_at).toMatch(/^2025-12-25T10:00[+-]\d{2}:\d{2}$/);
     });
 
     test('shows toast when resume_at not set', async () => {

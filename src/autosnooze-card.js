@@ -1,7 +1,7 @@
 import { LitElement, html, css } from "lit";
 
-// Version 0.2.2 - Change "Pause" to "Snooze" in UI
-const CARD_VERSION = "0.2.2";
+// Version 0.2.3 - Fix timezone handling in schedule mode
+const CARD_VERSION = "0.2.3";
 
 // ============================================================================
 // CONSTANTS
@@ -1347,7 +1347,16 @@ class AutomationPauseCard extends LitElement {
   _combineDateTime(date, time) {
     // date is ISO format like "2024-12-25", time is "HH:MM"
     if (!date || !time) return null;
-    return `${date}T${time}`;
+    // Create a Date object to get the correct timezone offset for the selected date/time
+    const localDate = new Date(`${date}T${time}`);
+    // Get timezone offset in minutes and format as ±HH:MM
+    // Note: getTimezoneOffset() returns minutes to ADD to get UTC, so we negate
+    const offsetMinutes = localDate.getTimezoneOffset();
+    const offsetSign = offsetMinutes <= 0 ? '+' : '-';
+    const offsetHours = String(Math.abs(Math.floor(offsetMinutes / 60))).padStart(2, '0');
+    const offsetMins = String(Math.abs(offsetMinutes % 60)).padStart(2, '0');
+    const offsetStr = `${offsetSign}${offsetHours}:${offsetMins}`;
+    return `${date}T${time}${offsetStr}`;
   }
 
   _getLocale() {
