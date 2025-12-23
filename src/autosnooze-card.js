@@ -130,7 +130,13 @@ class AutomationPauseCardEditor extends LitElement {
 // ============================================================================
 class AutomationPauseCard extends LitElement {
   static properties = {
-    hass: { type: Object },
+    hass: {
+      type: Object,
+      // Force re-render on every hass assignment to handle rapid state updates.
+      // HA's state propagation chain uses reference equality, and during rapid
+      // operations Lit's default hasChanged may not detect nested state changes.
+      hasChanged: () => true,
+    },
     config: { type: Object },
     _selected: { state: true },
     _duration: { state: true },
@@ -153,6 +159,21 @@ class AutomationPauseCard extends LitElement {
     _automationsCacheKey: { state: true },
     _wakeAllPending: { state: true },
   };
+
+  updated(changedProps) {
+    super.updated(changedProps);
+    if (changedProps.has("hass") && this.hass?.connection) {
+      if (!this._labelsFetched) {
+        this._fetchLabelRegistry();
+      }
+      if (!this._categoriesFetched) {
+        this._fetchCategoryRegistry();
+      }
+      if (!this._entityRegistryFetched) {
+        this._fetchEntityRegistry();
+      }
+    }
+  }
 
   constructor() {
     super();
@@ -297,21 +318,6 @@ class AutomationPauseCard extends LitElement {
       filterFn: (e) => e.entity_id.startsWith("automation."),
       logName: "entity registry",
     });
-  }
-
-  updated(changedProps) {
-    super.updated(changedProps);
-    if (changedProps.has("hass") && this.hass?.connection) {
-      if (!this._labelsFetched) {
-        this._fetchLabelRegistry();
-      }
-      if (!this._categoriesFetched) {
-        this._fetchCategoryRegistry();
-      }
-      if (!this._entityRegistryFetched) {
-        this._fetchEntityRegistry();
-      }
-    }
   }
 
   disconnectedCallback() {
