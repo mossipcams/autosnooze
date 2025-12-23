@@ -1,7 +1,7 @@
 import { LitElement, html, css } from "lit";
 
-// Version 0.2.2 - Change "Pause" to "Snooze" in UI
-const CARD_VERSION = "0.2.2";
+// Version 0.2.3 - Fix timezone handling in schedule mode
+const CARD_VERSION = "0.2.3";
 
 // ============================================================================
 // CONSTANTS
