@@ -3,12 +3,15 @@
 from __future__ import annotations
 
 import json
+import logging
 from pathlib import Path
 
 import voluptuous as vol
 
 from homeassistant.const import ATTR_ENTITY_ID
 from homeassistant.helpers import config_validation as cv
+
+_LOGGER = logging.getLogger(__name__)
 
 DOMAIN = "autosnooze"
 PLATFORMS = ["sensor"]
@@ -20,10 +23,17 @@ SAVE_RETRY_DELAYS = [0.1, 0.2, 0.4]  # Exponential backoff delays in seconds
 TRANSIENT_ERRORS = (IOError, OSError)  # Errors that should trigger retry
 
 # Read version from manifest for cache-busting
+# Note: This is sync I/O at import time, but it's a small local file read.
+# If this fails, we fall back to a default version.
 MANIFEST_PATH = Path(__file__).parent / "manifest.json"
-with open(MANIFEST_PATH, encoding="utf-8") as manifest_file:
-    MANIFEST = json.load(manifest_file)
-VERSION = MANIFEST.get("version", "0.0.0")
+try:
+    with open(MANIFEST_PATH, encoding="utf-8") as manifest_file:
+        MANIFEST = json.load(manifest_file)
+    VERSION = MANIFEST.get("version", "0.0.0")
+except (OSError, json.JSONDecodeError) as err:
+    _LOGGER.warning("Failed to read manifest.json: %s. Using default version.", err)
+    MANIFEST = {}
+    VERSION = "0.0.0"
 
 # Card paths
 CARD_PATH = Path(__file__).parent / "www" / "autosnooze-card.js"
