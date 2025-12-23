@@ -1353,8 +1353,11 @@ class AutomationPauseCard extends LitElement {
     // Note: getTimezoneOffset() returns minutes to ADD to get UTC, so we negate
     const offsetMinutes = localDate.getTimezoneOffset();
     const offsetSign = offsetMinutes <= 0 ? '+' : '-';
-    const offsetHours = String(Math.abs(Math.floor(offsetMinutes / 60))).padStart(2, '0');
-    const offsetMins = String(Math.abs(offsetMinutes % 60)).padStart(2, '0');
+    // Use Math.abs before division to correctly handle negative offsets (positive UTC timezones)
+    // Math.floor(-330/60) = -6, but we need 5 for UTC+5:30
+    const absMinutes = Math.abs(offsetMinutes);
+    const offsetHours = String(Math.floor(absMinutes / 60)).padStart(2, '0');
+    const offsetMins = String(absMinutes % 60).padStart(2, '0');
     const offsetStr = `${offsetSign}${offsetHours}:${offsetMins}`;
     return `${date}T${time}${offsetStr}`;
   }

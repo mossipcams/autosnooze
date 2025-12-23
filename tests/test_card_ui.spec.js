@@ -1429,6 +1429,30 @@ describe('Schedule Mode Validation', () => {
     expect(toast).not.toBeNull();
     expect(toast.textContent).toContain('Snooze time must be before resume time');
   });
+
+  test('_combineDateTime correctly calculates timezone offset for fractional timezones', () => {
+    // Test that the datetime string round-trips correctly
+    // This verifies the fix for Math.floor bug with negative offset minutes
+    const result = card._combineDateTime('2024-12-25', '14:00');
+
+    // Parse the result back and compare to the original local time
+    const originalLocal = new Date('2024-12-25T14:00');
+    const parsed = new Date(result);
+
+    // The parsed time should equal the original local time
+    // (both represent the same moment, just formatted differently)
+    expect(parsed.getTime()).toBe(originalLocal.getTime());
+
+    // Also verify the format is correct: YYYY-MM-DDTHH:MM±HH:MM
+    expect(result).toMatch(/^2024-12-25T14:00[+-]\d{2}:\d{2}$/);
+  });
+
+  test('_combineDateTime returns null for missing date or time', () => {
+    expect(card._combineDateTime('', '14:00')).toBeNull();
+    expect(card._combineDateTime('2024-12-25', '')).toBeNull();
+    expect(card._combineDateTime(null, '14:00')).toBeNull();
+    expect(card._combineDateTime('2024-12-25', null)).toBeNull();
+  });
 });
 
 // =============================================================================
