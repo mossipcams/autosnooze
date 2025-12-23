@@ -95,6 +95,30 @@ async def async_resume(hass: HomeAssistant, data: AutomationPauseData, entity_id
     _LOGGER.info("Woke automation: %s", entity_id)
 
 
+async def async_resume_batch(
+    hass: HomeAssistant, data: AutomationPauseData, entity_ids: list[str]
+) -> None:
+    """Wake up multiple snoozed automations efficiently with single save.
+
+    DEF-011 FIX: Batch operations to reduce disk I/O.
+    """
+    # Check if integration is unloaded to prevent post-unload operations
+    if data.unloaded:
+        return
+    if not entity_ids:
+        return
+
+    async with data.lock:
+        for entity_id in entity_ids:
+            cancel_timer(data, entity_id)
+            data.paused.pop(entity_id, None)
+            await async_set_automation_state(hass, entity_id, enabled=True)
+        # Single save after all operations
+        await async_save(data)
+    data.notify()
+    _LOGGER.info("Woke %d automations", len(entity_ids))
+
+
 def schedule_disable(
     hass: HomeAssistant,
     data: AutomationPauseData,
@@ -126,13 +150,20 @@ async def async_execute_scheduled_disable(
         return
     async with data.lock:
         cancel_scheduled_timer(data, entity_id)
-        scheduled = data.scheduled.pop(entity_id, None)
 
+        # DEF-014 FIX: Check disable BEFORE popping scheduled entry
+        # This preserves the schedule for retry if disable fails
         if not await async_set_automation_state(hass, entity_id, enabled=False):
-            await async_save(data)
+            _LOGGER.warning(
+                "Failed to execute scheduled disable for %s, schedule preserved for retry",
+                entity_id,
+            )
+            # Don't pop the scheduled entry - let it be retried on next load
             data.notify()
             return
 
+        # Only pop after successful disable
+        scheduled = data.scheduled.pop(entity_id, None)
         now = dt_util.utcnow()
         friendly_name = scheduled.friendly_name if scheduled else get_friendly_name(hass, entity_id)
         disable_at = scheduled.disable_at if scheduled else None
@@ -371,7 +402,9 @@ async def async_load_stored(hass: HomeAssistant, data: AutomationPauseData) -> N
     # Load paused automations
     for entity_id, info in validated.get("paused", {}).items():
         try:
-            # Check if automation still exists - clean up deleted automations
+            # DEF-015 NOTE: This existence check is an optimization to avoid unnecessary
+            # service calls. If entity is deleted between check and disable call (TOCTOU),
+            # async_set_automation_state handles it gracefully by returning False.
             if hass.states.get(entity_id) is None:
                 _LOGGER.info("Cleaning up deleted automation from storage: %s", entity_id)
                 expired.append(entity_id)
@@ -386,7 +419,12 @@ async def async_load_stored(hass: HomeAssistant, data: AutomationPauseData) -> N
                     data.paused[entity_id] = paused
                     schedule_resume(hass, data, entity_id, paused.resume_at)
                 else:
-                    _LOGGER.warning("Failed to restore paused state for %s, skipping", entity_id)
+                    # DEF-012 FIX: Clean up storage entries that can't be restored
+                    _LOGGER.warning(
+                        "Failed to restore paused state for %s, removing from storage",
+                        entity_id,
+                    )
+                    expired.append(entity_id)
         except (KeyError, ValueError) as err:
             _LOGGER.warning("Invalid stored data for %s: %s", entity_id, err)
             expired.append(entity_id)
@@ -422,10 +460,12 @@ async def async_load_stored(hass: HomeAssistant, data: AutomationPauseData) -> N
                         data.paused[entity_id] = paused
                         schedule_resume(hass, data, entity_id, scheduled.resume_at)
                     else:
+                        # DEF-012 FIX: Clean up storage entries that can't be restored
                         _LOGGER.warning(
-                            "Failed to execute scheduled disable for %s, skipping",
+                            "Failed to execute scheduled disable for %s, removing from storage",
                             entity_id,
                         )
+                        expired_scheduled.append(entity_id)
             else:
                 data.scheduled[entity_id] = scheduled
                 schedule_disable(hass, data, entity_id, scheduled)

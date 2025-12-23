@@ -32,12 +32,12 @@ This document tracks known defects, their status, and resolution details for the
 | DEF-007 | iOS Companion app card disappears after refresh | High | FIXED | v2.9.18 |
 | DEF-008 | add_extra_js_url causing iOS refresh issues | High | FIXED | v2.9.20 |
 | DEF-009 | Aggressive cache headers breaking iOS | Medium | FIXED | v2.9.21 |
-| DEF-010 | Non-atomic batch operations cause partial state | High | OPEN | - |
-| DEF-011 | Excessive disk I/O in batch cancel operations | Medium | OPEN | - |
-| DEF-012 | Orphaned storage entries on failed state restoration | Medium | OPEN | - |
-| DEF-013 | Naive datetime assumption treats local time as UTC | Medium | OPEN | - |
-| DEF-014 | Scheduled entry lost on failed timer execution | Low | OPEN | - |
-| DEF-015 | TOCTOU race condition in async_load_stored | Low | OPEN | - |
+| DEF-010 | Non-atomic batch operations cause partial state | High | FIXED | v2.9.30 |
+| DEF-011 | Excessive disk I/O in batch cancel operations | Medium | FIXED | v2.9.30 |
+| DEF-012 | Orphaned storage entries on failed state restoration | Medium | FIXED | v2.9.30 |
+| DEF-013 | Naive datetime assumption treats local time as UTC | Medium | FIXED | v2.9.30 |
+| DEF-014 | Scheduled entry lost on failed timer execution | Low | FIXED | v2.9.30 |
+| DEF-015 | TOCTOU race condition in async_load_stored | Low | WONTFIX | - |
 
 ---
 
@@ -275,9 +275,10 @@ Static file serving used default cache headers which iOS Safari/WebKit interpret
 ### DEF-010: Non-Atomic Batch Operations Cause Partial State
 
 **Severity:** High
-**Status:** OPEN
+**Status:** FIXED
+**Fixed In:** v2.9.30
 **File:** `custom_components/autosnooze/services.py`
-**Lines:** 120-127
+**Lines:** 80-89
 
 **Description:**
 The validation for entity IDs happens inside the processing loop, after some automations may have already been paused. This means a batch operation can leave the system in a partial state.
@@ -296,13 +297,17 @@ If a user calls pause with `["automation.a", "not_an_automation", "automation.b"
 3. `automation.b` is never processed
 4. System is left with `automation.a` paused unexpectedly
 
-**Recommended Fix:**
-Validate all entity IDs before the loop begins:
+**Resolution:**
+Moved validation before the processing loop to ensure atomic behavior - either all validations pass or none are processed:
 ```python
+# Validate ALL entity IDs upfront before any state changes
 for entity_id in entity_ids:
     if not entity_id.startswith("automation."):
         raise ServiceValidationError(...)
-# Then process all entities
+# Then process all entities inside lock
+async with data.lock:
+    for entity_id in entity_ids:
+        # Processing logic...
 ```
 
 ---
@@ -310,9 +315,9 @@ for entity_id in entity_ids:
 ### DEF-011: Excessive Disk I/O in Batch Cancel Operations
 
 **Severity:** Medium
-**Status:** OPEN
-**File:** `custom_components/autosnooze/services.py`
-**Lines:** 191-202
+**Status:** FIXED
+**Fixed In:** v2.9.30
+**File:** `custom_components/autosnooze/services.py`, `custom_components/autosnooze/coordinator.py`
 
 **Description:**
 Both `handle_cancel` and `handle_cancel_all` call `async_resume()` for each entity individually. Each `async_resume()` call acquires the lock and performs `async_save()`.
@@ -327,16 +332,16 @@ async def handle_cancel_all(_call: ServiceCall) -> None:
 **Impact:**
 If 50 automations are snoozed, "Wake All" performs 50 separate disk writes. This is inefficient and could cause I/O bottlenecks or slowdowns on systems with slow storage (e.g., SD cards on Raspberry Pi).
 
-**Recommended Fix:**
-Implement batch operations with a single save at the end:
+**Resolution:**
+Added `async_resume_batch()` function and updated cancel handlers to use it:
 ```python
-async def handle_cancel_all(_call: ServiceCall) -> None:
+async def async_resume_batch(hass, data, entity_ids) -> None:
     async with data.lock:
-        for entity_id in list(data.paused.keys()):
+        for entity_id in entity_ids:
             cancel_timer(data, entity_id)
             data.paused.pop(entity_id, None)
             await async_set_automation_state(hass, entity_id, enabled=True)
-        await async_save(data)
+        await async_save(data)  # Single save after all operations
     data.notify()
 ```
 
@@ -345,9 +350,10 @@ async def handle_cancel_all(_call: ServiceCall) -> None:
 ### DEF-012: Orphaned Storage Entries on Failed State Restoration
 
 **Severity:** Medium
-**Status:** OPEN
+**Status:** FIXED
+**Fixed In:** v2.9.30
 **File:** `custom_components/autosnooze/coordinator.py`
-**Lines:** 383-389
+**Lines:** 412-425
 
 **Description:**
 When loading stored data, if `async_set_automation_state()` fails to disable an automation, the entry is skipped but not added to the expired list for cleanup.
@@ -365,8 +371,8 @@ else:
 **Impact:**
 Storage accumulates entries for automations that can never be restored, wasting space and slowing load times. The same failed entries will be attempted on every restart.
 
-**Recommended Fix:**
-Add failed entities to the expired list:
+**Resolution:**
+Failed entities are now added to the expired list for cleanup:
 ```python
 else:
     _LOGGER.warning("Failed to restore paused state for %s, removing from storage", entity_id)
@@ -378,9 +384,10 @@ else:
 ### DEF-013: Naive Datetime Assumption Treats Local Time as UTC
 
 **Severity:** Medium
-**Status:** OPEN
+**Status:** FIXED
+**Fixed In:** v2.9.30
 **File:** `custom_components/autosnooze/models.py`
-**Lines:** 44-60
+**Lines:** 44-70
 
 **Description:**
 The `ensure_utc_aware()` function assumes naive datetimes (without timezone info) are UTC, but they might actually be local time from user input or certain HA integrations.
@@ -398,23 +405,25 @@ def ensure_utc_aware(dt: datetime | None) -> datetime | None:
 **Impact:**
 If a user or integration provides a local time without timezone info (e.g., 2 PM local), it will be incorrectly treated as 2 PM UTC. This could cause snooze durations to be off by hours depending on the user's timezone.
 
-**Recommended Fix:**
-Either convert naive datetimes to local timezone first, then to UTC:
+**Resolution:**
+Updated to assume naive datetimes are in local timezone and convert to UTC:
 ```python
 if dt.tzinfo is None:
-    dt = dt.replace(tzinfo=dt_util.DEFAULT_TIME_ZONE)
+    local_tz = dt_util.get_default_time_zone()
+    dt = dt.replace(tzinfo=local_tz)
+    return dt.astimezone(timezone.utc)
 return dt.astimezone(timezone.utc)
 ```
-Or reject naive datetimes with an explicit error.
 
 ---
 
 ### DEF-014: Scheduled Entry Lost on Failed Timer Execution
 
 **Severity:** Low
-**Status:** OPEN
+**Status:** FIXED
+**Fixed In:** v2.9.30
 **File:** `custom_components/autosnooze/coordinator.py`
-**Lines:** 129, 136-138
+**Lines:** 141-182
 
 **Description:**
 In `async_execute_scheduled_disable()`, the scheduled entry is popped before the disable operation completes. If the disable fails, the scheduled data is already lost.
@@ -431,13 +440,15 @@ if not await async_set_automation_state(hass, entity_id, enabled=False):
 **Impact:**
 If an automation fails to disable when its scheduled time arrives, the user loses the schedule with no way to recover or retry it.
 
-**Recommended Fix:**
-Only pop after successful disable, or re-add on failure:
+**Resolution:**
+Reordered operations to only pop after successful disable:
 ```python
+# Check disable BEFORE popping scheduled entry
 if not await async_set_automation_state(hass, entity_id, enabled=False):
-    # Optionally reschedule or keep in scheduled dict
-    _LOGGER.warning("Failed to execute scheduled disable for %s, will retry", entity_id)
-    return
+    _LOGGER.warning("Failed to execute scheduled disable for %s, schedule preserved", entity_id)
+    data.notify()
+    return  # Schedule preserved for retry on next load
+# Only pop after successful disable
 scheduled = data.scheduled.pop(entity_id, None)
 ```
 
@@ -446,9 +457,9 @@ scheduled = data.scheduled.pop(entity_id, None)
 ### DEF-015: TOCTOU Race Condition in async_load_stored
 
 **Severity:** Low
-**Status:** OPEN
+**Status:** WONTFIX
 **File:** `custom_components/autosnooze/coordinator.py`
-**Lines:** 375-378
+**Lines:** 405-411
 
 **Description:**
 The automation existence check happens before the lock is acquired, creating a Time-of-Check-Time-of-Use (TOCTOU) race condition.
@@ -465,8 +476,8 @@ if hass.states.get(entity_id) is None:  # Check without lock
 **Impact:**
 An automation could be deleted between the existence check and the disable call, causing unexpected failures or inconsistent state. While unlikely during normal operation, this could occur during HA startup when many state changes happen rapidly.
 
-**Recommended Fix:**
-Either recheck entity existence inside the locked section, or handle the failure gracefully in `async_set_automation_state()`.
+**Resolution:**
+Marked as WONTFIX. The existence check is an optimization to avoid unnecessary service calls. If the entity is deleted between the check and the disable operation, `async_set_automation_state()` handles it gracefully by returning `False`, which now triggers proper cleanup via the DEF-012 fix. Added a comment explaining this design decision. The race condition is theoretical and the current behavior is safe.
 
 ---
 
