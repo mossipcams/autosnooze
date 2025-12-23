@@ -27,6 +27,9 @@ const UI_TIMING = {
   // Buffer for time validation to prevent race conditions between frontend and backend
   // This ensures times very close to "now" are rejected by frontend before reaching backend
   TIME_VALIDATION_BUFFER_MS: 5000,
+  // Delay before forcing re-render after state-changing operations
+  // Allows websocket state updates to propagate from backend to frontend
+  STATE_SYNC_DELAY_MS: 100,
 };
 
 const DEFAULT_DURATIONS = [
@@ -1745,6 +1748,8 @@ class AutomationPauseCard extends LitElement {
             // Restore the selection
             this._selected = snoozedEntities;
             this._showToast(`Restored ${count} automation${count !== 1 ? "s" : ""}`);
+            // Schedule re-render to ensure UI reflects latest state
+            setTimeout(() => this.requestUpdate(), UI_TIMING.STATE_SYNC_DELAY_MS);
           } catch (e) {
             console.error("Undo failed:", e);
             this._showToast("Failed to undo. The automations may have already been modified.");
@@ -1757,6 +1762,11 @@ class AutomationPauseCard extends LitElement {
       this._disableAtTime = "";
       this._resumeAtDate = "";
       this._resumeAtTime = "";
+
+      // Schedule a re-render to ensure UI reflects latest state
+      // This handles race condition where service call returns before
+      // websocket state update arrives at the frontend
+      setTimeout(() => this.requestUpdate(), UI_TIMING.STATE_SYNC_DELAY_MS);
     } catch (e) {
       console.error("Snooze failed:", e);
       this._showToast(this._getErrorMessage(e, "Failed to snooze automations"));
@@ -1778,6 +1788,8 @@ class AutomationPauseCard extends LitElement {
         entity_id: entityId,
       });
       this._showToast("Automation resumed successfully");
+      // Schedule re-render to ensure UI reflects latest state
+      setTimeout(() => this.requestUpdate(), UI_TIMING.STATE_SYNC_DELAY_MS);
     } catch (e) {
       console.error("Wake failed:", e);
       this._showToast(this._getErrorMessage(e, "Failed to resume automation"));
@@ -1793,6 +1805,8 @@ class AutomationPauseCard extends LitElement {
       try {
         await this.hass.callService("autosnooze", "cancel_all", {});
         this._showToast("All automations resumed successfully");
+        // Schedule re-render to ensure UI reflects latest state
+        setTimeout(() => this.requestUpdate(), UI_TIMING.STATE_SYNC_DELAY_MS);
       } catch (e) {
         console.error("Wake all failed:", e);
         this._showToast("Failed to resume automations. Check Home Assistant logs for details.");
@@ -1813,6 +1827,8 @@ class AutomationPauseCard extends LitElement {
         entity_id: entityId,
       });
       this._showToast("Scheduled snooze cancelled successfully");
+      // Schedule re-render to ensure UI reflects latest state
+      setTimeout(() => this.requestUpdate(), UI_TIMING.STATE_SYNC_DELAY_MS);
     } catch (e) {
       console.error("Cancel scheduled failed:", e);
       this._showToast(this._getErrorMessage(e, "Failed to cancel scheduled snooze"));
