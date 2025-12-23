@@ -1412,6 +1412,28 @@ describe('Schedule Mode Validation', () => {
     expect(toast.textContent).toContain('Resume time must be in the future');
   });
 
+  test('shows error when resume time is within validation buffer window', async () => {
+    // This test verifies the 5-second buffer that prevents race conditions
+    // where frontend validation passes but backend rejects due to timing
+    card._selected = ['automation.test'];
+    card._scheduleMode = true;
+
+    // Set resume time to 2 seconds from now (within the 5 second buffer)
+    const nearFuture = new Date(Date.now() + 2000);
+    card._resumeAtDate = nearFuture.toISOString().split('T')[0];
+    card._resumeAtTime = nearFuture.toTimeString().slice(0, 5); // HH:MM format
+    card._disableAtDate = '';
+    card._disableAtTime = '';
+
+    await card._snooze();
+
+    // Should show error because time is within the buffer window
+    const toast = card.shadowRoot.querySelector('.toast');
+    expect(toast).not.toBeNull();
+    expect(toast.textContent).toContain('Resume time must be in the future');
+    expect(mockHass.callService).not.toHaveBeenCalled();
+  });
+
   test('shows error when disable time is after resume time', async () => {
     card._selected = ['automation.test'];
     card._scheduleMode = true;
