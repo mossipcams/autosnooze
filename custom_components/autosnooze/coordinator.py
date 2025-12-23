@@ -95,9 +95,7 @@ async def async_resume(hass: HomeAssistant, data: AutomationPauseData, entity_id
     _LOGGER.info("Woke automation: %s", entity_id)
 
 
-async def async_resume_batch(
-    hass: HomeAssistant, data: AutomationPauseData, entity_ids: list[str]
-) -> None:
+async def async_resume_batch(hass: HomeAssistant, data: AutomationPauseData, entity_ids: list[str]) -> None:
     """Wake up multiple snoozed automations efficiently with single save.
 
     DEF-011 FIX: Batch operations to reduce disk I/O.
