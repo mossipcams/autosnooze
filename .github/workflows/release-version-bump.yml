@@ -1,0 +1,100 @@
+name: Release Version Bump
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  bump-version:
+    runs-on: ubuntu-latest
+    # Only run if the release tag starts with 'v' (e.g., v0.2.6)
+    if: startsWith(github.event.release.tag_name, 'v')
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          ref: main
+
+      - name: Configure git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Extract version from release tag
+        run: |
+          # Get version from tag (strip 'v' prefix)
+          TAG="${{ github.event.release.tag_name }}"
+          VERSION="${TAG#v}"
+          echo "VERSION=$VERSION" >> $GITHUB_ENV
+          echo "Extracted version: $VERSION"
+
+          # Validate semantic versioning format
+          if ! [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "ERROR: Version '$VERSION' is not valid semver (expected: major.minor.patch)"
+            exit 1
+          fi
+
+      - name: Update version in all files
+        run: |
+          VERSION="${{ env.VERSION }}"
+          RELEASE_NAME="${{ github.event.release.name }}"
+          echo "Updating to version: $VERSION"
+
+          # Update package.json
+          jq ".version = \"$VERSION\"" package.json > package.json.tmp && mv package.json.tmp package.json
+
+          # Update manifest.json
+          jq ".version = \"$VERSION\"" custom_components/autosnooze/manifest.json > manifest.json.tmp && mv manifest.json.tmp custom_components/autosnooze/manifest.json
+
+          # Update CARD_VERSION in source file
+          sed -i "s/const CARD_VERSION = \"[^\"]*\"/const CARD_VERSION = \"$VERSION\"/" src/autosnooze-card.js
+
+          # Update version comment in source file (use release name if available, otherwise generic)
+          if [ -n "$RELEASE_NAME" ] && [ "$RELEASE_NAME" != "${{ github.event.release.tag_name }}" ]; then
+            # Use release name as the description
+            COMMENT_DESC=$(echo "$RELEASE_NAME" | sed 's/^v[0-9.]*[[:space:]]*-*[[:space:]]*//' | head -c 80)
+            sed -i "s|// Version [0-9]*\.[0-9]*\.[0-9]*.*|// Version $VERSION - $COMMENT_DESC|" src/autosnooze-card.js
+          else
+            sed -i "s|// Version [0-9]*\.[0-9]*\.[0-9]*.*|// Version $VERSION|" src/autosnooze-card.js
+          fi
+
+      - name: Verify version update
+        run: |
+          VERSION="${{ env.VERSION }}"
+          echo "Verifying version update..."
+
+          PACKAGE_VERSION=$(jq -r '.version' package.json)
+          MANIFEST_VERSION=$(jq -r '.version' custom_components/autosnooze/manifest.json)
+          CARD_VERSION=$(grep -oP 'const CARD_VERSION = "\K[^"]+' src/autosnooze-card.js)
+
+          echo "  package.json:  $PACKAGE_VERSION"
+          echo "  manifest.json: $MANIFEST_VERSION"
+          echo "  CARD_VERSION:  $CARD_VERSION"
+
+          if [ "$PACKAGE_VERSION" != "$VERSION" ] || [ "$MANIFEST_VERSION" != "$VERSION" ] || [ "$CARD_VERSION" != "$VERSION" ]; then
+            echo "ERROR: Version update failed! Expected $VERSION in all files."
+            exit 1
+          fi
+
+          echo "Version update verified successfully!"
+
+      - name: Commit and push version update
+        run: |
+          VERSION="${{ env.VERSION }}"
+
+          # Check if there are changes to commit
+          if git diff --quiet; then
+            echo "No changes to commit - version may already be up to date"
+            exit 0
+          fi
+
+          git add package.json custom_components/autosnooze/manifest.json src/autosnooze-card.js
+          git commit -m "$(cat <<EOF
+          Bump version to $VERSION [skip-version-bump]
+
+          Automated version bump triggered by release ${{ github.event.release.tag_name }}
+          EOF
+          )"
+          git push origin main
