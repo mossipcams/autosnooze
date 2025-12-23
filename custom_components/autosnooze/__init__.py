@@ -61,10 +61,14 @@ async def async_setup_entry(hass: HomeAssistant, entry: AutomationPauseConfigEnt
     else:
 
         async def _register_when_started(_event: Any) -> None:
+            # Check if we were unloaded before HA fully started
+            if data.unloaded:
+                return
             await _async_register_lovelace_resource(hass)
             await async_load_stored(hass, data)
 
-        hass.bus.async_listen_once("homeassistant_started", _register_when_started)
+        # Store the unsub function so we can cancel on early unload
+        data.startup_listener_unsub = hass.bus.async_listen_once("homeassistant_started", _register_when_started)
 
     # Register services
     register_services(hass, data)
@@ -204,8 +208,17 @@ async def _async_register_lovelace_resource(
 async def async_unload_entry(hass: HomeAssistant, entry: AutomationPauseConfigEntry) -> bool:
     """Unload config entry."""
     if unload_ok := await hass.config_entries.async_unload_platforms(entry, PLATFORMS):
-        # Cancel all timers
         data = entry.runtime_data
+
+        # Mark as unloaded first to prevent timer callbacks from running
+        data.unloaded = True
+
+        # Cancel startup listener if HA hasn't fully started yet
+        if data.startup_listener_unsub is not None:
+            data.startup_listener_unsub()
+            data.startup_listener_unsub = None
+
+        # Cancel all timers
         for unsub in data.timers.values():
             unsub()
         data.timers.clear()
