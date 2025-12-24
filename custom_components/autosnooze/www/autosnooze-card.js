@@ -1,4 +1,4 @@
-const e=window,t=e.ShadowRoot&&(void 0===e.ShadyCSS||e.ShadyCSS.nativeShadow)&&"adoptedStyleSheets"in Document.prototype&&"replace"in CSSStyleSheet.prototype,i=Symbol(),s=new WeakMap;let o=class{constructor(e,t,s){if(this._$cssResult$=!0,s!==i)throw Error("CSSResult is not constructable. Use `unsafeCSS` or `css` instead.");this.cssText=e,this.t=t}get styleSheet(){let e=this.o;const i=this.t;if(t&&void 0===e){const t=void 0!==i&&1===i.length;t&&(e=s.get(i)),void 0===e&&((this.o=e=new CSSStyleSheet).replaceSync(this.cssText),t&&s.set(i,e))}return e}toString(){return this.cssText}};const a=(e,...t)=>{const s=1===e.length?e[0]:t.reduce((t,i,s)=>t+(e=>{if(!0===e._$cssResult$)return e.cssText;if("number"==typeof e)return e;throw Error("Value passed to 'css' function must be a 'css' function result: "+e+". Use 'unsafeCSS' to pass non-literal values, but take care to ensure page security.")})(i)+e[s+1],e[0]);return new o(s,e,i)},r=t?e=>e:e=>e instanceof CSSStyleSheet?(e=>{let t="";for(const i of e.cssRules)t+=i.cssText;return(e=>new o("string"==typeof e?e:e+"",void 0,i))(t)})(e):e;var n;const l=window,d=l.trustedTypes,c=d?d.emptyScript:"",u=l.reactiveElementPolyfillSupport,h={toAttribute(e,t){switch(t){case Boolean:e=e?c:null;break;case Object:case Array:e=null==e?e:JSON.stringify(e)}return e},fromAttribute(e,t){let i=e;switch(t){case Boolean:i=null!==e;break;case Number:i=null===e?null:Number(e);break;case Object:case Array:try{i=JSON.parse(e)}catch(e){i=null}}return i}},p=(e,t)=>t!==e&&(t==t||e==e),m={attribute:!0,type:String,converter:h,reflect:!1,hasChanged:p},g="finalized";let _=class extends HTMLElement{constructor(){super(),this._$Ei=new Map,this.isUpdatePending=!1,this.hasUpdated=!1,this._$El=null,this._$Eu()}static addInitializer(e){var t;this.finalize(),(null!==(t=this.h)&&void 0!==t?t:this.h=[]).push(e)}static get observedAttributes(){this.finalize();const e=[];return this.elementProperties.forEach((t,i)=>{const s=this._$Ep(i,t);void 0!==s&&(this._$Ev.set(s,i),e.push(s))}),e}static createProperty(e,t=m){if(t.state&&(t.attribute=!1),this.finalize(),this.elementProperties.set(e,t),!t.noAccessor&&!this.prototype.hasOwnProperty(e)){const i="symbol"==typeof e?Symbol():"__"+e,s=this.getPropertyDescriptor(e,i,t);void 0!==s&&Object.defineProperty(this.prototype,e,s)}}static getPropertyDescriptor(e,t,i){return{get(){return this[t]},set(s){const o=this[e];this[t]=s,this.requestUpdate(e,o,i)},configurable:!0,enumerable:!0}}static getPropertyOptions(e){return this.elementProperties.get(e)||m}static finalize(){if(this.hasOwnProperty(g))return!1;this[g]=!0;const e=Object.getPrototypeOf(this);if(e.finalize(),void 0!==e.h&&(this.h=[...e.h]),this.elementProperties=new Map(e.elementProperties),this._$Ev=new Map,this.hasOwnProperty("properties")){const e=this.properties,t=[...Object.getOwnPropertyNames(e),...Object.getOwnPropertySymbols(e)];for(const i of t)this.createProperty(i,e[i])}return this.elementStyles=this.finalizeStyles(this.styles),!0}static finalizeStyles(e){const t=[];if(Array.isArray(e)){const i=new Set(e.flat(1/0).reverse());for(const e of i)t.unshift(r(e))}else void 0!==e&&t.push(r(e));return t}static _$Ep(e,t){const i=t.attribute;return!1===i?void 0:"string"==typeof i?i:"string"==typeof e?e.toLowerCase():void 0}_$Eu(){var e;this._$E_=new Promise(e=>this.enableUpdating=e),this._$AL=new Map,this._$Eg(),this.requestUpdate(),null===(e=this.constructor.h)||void 0===e||e.forEach(e=>e(this))}addController(e){var t,i;(null!==(t=this._$ES)&&void 0!==t?t:this._$ES=[]).push(e),void 0!==this.renderRoot&&this.isConnected&&(null===(i=e.hostConnected)||void 0===i||i.call(e))}removeController(e){var t;null===(t=this._$ES)||void 0===t||t.splice(this._$ES.indexOf(e)>>>0,1)}_$Eg(){this.constructor.elementProperties.forEach((e,t)=>{this.hasOwnProperty(t)&&(this._$Ei.set(t,this[t]),delete this[t])})}createRenderRoot(){var i;const s=null!==(i=this.shadowRoot)&&void 0!==i?i:this.attachShadow(this.constructor.shadowRootOptions);return((i,s)=>{t?i.adoptedStyleSheets=s.map(e=>e instanceof CSSStyleSheet?e:e.styleSheet):s.forEach(t=>{const s=document.createElement("style"),o=e.litNonce;void 0!==o&&s.setAttribute("nonce",o),s.textContent=t.cssText,i.appendChild(s)})})(s,this.constructor.elementStyles),s}connectedCallback(){var e;void 0===this.renderRoot&&(this.renderRoot=this.createRenderRoot()),this.enableUpdating(!0),null===(e=this._$ES)||void 0===e||e.forEach(e=>{var t;return null===(t=e.hostConnected)||void 0===t?void 0:t.call(e)})}enableUpdating(e){}disconnectedCallback(){var e;null===(e=this._$ES)||void 0===e||e.forEach(e=>{var t;return null===(t=e.hostDisconnected)||void 0===t?void 0:t.call(e)})}attributeChangedCallback(e,t,i){this._$AK(e,i)}_$EO(e,t,i=m){var s;const o=this.constructor._$Ep(e,i);if(void 0!==o&&!0===i.reflect){const a=(void 0!==(null===(s=i.converter)||void 0===s?void 0:s.toAttribute)?i.converter:h).toAttribute(t,i.type);this._$El=e,null==a?this.removeAttribute(o):this.setAttribute(o,a),this._$El=null}}_$AK(e,t){var i;const s=this.constructor,o=s._$Ev.get(e);if(void 0!==o&&this._$El!==o){const e=s.getPropertyOptions(o),a="function"==typeof e.converter?{fromAttribute:e.converter}:void 0!==(null===(i=e.converter)||void 0===i?void 0:i.fromAttribute)?e.converter:h;this._$El=o,this[o]=a.fromAttribute(t,e.type),this._$El=null}}requestUpdate(e,t,i){let s=!0;void 0!==e&&(((i=i||this.constructor.getPropertyOptions(e)).hasChanged||p)(this[e],t)?(this._$AL.has(e)||this._$AL.set(e,t),!0===i.reflect&&this._$El!==e&&(void 0===this._$EC&&(this._$EC=new Map),this._$EC.set(e,i))):s=!1),!this.isUpdatePending&&s&&(this._$E_=this._$Ej())}async _$Ej(){this.isUpdatePending=!0;try{await this._$E_}catch(e){Promise.reject(e)}const e=this.scheduleUpdate();return null!=e&&await e,!this.isUpdatePending}scheduleUpdate(){return this.performUpdate()}performUpdate(){var e;if(!this.isUpdatePending)return;this.hasUpdated,this._$Ei&&(this._$Ei.forEach((e,t)=>this[t]=e),this._$Ei=void 0);let t=!1;const i=this._$AL;try{t=this.shouldUpdate(i),t?(this.willUpdate(i),null===(e=this._$ES)||void 0===e||e.forEach(e=>{var t;return null===(t=e.hostUpdate)||void 0===t?void 0:t.call(e)}),this.update(i)):this._$Ek()}catch(e){throw t=!1,this._$Ek(),e}t&&this._$AE(i)}willUpdate(e){}_$AE(e){var t;null===(t=this._$ES)||void 0===t||t.forEach(e=>{var t;return null===(t=e.hostUpdated)||void 0===t?void 0:t.call(e)}),this.hasUpdated||(this.hasUpdated=!0,this.firstUpdated(e)),this.updated(e)}_$Ek(){this._$AL=new Map,this.isUpdatePending=!1}get updateComplete(){return this.getUpdateComplete()}getUpdateComplete(){return this._$E_}shouldUpdate(e){return!0}update(e){void 0!==this._$EC&&(this._$EC.forEach((e,t)=>this._$EO(t,this[t],e)),this._$EC=void 0),this._$Ek()}updated(e){}firstUpdated(e){}};var b;_[g]=!0,_.elementProperties=new Map,_.elementStyles=[],_.shadowRootOptions={mode:"open"},null==u||u({ReactiveElement:_}),(null!==(n=l.reactiveElementVersions)&&void 0!==n?n:l.reactiveElementVersions=[]).push("1.6.3");const v=window,f=v.trustedTypes,y=f?f.createPolicy("lit-html",{createHTML:e=>e}):void 0,$="$lit$",x=`lit$${(Math.random()+"").slice(9)}$`,A="?"+x,w=`<${A}>`,S=document,k=()=>S.createComment(""),C=e=>null===e||"object"!=typeof e&&"function"!=typeof e,z=Array.isArray,T="[ \t\n\f\r]",E=/<(?:(!--|\/[^a-zA-Z])|(\/?[a-zA-Z][^>\s]*)|(\/?$))/g,D=/-->/g,R=/>/g,P=RegExp(`>|${T}(?:([^\\s"'>=/]+)(${T}*=${T}*(?:[^ \t\n\f\r"'\`<>=]|("|')|))|$)`,"g"),U=/'/g,M=/"/g,I=/^(?:script|style|textarea|title)$/i,N=(e=>(t,...i)=>({_$litType$:e,strings:t,values:i}))(1),O=Symbol.for("lit-noChange"),F=Symbol.for("lit-nothing"),H=new WeakMap,L=S.createTreeWalker(S,129,null,!1);function B(e,t){if(!Array.isArray(e)||!e.hasOwnProperty("raw"))throw Error("invalid template strings array");return void 0!==y?y.createHTML(t):t}const j=(e,t)=>{const i=e.length-1,s=[];let o,a=2===t?"<svg>":"",r=E;for(let t=0;t<i;t++){const i=e[t];let n,l,d=-1,c=0;for(;c<i.length&&(r.lastIndex=c,l=r.exec(i),null!==l);)c=r.lastIndex,r===E?"!--"===l[1]?r=D:void 0!==l[1]?r=R:void 0!==l[2]?(I.test(l[2])&&(o=RegExp("</"+l[2],"g")),r=P):void 0!==l[3]&&(r=P):r===P?">"===l[0]?(r=null!=o?o:E,d=-1):void 0===l[1]?d=-2:(d=r.lastIndex-l[2].length,n=l[1],r=void 0===l[3]?P:'"'===l[3]?M:U):r===M||r===U?r=P:r===D||r===R?r=E:(r=P,o=void 0);const u=r===P&&e[t+1].startsWith("/>")?" ":"";a+=r===E?i+w:d>=0?(s.push(n),i.slice(0,d)+$+i.slice(d)+x+u):i+x+(-2===d?(s.push(void 0),t):u)}return[B(e,a+(e[i]||"<?>")+(2===t?"</svg>":"")),s]};class G{constructor({strings:e,_$litType$:t},i){let s;this.parts=[];let o=0,a=0;const r=e.length-1,n=this.parts,[l,d]=j(e,t);if(this.el=G.createElement(l,i),L.currentNode=this.el.content,2===t){const e=this.el.content,t=e.firstChild;t.remove(),e.append(...t.childNodes)}for(;null!==(s=L.nextNode())&&n.length<r;){if(1===s.nodeType){if(s.hasAttributes()){const e=[];for(const t of s.getAttributeNames())if(t.endsWith($)||t.startsWith(x)){const i=d[a++];if(e.push(t),void 0!==i){const e=s.getAttribute(i.toLowerCase()+$).split(x),t=/([.?@])?(.*)/.exec(i);n.push({type:1,index:o,name:t[2],strings:e,ctor:"."===t[1]?Y:"?"===t[1]?J:"@"===t[1]?Z:K})}else n.push({type:6,index:o})}for(const t of e)s.removeAttribute(t)}if(I.test(s.tagName)){const e=s.textContent.split(x),t=e.length-1;if(t>0){s.textContent=f?f.emptyScript:"";for(let i=0;i<t;i++)s.append(e[i],k()),L.nextNode(),n.push({type:2,index:++o});s.append(e[t],k())}}}else if(8===s.nodeType)if(s.data===A)n.push({type:2,index:o});else{let e=-1;for(;-1!==(e=s.data.indexOf(x,e+1));)n.push({type:7,index:o}),e+=x.length-1}o++}}static createElement(e,t){const i=S.createElement("template");return i.innerHTML=e,i}}function V(e,t,i=e,s){var o,a,r,n;if(t===O)return t;let l=void 0!==s?null===(o=i._$Co)||void 0===o?void 0:o[s]:i._$Cl;const d=C(t)?void 0:t._$litDirective$;return(null==l?void 0:l.constructor)!==d&&(null===(a=null==l?void 0:l._$AO)||void 0===a||a.call(l,!1),void 0===d?l=void 0:(l=new d(e),l._$AT(e,i,s)),void 0!==s?(null!==(r=(n=i)._$Co)&&void 0!==r?r:n._$Co=[])[s]=l:i._$Cl=l),void 0!==l&&(t=V(e,l._$AS(e,t.values),l,s)),t}class W{constructor(e,t){this._$AV=[],this._$AN=void 0,this._$AD=e,this._$AM=t}get parentNode(){return this._$AM.parentNode}get _$AU(){return this._$AM._$AU}u(e){var t;const{el:{content:i},parts:s}=this._$AD,o=(null!==(t=null==e?void 0:e.creationScope)&&void 0!==t?t:S).importNode(i,!0);L.currentNode=o;let a=L.nextNode(),r=0,n=0,l=s[0];for(;void 0!==l;){if(r===l.index){let t;2===l.type?t=new q(a,a.nextSibling,this,e):1===l.type?t=new l.ctor(a,l.name,l.strings,this,e):6===l.type&&(t=new Q(a,this,e)),this._$AV.push(t),l=s[++n]}r!==(null==l?void 0:l.index)&&(a=L.nextNode(),r++)}return L.currentNode=S,o}v(e){let t=0;for(const i of this._$AV)void 0!==i&&(void 0!==i.strings?(i._$AI(e,i,t),t+=i.strings.length-2):i._$AI(e[t])),t++}}class q{constructor(e,t,i,s){var o;this.type=2,this._$AH=F,this._$AN=void 0,this._$AA=e,this._$AB=t,this._$AM=i,this.options=s,this._$Cp=null===(o=null==s?void 0:s.isConnected)||void 0===o||o}get _$AU(){var e,t;return null!==(t=null===(e=this._$AM)||void 0===e?void 0:e._$AU)&&void 0!==t?t:this._$Cp}get parentNode(){let e=this._$AA.parentNode;const t=this._$AM;return void 0!==t&&11===(null==e?void 0:e.nodeType)&&(e=t.parentNode),e}get startNode(){return this._$AA}get endNode(){return this._$AB}_$AI(e,t=this){e=V(this,e,t),C(e)?e===F||null==e||""===e?(this._$AH!==F&&this._$AR(),this._$AH=F):e!==this._$AH&&e!==O&&this._(e):void 0!==e._$litType$?this.g(e):void 0!==e.nodeType?this.$(e):(e=>z(e)||"function"==typeof(null==e?void 0:e[Symbol.iterator]))(e)?this.T(e):this._(e)}k(e){return this._$AA.parentNode.insertBefore(e,this._$AB)}$(e){this._$AH!==e&&(this._$AR(),this._$AH=this.k(e))}_(e){this._$AH!==F&&C(this._$AH)?this._$AA.nextSibling.data=e:this.$(S.createTextNode(e)),this._$AH=e}g(e){var t;const{values:i,_$litType$:s}=e,o="number"==typeof s?this._$AC(e):(void 0===s.el&&(s.el=G.createElement(B(s.h,s.h[0]),this.options)),s);if((null===(t=this._$AH)||void 0===t?void 0:t._$AD)===o)this._$AH.v(i);else{const e=new W(o,this),t=e.u(this.options);e.v(i),this.$(t),this._$AH=e}}_$AC(e){let t=H.get(e.strings);return void 0===t&&H.set(e.strings,t=new G(e)),t}T(e){z(this._$AH)||(this._$AH=[],this._$AR());const t=this._$AH;let i,s=0;for(const o of e)s===t.length?t.push(i=new q(this.k(k()),this.k(k()),this,this.options)):i=t[s],i._$AI(o),s++;s<t.length&&(this._$AR(i&&i._$AB.nextSibling,s),t.length=s)}_$AR(e=this._$AA.nextSibling,t){var i;for(null===(i=this._$AP)||void 0===i||i.call(this,!1,!0,t);e&&e!==this._$AB;){const t=e.nextSibling;e.remove(),e=t}}setConnected(e){var t;void 0===this._$AM&&(this._$Cp=e,null===(t=this._$AP)||void 0===t||t.call(this,e))}}class K{constructor(e,t,i,s,o){this.type=1,this._$AH=F,this._$AN=void 0,this.element=e,this.name=t,this._$AM=s,this.options=o,i.length>2||""!==i[0]||""!==i[1]?(this._$AH=Array(i.length-1).fill(new String),this.strings=i):this._$AH=F}get tagName(){return this.element.tagName}get _$AU(){return this._$AM._$AU}_$AI(e,t=this,i,s){const o=this.strings;let a=!1;if(void 0===o)e=V(this,e,t,0),a=!C(e)||e!==this._$AH&&e!==O,a&&(this._$AH=e);else{const s=e;let r,n;for(e=o[0],r=0;r<o.length-1;r++)n=V(this,s[i+r],t,r),n===O&&(n=this._$AH[r]),a||(a=!C(n)||n!==this._$AH[r]),n===F?e=F:e!==F&&(e+=(null!=n?n:"")+o[r+1]),this._$AH[r]=n}a&&!s&&this.j(e)}j(e){e===F?this.element.removeAttribute(this.name):this.element.setAttribute(this.name,null!=e?e:"")}}class Y extends K{constructor(){super(...arguments),this.type=3}j(e){this.element[this.name]=e===F?void 0:e}}const X=f?f.emptyScript:"";class J extends K{constructor(){super(...arguments),this.type=4}j(e){e&&e!==F?this.element.setAttribute(this.name,X):this.element.removeAttribute(this.name)}}class Z extends K{constructor(e,t,i,s,o){super(e,t,i,s,o),this.type=5}_$AI(e,t=this){var i;if((e=null!==(i=V(this,e,t,0))&&void 0!==i?i:F)===O)return;const s=this._$AH,o=e===F&&s!==F||e.capture!==s.capture||e.once!==s.once||e.passive!==s.passive,a=e!==F&&(s===F||o);o&&this.element.removeEventListener(this.name,this,s),a&&this.element.addEventListener(this.name,this,e),this._$AH=e}handleEvent(e){var t,i;"function"==typeof this._$AH?this._$AH.call(null!==(i=null===(t=this.options)||void 0===t?void 0:t.host)&&void 0!==i?i:this.element,e):this._$AH.handleEvent(e)}}class Q{constructor(e,t,i){this.element=e,this.type=6,this._$AN=void 0,this._$AM=t,this.options=i}get _$AU(){return this._$AM._$AU}_$AI(e){V(this,e)}}const ee=v.litHtmlPolyfillSupport;null==ee||ee(G,q),(null!==(b=v.litHtmlVersions)&&void 0!==b?b:v.litHtmlVersions=[]).push("2.8.0");var te,ie;class se extends _{constructor(){super(...arguments),this.renderOptions={host:this},this._$Do=void 0}createRenderRoot(){var e,t;const i=super.createRenderRoot();return null!==(e=(t=this.renderOptions).renderBefore)&&void 0!==e||(t.renderBefore=i.firstChild),i}update(e){const t=this.render();this.hasUpdated||(this.renderOptions.isConnected=this.isConnected),super.update(e),this._$Do=((e,t,i)=>{var s,o;const a=null!==(s=null==i?void 0:i.renderBefore)&&void 0!==s?s:t;let r=a._$litPart$;if(void 0===r){const e=null!==(o=null==i?void 0:i.renderBefore)&&void 0!==o?o:null;a._$litPart$=r=new q(t.insertBefore(k(),e),e,void 0,null!=i?i:{})}return r._$AI(e),r})(t,this.renderRoot,this.renderOptions)}connectedCallback(){var e;super.connectedCallback(),null===(e=this._$Do)||void 0===e||e.setConnected(!0)}disconnectedCallback(){var e;super.disconnectedCallback(),null===(e=this._$Do)||void 0===e||e.setConnected(!1)}render(){return O}}se.finalized=!0,se._$litElement$=!0,null===(te=globalThis.litElementHydrateSupport)||void 0===te||te.call(globalThis,{LitElement:se});const oe=globalThis.litElementPolyfillSupport;null==oe||oe({LitElement:se}),(null!==(ie=globalThis.litElementVersions)&&void 0!==ie?ie:globalThis.litElementVersions=[]).push("3.3.3");const ae=1e3,re=6e4,ne=36e5,le=864e5,de=60,ce=1440,ue=300,he=300,pe=3e3,me=5e3,ge=1e3,_e=5e3,be=[{label:"30m",minutes:30},{label:"1h",minutes:60},{label:"4h",minutes:240},{label:"1 day",minutes:1440},{label:"Custom",minutes:null}],ve={not_automation:"Failed to snooze: One or more selected items are not automations",invalid_duration:"Failed to snooze: Please specify a valid duration (days, hours, or minutes)",resume_time_past:"Failed to snooze: Resume time must be in the future",disable_after_resume:"Failed to snooze: Snooze time must be before resume time"};class fe extends se{static properties={hass:{type:Object},_config:{state:!0}};static styles=a`
+const t=window,e=t.ShadowRoot&&(void 0===t.ShadyCSS||t.ShadyCSS.nativeShadow)&&"adoptedStyleSheets"in Document.prototype&&"replace"in CSSStyleSheet.prototype,i=Symbol(),o=new WeakMap;let s=class{constructor(t,e,o){if(this._$cssResult$=!0,o!==i)throw Error("CSSResult is not constructable. Use `unsafeCSS` or `css` instead.");this.cssText=t,this.t=e}get styleSheet(){let t=this.o;const i=this.t;if(e&&void 0===t){const e=void 0!==i&&1===i.length;e&&(t=o.get(i)),void 0===t&&((this.o=t=new CSSStyleSheet).replaceSync(this.cssText),e&&o.set(i,t))}return t}toString(){return this.cssText}};const a=(t,...e)=>{const o=1===t.length?t[0]:e.reduce((e,i,o)=>e+(t=>{if(!0===t._$cssResult$)return t.cssText;if("number"==typeof t)return t;throw Error("Value passed to 'css' function must be a 'css' function result: "+t+". Use 'unsafeCSS' to pass non-literal values, but take care to ensure page security.")})(i)+t[o+1],t[0]);return new s(o,t,i)},r=e?t=>t:t=>t instanceof CSSStyleSheet?(t=>{let e="";for(const i of t.cssRules)e+=i.cssText;return(t=>new s("string"==typeof t?t:t+"",void 0,i))(e)})(t):t;var n;const l=window,d=l.trustedTypes,c=d?d.emptyScript:"",h=l.reactiveElementPolyfillSupport,u={toAttribute(t,e){switch(e){case Boolean:t=t?c:null;break;case Object:case Array:t=null==t?t:JSON.stringify(t)}return t},fromAttribute(t,e){let i=t;switch(e){case Boolean:i=null!==t;break;case Number:i=null===t?null:Number(t);break;case Object:case Array:try{i=JSON.parse(t)}catch(t){i=null}}return i}},p=(t,e)=>e!==t&&(e==e||t==t),m={attribute:!0,type:String,converter:u,reflect:!1,hasChanged:p},g="finalized";let _=class extends HTMLElement{constructor(){super(),this._$Ei=new Map,this.isUpdatePending=!1,this.hasUpdated=!1,this._$El=null,this._$Eu()}static addInitializer(t){var e;this.finalize(),(null!==(e=this.h)&&void 0!==e?e:this.h=[]).push(t)}static get observedAttributes(){this.finalize();const t=[];return this.elementProperties.forEach((e,i)=>{const o=this._$Ep(i,e);void 0!==o&&(this._$Ev.set(o,i),t.push(o))}),t}static createProperty(t,e=m){if(e.state&&(e.attribute=!1),this.finalize(),this.elementProperties.set(t,e),!e.noAccessor&&!this.prototype.hasOwnProperty(t)){const i="symbol"==typeof t?Symbol():"__"+t,o=this.getPropertyDescriptor(t,i,e);void 0!==o&&Object.defineProperty(this.prototype,t,o)}}static getPropertyDescriptor(t,e,i){return{get(){return this[e]},set(o){const s=this[t];this[e]=o,this.requestUpdate(t,s,i)},configurable:!0,enumerable:!0}}static getPropertyOptions(t){return this.elementProperties.get(t)||m}static finalize(){if(this.hasOwnProperty(g))return!1;this[g]=!0;const t=Object.getPrototypeOf(this);if(t.finalize(),void 0!==t.h&&(this.h=[...t.h]),this.elementProperties=new Map(t.elementProperties),this._$Ev=new Map,this.hasOwnProperty("properties")){const t=this.properties,e=[...Object.getOwnPropertyNames(t),...Object.getOwnPropertySymbols(t)];for(const i of e)this.createProperty(i,t[i])}return this.elementStyles=this.finalizeStyles(this.styles),!0}static finalizeStyles(t){const e=[];if(Array.isArray(t)){const i=new Set(t.flat(1/0).reverse());for(const t of i)e.unshift(r(t))}else void 0!==t&&e.push(r(t));return e}static _$Ep(t,e){const i=e.attribute;return!1===i?void 0:"string"==typeof i?i:"string"==typeof t?t.toLowerCase():void 0}_$Eu(){var t;this._$E_=new Promise(t=>this.enableUpdating=t),this._$AL=new Map,this._$Eg(),this.requestUpdate(),null===(t=this.constructor.h)||void 0===t||t.forEach(t=>t(this))}addController(t){var e,i;(null!==(e=this._$ES)&&void 0!==e?e:this._$ES=[]).push(t),void 0!==this.renderRoot&&this.isConnected&&(null===(i=t.hostConnected)||void 0===i||i.call(t))}removeController(t){var e;null===(e=this._$ES)||void 0===e||e.splice(this._$ES.indexOf(t)>>>0,1)}_$Eg(){this.constructor.elementProperties.forEach((t,e)=>{this.hasOwnProperty(e)&&(this._$Ei.set(e,this[e]),delete this[e])})}createRenderRoot(){var i;const o=null!==(i=this.shadowRoot)&&void 0!==i?i:this.attachShadow(this.constructor.shadowRootOptions);return((i,o)=>{e?i.adoptedStyleSheets=o.map(t=>t instanceof CSSStyleSheet?t:t.styleSheet):o.forEach(e=>{const o=document.createElement("style"),s=t.litNonce;void 0!==s&&o.setAttribute("nonce",s),o.textContent=e.cssText,i.appendChild(o)})})(o,this.constructor.elementStyles),o}connectedCallback(){var t;void 0===this.renderRoot&&(this.renderRoot=this.createRenderRoot()),this.enableUpdating(!0),null===(t=this._$ES)||void 0===t||t.forEach(t=>{var e;return null===(e=t.hostConnected)||void 0===e?void 0:e.call(t)})}enableUpdating(t){}disconnectedCallback(){var t;null===(t=this._$ES)||void 0===t||t.forEach(t=>{var e;return null===(e=t.hostDisconnected)||void 0===e?void 0:e.call(t)})}attributeChangedCallback(t,e,i){this._$AK(t,i)}_$EO(t,e,i=m){var o;const s=this.constructor._$Ep(t,i);if(void 0!==s&&!0===i.reflect){const a=(void 0!==(null===(o=i.converter)||void 0===o?void 0:o.toAttribute)?i.converter:u).toAttribute(e,i.type);this._$El=t,null==a?this.removeAttribute(s):this.setAttribute(s,a),this._$El=null}}_$AK(t,e){var i;const o=this.constructor,s=o._$Ev.get(t);if(void 0!==s&&this._$El!==s){const t=o.getPropertyOptions(s),a="function"==typeof t.converter?{fromAttribute:t.converter}:void 0!==(null===(i=t.converter)||void 0===i?void 0:i.fromAttribute)?t.converter:u;this._$El=s,this[s]=a.fromAttribute(e,t.type),this._$El=null}}requestUpdate(t,e,i){let o=!0;void 0!==t&&(((i=i||this.constructor.getPropertyOptions(t)).hasChanged||p)(this[t],e)?(this._$AL.has(t)||this._$AL.set(t,e),!0===i.reflect&&this._$El!==t&&(void 0===this._$EC&&(this._$EC=new Map),this._$EC.set(t,i))):o=!1),!this.isUpdatePending&&o&&(this._$E_=this._$Ej())}async _$Ej(){this.isUpdatePending=!0;try{await this._$E_}catch(t){Promise.reject(t)}const t=this.scheduleUpdate();return null!=t&&await t,!this.isUpdatePending}scheduleUpdate(){return this.performUpdate()}performUpdate(){var t;if(!this.isUpdatePending)return;this.hasUpdated,this._$Ei&&(this._$Ei.forEach((t,e)=>this[e]=t),this._$Ei=void 0);let e=!1;const i=this._$AL;try{e=this.shouldUpdate(i),e?(this.willUpdate(i),null===(t=this._$ES)||void 0===t||t.forEach(t=>{var e;return null===(e=t.hostUpdate)||void 0===e?void 0:e.call(t)}),this.update(i)):this._$Ek()}catch(t){throw e=!1,this._$Ek(),t}e&&this._$AE(i)}willUpdate(t){}_$AE(t){var e;null===(e=this._$ES)||void 0===e||e.forEach(t=>{var e;return null===(e=t.hostUpdated)||void 0===e?void 0:e.call(t)}),this.hasUpdated||(this.hasUpdated=!0,this.firstUpdated(t)),this.updated(t)}_$Ek(){this._$AL=new Map,this.isUpdatePending=!1}get updateComplete(){return this.getUpdateComplete()}getUpdateComplete(){return this._$E_}shouldUpdate(t){return!0}update(t){void 0!==this._$EC&&(this._$EC.forEach((t,e)=>this._$EO(e,this[e],t)),this._$EC=void 0),this._$Ek()}updated(t){}firstUpdated(t){}};var b;_[g]=!0,_.elementProperties=new Map,_.elementStyles=[],_.shadowRootOptions={mode:"open"},null==h||h({ReactiveElement:_}),(null!==(n=l.reactiveElementVersions)&&void 0!==n?n:l.reactiveElementVersions=[]).push("1.6.3");const f=window,v=f.trustedTypes,y=v?v.createPolicy("lit-html",{createHTML:t=>t}):void 0,x="$lit$",$=`lit$${(Math.random()+"").slice(9)}$`,w="?"+$,A=`<${w}>`,S=document,k=()=>S.createComment(""),z=t=>null===t||"object"!=typeof t&&"function"!=typeof t,C=Array.isArray,T="[ \t\n\f\r]",E=/<(?:(!--|\/[^a-zA-Z])|(\/?[a-zA-Z][^>\s]*)|(\/?$))/g,D=/-->/g,R=/>/g,P=RegExp(`>|${T}(?:([^\\s"'>=/]+)(${T}*=${T}*(?:[^ \t\n\f\r"'\`<>=]|("|')|))|$)`,"g"),U=/'/g,N=/"/g,F=/^(?:script|style|textarea|title)$/i,M=(t=>(e,...i)=>({_$litType$:t,strings:e,values:i}))(1),O=Symbol.for("lit-noChange"),I=Symbol.for("lit-nothing"),H=new WeakMap,L=S.createTreeWalker(S,129,null,!1);function j(t,e){if(!Array.isArray(t)||!t.hasOwnProperty("raw"))throw Error("invalid template strings array");return void 0!==y?y.createHTML(e):e}const B=(t,e)=>{const i=t.length-1,o=[];let s,a=2===e?"<svg>":"",r=E;for(let e=0;e<i;e++){const i=t[e];let n,l,d=-1,c=0;for(;c<i.length&&(r.lastIndex=c,l=r.exec(i),null!==l);)c=r.lastIndex,r===E?"!--"===l[1]?r=D:void 0!==l[1]?r=R:void 0!==l[2]?(F.test(l[2])&&(s=RegExp("</"+l[2],"g")),r=P):void 0!==l[3]&&(r=P):r===P?">"===l[0]?(r=null!=s?s:E,d=-1):void 0===l[1]?d=-2:(d=r.lastIndex-l[2].length,n=l[1],r=void 0===l[3]?P:'"'===l[3]?N:U):r===N||r===U?r=P:r===D||r===R?r=E:(r=P,s=void 0);const h=r===P&&t[e+1].startsWith("/>")?" ":"";a+=r===E?i+A:d>=0?(o.push(n),i.slice(0,d)+x+i.slice(d)+$+h):i+$+(-2===d?(o.push(void 0),e):h)}return[j(t,a+(t[i]||"<?>")+(2===e?"</svg>":"")),o]};class G{constructor({strings:t,_$litType$:e},i){let o;this.parts=[];let s=0,a=0;const r=t.length-1,n=this.parts,[l,d]=B(t,e);if(this.el=G.createElement(l,i),L.currentNode=this.el.content,2===e){const t=this.el.content,e=t.firstChild;e.remove(),t.append(...e.childNodes)}for(;null!==(o=L.nextNode())&&n.length<r;){if(1===o.nodeType){if(o.hasAttributes()){const t=[];for(const e of o.getAttributeNames())if(e.endsWith(x)||e.startsWith($)){const i=d[a++];if(t.push(e),void 0!==i){const t=o.getAttribute(i.toLowerCase()+x).split($),e=/([.?@])?(.*)/.exec(i);n.push({type:1,index:s,name:e[2],strings:t,ctor:"."===e[1]?Y:"?"===e[1]?J:"@"===e[1]?Z:q})}else n.push({type:6,index:s})}for(const e of t)o.removeAttribute(e)}if(F.test(o.tagName)){const t=o.textContent.split($),e=t.length-1;if(e>0){o.textContent=v?v.emptyScript:"";for(let i=0;i<e;i++)o.append(t[i],k()),L.nextNode(),n.push({type:2,index:++s});o.append(t[e],k())}}}else if(8===o.nodeType)if(o.data===w)n.push({type:2,index:s});else{let t=-1;for(;-1!==(t=o.data.indexOf($,t+1));)n.push({type:7,index:s}),t+=$.length-1}s++}}static createElement(t,e){const i=S.createElement("template");return i.innerHTML=t,i}}function W(t,e,i=t,o){var s,a,r,n;if(e===O)return e;let l=void 0!==o?null===(s=i._$Co)||void 0===s?void 0:s[o]:i._$Cl;const d=z(e)?void 0:e._$litDirective$;return(null==l?void 0:l.constructor)!==d&&(null===(a=null==l?void 0:l._$AO)||void 0===a||a.call(l,!1),void 0===d?l=void 0:(l=new d(t),l._$AT(t,i,o)),void 0!==o?(null!==(r=(n=i)._$Co)&&void 0!==r?r:n._$Co=[])[o]=l:i._$Cl=l),void 0!==l&&(e=W(t,l._$AS(t,e.values),l,o)),e}class V{constructor(t,e){this._$AV=[],this._$AN=void 0,this._$AD=t,this._$AM=e}get parentNode(){return this._$AM.parentNode}get _$AU(){return this._$AM._$AU}u(t){var e;const{el:{content:i},parts:o}=this._$AD,s=(null!==(e=null==t?void 0:t.creationScope)&&void 0!==e?e:S).importNode(i,!0);L.currentNode=s;let a=L.nextNode(),r=0,n=0,l=o[0];for(;void 0!==l;){if(r===l.index){let e;2===l.type?e=new K(a,a.nextSibling,this,t):1===l.type?e=new l.ctor(a,l.name,l.strings,this,t):6===l.type&&(e=new Q(a,this,t)),this._$AV.push(e),l=o[++n]}r!==(null==l?void 0:l.index)&&(a=L.nextNode(),r++)}return L.currentNode=S,s}v(t){let e=0;for(const i of this._$AV)void 0!==i&&(void 0!==i.strings?(i._$AI(t,i,e),e+=i.strings.length-2):i._$AI(t[e])),e++}}class K{constructor(t,e,i,o){var s;this.type=2,this._$AH=I,this._$AN=void 0,this._$AA=t,this._$AB=e,this._$AM=i,this.options=o,this._$Cp=null===(s=null==o?void 0:o.isConnected)||void 0===s||s}get _$AU(){var t,e;return null!==(e=null===(t=this._$AM)||void 0===t?void 0:t._$AU)&&void 0!==e?e:this._$Cp}get parentNode(){let t=this._$AA.parentNode;const e=this._$AM;return void 0!==e&&11===(null==t?void 0:t.nodeType)&&(t=e.parentNode),t}get startNode(){return this._$AA}get endNode(){return this._$AB}_$AI(t,e=this){t=W(this,t,e),z(t)?t===I||null==t||""===t?(this._$AH!==I&&this._$AR(),this._$AH=I):t!==this._$AH&&t!==O&&this._(t):void 0!==t._$litType$?this.g(t):void 0!==t.nodeType?this.$(t):(t=>C(t)||"function"==typeof(null==t?void 0:t[Symbol.iterator]))(t)?this.T(t):this._(t)}k(t){return this._$AA.parentNode.insertBefore(t,this._$AB)}$(t){this._$AH!==t&&(this._$AR(),this._$AH=this.k(t))}_(t){this._$AH!==I&&z(this._$AH)?this._$AA.nextSibling.data=t:this.$(S.createTextNode(t)),this._$AH=t}g(t){var e;const{values:i,_$litType$:o}=t,s="number"==typeof o?this._$AC(t):(void 0===o.el&&(o.el=G.createElement(j(o.h,o.h[0]),this.options)),o);if((null===(e=this._$AH)||void 0===e?void 0:e._$AD)===s)this._$AH.v(i);else{const t=new V(s,this),e=t.u(this.options);t.v(i),this.$(e),this._$AH=t}}_$AC(t){let e=H.get(t.strings);return void 0===e&&H.set(t.strings,e=new G(t)),e}T(t){C(this._$AH)||(this._$AH=[],this._$AR());const e=this._$AH;let i,o=0;for(const s of t)o===e.length?e.push(i=new K(this.k(k()),this.k(k()),this,this.options)):i=e[o],i._$AI(s),o++;o<e.length&&(this._$AR(i&&i._$AB.nextSibling,o),e.length=o)}_$AR(t=this._$AA.nextSibling,e){var i;for(null===(i=this._$AP)||void 0===i||i.call(this,!1,!0,e);t&&t!==this._$AB;){const e=t.nextSibling;t.remove(),t=e}}setConnected(t){var e;void 0===this._$AM&&(this._$Cp=t,null===(e=this._$AP)||void 0===e||e.call(this,t))}}class q{constructor(t,e,i,o,s){this.type=1,this._$AH=I,this._$AN=void 0,this.element=t,this.name=e,this._$AM=o,this.options=s,i.length>2||""!==i[0]||""!==i[1]?(this._$AH=Array(i.length-1).fill(new String),this.strings=i):this._$AH=I}get tagName(){return this.element.tagName}get _$AU(){return this._$AM._$AU}_$AI(t,e=this,i,o){const s=this.strings;let a=!1;if(void 0===s)t=W(this,t,e,0),a=!z(t)||t!==this._$AH&&t!==O,a&&(this._$AH=t);else{const o=t;let r,n;for(t=s[0],r=0;r<s.length-1;r++)n=W(this,o[i+r],e,r),n===O&&(n=this._$AH[r]),a||(a=!z(n)||n!==this._$AH[r]),n===I?t=I:t!==I&&(t+=(null!=n?n:"")+s[r+1]),this._$AH[r]=n}a&&!o&&this.j(t)}j(t){t===I?this.element.removeAttribute(this.name):this.element.setAttribute(this.name,null!=t?t:"")}}class Y extends q{constructor(){super(...arguments),this.type=3}j(t){this.element[this.name]=t===I?void 0:t}}const X=v?v.emptyScript:"";class J extends q{constructor(){super(...arguments),this.type=4}j(t){t&&t!==I?this.element.setAttribute(this.name,X):this.element.removeAttribute(this.name)}}class Z extends q{constructor(t,e,i,o,s){super(t,e,i,o,s),this.type=5}_$AI(t,e=this){var i;if((t=null!==(i=W(this,t,e,0))&&void 0!==i?i:I)===O)return;const o=this._$AH,s=t===I&&o!==I||t.capture!==o.capture||t.once!==o.once||t.passive!==o.passive,a=t!==I&&(o===I||s);s&&this.element.removeEventListener(this.name,this,o),a&&this.element.addEventListener(this.name,this,t),this._$AH=t}handleEvent(t){var e,i;"function"==typeof this._$AH?this._$AH.call(null!==(i=null===(e=this.options)||void 0===e?void 0:e.host)&&void 0!==i?i:this.element,t):this._$AH.handleEvent(t)}}class Q{constructor(t,e,i){this.element=t,this.type=6,this._$AN=void 0,this._$AM=e,this.options=i}get _$AU(){return this._$AM._$AU}_$AI(t){W(this,t)}}const tt=f.litHtmlPolyfillSupport;null==tt||tt(G,K),(null!==(b=f.litHtmlVersions)&&void 0!==b?b:f.litHtmlVersions=[]).push("2.8.0");var et,it;class ot extends _{constructor(){super(...arguments),this.renderOptions={host:this},this._$Do=void 0}createRenderRoot(){var t,e;const i=super.createRenderRoot();return null!==(t=(e=this.renderOptions).renderBefore)&&void 0!==t||(e.renderBefore=i.firstChild),i}update(t){const e=this.render();this.hasUpdated||(this.renderOptions.isConnected=this.isConnected),super.update(t),this._$Do=((t,e,i)=>{var o,s;const a=null!==(o=null==i?void 0:i.renderBefore)&&void 0!==o?o:e;let r=a._$litPart$;if(void 0===r){const t=null!==(s=null==i?void 0:i.renderBefore)&&void 0!==s?s:null;a._$litPart$=r=new K(e.insertBefore(k(),t),t,void 0,null!=i?i:{})}return r._$AI(t),r})(e,this.renderRoot,this.renderOptions)}connectedCallback(){var t;super.connectedCallback(),null===(t=this._$Do)||void 0===t||t.setConnected(!0)}disconnectedCallback(){var t;super.disconnectedCallback(),null===(t=this._$Do)||void 0===t||t.setConnected(!1)}render(){return O}}ot.finalized=!0,ot._$litElement$=!0,null===(et=globalThis.litElementHydrateSupport)||void 0===et||et.call(globalThis,{LitElement:ot});const st=globalThis.litElementPolyfillSupport;null==st||st({LitElement:ot}),(null!==(it=globalThis.litElementVersions)&&void 0!==it?it:globalThis.litElementVersions=[]).push("3.3.3");const at=1e3,rt=6e4,nt=36e5,lt=864e5,dt=60,ct=1440,ht=300,ut=300,pt=3e3,mt=5e3,gt=1e3,_t=5e3,bt=[{label:"30m",minutes:30},{label:"1h",minutes:60},{label:"4h",minutes:240},{label:"1 day",minutes:1440},{label:"Custom",minutes:null}],ft={not_automation:"Failed to snooze: One or more selected items are not automations",invalid_duration:"Failed to snooze: Please specify a valid duration (days, hours, or minutes)",resume_time_past:"Failed to snooze: Resume time must be in the future",disable_after_resume:"Failed to snooze: Snooze time must be before resume time"};class vt extends ot{static properties={hass:{type:Object},_config:{state:!0}};static styles=a`
     .row {
       margin-bottom: 12px;
     }
@@ -21,17 +21,18 @@ const e=window,t=e.ShadowRoot&&(void 0===e.ShadyCSS||e.ShadyCSS.nativeShadow)&&"
       color: var(--secondary-text-color);
       margin-top: 4px;
     }
-  `;constructor(){super(),this.hass={},this._config={}}setConfig(e){this._config=e}_valueChanged(e,t){if(!this._config)return;const i={...this._config,[e]:t};""!==t&&null!=t||delete i[e],this.dispatchEvent(new CustomEvent("config-changed",{detail:{config:i},bubbles:!0,composed:!0}))}render(){return this._config?N`
+  `;constructor(){super(),this.hass={},this._config={}}setConfig(t){this._config=t}_valueChanged(t,e){if(!this._config)return;const i={...this._config,[t]:e};""!==e&&null!=e||delete i[t],this.dispatchEvent(new CustomEvent("config-changed",{detail:{config:i},bubbles:!0,composed:!0}))}render(){return this._config?M`
       <div class="row">
-        <label>Title</label>
+        <label for="title-input">Title</label>
         <input
+          id="title-input"
           type="text"
           .value=${this._config.title||""}
-          @input=${e=>this._valueChanged("title",e.target.value)}
+          @input=${t=>this._valueChanged("title",t.target.value)}
           placeholder="AutoSnooze"
         />
       </div>
-    `:N``}}class ye extends se{static properties={hass:{type:Object},config:{type:Object},_selected:{state:!0},_duration:{state:!0},_customDuration:{state:!0},_customDurationInput:{state:!0},_loading:{state:!0},_search:{state:!0},_filterTab:{state:!0},_expandedGroups:{state:!0},_scheduleMode:{state:!0},_disableAtDate:{state:!0},_disableAtTime:{state:!0},_resumeAtDate:{state:!0},_resumeAtTime:{state:!0},_labelRegistry:{state:!0},_categoryRegistry:{state:!0},_entityRegistry:{state:!0},_showCustomInput:{state:!0},_automationsCache:{state:!0},_automationsCacheKey:{state:!0},_wakeAllPending:{state:!0}};constructor(){super(),this.hass={},this.config={},this._selected=[],this._duration=30*re,this._customDuration={days:0,hours:0,minutes:30},this._customDurationInput="30m",this._loading=!1,this._search="",this._filterTab="all",this._expandedGroups={},this._scheduleMode=!1,this._disableAtDate="",this._disableAtTime="",this._resumeAtDate="",this._resumeAtTime="",this._labelRegistry={},this._categoryRegistry={},this._entityRegistry={},this._showCustomInput=!1,this._interval=null,this._syncTimeout=null,this._labelsFetched=!1,this._categoriesFetched=!1,this._entityRegistryFetched=!1,this._automationsCache=null,this._automationsCacheKey=null,this._lastHassStates=null,this._searchTimeout=null,this._wakeAllPending=!1,this._wakeAllTimeout=null}connectedCallback(){super.connectedCallback(),this._interval&&(window.clearInterval(this._interval),this._interval=null),this._syncTimeout&&(window.clearTimeout(this._syncTimeout),this._syncTimeout=null),this._startSynchronizedCountdown(),this._fetchLabelRegistry(),this._fetchCategoryRegistry(),this._fetchEntityRegistry()}_startSynchronizedCountdown(){const e=1e3-Date.now()%1e3;this._syncTimeout=window.setTimeout(()=>{this._syncTimeout=null,this._updateCountdownIfNeeded(),this._interval=window.setInterval(()=>{this._updateCountdownIfNeeded()},ge)},e)}_updateCountdownIfNeeded(){const e=this.shadowRoot?.querySelectorAll(".countdown[data-resume-at]");e&&e.length>0&&e.forEach(e=>{const t=e.dataset.resumeAt;t&&(e.textContent=this._formatCountdown(t))})}async _fetchRegistry(e){const{fetchedFlag:t,messageType:i,messageParams:s,idKey:o,targetProp:a,filterFn:r,logName:n}=e;if(!this[t]&&this.hass?.connection)try{const e={type:i,...s},n=await this.hass.connection.sendMessagePromise(e),l={};if(Array.isArray(n)){(r?n.filter(r):n).forEach(e=>{l[e[o]]=e})}this[a]=l,this[t]=!0}catch(e){console.warn(`[AutoSnooze] Failed to fetch ${n}:`,e)}}async _fetchLabelRegistry(){await this._fetchRegistry({fetchedFlag:"_labelsFetched",messageType:"config/label_registry/list",messageParams:{},idKey:"label_id",targetProp:"_labelRegistry",filterFn:null,logName:"label registry"})}async _fetchCategoryRegistry(){await this._fetchRegistry({fetchedFlag:"_categoriesFetched",messageType:"config/category_registry/list",messageParams:{scope:"automation"},idKey:"category_id",targetProp:"_categoryRegistry",filterFn:null,logName:"category registry"})}async _fetchEntityRegistry(){await this._fetchRegistry({fetchedFlag:"_entityRegistryFetched",messageType:"config/entity_registry/list",messageParams:{},idKey:"entity_id",targetProp:"_entityRegistry",filterFn:e=>e.entity_id.startsWith("automation."),logName:"entity registry"})}updated(e){super.updated(e),e.has("hass")&&this.hass?.connection&&(this._labelsFetched||this._fetchLabelRegistry(),this._categoriesFetched||this._fetchCategoryRegistry(),this._entityRegistryFetched||this._fetchEntityRegistry())}disconnectedCallback(){super.disconnectedCallback(),null!==this._interval&&(clearInterval(this._interval),this._interval=null),null!==this._syncTimeout&&(clearTimeout(this._syncTimeout),this._syncTimeout=null),null!==this._searchTimeout&&(clearTimeout(this._searchTimeout),this._searchTimeout=null),null!==this._wakeAllTimeout&&(clearTimeout(this._wakeAllTimeout),this._wakeAllTimeout=null)}_handleSearchInput(e){const t=e.target.value;clearTimeout(this._searchTimeout),this._searchTimeout=setTimeout(()=>{this._search=t},ue)}static getConfigElement(){return document.createElement("autosnooze-card-editor")}static getStubConfig(){return{title:"AutoSnooze"}}static styles=a`
+    `:M``}}class yt extends ot{static properties={hass:{type:Object},config:{type:Object},_selected:{state:!0},_duration:{state:!0},_customDuration:{state:!0},_customDurationInput:{state:!0},_loading:{state:!0},_search:{state:!0},_filterTab:{state:!0},_expandedGroups:{state:!0},_scheduleMode:{state:!0},_disableAtDate:{state:!0},_disableAtTime:{state:!0},_resumeAtDate:{state:!0},_resumeAtTime:{state:!0},_labelRegistry:{state:!0},_categoryRegistry:{state:!0},_entityRegistry:{state:!0},_showCustomInput:{state:!0},_automationsCache:{state:!0},_automationsCacheKey:{state:!0},_wakeAllPending:{state:!0}};shouldUpdate(t){if(!t.has("hass"))return!0;const e=t.get("hass"),i=this.hass;if(!e||!i)return!0;const o=e.states?.["sensor.autosnooze_snoozed_automations"],s=i.states?.["sensor.autosnooze_snoozed_automations"];if(o!==s)return!0;if(e.entities!==i.entities)return!0;if(e.areas!==i.areas)return!0;const a=i.states||{},r=e.states||{};for(const t of Object.keys(a))if(t.startsWith("automation.")&&r[t]!==a[t])return!0;for(const t of Object.keys(r))if(t.startsWith("automation.")&&!a[t])return!0;return!1}updated(t){super.updated(t),t.has("hass")&&this.hass?.connection&&(this._labelsFetched||this._fetchLabelRegistry(),this._categoriesFetched||this._fetchCategoryRegistry(),this._entityRegistryFetched||this._fetchEntityRegistry())}constructor(){super(),this.hass={},this.config={},this._selected=[],this._duration=30*rt,this._customDuration={days:0,hours:0,minutes:30},this._customDurationInput="30m",this._loading=!1,this._search="",this._filterTab="all",this._expandedGroups={},this._scheduleMode=!1,this._disableAtDate="",this._disableAtTime="",this._resumeAtDate="",this._resumeAtTime="",this._labelRegistry={},this._categoryRegistry={},this._entityRegistry={},this._showCustomInput=!1,this._interval=null,this._syncTimeout=null,this._labelsFetched=!1,this._categoriesFetched=!1,this._entityRegistryFetched=!1,this._automationsCache=null,this._automationsCacheKey=null,this._lastHassStates=null,this._searchTimeout=null,this._wakeAllPending=!1,this._wakeAllTimeout=null,this._toastTimeout=null,this._toastFadeTimeout=null}connectedCallback(){super.connectedCallback(),this._interval&&(window.clearInterval(this._interval),this._interval=null),this._syncTimeout&&(window.clearTimeout(this._syncTimeout),this._syncTimeout=null),this._startSynchronizedCountdown(),this._fetchLabelRegistry(),this._fetchCategoryRegistry(),this._fetchEntityRegistry()}_startSynchronizedCountdown(){const t=1e3-Date.now()%1e3;this._syncTimeout=window.setTimeout(()=>{this._syncTimeout=null,this._updateCountdownIfNeeded(),this._interval=window.setInterval(()=>{this._updateCountdownIfNeeded()},gt)},t)}_updateCountdownIfNeeded(){const t=this.shadowRoot?.querySelectorAll(".countdown[data-resume-at]");t&&t.length>0&&t.forEach(t=>{const e=t.dataset.resumeAt;e&&(t.textContent=this._formatCountdown(e))})}async _fetchRegistry(t){const{fetchedFlag:e,messageType:i,messageParams:o,idKey:s,targetProp:a,filterFn:r,logName:n}=t;if(!this[e]&&this.hass?.connection)try{const t={type:i,...o},n=await this.hass.connection.sendMessagePromise(t),l={};if(Array.isArray(n)){(r?n.filter(r):n).forEach(t=>{l[t[s]]=t})}this[a]=l,this[e]=!0}catch(t){console.warn(`[AutoSnooze] Failed to fetch ${n}:`,t)}}async _fetchLabelRegistry(){await this._fetchRegistry({fetchedFlag:"_labelsFetched",messageType:"config/label_registry/list",messageParams:{},idKey:"label_id",targetProp:"_labelRegistry",filterFn:null,logName:"label registry"})}async _fetchCategoryRegistry(){await this._fetchRegistry({fetchedFlag:"_categoriesFetched",messageType:"config/category_registry/list",messageParams:{scope:"automation"},idKey:"category_id",targetProp:"_categoryRegistry",filterFn:null,logName:"category registry"})}async _fetchEntityRegistry(){await this._fetchRegistry({fetchedFlag:"_entityRegistryFetched",messageType:"config/entity_registry/list",messageParams:{},idKey:"entity_id",targetProp:"_entityRegistry",filterFn:t=>t.entity_id.startsWith("automation."),logName:"entity registry"})}disconnectedCallback(){super.disconnectedCallback(),null!==this._interval&&(clearInterval(this._interval),this._interval=null),null!==this._syncTimeout&&(clearTimeout(this._syncTimeout),this._syncTimeout=null),null!==this._searchTimeout&&(clearTimeout(this._searchTimeout),this._searchTimeout=null),null!==this._wakeAllTimeout&&(clearTimeout(this._wakeAllTimeout),this._wakeAllTimeout=null),null!==this._toastTimeout&&(clearTimeout(this._toastTimeout),this._toastTimeout=null),null!==this._toastFadeTimeout&&(clearTimeout(this._toastFadeTimeout),this._toastFadeTimeout=null)}_handleSearchInput(t){const e=t.target.value;clearTimeout(this._searchTimeout),this._searchTimeout=setTimeout(()=>{this._search=e},ht)}static getConfigElement(){return document.createElement("autosnooze-card-editor")}static getStubConfig(){return{title:"AutoSnooze"}}static styles=a`
     :host {
       display: block;
     }
@@ -83,11 +84,17 @@ const e=window,t=e.ShadowRoot&&(void 0===e.ShadyCSS||e.ShadyCSS.nativeShadow)&&"
       display: flex;
       align-items: center;
       gap: 6px;
+      min-height: 44px;
+      box-sizing: border-box;
     }
     .tab:hover {
       background: var(--primary-color);
       color: var(--text-primary-color);
       opacity: 0.8;
+    }
+    .tab:focus-visible {
+      outline: 2px solid var(--primary-color);
+      outline-offset: 2px;
     }
     .tab.active {
       background: var(--primary-color);
@@ -117,6 +124,7 @@ const e=window,t=e.ShadowRoot&&(void 0===e.ShadyCSS||e.ShadyCSS.nativeShadow)&&"
       color: var(--primary-text-color);
       box-sizing: border-box;
       font-size: 0.95em;
+      min-height: 44px;
     }
     .search-box input:focus {
       outline: none;
@@ -143,15 +151,27 @@ const e=window,t=e.ShadowRoot&&(void 0===e.ShadyCSS||e.ShadyCSS.nativeShadow)&&"
       gap: 10px;
       padding: 12px;
       cursor: pointer;
+      border: none;
       border-bottom: 1px solid var(--divider-color);
       transition: background 0.2s;
       min-height: 48px;
+      width: 100%;
+      background: transparent;
+      text-align: left;
+      font-family: inherit;
+      font-size: inherit;
+      color: inherit;
+      box-sizing: border-box;
     }
     .list-item:last-child {
       border-bottom: none;
     }
     .list-item:hover {
       background: var(--secondary-background-color);
+    }
+    .list-item:focus-visible {
+      outline: 2px solid var(--primary-color);
+      outline-offset: -2px;
     }
     .list-item.selected {
       background: rgba(var(--rgb-primary-color), 0.1);
@@ -207,10 +227,21 @@ const e=window,t=e.ShadowRoot&&(void 0===e.ShadyCSS||e.ShadyCSS.nativeShadow)&&"
       cursor: pointer;
       font-weight: 500;
       font-size: 0.9em;
+      border: none;
       border-bottom: 1px solid var(--divider-color);
+      width: 100%;
+      text-align: left;
+      font-family: inherit;
+      color: inherit;
+      box-sizing: border-box;
+      min-height: 44px;
     }
     .group-header:hover {
       background: var(--divider-color);
+    }
+    .group-header:focus-visible {
+      outline: 2px solid var(--primary-color);
+      outline-offset: -2px;
     }
     .group-header ha-icon {
       transition: transform 0.2s;
@@ -251,11 +282,17 @@ const e=window,t=e.ShadowRoot&&(void 0===e.ShadyCSS||e.ShadyCSS.nativeShadow)&&"
       cursor: pointer;
       font-size: 0.85em;
       transition: all 0.2s;
+      min-height: 44px;
+      box-sizing: border-box;
     }
     .select-all-btn:hover {
       background: var(--primary-color);
       color: var(--text-primary-color);
       border-color: var(--primary-color);
+    }
+    .select-all-btn:focus-visible {
+      outline: 2px solid var(--primary-color);
+      outline-offset: 2px;
     }
 
     /* Duration Section */
@@ -284,9 +321,16 @@ const e=window,t=e.ShadowRoot&&(void 0===e.ShadyCSS||e.ShadyCSS.nativeShadow)&&"
       cursor: pointer;
       font-size: 0.9em;
       transition: all 0.2s;
+      min-height: 44px;
+      box-sizing: border-box;
+      color: var(--primary-text-color);
     }
     .pill:hover {
       border-color: var(--primary-color);
+    }
+    .pill:focus-visible {
+      outline: 2px solid var(--primary-color);
+      outline-offset: 2px;
     }
     .pill.active {
       background: var(--primary-color);
@@ -307,6 +351,7 @@ const e=window,t=e.ShadowRoot&&(void 0===e.ShadyCSS||e.ShadyCSS.nativeShadow)&&"
       color: var(--primary-text-color);
       font-size: 0.95em;
       box-sizing: border-box;
+      min-height: 44px;
     }
     .duration-input:focus {
       outline: none;
@@ -339,9 +384,14 @@ const e=window,t=e.ShadowRoot&&(void 0===e.ShadyCSS||e.ShadyCSS.nativeShadow)&&"
       font-weight: 500;
       cursor: pointer;
       transition: opacity 0.2s;
+      min-height: 48px;
     }
     .snooze-btn:hover:not(:disabled) {
       opacity: 0.9;
+    }
+    .snooze-btn:focus-visible {
+      outline: 2px solid var(--primary-color);
+      outline-offset: 2px;
     }
     .snooze-btn:disabled {
       opacity: 0.4;
@@ -430,11 +480,17 @@ const e=window,t=e.ShadowRoot&&(void 0===e.ShadyCSS||e.ShadyCSS.nativeShadow)&&"
       cursor: pointer;
       font-size: 0.85em;
       transition: all 0.2s;
+      min-height: 44px;
+      box-sizing: border-box;
     }
     .wake-btn:hover {
       background: var(--primary-color);
       color: var(--text-primary-color);
       border-color: var(--primary-color);
+    }
+    .wake-btn:focus-visible {
+      outline: 2px solid var(--primary-color);
+      outline-offset: 2px;
     }
 
     /* Wake All Button */
@@ -449,10 +505,15 @@ const e=window,t=e.ShadowRoot&&(void 0===e.ShadyCSS||e.ShadyCSS.nativeShadow)&&"
       font-size: 0.9em;
       font-weight: 500;
       transition: all 0.2s;
+      min-height: 44px;
     }
     .wake-all:hover {
       background: #ff9800;
       color: white;
+    }
+    .wake-all:focus-visible {
+      outline: 2px solid #ff9800;
+      outline-offset: 2px;
     }
 
     /* Wake All Button - Pending State */
@@ -471,17 +532,26 @@ const e=window,t=e.ShadowRoot&&(void 0===e.ShadyCSS||e.ShadyCSS.nativeShadow)&&"
 
     /* Schedule Link (Progressive Disclosure) */
     .schedule-link {
-      display: flex;
+      display: inline-flex;
       align-items: center;
       gap: 6px;
       margin-top: 12px;
-      padding: 8px 0;
+      padding: 8px 4px;
       color: var(--primary-color);
       cursor: pointer;
       font-size: 0.9em;
+      background: none;
+      border: none;
+      font-family: inherit;
+      min-height: 44px;
+      box-sizing: border-box;
     }
     .schedule-link:hover {
       text-decoration: underline;
+    }
+    .schedule-link:focus-visible {
+      outline: 2px solid var(--primary-color);
+      outline-offset: 2px;
     }
     .schedule-link ha-icon {
       --mdc-icon-size: 18px;
@@ -526,6 +596,8 @@ const e=window,t=e.ShadowRoot&&(void 0===e.ShadyCSS||e.ShadyCSS.nativeShadow)&&"
       background: var(--card-background-color);
       color: var(--primary-text-color);
       font-size: 0.95em;
+      min-height: 44px;
+      box-sizing: border-box;
     }
     .datetime-row select {
       flex: 1;
@@ -582,11 +654,17 @@ const e=window,t=e.ShadowRoot&&(void 0===e.ShadyCSS||e.ShadyCSS.nativeShadow)&&"
       cursor: pointer;
       font-size: 0.85em;
       transition: all 0.2s;
+      min-height: 44px;
+      box-sizing: border-box;
     }
     .cancel-scheduled-btn:hover {
       background: #f44336;
       color: white;
       border-color: #f44336;
+    }
+    .cancel-scheduled-btn:focus-visible {
+      outline: 2px solid var(--primary-color);
+      outline-offset: 2px;
     }
 
     /* Toast */
@@ -616,10 +694,16 @@ const e=window,t=e.ShadowRoot&&(void 0===e.ShadyCSS||e.ShadyCSS.nativeShadow)&&"
       font-size: 0.85em;
       font-weight: 500;
       transition: all 0.2s;
+      min-height: 44px;
+      box-sizing: border-box;
     }
     .toast-undo-btn:hover {
       background: rgba(255, 255, 255, 0.2);
       border-color: rgba(255, 255, 255, 0.8);
+    }
+    .toast-undo-btn:focus-visible {
+      outline: 2px solid white;
+      outline-offset: 2px;
     }
     @keyframes slideUp {
       from {
@@ -658,6 +742,7 @@ const e=window,t=e.ShadowRoot&&(void 0===e.ShadyCSS||e.ShadyCSS.nativeShadow)&&"
         padding: 5px 8px;
         font-size: 0.8em;
         border-radius: 12px;
+        min-height: 44px;
       }
 
       .tab-count {
@@ -673,6 +758,7 @@ const e=window,t=e.ShadowRoot&&(void 0===e.ShadyCSS||e.ShadyCSS.nativeShadow)&&"
       .search-box input {
         padding: 8px 10px;
         font-size: 0.9em;
+        min-height: 44px;
       }
 
       /* Compact selection actions */
@@ -686,6 +772,7 @@ const e=window,t=e.ShadowRoot&&(void 0===e.ShadyCSS||e.ShadyCSS.nativeShadow)&&"
       .select-all-btn {
         padding: 3px 8px;
         font-size: 0.8em;
+        min-height: 44px;
       }
 
       /* Reduced selection list height */
@@ -697,7 +784,7 @@ const e=window,t=e.ShadowRoot&&(void 0===e.ShadyCSS||e.ShadyCSS.nativeShadow)&&"
       .list-item {
         padding: 10px;
         gap: 8px;
-        min-height: 42px;
+        min-height: 44px;
       }
 
       .list-item-name {
@@ -707,6 +794,7 @@ const e=window,t=e.ShadowRoot&&(void 0===e.ShadyCSS||e.ShadyCSS.nativeShadow)&&"
       .group-header {
         padding: 8px 10px;
         font-size: 0.85em;
+        min-height: 44px;
       }
 
       /* Compact duration selector */
@@ -728,17 +816,20 @@ const e=window,t=e.ShadowRoot&&(void 0===e.ShadyCSS||e.ShadyCSS.nativeShadow)&&"
         padding: 6px 10px;
         font-size: 0.85em;
         border-radius: 16px;
+        min-height: 44px;
       }
 
       .duration-input {
         padding: 8px 10px;
         font-size: 0.9em;
+        min-height: 44px;
       }
 
       .schedule-link {
         margin-top: 8px;
         padding: 6px 0;
         font-size: 0.85em;
+        min-height: 44px;
       }
 
       /* Compact schedule inputs */
@@ -755,12 +846,14 @@ const e=window,t=e.ShadowRoot&&(void 0===e.ShadyCSS||e.ShadyCSS.nativeShadow)&&"
       .datetime-row select {
         flex: 1 1 100%;
         min-width: 0;
+        min-height: 44px;
       }
 
       .datetime-row input[type="time"] {
         flex: 1;
         width: auto;
         min-width: 100px;
+        min-height: 44px;
       }
 
       .field-hint {
@@ -771,6 +864,7 @@ const e=window,t=e.ShadowRoot&&(void 0===e.ShadyCSS||e.ShadyCSS.nativeShadow)&&"
       .snooze-btn {
         padding: 12px;
         font-size: 0.95em;
+        min-height: 48px;
       }
 
       /* Compact active snoozes section */
@@ -818,11 +912,13 @@ const e=window,t=e.ShadowRoot&&(void 0===e.ShadyCSS||e.ShadyCSS.nativeShadow)&&"
         margin-left: auto;
         padding: 5px 10px;
         font-size: 0.8em;
+        min-height: 44px;
       }
 
       .wake-all {
         padding: 8px;
         font-size: 0.85em;
+        min-height: 44px;
       }
 
       /* Compact scheduled section */
@@ -851,6 +947,7 @@ const e=window,t=e.ShadowRoot&&(void 0===e.ShadyCSS||e.ShadyCSS.nativeShadow)&&"
         margin-left: auto;
         padding: 5px 10px;
         font-size: 0.8em;
+        min-height: 44px;
       }
 
       /* Adjust toast for mobile */
@@ -860,68 +957,77 @@ const e=window,t=e.ShadowRoot&&(void 0===e.ShadyCSS||e.ShadyCSS.nativeShadow)&&"
         font-size: 0.9em;
         max-width: calc(100vw - 20px);
       }
+
+      .toast-undo-btn {
+        min-height: 44px;
+      }
     }
-  `;_getAutomations(){const e=this.hass?.states,t=this.hass?.entities;if(!e)return[];const i=e,s=this._entityRegistryFetched;if(this._lastHassStates===i&&this._automationsCacheKey===s&&this._automationsCache)return this._automationsCache;const o=Object.keys(e).filter(e=>e.startsWith("automation.")).map(i=>{const s=e[i];if(!s)return null;const o=this._entityRegistry?.[i],a=t?.[i],r=(o?.categories||{}).automation||null;return{id:i,name:s.attributes?.friendly_name||i.replace("automation.",""),area_id:o?.area_id||a?.area_id||null,category_id:r,labels:o?.labels||a?.labels||[]}}).filter(e=>null!==e).sort((e,t)=>e.name.localeCompare(t.name));return this._automationsCache=o,this._automationsCacheKey=s,this._lastHassStates=i,o}_getFilteredAutomations(){const e=this._getAutomations(),t=this._search.toLowerCase();let i=e;return t&&(i=e.filter(e=>e.name.toLowerCase().includes(t)||e.id.toLowerCase().includes(t))),i}_formatRegistryId(e){return e.replace(/_/g," ").replace(/\b\w/g,e=>e.toUpperCase())}_getAreaName(e){return e?this.hass.areas?.[e]?.name||this._formatRegistryId(e):"Unassigned"}_getLabelName(e){return this._labelRegistry[e]?.name||this._formatRegistryId(e)}_groupAutomationsBy(e,t){const i=this._getFilteredAutomations(),s={};return i.forEach(i=>{const o=e(i);o&&0!==o.length?o.forEach(e=>{s[e]||(s[e]=[]),s[e].push(i)}):(s[t]||(s[t]=[]),s[t].push(i))}),Object.entries(s).sort((e,i)=>e[0]===t?1:i[0]===t?-1:e[0].localeCompare(i[0]))}_getGroupedByArea(){return this._groupAutomationsBy(e=>e.area_id?[this._getAreaName(e.area_id)]:null,"Unassigned")}_getGroupedByLabel(){return this._groupAutomationsBy(e=>e.labels?.length>0?e.labels.map(e=>this._getLabelName(e)):null,"Unlabeled")}_getUniqueCount(e){const t=this._getAutomations(),i=new Set;return t.forEach(t=>{const s=e(t);s&&s.forEach(e=>i.add(e))}),i.size}_getAreaCount(){return this._getUniqueCount(e=>e.area_id?[e.area_id]:null)}_getLabelCount(){return this._getUniqueCount(e=>e.labels?.length>0?e.labels:null)}_getCategoryName(e){return e?this._categoryRegistry[e]?.name||this._formatRegistryId(e):"Uncategorized"}_getGroupedByCategory(){return this._groupAutomationsBy(e=>e.category_id?[this._getCategoryName(e.category_id)]:null,"Uncategorized")}_getCategoryCount(){return this._getUniqueCount(e=>e.category_id?[e.category_id]:null)}_selectAllVisible(){const e=this._getFilteredAutomations().map(e=>e.id),t=e.every(e=>this._selected.includes(e));this._selected=t?this._selected.filter(t=>!e.includes(t)):[...new Set([...this._selected,...e])]}_clearSelection(){this._selected=[]}_getPaused(){const e=this.hass?.states["sensor.autosnooze_snoozed_automations"];return e?.attributes?.paused_automations||{}}_getPausedGroupedByResumeTime(){const e=this._getPaused(),t={};return Object.entries(e).forEach(([e,i])=>{const s=i.resume_at;t[s]||(t[s]={resumeAt:s,disableAt:i.disable_at,automations:[]}),t[s].automations.push({id:e,...i})}),Object.values(t).sort((e,t)=>new Date(e.resumeAt).getTime()-new Date(t.resumeAt).getTime())}_getScheduled(){const e=this.hass?.states["sensor.autosnooze_snoozed_automations"];return e?.attributes?.scheduled_snoozes||{}}_formatDateTime(e){const t=new Date(e),i=new Date,s={weekday:"short",month:"short",day:"numeric",hour:"2-digit",minute:"2-digit"};return t.getFullYear()>i.getFullYear()&&(s.year="numeric"),t.toLocaleString(void 0,s)}_formatCountdown(e){const t=new Date(e).getTime()-Date.now();if(t<=0)return"Resuming...";const i=Math.floor(t/le),s=Math.floor(t%le/ne),o=Math.floor(t%ne/re),a=Math.floor(t%re/ae);return i>0?`${i}d ${s}h ${o}m`:s>0?`${s}h ${o}m ${a}s`:`${o}m ${a}s`}_toggleSelection(e){this._selected.includes(e)?this._selected=this._selected.filter(t=>t!==e):this._selected=[...this._selected,e]}_toggleGroupExpansion(e){this._expandedGroups={...this._expandedGroups,[e]:!this._expandedGroups[e]}}_selectGroup(e){const t=e.map(e=>e.id),i=t.every(e=>this._selected.includes(e));this._selected=i?this._selected.filter(e=>!t.includes(e)):[...new Set([...this._selected,...t])]}_setDuration(e){this._duration=e*re;const t=Math.floor(e/ce),i=Math.floor(e%ce/de),s=e%de;this._customDuration={days:t,hours:i,minutes:s};const o=[];t>0&&o.push(`${t}d`),i>0&&o.push(`${i}h`),s>0&&o.push(`${s}m`),this._customDurationInput=o.join(" ")||"30m"}_updateCustomDuration(){const{days:e,hours:t,minutes:i}=this._customDuration,s=e*ce+t*de+i;this._duration=s*re}_parseDurationInput(e){const t=e.toLowerCase().replace(/\s+/g,"");if(!t)return null;let i=0,s=0,o=0;const a=t.match(/(\d+)\s*d/),r=t.match(/(\d+)\s*h/),n=t.match(/(\d+)\s*m/);if(a&&(i=parseInt(a[1],10)),r&&(s=parseInt(r[1],10)),n&&(o=parseInt(n[1],10)),!a&&!r&&!n){const e=parseInt(t,10);if(isNaN(e)||!(e>0))return null;o=e}return 0===i&&0===s&&0===o?null:{days:i,hours:s,minutes:o}}_handleDurationInput(e){this._customDurationInput=e;const t=this._parseDurationInput(e);t&&(this._customDuration=t,this._updateCustomDuration())}_getDurationPreview(){const e=this._parseDurationInput(this._customDurationInput);return e?this._formatDuration(e.days,e.hours,e.minutes):""}_isDurationValid(){return null!==this._parseDurationInput(this._customDurationInput)}_getErrorMessage(e,t){const i=e?.translation_key||e?.data?.translation_key;if(i&&ve[i])return ve[i];const s=e?.message||"";for(const[e,t]of Object.entries(ve))if(s.includes(e)||s.toLowerCase().includes(e.replace(/_/g," ")))return t;return`${t}. Check Home Assistant logs for details.`}_showToast(e,t={}){const{showUndo:i=!1,onUndo:s=null}=t,o=this.shadowRoot?.querySelector(".toast");o&&o.remove();const a=document.createElement("div");if(a.className="toast",a.setAttribute("role","alert"),a.setAttribute("aria-live","polite"),a.setAttribute("aria-atomic","true"),i&&s){const t=document.createElement("span");t.textContent=e,a.appendChild(t);const i=document.createElement("button");i.className="toast-undo-btn",i.textContent="Undo",i.setAttribute("aria-label","Undo last action"),i.addEventListener("click",e=>{e.stopPropagation(),s(),a.remove()}),a.appendChild(i)}else a.textContent=e;this.shadowRoot?.appendChild(a),setTimeout(()=>{a.style.animation=`slideUp ${he}ms ease-out reverse`,setTimeout(()=>a.remove(),he)},me)}_combineDateTime(e,t){if(!e||!t)return null;const i=new Date(`${e}T${t}`).getTimezoneOffset(),s=i<=0?"+":"-",o=Math.abs(i);return`${e}T${t}${`${s}${String(Math.floor(o/60)).padStart(2,"0")}:${String(o%60).padStart(2,"0")}`}`}_getLocale(){return this.hass?.locale?.language||void 0}_renderDateOptions(){const e=[],t=new Date,i=t.getFullYear(),s=this._getLocale();for(let o=0;o<365;o++){const a=new Date(t);a.setDate(a.getDate()+o);const r=a.getFullYear(),n=`${r}-${String(a.getMonth()+1).padStart(2,"0")}-${String(a.getDate()).padStart(2,"0")}`,l=a.toLocaleDateString(s,{weekday:"short"}),d=a.toLocaleDateString(s,{month:"short"}),c=a.getDate(),u=r!==i?`${l}, ${d} ${c}, ${r}`:`${l}, ${d} ${c}`;e.push({value:n,label:u})}return e.map(e=>N`<option value="${e.value}">${e.label}</option>`)}_hasResumeAt(){return this._resumeAtDate&&this._resumeAtTime}_hasDisableAt(){return this._disableAtDate&&this._disableAtTime}async _snooze(){if(0!==this._selected.length&&!this._loading){if(this._scheduleMode){if(!this._hasResumeAt())return void this._showToast("Please set a complete resume date and time (month, day, and time are all required)");const e=this._hasDisableAt()?this._combineDateTime(this._disableAtDate,this._disableAtTime):null,t=this._combineDateTime(this._resumeAtDate,this._resumeAtTime),i=Date.now()+_e,s=new Date(t).getTime();if(s<=i)return void this._showToast("Resume time must be in the future. Please select a date and time that hasn't passed yet.");if(e){if(new Date(e).getTime()>=s)return void this._showToast("Snooze time must be before resume time. The automation needs to be snoozed before it can resume.")}}else if(0===this._duration)return;this._loading=!0;try{const e=this._selected.length,t=[...this._selected],i=this._scheduleMode,s=this._hasDisableAt();let o;if(this._scheduleMode){const t=this._hasDisableAt()?this._combineDateTime(this._disableAtDate,this._disableAtTime):null,i=this._combineDateTime(this._resumeAtDate,this._resumeAtTime),s={entity_id:this._selected,resume_at:i};t&&(s.disable_at=t),await this.hass.callService("autosnooze","pause",s),o=t?`Scheduled ${e} automation${1!==e?"s":""} to snooze`:`Snoozed ${e} automation${1!==e?"s":""} until ${this._formatDateTime(i)}`}else{const{days:t,hours:i,minutes:s}=this._customDuration;await this.hass.callService("autosnooze","pause",{entity_id:this._selected,days:t,hours:i,minutes:s});const a=this._formatDuration(t,i,s);o=`Snoozed ${e} automation${1!==e?"s":""} for ${a}`}this._showToast(o,{showUndo:!0,onUndo:async()=>{try{for(const e of t)i&&s?await this.hass.callService("autosnooze","cancel_scheduled",{entity_id:e}):await this.hass.callService("autosnooze","cancel",{entity_id:e});this._selected=t,this._showToast(`Restored ${e} automation${1!==e?"s":""}`)}catch(e){console.error("Undo failed:",e),this._showToast("Failed to undo. The automations may have already been modified.")}}}),this._selected=[],this._disableAtDate="",this._disableAtTime="",this._resumeAtDate="",this._resumeAtTime=""}catch(e){console.error("Snooze failed:",e),this._showToast(this._getErrorMessage(e,"Failed to snooze automations"))}this._loading=!1}}_formatDuration(e,t,i){const s=[];return e>0&&s.push(`${e} day${1!==e?"s":""}`),t>0&&s.push(`${t} hour${1!==t?"s":""}`),i>0&&s.push(`${i} minute${1!==i?"s":""}`),s.join(", ")}async _wake(e){try{await this.hass.callService("autosnooze","cancel",{entity_id:e}),this._showToast("Automation resumed successfully")}catch(e){console.error("Wake failed:",e),this._showToast(this._getErrorMessage(e,"Failed to resume automation"))}}_handleWakeAll=async()=>{if(this._wakeAllPending){clearTimeout(this._wakeAllTimeout),this._wakeAllTimeout=null,this._wakeAllPending=!1;try{await this.hass.callService("autosnooze","cancel_all",{}),this._showToast("All automations resumed successfully")}catch(e){console.error("Wake all failed:",e),this._showToast("Failed to resume automations. Check Home Assistant logs for details.")}}else this._wakeAllPending=!0,this._wakeAllTimeout=setTimeout(()=>{this._wakeAllPending=!1,this._wakeAllTimeout=null},pe)};async _cancelScheduled(e){try{await this.hass.callService("autosnooze","cancel_scheduled",{entity_id:e}),this._showToast("Scheduled snooze cancelled successfully")}catch(e){console.error("Cancel scheduled failed:",e),this._showToast(this._getErrorMessage(e,"Failed to cancel scheduled snooze"))}}_renderSelectionList(){const e=this._getFilteredAutomations();if("all"===this._filterTab)return 0===e.length?N`<div class="list-empty" role="status">No automations found</div>`:e.map(e=>N`
-        <div
-          class="list-item ${this._selected.includes(e.id)?"selected":""}"
-          @click=${()=>this._toggleSelection(e.id)}
+  `;_getAutomations(){const t=this.hass?.states,e=this.hass?.entities;if(!t)return[];const i=t,o=this._entityRegistryFetched;if(this._lastHassStates===i&&this._automationsCacheKey===o&&this._automationsCache)return this._automationsCache;const s=Object.keys(t).filter(t=>t.startsWith("automation.")).map(i=>{const o=t[i];if(!o)return null;const s=this._entityRegistry?.[i],a=e?.[i],r=(s?.categories||{}).automation||null;return{id:i,name:o.attributes?.friendly_name||i.replace("automation.",""),area_id:s?.area_id||a?.area_id||null,category_id:r,labels:s?.labels||a?.labels||[]}}).filter(t=>null!==t).sort((t,e)=>t.name.localeCompare(e.name));return this._automationsCache=s,this._automationsCacheKey=o,this._lastHassStates=i,s}_getFilteredAutomations(){const t=this._getAutomations(),e=this._search.toLowerCase();let i=t;return e&&(i=t.filter(t=>t.name.toLowerCase().includes(e)||t.id.toLowerCase().includes(e))),i}_formatRegistryId(t){return t.replace(/_/g," ").replace(/\b\w/g,t=>t.toUpperCase())}_getAreaName(t){return t?this.hass.areas?.[t]?.name||this._formatRegistryId(t):"Unassigned"}_getLabelName(t){return this._labelRegistry[t]?.name||this._formatRegistryId(t)}_groupAutomationsBy(t,e){const i=this._getFilteredAutomations(),o={};return i.forEach(i=>{const s=t(i);s&&0!==s.length?s.forEach(t=>{o[t]||(o[t]=[]),o[t].push(i)}):(o[e]||(o[e]=[]),o[e].push(i))}),Object.entries(o).sort((t,i)=>t[0]===e?1:i[0]===e?-1:t[0].localeCompare(i[0]))}_getGroupedByArea(){return this._groupAutomationsBy(t=>t.area_id?[this._getAreaName(t.area_id)]:null,"Unassigned")}_getGroupedByLabel(){return this._groupAutomationsBy(t=>t.labels?.length>0?t.labels.map(t=>this._getLabelName(t)):null,"Unlabeled")}_getUniqueCount(t){const e=this._getAutomations(),i=new Set;return e.forEach(e=>{const o=t(e);o&&o.forEach(t=>i.add(t))}),i.size}_getAreaCount(){return this._getUniqueCount(t=>t.area_id?[t.area_id]:null)}_getLabelCount(){return this._getUniqueCount(t=>t.labels?.length>0?t.labels:null)}_getCategoryName(t){return t?this._categoryRegistry[t]?.name||this._formatRegistryId(t):"Uncategorized"}_getGroupedByCategory(){return this._groupAutomationsBy(t=>t.category_id?[this._getCategoryName(t.category_id)]:null,"Uncategorized")}_getCategoryCount(){return this._getUniqueCount(t=>t.category_id?[t.category_id]:null)}_selectAllVisible(){const t=this._getFilteredAutomations().map(t=>t.id),e=t.every(t=>this._selected.includes(t));this._selected=e?this._selected.filter(e=>!t.includes(e)):[...new Set([...this._selected,...t])]}_clearSelection(){this._selected=[]}_getPaused(){const t=this.hass?.states["sensor.autosnooze_snoozed_automations"];return t?.attributes?.paused_automations||{}}_getPausedGroupedByResumeTime(){const t=this._getPaused(),e={};return Object.entries(t).forEach(([t,i])=>{const o=i.resume_at;e[o]||(e[o]={resumeAt:o,disableAt:i.disable_at,automations:[]}),e[o].automations.push({id:t,...i})}),Object.values(e).sort((t,e)=>new Date(t.resumeAt).getTime()-new Date(e.resumeAt).getTime())}_getScheduled(){const t=this.hass?.states["sensor.autosnooze_snoozed_automations"];return t?.attributes?.scheduled_snoozes||{}}_formatDateTime(t){const e=new Date(t),i=new Date,o={weekday:"short",month:"short",day:"numeric",hour:"2-digit",minute:"2-digit"};return e.getFullYear()>i.getFullYear()&&(o.year="numeric"),e.toLocaleString(void 0,o)}_formatCountdown(t){const e=new Date(t).getTime()-Date.now();if(e<=0)return"Resuming...";const i=Math.floor(e/lt),o=Math.floor(e%lt/nt),s=Math.floor(e%nt/rt),a=Math.floor(e%rt/at);return i>0?`${i}d ${o}h ${s}m`:o>0?`${o}h ${s}m ${a}s`:`${s}m ${a}s`}_toggleSelection(t){this._selected.includes(t)?this._selected=this._selected.filter(e=>e!==t):this._selected=[...this._selected,t]}_toggleGroupExpansion(t){this._expandedGroups={...this._expandedGroups,[t]:!this._expandedGroups[t]}}_selectGroup(t){const e=t.map(t=>t.id),i=e.every(t=>this._selected.includes(t));this._selected=i?this._selected.filter(t=>!e.includes(t)):[...new Set([...this._selected,...e])]}_setDuration(t){this._duration=t*rt;const e=Math.floor(t/ct),i=Math.floor(t%ct/dt),o=t%dt;this._customDuration={days:e,hours:i,minutes:o};const s=[];e>0&&s.push(`${e}d`),i>0&&s.push(`${i}h`),o>0&&s.push(`${o}m`),this._customDurationInput=s.join(" ")||"30m"}_updateCustomDuration(){const{days:t,hours:e,minutes:i}=this._customDuration,o=t*ct+e*dt+i;this._duration=o*rt}_parseDurationInput(t){const e=t.toLowerCase().replace(/\s+/g,"");if(!e)return null;let i=0,o=!1;const s=e.match(/(\d+(?:\.\d+)?)\s*d/),a=e.match(/(\d+(?:\.\d+)?)\s*h/),r=e.match(/(\d+(?:\.\d+)?)\s*m(?!i)/);if(s){const t=parseFloat(s[1]);if(isNaN(t)||t<0)return null;i+=t*ct,o=!0}if(a){const t=parseFloat(a[1]);if(isNaN(t)||t<0)return null;i+=t*dt,o=!0}if(r){const t=parseFloat(r[1]);if(isNaN(t)||t<0)return null;i+=t,o=!0}if(!o){const t=parseFloat(e);if(isNaN(t)||!(t>0))return null;i=t}if(i=Math.round(i),i<=0)return null;const n=Math.floor(i/ct),l=i%ct;return{days:n,hours:Math.floor(l/dt),minutes:l%dt}}_handleDurationInput(t){this._customDurationInput=t;const e=this._parseDurationInput(t);e&&(this._customDuration=e,this._updateCustomDuration())}_getDurationPreview(){const t=this._parseDurationInput(this._customDurationInput);return t?this._formatDuration(t.days,t.hours,t.minutes):""}_isDurationValid(){return null!==this._parseDurationInput(this._customDurationInput)}_getErrorMessage(t,e){const i=t?.translation_key||t?.data?.translation_key;if(i&&ft[i])return ft[i];const o=t?.message||"";for(const[t,e]of Object.entries(ft))if(o.includes(t)||o.toLowerCase().includes(t.replace(/_/g," ")))return e;return`${e}. Check Home Assistant logs for details.`}_showToast(t,e={}){const{showUndo:i=!1,onUndo:o=null}=e;if(!this.shadowRoot)return;const s=this.shadowRoot.querySelector(".toast");s&&s.remove();const a=document.createElement("div");if(a.className="toast",a.setAttribute("role","alert"),a.setAttribute("aria-live","polite"),a.setAttribute("aria-atomic","true"),i&&o){const e=document.createElement("span");e.textContent=t,a.appendChild(e);const i=document.createElement("button");i.className="toast-undo-btn",i.textContent="Undo",i.setAttribute("aria-label","Undo last action"),i.addEventListener("click",t=>{t.stopPropagation(),o(),a.remove()}),a.appendChild(i)}else a.textContent=t;this.shadowRoot.appendChild(a),null!==this._toastTimeout&&clearTimeout(this._toastTimeout),null!==this._toastFadeTimeout&&clearTimeout(this._toastFadeTimeout),this._toastTimeout=setTimeout(()=>{this._toastTimeout=null,this.shadowRoot&&a.parentNode&&(a.style.animation=`slideUp ${ut}ms ease-out reverse`,this._toastFadeTimeout=setTimeout(()=>{this._toastFadeTimeout=null,a.parentNode&&a.remove()},ut))},mt)}_combineDateTime(t,e){if(!t||!e)return null;const i=new Date(`${t}T${e}`).getTimezoneOffset(),o=i<=0?"+":"-",s=Math.abs(i);return`${t}T${e}${`${o}${String(Math.floor(s/60)).padStart(2,"0")}:${String(s%60).padStart(2,"0")}`}`}_getLocale(){return this.hass?.locale?.language||void 0}_renderDateOptions(){const t=[],e=new Date,i=e.getFullYear(),o=this._getLocale();for(let s=0;s<365;s++){const a=new Date(e);a.setDate(a.getDate()+s);const r=a.getFullYear(),n=`${r}-${String(a.getMonth()+1).padStart(2,"0")}-${String(a.getDate()).padStart(2,"0")}`,l=a.toLocaleDateString(o,{weekday:"short"}),d=a.toLocaleDateString(o,{month:"short"}),c=a.getDate(),h=r!==i?`${l}, ${d} ${c}, ${r}`:`${l}, ${d} ${c}`;t.push({value:n,label:h})}return t.map(t=>M`<option value="${t.value}">${t.label}</option>`)}_hasResumeAt(){return this._resumeAtDate&&this._resumeAtTime}_hasDisableAt(){return this._disableAtDate&&this._disableAtTime}_handleKeyDown(t,e){"Enter"!==t.key&&" "!==t.key||(t.preventDefault(),e())}async _snooze(){if(0!==this._selected.length&&!this._loading){if(this._scheduleMode){if(!this._hasResumeAt())return void this._showToast("Please set a complete resume date and time (month, day, and time are all required)");const t=this._hasDisableAt()?this._combineDateTime(this._disableAtDate,this._disableAtTime):null,e=this._combineDateTime(this._resumeAtDate,this._resumeAtTime),i=Date.now()+_t,o=new Date(e).getTime();if(o<=i)return void this._showToast("Resume time must be in the future. Please select a date and time that hasn't passed yet.");if(t){if(new Date(t).getTime()>=o)return void this._showToast("Snooze time must be before resume time. The automation needs to be snoozed before it can resume.")}}else if(0===this._duration)return;this._loading=!0;try{const t=this._selected.length,e=[...this._selected],i=this._scheduleMode,o=this._hasDisableAt();let s;if(this._scheduleMode){const e=this._hasDisableAt()?this._combineDateTime(this._disableAtDate,this._disableAtTime):null,i=this._combineDateTime(this._resumeAtDate,this._resumeAtTime),o={entity_id:this._selected,resume_at:i};if(e&&(o.disable_at=e),await this.hass.callService("autosnooze","pause",o),!this.isConnected||!this.shadowRoot)return void(this._loading=!1);s=e?`Scheduled ${t} automation${1!==t?"s":""} to snooze`:`Snoozed ${t} automation${1!==t?"s":""} until ${this._formatDateTime(i)}`}else{const{days:e,hours:i,minutes:o}=this._customDuration;if(await this.hass.callService("autosnooze","pause",{entity_id:this._selected,days:e,hours:i,minutes:o}),!this.isConnected||!this.shadowRoot)return void(this._loading=!1);const a=this._formatDuration(e,i,o);s=`Snoozed ${t} automation${1!==t?"s":""} for ${a}`}this._showToast(s,{showUndo:!0,onUndo:async()=>{try{for(const t of e)i&&o?await this.hass.callService("autosnooze","cancel_scheduled",{entity_id:t}):await this.hass.callService("autosnooze","cancel",{entity_id:t});this.isConnected&&(this._selected=e,this._showToast(`Restored ${t} automation${1!==t?"s":""}`))}catch(t){console.error("Undo failed:",t),this.isConnected&&this.shadowRoot&&this._showToast("Failed to undo. The automations may have already been modified.")}}}),this._selected=[],this._disableAtDate="",this._disableAtTime="",this._resumeAtDate="",this._resumeAtTime=""}catch(t){console.error("Snooze failed:",t),this.isConnected&&this.shadowRoot&&this._showToast(this._getErrorMessage(t,"Failed to snooze automations"))}this._loading=!1}}_formatDuration(t,e,i){const o=[];return t>0&&o.push(`${t} day${1!==t?"s":""}`),e>0&&o.push(`${e} hour${1!==e?"s":""}`),i>0&&o.push(`${i} minute${1!==i?"s":""}`),o.join(", ")}async _wake(t){try{await this.hass.callService("autosnooze","cancel",{entity_id:t}),this.isConnected&&this.shadowRoot&&this._showToast("Automation resumed successfully")}catch(t){console.error("Wake failed:",t),this.isConnected&&this.shadowRoot&&this._showToast(this._getErrorMessage(t,"Failed to resume automation"))}}_handleWakeAll=async()=>{if(this._wakeAllPending){clearTimeout(this._wakeAllTimeout),this._wakeAllTimeout=null,this._wakeAllPending=!1;try{await this.hass.callService("autosnooze","cancel_all",{}),this.isConnected&&this.shadowRoot&&this._showToast("All automations resumed successfully")}catch(t){console.error("Wake all failed:",t),this.isConnected&&this.shadowRoot&&this._showToast("Failed to resume automations. Check Home Assistant logs for details.")}}else this._wakeAllPending=!0,this._wakeAllTimeout=setTimeout(()=>{this._wakeAllPending=!1,this._wakeAllTimeout=null},pt)};async _cancelScheduled(t){try{await this.hass.callService("autosnooze","cancel_scheduled",{entity_id:t}),this.isConnected&&this.shadowRoot&&this._showToast("Scheduled snooze cancelled successfully")}catch(t){console.error("Cancel scheduled failed:",t),this.isConnected&&this.shadowRoot&&this._showToast(this._getErrorMessage(t,"Failed to cancel scheduled snooze"))}}_renderSelectionList(){const t=this._getFilteredAutomations();if("all"===this._filterTab)return 0===t.length?M`<div class="list-empty" role="status">No automations found</div>`:t.map(t=>M`
+        <button
+          type="button"
+          class="list-item ${this._selected.includes(t.id)?"selected":""}"
+          @click=${()=>this._toggleSelection(t.id)}
           role="option"
-          aria-selected=${this._selected.includes(e.id)}
+          aria-selected=${this._selected.includes(t.id)}
         >
           <input
             type="checkbox"
-            .checked=${this._selected.includes(e.id)}
-            @click=${e=>e.stopPropagation()}
-            @change=${()=>this._toggleSelection(e.id)}
-            aria-label="Select ${e.name}"
+            .checked=${this._selected.includes(t.id)}
+            @click=${t=>t.stopPropagation()}
+            @change=${()=>this._toggleSelection(t.id)}
+            aria-label="Select ${t.name}"
+            tabindex="-1"
           />
           <div class="list-item-content">
-            <div class="list-item-name">${e.name}</div>
+            <div class="list-item-name">${t.name}</div>
           </div>
-        </div>
-      `);const t="areas"===this._filterTab?this._getGroupedByArea():"categories"===this._filterTab?this._getGroupedByCategory():this._getGroupedByLabel();return 0===t.length?N`<div class="list-empty" role="status">No automations found</div>`:t.map(([e,t])=>{const i=!1!==this._expandedGroups[e],s=t.every(e=>this._selected.includes(e.id)),o=t.some(e=>this._selected.includes(e.id))&&!s;return N`
-        <div
+        </button>
+      `);const e="areas"===this._filterTab?this._getGroupedByArea():"categories"===this._filterTab?this._getGroupedByCategory():this._getGroupedByLabel();return 0===e.length?M`<div class="list-empty" role="status">No automations found</div>`:e.map(([t,e])=>{const i=!1!==this._expandedGroups[t],o=e.every(t=>this._selected.includes(t.id)),s=e.some(t=>this._selected.includes(t.id))&&!o;return M`
+        <button
+          type="button"
           class="group-header ${i?"expanded":""}"
-          @click=${()=>this._toggleGroupExpansion(e)}
-          role="button"
+          @click=${()=>this._toggleGroupExpansion(t)}
           aria-expanded=${i}
-          aria-label="${e} group, ${t.length} automations"
+          aria-label="${t} group, ${e.length} automations"
         >
           <ha-icon icon="mdi:chevron-right" aria-hidden="true"></ha-icon>
-          <span>${e}</span>
-          <span class="group-badge" aria-label="${t.length} automations">${t.length}</span>
+          <span>${t}</span>
+          <span class="group-badge" aria-label="${e.length} automations">${e.length}</span>
           <input
             type="checkbox"
-            .checked=${s}
-            .indeterminate=${o}
-            @click=${e=>e.stopPropagation()}
-            @change=${()=>this._selectGroup(t)}
-            aria-label="Select all automations in ${e}"
+            .checked=${o}
+            .indeterminate=${s}
+            @click=${t=>t.stopPropagation()}
+            @change=${()=>this._selectGroup(e)}
+            aria-label="Select all automations in ${t}"
+            tabindex="-1"
           />
-        </div>
-        ${i?t.map(e=>{const t="labels"===this._filterTab&&e.area_id?this._getAreaName(e.area_id):null;return N`
-                <div
-                  class="list-item ${this._selected.includes(e.id)?"selected":""}"
-                  @click=${()=>this._toggleSelection(e.id)}
+        </button>
+        ${i?e.map(t=>{const e="labels"===this._filterTab&&t.area_id?this._getAreaName(t.area_id):null;return M`
+                <button
+                  type="button"
+                  class="list-item ${this._selected.includes(t.id)?"selected":""}"
+                  @click=${()=>this._toggleSelection(t.id)}
                   role="option"
-                  aria-selected=${this._selected.includes(e.id)}
+                  aria-selected=${this._selected.includes(t.id)}
                 >
                   <input
                     type="checkbox"
-                    .checked=${this._selected.includes(e.id)}
-                    @click=${e=>e.stopPropagation()}
-                    @change=${()=>this._toggleSelection(e.id)}
-                    aria-label="Select ${e.name}"
+                    .checked=${this._selected.includes(t.id)}
+                    @click=${t=>t.stopPropagation()}
+                    @change=${()=>this._toggleSelection(t.id)}
+                    aria-label="Select ${t.name}"
+                    tabindex="-1"
                   />
                   <div class="list-item-content">
-                    <div class="list-item-name">${e.name}</div>
-                    ${t?N`<div class="list-item-meta">
-                          <ha-icon icon="mdi:home-outline" aria-hidden="true"></ha-icon>${t}
+                    <div class="list-item-name">${t.name}</div>
+                    ${e?M`<div class="list-item-meta">
+                          <ha-icon icon="mdi:home-outline" aria-hidden="true"></ha-icon>${e}
                         </div>`:""}
                   </div>
-                </div>
+                </button>
               `}):""}
-      `})}_renderDurationSelector(e,t,i){return this._scheduleMode?N`
+      `})}_renderDurationSelector(t,e,i){return this._scheduleMode?M`
           <!-- Schedule Date/Time Inputs -->
           <div class="schedule-inputs">
             <div class="datetime-field">
@@ -929,7 +1035,7 @@ const e=window,t=e.ShadowRoot&&(void 0===e.ShadyCSS||e.ShadyCSS.nativeShadow)&&"
               <div class="datetime-row">
                 <select
                   .value=${this._disableAtDate}
-                  @change=${e=>this._disableAtDate=e.target.value}
+                  @change=${t=>this._disableAtDate=t.target.value}
                   aria-labelledby="snooze-at-label"
                   aria-label="Snooze date"
                 >
@@ -939,7 +1045,7 @@ const e=window,t=e.ShadowRoot&&(void 0===e.ShadyCSS||e.ShadyCSS.nativeShadow)&&"
                 <input
                   type="time"
                   .value=${this._disableAtTime}
-                  @input=${e=>this._disableAtTime=e.target.value}
+                  @input=${t=>this._disableAtTime=t.target.value}
                   aria-labelledby="snooze-at-label"
                   aria-label="Snooze time"
                 />
@@ -951,7 +1057,7 @@ const e=window,t=e.ShadowRoot&&(void 0===e.ShadyCSS||e.ShadyCSS.nativeShadow)&&"
               <div class="datetime-row">
                 <select
                   .value=${this._resumeAtDate}
-                  @change=${e=>this._resumeAtDate=e.target.value}
+                  @change=${t=>this._resumeAtDate=t.target.value}
                   aria-labelledby="resume-at-label"
                   aria-label="Resume date"
                 >
@@ -961,76 +1067,85 @@ const e=window,t=e.ShadowRoot&&(void 0===e.ShadyCSS||e.ShadyCSS.nativeShadow)&&"
                 <input
                   type="time"
                   .value=${this._resumeAtTime}
-                  @input=${e=>this._resumeAtTime=e.target.value}
+                  @input=${t=>this._resumeAtTime=t.target.value}
                   aria-labelledby="resume-at-label"
                   aria-label="Resume time"
                 />
               </div>
             </div>
-            <div class="schedule-link" @click=${()=>this._scheduleMode=!1} role="button" tabindex="0" @keypress=${e=>"Enter"===e.key&&(this._scheduleMode=!1)}>
+            <button
+              type="button"
+              class="schedule-link"
+              @click=${()=>this._scheduleMode=!1}
+            >
               <ha-icon icon="mdi:timer-outline" aria-hidden="true"></ha-icon>
               Back to duration selection
-            </div>
+            </button>
           </div>
-        `:N`
+        `:M`
           <!-- Duration Selector -->
           <div class="duration-selector">
             <div class="duration-section-header" id="duration-header">Snooze Duration</div>
             <div class="duration-pills" role="radiogroup" aria-labelledby="duration-header">
-              ${be.map(t=>{const i=null===t.minutes?this._showCustomInput:!this._showCustomInput&&e===t;return N`
+              ${bt.map(e=>{const i=null===e.minutes?this._showCustomInput:!this._showCustomInput&&t===e;return M`
                     <button
+                      type="button"
                       class="pill ${i?"active":""}"
-                      @click=${()=>{null===t.minutes?this._showCustomInput=!this._showCustomInput:(this._showCustomInput=!1,this._setDuration(t.minutes))}}
+                      @click=${()=>{null===e.minutes?this._showCustomInput=!this._showCustomInput:(this._showCustomInput=!1,this._setDuration(e.minutes))}}
                       role="radio"
                       aria-checked=${i}
-                      aria-label="${null===t.minutes?"Custom duration":`Snooze for ${t.label}`}"
+                      aria-label="${null===e.minutes?"Custom duration":`Snooze for ${e.label}`}"
                     >
-                      ${t.label}
+                      ${e.label}
                     </button>
                   `})}
             </div>
 
-            ${this._showCustomInput?N`
+            ${this._showCustomInput?M`
               <div class="custom-duration-input">
                 <input
                   type="text"
                   class="duration-input ${i?"":"invalid"}"
-                  placeholder="e.g. 2h30m, 1d, 45m"
+                  placeholder="e.g. 2h30m, 1.5h, 1d, 45m"
                   .value=${this._customDurationInput}
-                  @input=${e=>this._handleDurationInput(e.target.value)}
+                  @input=${t=>this._handleDurationInput(t.target.value)}
                   aria-label="Custom duration"
                   aria-invalid=${!i}
                   aria-describedby="duration-help"
                 />
-                ${t&&i?N`<div class="duration-preview" role="status" aria-live="polite">Duration: ${t}</div>`:N`<div class="duration-help" id="duration-help">Enter duration: 30m, 2h, 4h30m, 1d, 1d2h</div>`}
+                ${e&&i?M`<div class="duration-preview" role="status" aria-live="polite">Duration: ${e}</div>`:M`<div class="duration-help" id="duration-help">Enter duration: 30m, 2h, 1.5h, 4h30m, 1d, 1d2h</div>`}
               </div>
             `:""}
 
-            <div class="schedule-link" @click=${()=>this._scheduleMode=!0} role="button" tabindex="0" @keypress=${e=>"Enter"===e.key&&(this._scheduleMode=!0)}>
+            <button
+              type="button"
+              class="schedule-link"
+              @click=${()=>this._scheduleMode=!0}
+            >
               <ha-icon icon="mdi:calendar-clock" aria-hidden="true"></ha-icon>
               Pick specific date/time instead
-            </div>
+            </button>
           </div>
-        `}_renderActivePauses(e){return 0===e?"":N`
+        `}_renderActivePauses(t){return 0===t?"":M`
       <div class="snooze-list" role="region" aria-label="Snoozed automations">
         <div class="list-header">
           <ha-icon icon="mdi:bell-sleep" aria-hidden="true"></ha-icon>
-          Snoozed Automations (${e})
+          Snoozed Automations (${t})
         </div>
 
-        ${this._getPausedGroupedByResumeTime().map(e=>N`
-            <div class="pause-group" role="group" aria-label="Automations resuming ${this._formatDateTime(e.resumeAt)}">
+        ${this._getPausedGroupedByResumeTime().map(t=>M`
+            <div class="pause-group" role="group" aria-label="Automations resuming ${this._formatDateTime(t.resumeAt)}">
               <div class="pause-group-header">
                 <ha-icon icon="mdi:timer-outline" aria-hidden="true"></ha-icon>
-                ${e.disableAt?N`Resumes ${this._formatDateTime(e.resumeAt)}`:N`<span class="countdown" data-resume-at="${e.resumeAt}" aria-label="Time remaining: ${this._formatCountdown(e.resumeAt)}">${this._formatCountdown(e.resumeAt)}</span>`}
+                ${t.disableAt?M`Resumes ${this._formatDateTime(t.resumeAt)}`:M`<span class="countdown" data-resume-at="${t.resumeAt}" aria-label="Time remaining: ${this._formatCountdown(t.resumeAt)}">${this._formatCountdown(t.resumeAt)}</span>`}
               </div>
-              ${e.automations.map(e=>N`
+              ${t.automations.map(t=>M`
                   <div class="paused-item">
                     <ha-icon class="paused-icon" icon="mdi:sleep" aria-hidden="true"></ha-icon>
                     <div class="paused-info">
-                      <div class="paused-name">${e.friendly_name||e.id}</div>
+                      <div class="paused-name">${t.friendly_name||t.id}</div>
                     </div>
-                    <button class="wake-btn" @click=${()=>this._wake(e.id)} aria-label="Resume ${e.friendly_name||e.id}">
+                    <button type="button" class="wake-btn" @click=${()=>this._wake(t.id)} aria-label="Resume ${t.friendly_name||t.id}">
                       Resume
                     </button>
                   </div>
@@ -1038,8 +1153,9 @@ const e=window,t=e.ShadowRoot&&(void 0===e.ShadyCSS||e.ShadyCSS.nativeShadow)&&"
             </div>
           `)}
 
-        ${e>1?N`
+        ${t>1?M`
               <button
+                type="button"
                 class="wake-all ${this._wakeAllPending?"pending":""}"
                 @click=${this._handleWakeAll}
                 aria-label="${this._wakeAllPending?"Confirm resume all automations":"Resume all paused automations"}"
@@ -1048,40 +1164,40 @@ const e=window,t=e.ShadowRoot&&(void 0===e.ShadyCSS||e.ShadyCSS.nativeShadow)&&"
               </button>
             `:""}
       </div>
-    `}_renderScheduledPauses(e,t){return 0===e?"":N`
+    `}_renderScheduledPauses(t,e){return 0===t?"":M`
       <div class="scheduled-list" role="region" aria-label="Scheduled snoozes">
         <div class="list-header">
           <ha-icon icon="mdi:calendar-clock" aria-hidden="true"></ha-icon>
-          Scheduled Snoozes (${e})
+          Scheduled Snoozes (${t})
         </div>
 
-        ${Object.entries(t).map(([e,t])=>N`
-            <div class="scheduled-item" role="article" aria-label="Scheduled pause for ${t.friendly_name||e}">
+        ${Object.entries(e).map(([t,e])=>M`
+            <div class="scheduled-item" role="article" aria-label="Scheduled pause for ${e.friendly_name||t}">
               <ha-icon class="scheduled-icon" icon="mdi:clock-outline" aria-hidden="true"></ha-icon>
               <div class="paused-info">
                 <div class="paused-name">
-                  ${t.friendly_name||e}
+                  ${e.friendly_name||t}
                 </div>
                 <div class="scheduled-time">
-                  Disables: ${this._formatDateTime(t.disable_at||"now")}
+                  Disables: ${this._formatDateTime(e.disable_at||"now")}
                 </div>
                 <div class="paused-time">
-                  Resumes: ${this._formatDateTime(t.resume_at)}
+                  Resumes: ${this._formatDateTime(e.resume_at)}
                 </div>
               </div>
-              <button class="cancel-scheduled-btn" @click=${()=>this._cancelScheduled(e)} aria-label="Cancel scheduled pause for ${t.friendly_name||e}">
+              <button type="button" class="cancel-scheduled-btn" @click=${()=>this._cancelScheduled(t)} aria-label="Cancel scheduled pause for ${e.friendly_name||t}">
                 Cancel
               </button>
             </div>
           `)}
       </div>
-    `}render(){if(!this.hass||!this.config)return N``;const e=this._getPaused(),t=Object.keys(e).length,i=this._getScheduled(),s=Object.keys(i).length,o=this._customDuration.days*ce+this._customDuration.hours*de+this._customDuration.minutes,a=be.find(e=>e.minutes===o),r=this._getDurationPreview(),n=this._isDurationValid();return N`
+    `}render(){if(!this.hass||!this.config)return M``;const t=this._getPaused(),e=Object.keys(t).length,i=this._getScheduled(),o=Object.keys(i).length,s=this._customDuration.days*ct+this._customDuration.hours*dt+this._customDuration.minutes,a=bt.find(t=>t.minutes===s),r=this._getDurationPreview(),n=this._isDurationValid();return M`
       <ha-card>
         <div class="header">
           <ha-icon icon="mdi:sleep"></ha-icon>
           ${this.config?.title||"AutoSnooze"}
-          ${t>0||s>0?N`<span class="status-summary"
-                >${t>0?`${t} active`:""}${t>0&&s>0?", ":""}${s>0?`${s} scheduled`:""}</span
+          ${e>0||o>0?M`<span class="status-summary"
+                >${e>0?`${e} active`:""}${e>0&&o>0?", ":""}${o>0?`${o} scheduled`:""}</span
               >`:""}
         </div>
 
@@ -1090,6 +1206,7 @@ const e=window,t=e.ShadowRoot&&(void 0===e.ShadyCSS||e.ShadyCSS.nativeShadow)&&"
           <!-- Filter Tabs -->
           <div class="filter-tabs" role="tablist" aria-label="Filter automations by">
             <button
+              type="button"
               class="tab ${"all"===this._filterTab?"active":""}"
               @click=${()=>this._filterTab="all"}
               role="tab"
@@ -1100,6 +1217,7 @@ const e=window,t=e.ShadowRoot&&(void 0===e.ShadyCSS||e.ShadyCSS.nativeShadow)&&"
               <span class="tab-count" aria-label="${this._getAutomations().length} automations">${this._getAutomations().length}</span>
             </button>
             <button
+              type="button"
               class="tab ${"areas"===this._filterTab?"active":""}"
               @click=${()=>this._filterTab="areas"}
               role="tab"
@@ -1110,6 +1228,7 @@ const e=window,t=e.ShadowRoot&&(void 0===e.ShadyCSS||e.ShadyCSS.nativeShadow)&&"
               <span class="tab-count" aria-label="${this._getAreaCount()} areas">${this._getAreaCount()}</span>
             </button>
             <button
+              type="button"
               class="tab ${"categories"===this._filterTab?"active":""}"
               @click=${()=>this._filterTab="categories"}
               role="tab"
@@ -1120,6 +1239,7 @@ const e=window,t=e.ShadowRoot&&(void 0===e.ShadyCSS||e.ShadyCSS.nativeShadow)&&"
               <span class="tab-count" aria-label="${this._getCategoryCount()} categories">${this._getCategoryCount()}</span>
             </button>
             <button
+              type="button"
               class="tab ${"labels"===this._filterTab?"active":""}"
               @click=${()=>this._filterTab="labels"}
               role="tab"
@@ -1137,23 +1257,24 @@ const e=window,t=e.ShadowRoot&&(void 0===e.ShadyCSS||e.ShadyCSS.nativeShadow)&&"
               type="search"
               placeholder="Search automations..."
               .value=${this._search}
-              @input=${e=>this._handleSearchInput(e)}
+              @input=${t=>this._handleSearchInput(t)}
               aria-label="Search automations by name"
             />
           </div>
 
           <!-- Selection Actions -->
-          ${this._getFilteredAutomations().length>0?N`
+          ${this._getFilteredAutomations().length>0?M`
                 <div class="selection-actions" role="toolbar" aria-label="Selection actions">
                   <span role="status" aria-live="polite">${this._selected.length} of ${this._getFilteredAutomations().length} selected</span>
                   <button
+                    type="button"
                     class="select-all-btn"
                     @click=${()=>this._selectAllVisible()}
-                    aria-label="${this._getFilteredAutomations().every(e=>this._selected.includes(e.id))?"Deselect all visible automations":"Select all visible automations"}"
+                    aria-label="${this._getFilteredAutomations().every(t=>this._selected.includes(t.id))?"Deselect all visible automations":"Select all visible automations"}"
                   >
-                    ${this._getFilteredAutomations().every(e=>this._selected.includes(e.id))?"Deselect All":"Select All"}
+                    ${this._getFilteredAutomations().every(t=>this._selected.includes(t.id))?"Deselect All":"Select All"}
                   </button>
-                  ${this._selected.length>0?N`<button class="select-all-btn" @click=${()=>this._clearSelection()} aria-label="Clear selection">Clear</button>`:""}
+                  ${this._selected.length>0?M`<button type="button" class="select-all-btn" @click=${()=>this._clearSelection()} aria-label="Clear selection">Clear</button>`:""}
                 </div>
               `:""}
 
@@ -1166,6 +1287,7 @@ const e=window,t=e.ShadowRoot&&(void 0===e.ShadyCSS||e.ShadyCSS.nativeShadow)&&"
 
           <!-- Snooze Button -->
           <button
+            type="button"
             class="snooze-btn"
             ?disabled=${0===this._selected.length||!this._scheduleMode&&!this._isDurationValid()||this._scheduleMode&&!this._hasResumeAt()||this._loading}
             @click=${this._snooze}
@@ -1176,7 +1298,7 @@ const e=window,t=e.ShadowRoot&&(void 0===e.ShadyCSS||e.ShadyCSS.nativeShadow)&&"
           </button>
         </div>
 
-        ${this._renderActivePauses(t)}
-        ${this._renderScheduledPauses(s,i)}
+        ${this._renderActivePauses(e)}
+        ${this._renderScheduledPauses(o,i)}
       </ha-card>
-    `}getCardSize(){const e=this._getPaused(),t=this._getScheduled();return 4+Object.keys(e).length+Object.keys(t).length}setConfig(e){this.config=e}}customElements.get("autosnooze-card-editor")||customElements.define("autosnooze-card-editor",fe),customElements.get("autosnooze-card")||customElements.define("autosnooze-card",ye),window.customCards=window.customCards||[],window.customCards.some(e=>"autosnooze-card"===e.type)||window.customCards.push({type:"autosnooze-card",name:"AutoSnooze Card",description:"Temporarily pause automations with area and label filtering (v0.2.5)",preview:!0});
+    `}getCardSize(){const t=this._getPaused(),e=this._getScheduled();return 4+Object.keys(t).length+Object.keys(e).length}setConfig(t){this.config=t}}customElements.get("autosnooze-card-editor")||customElements.define("autosnooze-card-editor",vt),customElements.get("autosnooze-card")||customElements.define("autosnooze-card",yt),window.customCards=window.customCards||[],window.customCards.some(t=>"autosnooze-card"===t.type)||window.customCards.push({type:"autosnooze-card",name:"AutoSnooze Card",description:"Temporarily pause automations with area and label filtering (v0.2.5)",preview:!0});
