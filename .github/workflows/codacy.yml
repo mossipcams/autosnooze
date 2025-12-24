@@ -59,3 +59,6 @@ jobs:
         uses: github/codeql-action/upload-sarif@v3
         with:
           sarif_file: results.sarif
+          # Category must be unique to distinguish from other SARIF uploads
+          # Required because Codacy CLI produces multiple runs in a single SARIF file
+          category: codacy-security-scan
