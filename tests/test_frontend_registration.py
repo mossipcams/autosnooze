@@ -705,9 +705,13 @@ class TestRetryMechanism:
 
         func_body = source[func_start:]
 
-        # Should have two retry blocks - one for lovelace_data, one for resources
-        retry_count_checks = func_body.count("retry_count < LOVELACE_REGISTER_MAX_RETRIES")
-        assert retry_count_checks >= 2, "Must have retry logic for both lovelace_data and resources being None"
+        # Should have two calls to the retry helper - one for lovelace_data, one for resources
+        # The retry logic is now in _async_retry_or_fail helper function
+        retry_helper_calls = func_body.count("_async_retry_or_fail")
+        assert retry_helper_calls >= 2, "Must have retry logic for both lovelace_data and resources being None"
+
+        # Verify the helper function contains the actual retry check
+        assert "retry_count < LOVELACE_REGISTER_MAX_RETRIES" in source, "Helper must check retry count"
 
     def test_source_logs_retry_attempts(self) -> None:
         """Verify retry attempts are logged for debugging."""
@@ -721,6 +725,48 @@ class TestRetryMechanism:
         source = get_init_source()
 
         assert "after %d retries" in source or "after retries" in source.lower(), "Must warn after exhausting retries"
+
+    @pytest.mark.asyncio
+    async def test_retry_helper_returns_true_when_retries_available(self) -> None:
+        """Test _async_retry_or_fail returns True when retries remain."""
+        from custom_components.autosnooze import _async_retry_or_fail
+
+        # Should return True when retry_count < MAX_RETRIES (3)
+        with patch("custom_components.autosnooze.asyncio.sleep", new_callable=AsyncMock):
+            result = await _async_retry_or_fail(0, "Test condition")
+            assert result is True
+
+            result = await _async_retry_or_fail(1, "Test condition")
+            assert result is True
+
+            result = await _async_retry_or_fail(2, "Test condition")
+            assert result is True
+
+    @pytest.mark.asyncio
+    async def test_retry_helper_returns_false_when_retries_exhausted(self) -> None:
+        """Test _async_retry_or_fail returns False when retries exhausted."""
+        from custom_components.autosnooze import _async_retry_or_fail
+
+        # Should return False when retry_count >= MAX_RETRIES (3)
+        result = await _async_retry_or_fail(3, "Test condition")
+        assert result is False
+
+        result = await _async_retry_or_fail(5, "Test condition")
+        assert result is False
+
+    @pytest.mark.asyncio
+    async def test_retry_helper_with_log_context(self) -> None:
+        """Test _async_retry_or_fail includes log context."""
+        from custom_components.autosnooze import _async_retry_or_fail
+
+        with (
+            patch("custom_components.autosnooze.asyncio.sleep", new_callable=AsyncMock),
+            patch("custom_components.autosnooze._LOGGER") as mock_logger,
+        ):
+            await _async_retry_or_fail(0, "Test condition", "extra=info")
+            mock_logger.debug.assert_called_once()
+            call_args = mock_logger.debug.call_args[0]
+            assert "extra=info" in str(call_args)
 
     @pytest.mark.asyncio
     async def test_retry_succeeds_on_second_attempt(self) -> None:

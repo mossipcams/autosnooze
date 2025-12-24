@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from datetime import datetime, timedelta
 import logging
+from typing import Any
 
 from homeassistant.const import ATTR_ENTITY_ID
 from homeassistant.core import HomeAssistant, ServiceCall
@@ -38,29 +40,27 @@ from .models import (
 _LOGGER = logging.getLogger(__name__)
 
 
+def _get_automations_by_filter(
+    hass: HomeAssistant,
+    filter_fn: Callable[[Any], bool],
+) -> list[str]:
+    """Get all automation entity IDs matching a filter predicate."""
+    entity_reg = er.async_get(hass)
+    return [
+        entity.entity_id
+        for entity in entity_reg.entities.values()
+        if entity.domain == "automation" and filter_fn(entity)
+    ]
+
+
 def get_automations_by_area(hass: HomeAssistant, area_ids: list[str]) -> list[str]:
     """Get all automation entity IDs in the specified areas."""
-    entity_reg = er.async_get(hass)
-    automations = []
-
-    for entity in entity_reg.entities.values():
-        if entity.domain == "automation" and entity.area_id in area_ids:
-            automations.append(entity.entity_id)
-
-    return automations
+    return _get_automations_by_filter(hass, lambda e: e.area_id in area_ids)
 
 
 def get_automations_by_label(hass: HomeAssistant, label_ids: list[str]) -> list[str]:
     """Get all automation entity IDs with the specified labels."""
-    entity_reg = er.async_get(hass)
-    automations = []
-
-    for entity in entity_reg.entities.values():
-        if entity.domain == "automation" and entity.labels:
-            if any(label in label_ids for label in entity.labels):
-                automations.append(entity.entity_id)
-
-    return automations
+    return _get_automations_by_filter(hass, lambda e: e.labels and any(label in label_ids for label in e.labels))
 
 
 async def async_pause_automations(
