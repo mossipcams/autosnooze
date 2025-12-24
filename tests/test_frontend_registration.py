@@ -705,9 +705,13 @@ class TestRetryMechanism:
 
         func_body = source[func_start:]
 
-        # Should have two retry blocks - one for lovelace_data, one for resources
-        retry_count_checks = func_body.count("retry_count < LOVELACE_REGISTER_MAX_RETRIES")
-        assert retry_count_checks >= 2, "Must have retry logic for both lovelace_data and resources being None"
+        # Should have two calls to the retry helper - one for lovelace_data, one for resources
+        # The retry logic is now in _async_retry_or_fail helper function
+        retry_helper_calls = func_body.count("_async_retry_or_fail")
+        assert retry_helper_calls >= 2, "Must have retry logic for both lovelace_data and resources being None"
+
+        # Verify the helper function contains the actual retry check
+        assert "retry_count < LOVELACE_REGISTER_MAX_RETRIES" in source, "Helper must check retry count"
 
     def test_source_logs_retry_attempts(self) -> None:
         """Verify retry attempts are logged for debugging."""
