@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+from collections.abc import Callable
 from datetime import datetime
 import logging
 from typing import Any
@@ -50,16 +51,20 @@ def get_friendly_name(hass: HomeAssistant, entity_id: str) -> str:
     return entity_id
 
 
+def _cancel_timer_from_dict(timers: dict[str, Callable[[], None]], entity_id: str) -> None:
+    """Cancel and remove timer from given dict if exists."""
+    if unsub := timers.pop(entity_id, None):
+        unsub()
+
+
 def cancel_timer(data: AutomationPauseData, entity_id: str) -> None:
     """Cancel timer for entity if exists."""
-    if unsub := data.timers.pop(entity_id, None):
-        unsub()
+    _cancel_timer_from_dict(data.timers, entity_id)
 
 
 def cancel_scheduled_timer(data: AutomationPauseData, entity_id: str) -> None:
     """Cancel scheduled timer for entity if exists."""
-    if unsub := data.scheduled_timers.pop(entity_id, None):
-        unsub()
+    _cancel_timer_from_dict(data.scheduled_timers, entity_id)
 
 
 def schedule_resume(
@@ -203,8 +208,8 @@ async def async_save(data: AutomationPauseData) -> bool:
         return True  # Nothing to save, consider success
 
     save_data = {
-        "paused": {k: v.to_dict() for k, v in data.paused.items()},
-        "scheduled": {k: v.to_dict() for k, v in data.scheduled.items()},
+        "paused": data.get_paused_dict(),
+        "scheduled": data.get_scheduled_dict(),
     }
 
     last_error = None

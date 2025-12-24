@@ -30,6 +30,31 @@ _LOGGER = logging.getLogger(__name__)
 LOVELACE_REGISTER_MAX_RETRIES = 3
 LOVELACE_REGISTER_RETRY_DELAY = 2  # seconds
 
+
+async def _async_retry_or_fail(
+    hass: HomeAssistant,
+    retry_count: int,
+    condition_name: str,
+    log_context: str = "",
+) -> bool:
+    """Handle retry logic for Lovelace registration.
+
+    Returns True if should retry, False if retries exhausted.
+    """
+    if retry_count < LOVELACE_REGISTER_MAX_RETRIES:
+        context = f" ({log_context})" if log_context else ""
+        _LOGGER.debug(
+            "%s%s, retrying in %ds (attempt %d/%d)",
+            condition_name,
+            context,
+            LOVELACE_REGISTER_RETRY_DELAY,
+            retry_count + 1,
+            LOVELACE_REGISTER_MAX_RETRIES,
+        )
+        await asyncio.sleep(LOVELACE_REGISTER_RETRY_DELAY)
+        return True
+    return False
+
 # Re-export for backwards compatibility
 __all__ = [
     "DOMAIN",
@@ -106,14 +131,7 @@ async def _async_register_lovelace_resource(
     lovelace_data = hass.data.get("lovelace")
     if lovelace_data is None:
         # Lovelace not initialized yet - retry if we haven't exhausted retries
-        if retry_count < LOVELACE_REGISTER_MAX_RETRIES:
-            _LOGGER.debug(
-                "Lovelace not initialized yet, retrying in %ds (attempt %d/%d)",
-                LOVELACE_REGISTER_RETRY_DELAY,
-                retry_count + 1,
-                LOVELACE_REGISTER_MAX_RETRIES,
-            )
-            await asyncio.sleep(LOVELACE_REGISTER_RETRY_DELAY)
+        if await _async_retry_or_fail(hass, retry_count, "Lovelace not initialized yet"):
             return await _async_register_lovelace_resource(hass, retry_count + 1)
 
         _LOGGER.warning(
@@ -141,15 +159,9 @@ async def _async_register_lovelace_resource(
     if resources is None:
         # Resources not available - could be YAML mode or not yet loaded
         # Retry if we haven't exhausted retries (resources may load after lovelace_data)
-        if retry_count < LOVELACE_REGISTER_MAX_RETRIES:
-            _LOGGER.debug(
-                "Lovelace resources not available yet (mode=%s), retrying in %ds (attempt %d/%d)",
-                lovelace_mode,
-                LOVELACE_REGISTER_RETRY_DELAY,
-                retry_count + 1,
-                LOVELACE_REGISTER_MAX_RETRIES,
-            )
-            await asyncio.sleep(LOVELACE_REGISTER_RETRY_DELAY)
+        if await _async_retry_or_fail(
+            hass, retry_count, "Lovelace resources not available yet", f"mode={lovelace_mode}"
+        ):
             return await _async_register_lovelace_resource(hass, retry_count + 1)
 
         _LOGGER.warning(
