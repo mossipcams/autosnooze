@@ -60,9 +60,7 @@ def get_automations_by_area(hass: HomeAssistant, area_ids: list[str]) -> list[st
 
 def get_automations_by_label(hass: HomeAssistant, label_ids: list[str]) -> list[str]:
     """Get all automation entity IDs with the specified labels."""
-    return _get_automations_by_filter(
-        hass, lambda e: e.labels and any(label in label_ids for label in e.labels)
-    )
+    return _get_automations_by_filter(hass, lambda e: e.labels and any(label in label_ids for label in e.labels))
 
 
 async def async_pause_automations(
