@@ -12,20 +12,33 @@ on:
       - 'package-lock.json'
       - 'rollup.config.mjs'
       - 'requirements_test.txt'
-      - 'pytest.ini'
       - 'pyproject.toml'
       - '.eslintrc.json'
   pull_request:
     branches: [main]
+    paths:
+      - '.github/workflows/**'
+      - 'src/**'
+      - 'tests/**'
+      - 'custom_components/**'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'rollup.config.mjs'
+      - 'requirements_test.txt'
+      - 'pyproject.toml'
+      - '.eslintrc.json'
   workflow_dispatch:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+permissions: {}
+
 jobs:
   build:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
 
     steps:
       - name: Checkout repository
@@ -39,8 +52,8 @@ jobs:
           cache: 'pip'
           cache-dependency-path: 'requirements_test.txt'
 
-      - name: Install Python linting tools
-        run: pip install ruff
+      - name: Install Python dependencies
+        run: pip install -r requirements_test.txt
 
       - name: Run ruff (Python linter)
         run: ruff check custom_components/ tests/ --output-format=github
@@ -59,7 +72,6 @@ jobs:
 
       - name: Audit npm dependencies
         run: npm audit --audit-level=high
-        continue-on-error: true
 
       - name: Run ESLint (JavaScript linter)
         run: npm run lint
@@ -91,7 +103,7 @@ jobs:
           fi
 
           # Validate semantic versioning format (major.minor.patch)
-          if ! echo "$PACKAGE_VERSION" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9.]+)?(\+[a-zA-Z0-9.]+)?$'; then
+          if ! echo "$PACKAGE_VERSION" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+$'; then
             echo "ERROR: Version '$PACKAGE_VERSION' does not follow semantic versioning format!"
             echo "Expected format: MAJOR.MINOR.PATCH (e.g., 1.0.0, 2.9.11)"
             exit 1
@@ -105,14 +117,11 @@ jobs:
         run: npm run test:coverage
         # Jest coverage thresholds are enforced via package.json (85% minimum)
 
-      - name: Install Python test dependencies
-        run: pip install -r requirements_test.txt
-
       - name: Run Python tests with coverage
         run: pytest tests/ -v --cov=custom_components/autosnooze --cov-report=term-missing --cov-report=xml
         env:
           TZ: UTC
-        # Python coverage threshold enforced via pyproject.toml (60% minimum)
+        # Python coverage threshold enforced via pyproject.toml (85% minimum)
 
       # === Build ===
       - name: Build card
@@ -132,18 +141,18 @@ jobs:
         with:
           name: autosnooze-card
           path: custom_components/autosnooze/www/autosnooze-card.js
-          retention-days: 30
+          retention-days: 7
 
       - name: Upload Python coverage report
         uses: actions/upload-artifact@v4
         with:
           name: python-coverage
           path: coverage.xml
-          retention-days: 30
+          retention-days: 7
 
       - name: Upload JavaScript coverage report
         uses: actions/upload-artifact@v4
         with:
           name: js-coverage
           path: coverage/
-          retention-days: 30
+          retention-days: 7
