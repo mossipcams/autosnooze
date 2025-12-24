@@ -43,16 +43,20 @@ CARD_URL_VERSIONED = f"/autosnooze-card.js?v={VERSION}"
 # Service schemas
 # FR-05: Duration Input - days, hours, minutes parameters
 # Also supports date-based scheduling with disable_at/resume_at
+
+# Shared duration and date options used by all pause schemas
+_DURATION_AND_DATE_SCHEMA = {
+    vol.Optional("days", default=0): cv.positive_int,
+    vol.Optional("hours", default=0): cv.positive_int,
+    vol.Optional("minutes", default=0): cv.positive_int,
+    vol.Optional("disable_at"): cv.datetime,
+    vol.Optional("resume_at"): cv.datetime,
+}
+
 PAUSE_SCHEMA = vol.Schema(
     {
         vol.Required(ATTR_ENTITY_ID): cv.entity_ids,
-        # Duration-based (existing)
-        vol.Optional("days", default=0): cv.positive_int,
-        vol.Optional("hours", default=0): cv.positive_int,
-        vol.Optional("minutes", default=0): cv.positive_int,
-        # Date-based (new) - overrides duration if provided
-        vol.Optional("disable_at"): cv.datetime,
-        vol.Optional("resume_at"): cv.datetime,
+        **_DURATION_AND_DATE_SCHEMA,
     }
 )
 
@@ -67,11 +71,7 @@ CANCEL_SCHEMA = vol.Schema(
 PAUSE_BY_AREA_SCHEMA = vol.Schema(
     {
         vol.Required("area_id"): vol.Any(cv.string, [cv.string]),
-        vol.Optional("days", default=0): cv.positive_int,
-        vol.Optional("hours", default=0): cv.positive_int,
-        vol.Optional("minutes", default=0): cv.positive_int,
-        vol.Optional("disable_at"): cv.datetime,
-        vol.Optional("resume_at"): cv.datetime,
+        **_DURATION_AND_DATE_SCHEMA,
     }
 )
 
@@ -79,10 +79,6 @@ PAUSE_BY_AREA_SCHEMA = vol.Schema(
 PAUSE_BY_LABEL_SCHEMA = vol.Schema(
     {
         vol.Required("label_id"): vol.Any(cv.string, [cv.string]),
-        vol.Optional("days", default=0): cv.positive_int,
-        vol.Optional("hours", default=0): cv.positive_int,
-        vol.Optional("minutes", default=0): cv.positive_int,
-        vol.Optional("disable_at"): cv.datetime,
-        vol.Optional("resume_at"): cv.datetime,
+        **_DURATION_AND_DATE_SCHEMA,
     }
 )
