@@ -32,7 +32,6 @@ LOVELACE_REGISTER_RETRY_DELAY = 2  # seconds
 
 
 async def _async_retry_or_fail(
-    hass: HomeAssistant,
     retry_count: int,
     condition_name: str,
     log_context: str = "",
@@ -132,7 +131,7 @@ async def _async_register_lovelace_resource(
     lovelace_data = hass.data.get("lovelace")
     if lovelace_data is None:
         # Lovelace not initialized yet - retry if we haven't exhausted retries
-        if await _async_retry_or_fail(hass, retry_count, "Lovelace not initialized yet"):
+        if await _async_retry_or_fail(retry_count, "Lovelace not initialized yet"):
             return await _async_register_lovelace_resource(hass, retry_count + 1)
 
         _LOGGER.warning(
@@ -160,9 +159,7 @@ async def _async_register_lovelace_resource(
     if resources is None:
         # Resources not available - could be YAML mode or not yet loaded
         # Retry if we haven't exhausted retries (resources may load after lovelace_data)
-        if await _async_retry_or_fail(
-            hass, retry_count, "Lovelace resources not available yet", f"mode={lovelace_mode}"
-        ):
+        if await _async_retry_or_fail(retry_count, "Lovelace resources not available yet", f"mode={lovelace_mode}"):
             return await _async_register_lovelace_resource(hass, retry_count + 1)
 
         _LOGGER.warning(
