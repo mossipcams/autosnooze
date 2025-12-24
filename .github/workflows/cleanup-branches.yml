@@ -9,11 +9,12 @@ on:
       dry_run:
         description: 'Dry run (no deletions)'
         required: false
-        default: 'false'
+        default: 'true'
         type: boolean
 
 permissions:
   contents: write
+  issues: write
 
 jobs:
   cleanup-branches:
@@ -24,10 +25,12 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Delete merged branches
+      - name: Find merged branches
+        id: find-branches
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          DRY_RUN: ${{ inputs.dry_run || 'false' }}
+          # Scheduled runs are always dry-run; manual runs use the input
+          DRY_RUN: ${{ github.event_name == 'schedule' && 'true' || inputs.dry_run }}
         run: |
           echo "=== Merged Branch Cleanup ==="
           echo "Dry run: $DRY_RUN"
@@ -40,6 +43,7 @@ jobs:
           MERGED=$(git branch -r --merged origin/main | grep -v HEAD | sed 's/origin\///' || true)
 
           DELETED=0
+          BRANCHES_TO_DELETE=""
           for branch in $MERGED; do
             # Skip protected branches
             if echo "$PROTECTED" | grep -qw "$branch"; then
@@ -49,6 +53,7 @@ jobs:
 
             if [ "$DRY_RUN" == "true" ]; then
               echo "[DRY RUN] Would delete: $branch"
+              BRANCHES_TO_DELETE="$BRANCHES_TO_DELETE\n- $branch"
             else
               echo "Deleting: $branch"
               gh api -X DELETE "repos/${{ github.repository }}/git/refs/heads/$branch" 2>/dev/null || true
@@ -58,7 +63,57 @@ jobs:
 
           echo ""
           echo "=== Summary ==="
-          echo "Deleted $DELETED merged branches"
+          if [ "$DRY_RUN" == "true" ]; then
+            echo "Found branches that can be deleted (dry run mode)"
+          else
+            echo "Deleted $DELETED merged branches"
+          fi
+
+          # Save for issue creation
+          echo "dry_run=$DRY_RUN" >> $GITHUB_OUTPUT
+          echo "deleted=$DELETED" >> $GITHUB_OUTPUT
+          {
+            echo "branches<<EOF"
+            echo -e "$BRANCHES_TO_DELETE"
+            echo "EOF"
+          } >> $GITHUB_OUTPUT
+
+      - name: Create issue for review (scheduled runs only)
+        if: github.event_name == 'schedule' && steps.find-branches.outputs.branches != ''
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          BRANCHES="${{ steps.find-branches.outputs.branches }}"
+
+          # Check if there's already an open cleanup issue
+          EXISTING=$(gh issue list --label "branch-cleanup" --state open --json number --jq '.[0].number' || echo "")
+
+          if [ -n "$EXISTING" ]; then
+            echo "Updating existing issue #$EXISTING"
+            gh issue comment "$EXISTING" --body "## Updated Branch Cleanup Report ($(date -u +%Y-%m-%d))
+
+The following merged branches can be deleted:
+$BRANCHES
+
+To delete these branches, run the workflow manually with dry_run=false."
+          else
+            echo "Creating new cleanup issue"
+            gh issue create \
+              --title "Branch Cleanup Review - $(date -u +%Y-%m-%d)" \
+              --label "branch-cleanup" \
+              --body "## Merged Branches Ready for Cleanup
+
+The following branches have been merged and can be deleted:
+$BRANCHES
+
+### How to delete
+1. Go to Actions → Cleanup Stale Branches
+2. Click 'Run workflow'
+3. Set 'Dry run' to **false**
+4. Click 'Run workflow'
+
+This issue will be closed automatically after cleanup."
+          fi
 
       - name: Report stale unmerged branches
         env:
