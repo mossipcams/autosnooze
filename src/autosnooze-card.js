@@ -261,6 +261,8 @@ class AutomationPauseCard extends LitElement {
     this._searchTimeout = null;
     this._wakeAllPending = false;
     this._wakeAllTimeout = null;
+    this._toastTimeout = null;
+    this._toastFadeTimeout = null;
   }
 
   connectedCallback() {
@@ -391,6 +393,14 @@ class AutomationPauseCard extends LitElement {
     if (this._wakeAllTimeout !== null) {
       clearTimeout(this._wakeAllTimeout);
       this._wakeAllTimeout = null;
+    }
+    if (this._toastTimeout !== null) {
+      clearTimeout(this._toastTimeout);
+      this._toastTimeout = null;
+    }
+    if (this._toastFadeTimeout !== null) {
+      clearTimeout(this._toastFadeTimeout);
+      this._toastFadeTimeout = null;
     }
   }
 
@@ -1765,11 +1775,21 @@ class AutomationPauseCard extends LitElement {
 
     this.shadowRoot.appendChild(toast);
 
-    setTimeout(() => {
+    // Clear any existing toast timeouts to prevent orphaned timers
+    if (this._toastTimeout !== null) {
+      clearTimeout(this._toastTimeout);
+    }
+    if (this._toastFadeTimeout !== null) {
+      clearTimeout(this._toastFadeTimeout);
+    }
+
+    this._toastTimeout = setTimeout(() => {
+      this._toastTimeout = null;
       // Safety check before animation
       if (!this.shadowRoot || !toast.parentNode) return;
       toast.style.animation = `slideUp ${UI_TIMING.TOAST_FADE_MS}ms ease-out reverse`;
-      setTimeout(() => {
+      this._toastFadeTimeout = setTimeout(() => {
+        this._toastFadeTimeout = null;
         if (toast.parentNode) toast.remove();
       }, UI_TIMING.TOAST_FADE_MS);
     }, UI_TIMING.TOAST_DURATION_MS);

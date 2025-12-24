@@ -198,6 +198,28 @@ async def async_cancel_scheduled(hass: HomeAssistant, data: AutomationPauseData,
     _LOGGER.info("Cancelled scheduled snooze for: %s", entity_id)
 
 
+async def async_cancel_scheduled_batch(hass: HomeAssistant, data: AutomationPauseData, entity_ids: list[str]) -> None:
+    """Cancel multiple scheduled snoozes efficiently with single save.
+
+    Similar to async_resume_batch (DEF-011 fix), this batches operations
+    to reduce disk I/O when cancelling multiple scheduled snoozes.
+    """
+    # Check if integration is unloaded to prevent post-unload operations
+    if data.unloaded:
+        return
+    if not entity_ids:
+        return
+
+    async with data.lock:
+        for entity_id in entity_ids:
+            cancel_scheduled_timer(data, entity_id)
+            data.scheduled.pop(entity_id, None)
+        # Single save after all operations
+        await async_save(data)
+    data.notify()
+    _LOGGER.info("Cancelled %d scheduled snoozes", len(entity_ids))
+
+
 async def async_save(data: AutomationPauseData) -> bool:
     """Save snoozed automations to storage with retry logic.
 

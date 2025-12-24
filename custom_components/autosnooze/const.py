@@ -45,10 +45,11 @@ CARD_URL_VERSIONED = f"/autosnooze-card.js?v={VERSION}"
 # Also supports date-based scheduling with disable_at/resume_at
 
 # Shared duration and date options used by all pause schemas
+# Upper bounds match services.yaml UI constraints for consistency
 _DURATION_AND_DATE_SCHEMA = {
-    vol.Optional("days", default=0): cv.positive_int,
-    vol.Optional("hours", default=0): cv.positive_int,
-    vol.Optional("minutes", default=0): cv.positive_int,
+    vol.Optional("days", default=0): vol.All(cv.positive_int, vol.Range(max=365)),
+    vol.Optional("hours", default=0): vol.All(cv.positive_int, vol.Range(max=23)),
+    vol.Optional("minutes", default=0): vol.All(cv.positive_int, vol.Range(max=59)),
     vol.Optional("disable_at"): cv.datetime,
     vol.Optional("resume_at"): cv.datetime,
 }

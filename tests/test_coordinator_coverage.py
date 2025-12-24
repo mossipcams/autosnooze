@@ -13,6 +13,7 @@ import pytest
 
 from custom_components.autosnooze.coordinator import (
     async_cancel_scheduled,
+    async_cancel_scheduled_batch,
     async_execute_scheduled_disable,
     async_save,
     schedule_disable,
@@ -644,3 +645,109 @@ class TestAsyncCancelScheduled:
         await async_cancel_scheduled(mock_hass, data, "automation.test")
 
         listener.assert_called()
+
+
+class TestAsyncCancelScheduledBatch:
+    """Tests for async_cancel_scheduled_batch function."""
+
+    @pytest.mark.asyncio
+    async def test_cancels_multiple_timers(self) -> None:
+        """Test that multiple scheduled timers are cancelled."""
+        mock_hass = MagicMock()
+        mock_store = MagicMock()
+        mock_store.async_save = AsyncMock()
+        data = AutomationPauseData(store=mock_store)
+
+        unsub1 = MagicMock()
+        unsub2 = MagicMock()
+        data.scheduled_timers["automation.test1"] = unsub1
+        data.scheduled_timers["automation.test2"] = unsub2
+
+        await async_cancel_scheduled_batch(mock_hass, data, ["automation.test1", "automation.test2"])
+
+        unsub1.assert_called_once()
+        unsub2.assert_called_once()
+        assert "automation.test1" not in data.scheduled_timers
+        assert "automation.test2" not in data.scheduled_timers
+
+    @pytest.mark.asyncio
+    async def test_removes_from_scheduled_dict(self) -> None:
+        """Test that automations are removed from scheduled dict."""
+        mock_hass = MagicMock()
+        mock_store = MagicMock()
+        mock_store.async_save = AsyncMock()
+        data = AutomationPauseData(store=mock_store)
+
+        now = datetime.now(UTC)
+        data.scheduled["automation.test1"] = ScheduledSnooze(
+            entity_id="automation.test1",
+            friendly_name="Test 1",
+            disable_at=now + timedelta(hours=1),
+            resume_at=now + timedelta(hours=2),
+        )
+        data.scheduled["automation.test2"] = ScheduledSnooze(
+            entity_id="automation.test2",
+            friendly_name="Test 2",
+            disable_at=now + timedelta(hours=1),
+            resume_at=now + timedelta(hours=2),
+        )
+
+        await async_cancel_scheduled_batch(mock_hass, data, ["automation.test1", "automation.test2"])
+
+        assert "automation.test1" not in data.scheduled
+        assert "automation.test2" not in data.scheduled
+
+    @pytest.mark.asyncio
+    async def test_single_save_for_batch(self) -> None:
+        """Test that only one save is performed for batch cancellation."""
+        mock_hass = MagicMock()
+        mock_store = MagicMock()
+        mock_store.async_save = AsyncMock()
+        data = AutomationPauseData(store=mock_store)
+
+        await async_cancel_scheduled_batch(mock_hass, data, ["automation.test1", "automation.test2"])
+
+        # Should only be called once, not twice
+        assert mock_store.async_save.call_count == 1
+
+    @pytest.mark.asyncio
+    async def test_notifies_listeners_once(self) -> None:
+        """Test that listeners are notified once after batch cancellation."""
+        mock_hass = MagicMock()
+        mock_store = MagicMock()
+        mock_store.async_save = AsyncMock()
+        data = AutomationPauseData(store=mock_store)
+
+        listener = MagicMock()
+        data.add_listener(listener)
+
+        await async_cancel_scheduled_batch(mock_hass, data, ["automation.test1", "automation.test2"])
+
+        # Listener should only be called once
+        assert listener.call_count == 1
+
+    @pytest.mark.asyncio
+    async def test_handles_empty_list(self) -> None:
+        """Test that empty list is handled gracefully."""
+        mock_hass = MagicMock()
+        mock_store = MagicMock()
+        mock_store.async_save = AsyncMock()
+        data = AutomationPauseData(store=mock_store)
+
+        await async_cancel_scheduled_batch(mock_hass, data, [])
+
+        # Should not call save for empty list
+        mock_store.async_save.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_skips_when_unloaded(self) -> None:
+        """Test that batch cancel is skipped when integration is unloaded."""
+        mock_hass = MagicMock()
+        mock_store = MagicMock()
+        mock_store.async_save = AsyncMock()
+        data = AutomationPauseData(store=mock_store)
+        data.unloaded = True
+
+        await async_cancel_scheduled_batch(mock_hass, data, ["automation.test"])
+
+        mock_store.async_save.assert_not_called()
