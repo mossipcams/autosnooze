@@ -727,6 +727,48 @@ class TestRetryMechanism:
         assert "after %d retries" in source or "after retries" in source.lower(), "Must warn after exhausting retries"
 
     @pytest.mark.asyncio
+    async def test_retry_helper_returns_true_when_retries_available(self) -> None:
+        """Test _async_retry_or_fail returns True when retries remain."""
+        from custom_components.autosnooze import _async_retry_or_fail
+
+        # Should return True when retry_count < MAX_RETRIES (3)
+        with patch("custom_components.autosnooze.asyncio.sleep", new_callable=AsyncMock):
+            result = await _async_retry_or_fail(0, "Test condition")
+            assert result is True
+
+            result = await _async_retry_or_fail(1, "Test condition")
+            assert result is True
+
+            result = await _async_retry_or_fail(2, "Test condition")
+            assert result is True
+
+    @pytest.mark.asyncio
+    async def test_retry_helper_returns_false_when_retries_exhausted(self) -> None:
+        """Test _async_retry_or_fail returns False when retries exhausted."""
+        from custom_components.autosnooze import _async_retry_or_fail
+
+        # Should return False when retry_count >= MAX_RETRIES (3)
+        result = await _async_retry_or_fail(3, "Test condition")
+        assert result is False
+
+        result = await _async_retry_or_fail(5, "Test condition")
+        assert result is False
+
+    @pytest.mark.asyncio
+    async def test_retry_helper_with_log_context(self) -> None:
+        """Test _async_retry_or_fail includes log context."""
+        from custom_components.autosnooze import _async_retry_or_fail
+
+        with (
+            patch("custom_components.autosnooze.asyncio.sleep", new_callable=AsyncMock),
+            patch("custom_components.autosnooze._LOGGER") as mock_logger,
+        ):
+            await _async_retry_or_fail(0, "Test condition", "extra=info")
+            mock_logger.debug.assert_called_once()
+            call_args = mock_logger.debug.call_args[0]
+            assert "extra=info" in str(call_args)
+
+    @pytest.mark.asyncio
     async def test_retry_succeeds_on_second_attempt(self) -> None:
         """Verify registration succeeds if Lovelace becomes available on retry."""
         attempt_count = 0
