@@ -54,11 +54,42 @@ jobs:
           # This will handover control about PR rejection to the GitHub side
           max-allowed-issues: 2147483647
 
+      # Merge multiple SARIF runs into a single run
+      # CodeQL Action no longer supports multiple runs in a single SARIF file
+      # See: https://github.blog/changelog/2025-07-21-code-scanning-will-stop-combining-multiple-sarif-runs-uploaded-in-the-same-sarif-file/
+      - name: Merge SARIF runs
+        run: |
+          # Check if SARIF file has multiple runs
+          RUN_COUNT=$(jq '.runs | length' results.sarif)
+          echo "SARIF file contains $RUN_COUNT run(s)"
+
+          if [ "$RUN_COUNT" -gt 1 ]; then
+            echo "Merging multiple runs into a single run..."
+            jq '{
+              "$schema": ."$schema",
+              version: .version,
+              runs: [{
+                tool: {
+                  driver: {
+                    name: "Codacy Security Scan",
+                    version: "1.0.0",
+                    informationUri: "https://www.codacy.com",
+                    rules: [.runs[].tool.driver.rules // [] | add] | flatten | unique_by(.id)
+                  }
+                },
+                results: [.runs[].results // [] | add] | flatten,
+                automationDetails: {
+                  id: "codacy-security-scan"
+                }
+              }]
+            }' results.sarif > results-merged.sarif
+            mv results-merged.sarif results.sarif
+            echo "Merged into single run with $(jq '.runs[0].results | length' results.sarif) results"
+          fi
+
       # Upload the SARIF file generated in the previous step
       - name: Upload SARIF results file
         uses: github/codeql-action/upload-sarif@v3
         with:
           sarif_file: results.sarif
-          # Category must be unique to distinguish from other SARIF uploads
-          # Required because Codacy CLI produces multiple runs in a single SARIF file
           category: codacy-security-scan
