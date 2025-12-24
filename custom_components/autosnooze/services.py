@@ -22,6 +22,7 @@ from .const import (
 )
 from .coordinator import (
     async_cancel_scheduled,
+    async_cancel_scheduled_batch,
     async_resume,
     async_resume_batch,
     async_save,
@@ -255,11 +256,15 @@ def register_services(hass: HomeAssistant, data: AutomationPauseData) -> None:
 
     async def handle_cancel_scheduled(call: ServiceCall) -> None:
         """Handle cancel scheduled snooze service call."""
-        for entity_id in call.data[ATTR_ENTITY_ID]:
+        entity_ids = call.data[ATTR_ENTITY_ID]
+        valid_ids = []
+        for entity_id in entity_ids:
             if entity_id not in data.scheduled:
                 _LOGGER.warning("Automation %s has no scheduled snooze", entity_id)
                 continue
-            await async_cancel_scheduled(hass, data, entity_id)
+            valid_ids.append(entity_id)
+        if valid_ids:
+            await async_cancel_scheduled_batch(hass, data, valid_ids)
 
     hass.services.async_register(DOMAIN, "pause", handle_pause, schema=PAUSE_SCHEMA)
     hass.services.async_register(DOMAIN, "cancel", handle_cancel, schema=CANCEL_SCHEMA)

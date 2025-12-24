@@ -41,7 +41,7 @@ def parse_datetime_utc(dt_str: str) -> datetime:
     return parsed
 
 
-def ensure_utc_aware(dt: datetime | None, hass: Any = None) -> datetime | None:
+def ensure_utc_aware(dt: datetime | None) -> datetime | None:
     """Ensure a datetime object is UTC-aware.
 
     Handles datetime objects that may come from service calls via cv.datetime,
@@ -52,7 +52,6 @@ def ensure_utc_aware(dt: datetime | None, hass: Any = None) -> datetime | None:
 
     Args:
         dt: A datetime object or None
-        hass: Home Assistant instance (optional, for timezone lookup)
 
     Returns:
         UTC-aware datetime object, or None if input was None
