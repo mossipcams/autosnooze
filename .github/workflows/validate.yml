@@ -2,7 +2,15 @@ name: Validate
 
 on:
   push:
+    paths:
+      - 'custom_components/autosnooze/manifest.json'
+      - 'hacs.json'
+      - '.github/workflows/validate.yml'
   pull_request:
+    paths:
+      - 'custom_components/autosnooze/manifest.json'
+      - 'hacs.json'
+      - '.github/workflows/validate.yml'
   schedule:
     - cron: "0 0 * * *"
   workflow_dispatch:
@@ -10,19 +18,6 @@ on:
 permissions: {}
 
 jobs:
-  validate-hacs:
-    name: HACS Validation
-    if: false # TODO: Re-enable HACS validation
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: HACS validation
-        uses: hacs/action@main
-        with:
-          category: integration
-
   validate-hassfest:
     name: Hassfest Validation
     runs-on: ubuntu-latest

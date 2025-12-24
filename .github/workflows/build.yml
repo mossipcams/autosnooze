@@ -12,7 +12,6 @@ on:
       - 'package-lock.json'
       - 'rollup.config.mjs'
       - 'requirements_test.txt'
-      - 'pytest.ini'
       - 'pyproject.toml'
       - '.eslintrc.json'
   pull_request:
@@ -59,7 +58,6 @@ jobs:
 
       - name: Audit npm dependencies
         run: npm audit --audit-level=high
-        continue-on-error: true
 
       - name: Run ESLint (JavaScript linter)
         run: npm run lint
@@ -91,7 +89,7 @@ jobs:
           fi
 
           # Validate semantic versioning format (major.minor.patch)
-          if ! echo "$PACKAGE_VERSION" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9.]+)?(\+[a-zA-Z0-9.]+)?$'; then
+          if ! echo "$PACKAGE_VERSION" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+$'; then
             echo "ERROR: Version '$PACKAGE_VERSION' does not follow semantic versioning format!"
             echo "Expected format: MAJOR.MINOR.PATCH (e.g., 1.0.0, 2.9.11)"
             exit 1
