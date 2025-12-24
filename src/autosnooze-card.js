@@ -113,8 +113,9 @@ class AutomationPauseCardEditor extends LitElement {
 
     return html`
       <div class="row">
-        <label>Title</label>
+        <label for="title-input">Title</label>
         <input
+          id="title-input"
           type="text"
           .value=${this._config.title || ""}
           @input=${(e) => this._valueChanged("title", e.target.value)}
@@ -130,13 +131,7 @@ class AutomationPauseCardEditor extends LitElement {
 // ============================================================================
 class AutomationPauseCard extends LitElement {
   static properties = {
-    hass: {
-      type: Object,
-      // Force re-render on every hass assignment to handle rapid state updates.
-      // HA's state propagation chain uses reference equality, and during rapid
-      // operations Lit's default hasChanged may not detect nested state changes.
-      hasChanged: () => true,
-    },
+    hass: { type: Object },
     config: { type: Object },
     _selected: { state: true },
     _duration: { state: true },
@@ -159,6 +154,65 @@ class AutomationPauseCard extends LitElement {
     _automationsCacheKey: { state: true },
     _wakeAllPending: { state: true },
   };
+
+  /**
+   * Smart update check to prevent infinite re-renders.
+   * Only triggers re-render when relevant state actually changes.
+   */
+  shouldUpdate(changedProps) {
+    // Always update for non-hass property changes (internal state)
+    if (!changedProps.has("hass")) {
+      return true;
+    }
+
+    const oldHass = changedProps.get("hass");
+    const newHass = this.hass;
+
+    // First render or hass became available/unavailable
+    if (!oldHass || !newHass) {
+      return true;
+    }
+
+    // Check if autosnooze sensor state changed (paused/scheduled automations)
+    const oldSensor = oldHass.states?.["sensor.autosnooze_snoozed_automations"];
+    const newSensor = newHass.states?.["sensor.autosnooze_snoozed_automations"];
+    if (oldSensor !== newSensor) {
+      return true;
+    }
+
+    // Check if entity registry changed (affects grouping by area/labels)
+    if (oldHass.entities !== newHass.entities) {
+      return true;
+    }
+
+    // Check if areas changed
+    if (oldHass.areas !== newHass.areas) {
+      return true;
+    }
+
+    // Check if any automation entity states changed
+    // We need to check all automations since any could be in the visible list
+    const newStates = newHass.states || {};
+    const oldStates = oldHass.states || {};
+
+    for (const entityId of Object.keys(newStates)) {
+      if (entityId.startsWith("automation.")) {
+        if (oldStates[entityId] !== newStates[entityId]) {
+          return true;
+        }
+      }
+    }
+
+    // Check if any automation was removed
+    for (const entityId of Object.keys(oldStates)) {
+      if (entityId.startsWith("automation.") && !newStates[entityId]) {
+        return true;
+      }
+    }
+
+    // No relevant changes detected
+    return false;
+  }
 
   updated(changedProps) {
     super.updated(changedProps);
@@ -408,11 +462,17 @@ class AutomationPauseCard extends LitElement {
       display: flex;
       align-items: center;
       gap: 6px;
+      min-height: 44px;
+      box-sizing: border-box;
     }
     .tab:hover {
       background: var(--primary-color);
       color: var(--text-primary-color);
       opacity: 0.8;
+    }
+    .tab:focus-visible {
+      outline: 2px solid var(--primary-color);
+      outline-offset: 2px;
     }
     .tab.active {
       background: var(--primary-color);
@@ -442,6 +502,7 @@ class AutomationPauseCard extends LitElement {
       color: var(--primary-text-color);
       box-sizing: border-box;
       font-size: 0.95em;
+      min-height: 44px;
     }
     .search-box input:focus {
       outline: none;
@@ -468,15 +529,27 @@ class AutomationPauseCard extends LitElement {
       gap: 10px;
       padding: 12px;
       cursor: pointer;
+      border: none;
       border-bottom: 1px solid var(--divider-color);
       transition: background 0.2s;
       min-height: 48px;
+      width: 100%;
+      background: transparent;
+      text-align: left;
+      font-family: inherit;
+      font-size: inherit;
+      color: inherit;
+      box-sizing: border-box;
     }
     .list-item:last-child {
       border-bottom: none;
     }
     .list-item:hover {
       background: var(--secondary-background-color);
+    }
+    .list-item:focus-visible {
+      outline: 2px solid var(--primary-color);
+      outline-offset: -2px;
     }
     .list-item.selected {
       background: rgba(var(--rgb-primary-color), 0.1);
@@ -532,10 +605,21 @@ class AutomationPauseCard extends LitElement {
       cursor: pointer;
       font-weight: 500;
       font-size: 0.9em;
+      border: none;
       border-bottom: 1px solid var(--divider-color);
+      width: 100%;
+      text-align: left;
+      font-family: inherit;
+      color: inherit;
+      box-sizing: border-box;
+      min-height: 44px;
     }
     .group-header:hover {
       background: var(--divider-color);
+    }
+    .group-header:focus-visible {
+      outline: 2px solid var(--primary-color);
+      outline-offset: -2px;
     }
     .group-header ha-icon {
       transition: transform 0.2s;
@@ -576,11 +660,17 @@ class AutomationPauseCard extends LitElement {
       cursor: pointer;
       font-size: 0.85em;
       transition: all 0.2s;
+      min-height: 44px;
+      box-sizing: border-box;
     }
     .select-all-btn:hover {
       background: var(--primary-color);
       color: var(--text-primary-color);
       border-color: var(--primary-color);
+    }
+    .select-all-btn:focus-visible {
+      outline: 2px solid var(--primary-color);
+      outline-offset: 2px;
     }
 
     /* Duration Section */
@@ -609,9 +699,16 @@ class AutomationPauseCard extends LitElement {
       cursor: pointer;
       font-size: 0.9em;
       transition: all 0.2s;
+      min-height: 44px;
+      box-sizing: border-box;
+      color: var(--primary-text-color);
     }
     .pill:hover {
       border-color: var(--primary-color);
+    }
+    .pill:focus-visible {
+      outline: 2px solid var(--primary-color);
+      outline-offset: 2px;
     }
     .pill.active {
       background: var(--primary-color);
@@ -632,6 +729,7 @@ class AutomationPauseCard extends LitElement {
       color: var(--primary-text-color);
       font-size: 0.95em;
       box-sizing: border-box;
+      min-height: 44px;
     }
     .duration-input:focus {
       outline: none;
@@ -664,9 +762,14 @@ class AutomationPauseCard extends LitElement {
       font-weight: 500;
       cursor: pointer;
       transition: opacity 0.2s;
+      min-height: 48px;
     }
     .snooze-btn:hover:not(:disabled) {
       opacity: 0.9;
+    }
+    .snooze-btn:focus-visible {
+      outline: 2px solid var(--primary-color);
+      outline-offset: 2px;
     }
     .snooze-btn:disabled {
       opacity: 0.4;
@@ -755,11 +858,17 @@ class AutomationPauseCard extends LitElement {
       cursor: pointer;
       font-size: 0.85em;
       transition: all 0.2s;
+      min-height: 44px;
+      box-sizing: border-box;
     }
     .wake-btn:hover {
       background: var(--primary-color);
       color: var(--text-primary-color);
       border-color: var(--primary-color);
+    }
+    .wake-btn:focus-visible {
+      outline: 2px solid var(--primary-color);
+      outline-offset: 2px;
     }
 
     /* Wake All Button */
@@ -774,10 +883,15 @@ class AutomationPauseCard extends LitElement {
       font-size: 0.9em;
       font-weight: 500;
       transition: all 0.2s;
+      min-height: 44px;
     }
     .wake-all:hover {
       background: #ff9800;
       color: white;
+    }
+    .wake-all:focus-visible {
+      outline: 2px solid #ff9800;
+      outline-offset: 2px;
     }
 
     /* Wake All Button - Pending State */
@@ -796,17 +910,26 @@ class AutomationPauseCard extends LitElement {
 
     /* Schedule Link (Progressive Disclosure) */
     .schedule-link {
-      display: flex;
+      display: inline-flex;
       align-items: center;
       gap: 6px;
       margin-top: 12px;
-      padding: 8px 0;
+      padding: 8px 4px;
       color: var(--primary-color);
       cursor: pointer;
       font-size: 0.9em;
+      background: none;
+      border: none;
+      font-family: inherit;
+      min-height: 44px;
+      box-sizing: border-box;
     }
     .schedule-link:hover {
       text-decoration: underline;
+    }
+    .schedule-link:focus-visible {
+      outline: 2px solid var(--primary-color);
+      outline-offset: 2px;
     }
     .schedule-link ha-icon {
       --mdc-icon-size: 18px;
@@ -851,6 +974,8 @@ class AutomationPauseCard extends LitElement {
       background: var(--card-background-color);
       color: var(--primary-text-color);
       font-size: 0.95em;
+      min-height: 44px;
+      box-sizing: border-box;
     }
     .datetime-row select {
       flex: 1;
@@ -907,11 +1032,17 @@ class AutomationPauseCard extends LitElement {
       cursor: pointer;
       font-size: 0.85em;
       transition: all 0.2s;
+      min-height: 44px;
+      box-sizing: border-box;
     }
     .cancel-scheduled-btn:hover {
       background: #f44336;
       color: white;
       border-color: #f44336;
+    }
+    .cancel-scheduled-btn:focus-visible {
+      outline: 2px solid var(--primary-color);
+      outline-offset: 2px;
     }
 
     /* Toast */
@@ -941,10 +1072,16 @@ class AutomationPauseCard extends LitElement {
       font-size: 0.85em;
       font-weight: 500;
       transition: all 0.2s;
+      min-height: 44px;
+      box-sizing: border-box;
     }
     .toast-undo-btn:hover {
       background: rgba(255, 255, 255, 0.2);
       border-color: rgba(255, 255, 255, 0.8);
+    }
+    .toast-undo-btn:focus-visible {
+      outline: 2px solid white;
+      outline-offset: 2px;
     }
     @keyframes slideUp {
       from {
@@ -983,6 +1120,7 @@ class AutomationPauseCard extends LitElement {
         padding: 5px 8px;
         font-size: 0.8em;
         border-radius: 12px;
+        min-height: 44px;
       }
 
       .tab-count {
@@ -998,6 +1136,7 @@ class AutomationPauseCard extends LitElement {
       .search-box input {
         padding: 8px 10px;
         font-size: 0.9em;
+        min-height: 44px;
       }
 
       /* Compact selection actions */
@@ -1011,6 +1150,7 @@ class AutomationPauseCard extends LitElement {
       .select-all-btn {
         padding: 3px 8px;
         font-size: 0.8em;
+        min-height: 44px;
       }
 
       /* Reduced selection list height */
@@ -1022,7 +1162,7 @@ class AutomationPauseCard extends LitElement {
       .list-item {
         padding: 10px;
         gap: 8px;
-        min-height: 42px;
+        min-height: 44px;
       }
 
       .list-item-name {
@@ -1032,6 +1172,7 @@ class AutomationPauseCard extends LitElement {
       .group-header {
         padding: 8px 10px;
         font-size: 0.85em;
+        min-height: 44px;
       }
 
       /* Compact duration selector */
@@ -1053,17 +1194,20 @@ class AutomationPauseCard extends LitElement {
         padding: 6px 10px;
         font-size: 0.85em;
         border-radius: 16px;
+        min-height: 44px;
       }
 
       .duration-input {
         padding: 8px 10px;
         font-size: 0.9em;
+        min-height: 44px;
       }
 
       .schedule-link {
         margin-top: 8px;
         padding: 6px 0;
         font-size: 0.85em;
+        min-height: 44px;
       }
 
       /* Compact schedule inputs */
@@ -1080,12 +1224,14 @@ class AutomationPauseCard extends LitElement {
       .datetime-row select {
         flex: 1 1 100%;
         min-width: 0;
+        min-height: 44px;
       }
 
       .datetime-row input[type="time"] {
         flex: 1;
         width: auto;
         min-width: 100px;
+        min-height: 44px;
       }
 
       .field-hint {
@@ -1096,6 +1242,7 @@ class AutomationPauseCard extends LitElement {
       .snooze-btn {
         padding: 12px;
         font-size: 0.95em;
+        min-height: 48px;
       }
 
       /* Compact active snoozes section */
@@ -1143,11 +1290,13 @@ class AutomationPauseCard extends LitElement {
         margin-left: auto;
         padding: 5px 10px;
         font-size: 0.8em;
+        min-height: 44px;
       }
 
       .wake-all {
         padding: 8px;
         font-size: 0.85em;
+        min-height: 44px;
       }
 
       /* Compact scheduled section */
@@ -1176,6 +1325,7 @@ class AutomationPauseCard extends LitElement {
         margin-left: auto;
         padding: 5px 10px;
         font-size: 0.8em;
+        min-height: 44px;
       }
 
       /* Adjust toast for mobile */
@@ -1184,6 +1334,10 @@ class AutomationPauseCard extends LitElement {
         padding: 10px 16px;
         font-size: 0.9em;
         max-width: calc(100vw - 20px);
+      }
+
+      .toast-undo-btn {
+        min-height: 44px;
       }
     }
   `;
@@ -1472,32 +1626,63 @@ class AutomationPauseCard extends LitElement {
     this._duration = totalMinutes * TIME_MS.MINUTE;
   }
 
+  /**
+   * Parse duration input string supporting decimals.
+   * Examples: "1.5h" -> 1h 30m, "2.5d" -> 2d 12h, "1d 2.5h 30m" -> 1d 2h 60m
+   * Returns null for invalid input.
+   */
   _parseDurationInput(input) {
     const cleaned = input.toLowerCase().replace(/\s+/g, "");
     if (!cleaned) return null;
 
-    let days = 0;
-    let hours = 0;
-    let minutes = 0;
+    let totalMinutes = 0;
+    let hasValidUnit = false;
 
-    const dayMatch = cleaned.match(/(\d+)\s*d/);
-    const hourMatch = cleaned.match(/(\d+)\s*h/);
-    const minMatch = cleaned.match(/(\d+)\s*m/);
+    // Match numbers (including decimals) followed by units
+    const dayMatch = cleaned.match(/(\d+(?:\.\d+)?)\s*d/);
+    const hourMatch = cleaned.match(/(\d+(?:\.\d+)?)\s*h/);
+    const minMatch = cleaned.match(/(\d+(?:\.\d+)?)\s*m(?!i)/); // 'm' but not 'min' to avoid conflict
 
-    if (dayMatch) days = parseInt(dayMatch[1], 10);
-    if (hourMatch) hours = parseInt(hourMatch[1], 10);
-    if (minMatch) minutes = parseInt(minMatch[1], 10);
+    if (dayMatch) {
+      const dayValue = parseFloat(dayMatch[1]);
+      if (isNaN(dayValue) || dayValue < 0) return null;
+      totalMinutes += dayValue * MINUTES_PER.DAY;
+      hasValidUnit = true;
+    }
 
-    if (!dayMatch && !hourMatch && !minMatch) {
-      const plainNum = parseInt(cleaned, 10);
+    if (hourMatch) {
+      const hourValue = parseFloat(hourMatch[1]);
+      if (isNaN(hourValue) || hourValue < 0) return null;
+      totalMinutes += hourValue * MINUTES_PER.HOUR;
+      hasValidUnit = true;
+    }
+
+    if (minMatch) {
+      const minValue = parseFloat(minMatch[1]);
+      if (isNaN(minValue) || minValue < 0) return null;
+      totalMinutes += minValue;
+      hasValidUnit = true;
+    }
+
+    // If no units found, try parsing as plain minutes
+    if (!hasValidUnit) {
+      const plainNum = parseFloat(cleaned);
       if (!isNaN(plainNum) && plainNum > 0) {
-        minutes = plainNum;
+        totalMinutes = plainNum;
       } else {
         return null;
       }
     }
 
-    if (days === 0 && hours === 0 && minutes === 0) return null;
+    // Round to nearest minute and validate
+    totalMinutes = Math.round(totalMinutes);
+    if (totalMinutes <= 0) return null;
+
+    // Normalize into days, hours, minutes
+    const days = Math.floor(totalMinutes / MINUTES_PER.DAY);
+    const remainingAfterDays = totalMinutes % MINUTES_PER.DAY;
+    const hours = Math.floor(remainingAfterDays / MINUTES_PER.HOUR);
+    const minutes = remainingAfterDays % MINUTES_PER.HOUR;
 
     return { days, hours, minutes };
   }
@@ -1543,8 +1728,11 @@ class AutomationPauseCard extends LitElement {
   _showToast(message, options = {}) {
     const { showUndo = false, onUndo = null } = options;
 
+    // Safety check: ensure shadowRoot exists
+    if (!this.shadowRoot) return;
+
     // Remove any existing toast
-    const existingToast = this.shadowRoot?.querySelector(".toast");
+    const existingToast = this.shadowRoot.querySelector(".toast");
     if (existingToast) {
       existingToast.remove();
     }
@@ -1575,11 +1763,15 @@ class AutomationPauseCard extends LitElement {
       toast.textContent = message;
     }
 
-    this.shadowRoot?.appendChild(toast);
+    this.shadowRoot.appendChild(toast);
 
     setTimeout(() => {
+      // Safety check before animation
+      if (!this.shadowRoot || !toast.parentNode) return;
       toast.style.animation = `slideUp ${UI_TIMING.TOAST_FADE_MS}ms ease-out reverse`;
-      setTimeout(() => toast.remove(), UI_TIMING.TOAST_FADE_MS);
+      setTimeout(() => {
+        if (toast.parentNode) toast.remove();
+      }, UI_TIMING.TOAST_FADE_MS);
     }, UI_TIMING.TOAST_DURATION_MS);
   }
 
@@ -1647,6 +1839,17 @@ class AutomationPauseCard extends LitElement {
     return this._disableAtDate && this._disableAtTime;
   }
 
+  /**
+   * Handle keyboard events for interactive elements.
+   * Supports Enter and Space keys for activation.
+   */
+  _handleKeyDown(e, callback) {
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      callback();
+    }
+  }
+
   async _snooze() {
     if (this._selected.length === 0 || this._loading) return;
 
@@ -1710,6 +1913,12 @@ class AutomationPauseCard extends LitElement {
 
         await this.hass.callService("autosnooze", "pause", serviceData);
 
+        // Safety check: component may have been disconnected during async operation
+        if (!this.isConnected || !this.shadowRoot) {
+          this._loading = false;
+          return;
+        }
+
         if (disableAt) {
           toastMessage = `Scheduled ${count} automation${count !== 1 ? "s" : ""} to snooze`;
         } else {
@@ -1724,6 +1933,12 @@ class AutomationPauseCard extends LitElement {
           hours,
           minutes,
         });
+
+        // Safety check: component may have been disconnected during async operation
+        if (!this.isConnected || !this.shadowRoot) {
+          this._loading = false;
+          return;
+        }
 
         const durationText = this._formatDuration(days, hours, minutes);
         toastMessage = `Snoozed ${count} automation${count !== 1 ? "s" : ""} for ${durationText}`;
@@ -1748,12 +1963,16 @@ class AutomationPauseCard extends LitElement {
                 });
               }
             }
-            // Restore the selection
-            this._selected = snoozedEntities;
-            this._showToast(`Restored ${count} automation${count !== 1 ? "s" : ""}`);
+            // Restore the selection (only if component still connected)
+            if (this.isConnected) {
+              this._selected = snoozedEntities;
+              this._showToast(`Restored ${count} automation${count !== 1 ? "s" : ""}`);
+            }
           } catch (e) {
             console.error("Undo failed:", e);
-            this._showToast("Failed to undo. The automations may have already been modified.");
+            if (this.isConnected && this.shadowRoot) {
+              this._showToast("Failed to undo. The automations may have already been modified.");
+            }
           }
         },
       });
@@ -1765,7 +1984,10 @@ class AutomationPauseCard extends LitElement {
       this._resumeAtTime = "";
     } catch (e) {
       console.error("Snooze failed:", e);
-      this._showToast(this._getErrorMessage(e, "Failed to snooze automations"));
+      // Safety check before showing error toast
+      if (this.isConnected && this.shadowRoot) {
+        this._showToast(this._getErrorMessage(e, "Failed to snooze automations"));
+      }
     }
     this._loading = false;
   }
@@ -1783,10 +2005,15 @@ class AutomationPauseCard extends LitElement {
       await this.hass.callService("autosnooze", "cancel", {
         entity_id: entityId,
       });
-      this._showToast("Automation resumed successfully");
+      // Safety check after async operation
+      if (this.isConnected && this.shadowRoot) {
+        this._showToast("Automation resumed successfully");
+      }
     } catch (e) {
       console.error("Wake failed:", e);
-      this._showToast(this._getErrorMessage(e, "Failed to resume automation"));
+      if (this.isConnected && this.shadowRoot) {
+        this._showToast(this._getErrorMessage(e, "Failed to resume automation"));
+      }
     }
   }
 
@@ -1798,10 +2025,15 @@ class AutomationPauseCard extends LitElement {
       this._wakeAllPending = false;
       try {
         await this.hass.callService("autosnooze", "cancel_all", {});
-        this._showToast("All automations resumed successfully");
+        // Safety check after async operation
+        if (this.isConnected && this.shadowRoot) {
+          this._showToast("All automations resumed successfully");
+        }
       } catch (e) {
         console.error("Wake all failed:", e);
-        this._showToast("Failed to resume automations. Check Home Assistant logs for details.");
+        if (this.isConnected && this.shadowRoot) {
+          this._showToast("Failed to resume automations. Check Home Assistant logs for details.");
+        }
       }
     } else {
       // First click - start confirmation
@@ -1818,10 +2050,15 @@ class AutomationPauseCard extends LitElement {
       await this.hass.callService("autosnooze", "cancel_scheduled", {
         entity_id: entityId,
       });
-      this._showToast("Scheduled snooze cancelled successfully");
+      // Safety check after async operation
+      if (this.isConnected && this.shadowRoot) {
+        this._showToast("Scheduled snooze cancelled successfully");
+      }
     } catch (e) {
       console.error("Cancel scheduled failed:", e);
-      this._showToast(this._getErrorMessage(e, "Failed to cancel scheduled snooze"));
+      if (this.isConnected && this.shadowRoot) {
+        this._showToast(this._getErrorMessage(e, "Failed to cancel scheduled snooze"));
+      }
     }
   }
 
@@ -1833,7 +2070,8 @@ class AutomationPauseCard extends LitElement {
         return html`<div class="list-empty" role="status">No automations found</div>`;
       }
       return filtered.map((a) => html`
-        <div
+        <button
+          type="button"
           class="list-item ${this._selected.includes(a.id) ? "selected" : ""}"
           @click=${() => this._toggleSelection(a.id)}
           role="option"
@@ -1845,11 +2083,12 @@ class AutomationPauseCard extends LitElement {
             @click=${(e) => e.stopPropagation()}
             @change=${() => this._toggleSelection(a.id)}
             aria-label="Select ${a.name}"
+            tabindex="-1"
           />
           <div class="list-item-content">
             <div class="list-item-name">${a.name}</div>
           </div>
-        </div>
+        </button>
       `);
     }
 
@@ -1870,10 +2109,10 @@ class AutomationPauseCard extends LitElement {
       const someSelected = items.some((i) => this._selected.includes(i.id)) && !groupSelected;
 
       return html`
-        <div
+        <button
+          type="button"
           class="group-header ${expanded ? "expanded" : ""}"
           @click=${() => this._toggleGroupExpansion(groupName)}
-          role="button"
           aria-expanded=${expanded}
           aria-label="${groupName} group, ${items.length} automations"
         >
@@ -1887,15 +2126,17 @@ class AutomationPauseCard extends LitElement {
             @click=${(e) => e.stopPropagation()}
             @change=${() => this._selectGroup(items)}
             aria-label="Select all automations in ${groupName}"
+            tabindex="-1"
           />
-        </div>
+        </button>
         ${expanded
           ? items.map((a) => {
               const showArea = this._filterTab === "labels" && a.area_id;
               const metaInfo = showArea ? this._getAreaName(a.area_id) : null;
 
               return html`
-                <div
+                <button
+                  type="button"
                   class="list-item ${this._selected.includes(a.id) ? "selected" : ""}"
                   @click=${() => this._toggleSelection(a.id)}
                   role="option"
@@ -1907,6 +2148,7 @@ class AutomationPauseCard extends LitElement {
                     @click=${(e) => e.stopPropagation()}
                     @change=${() => this._toggleSelection(a.id)}
                     aria-label="Select ${a.name}"
+                    tabindex="-1"
                   />
                   <div class="list-item-content">
                     <div class="list-item-name">${a.name}</div>
@@ -1916,7 +2158,7 @@ class AutomationPauseCard extends LitElement {
                         </div>`
                       : ""}
                   </div>
-                </div>
+                </button>
               `;
             })
           : ""}
@@ -1972,10 +2214,14 @@ class AutomationPauseCard extends LitElement {
                 />
               </div>
             </div>
-            <div class="schedule-link" @click=${() => (this._scheduleMode = false)} role="button" tabindex="0" @keypress=${(e) => e.key === "Enter" && (this._scheduleMode = false)}>
+            <button
+              type="button"
+              class="schedule-link"
+              @click=${() => (this._scheduleMode = false)}
+            >
               <ha-icon icon="mdi:timer-outline" aria-hidden="true"></ha-icon>
               Back to duration selection
-            </div>
+            </button>
           </div>
         `
       : html`
@@ -1990,6 +2236,7 @@ class AutomationPauseCard extends LitElement {
                     : !this._showCustomInput && selectedDuration === d;
                   return html`
                     <button
+                      type="button"
                       class="pill ${isActive ? "active" : ""}"
                       @click=${() => {
                         if (d.minutes === null) {
@@ -2015,7 +2262,7 @@ class AutomationPauseCard extends LitElement {
                 <input
                   type="text"
                   class="duration-input ${!durationValid ? "invalid" : ""}"
-                  placeholder="e.g. 2h30m, 1d, 45m"
+                  placeholder="e.g. 2h30m, 1.5h, 1d, 45m"
                   .value=${this._customDurationInput}
                   @input=${(e) => this._handleDurationInput(e.target.value)}
                   aria-label="Custom duration"
@@ -2024,14 +2271,18 @@ class AutomationPauseCard extends LitElement {
                 />
                 ${durationPreview && durationValid
                   ? html`<div class="duration-preview" role="status" aria-live="polite">Duration: ${durationPreview}</div>`
-                  : html`<div class="duration-help" id="duration-help">Enter duration: 30m, 2h, 4h30m, 1d, 1d2h</div>`}
+                  : html`<div class="duration-help" id="duration-help">Enter duration: 30m, 2h, 1.5h, 4h30m, 1d, 1d2h</div>`}
               </div>
             ` : ""}
 
-            <div class="schedule-link" @click=${() => (this._scheduleMode = true)} role="button" tabindex="0" @keypress=${(e) => e.key === "Enter" && (this._scheduleMode = true)}>
+            <button
+              type="button"
+              class="schedule-link"
+              @click=${() => (this._scheduleMode = true)}
+            >
               <ha-icon icon="mdi:calendar-clock" aria-hidden="true"></ha-icon>
               Pick specific date/time instead
-            </div>
+            </button>
           </div>
         `;
   }
@@ -2062,7 +2313,7 @@ class AutomationPauseCard extends LitElement {
                     <div class="paused-info">
                       <div class="paused-name">${auto.friendly_name || auto.id}</div>
                     </div>
-                    <button class="wake-btn" @click=${() => this._wake(auto.id)} aria-label="Resume ${auto.friendly_name || auto.id}">
+                    <button type="button" class="wake-btn" @click=${() => this._wake(auto.id)} aria-label="Resume ${auto.friendly_name || auto.id}">
                       Resume
                     </button>
                   </div>
@@ -2075,6 +2326,7 @@ class AutomationPauseCard extends LitElement {
         ${pausedCount > 1
           ? html`
               <button
+                type="button"
                 class="wake-all ${this._wakeAllPending ? "pending" : ""}"
                 @click=${this._handleWakeAll}
                 aria-label="${this._wakeAllPending ? "Confirm resume all automations" : "Resume all paused automations"}"
@@ -2112,7 +2364,7 @@ class AutomationPauseCard extends LitElement {
                   Resumes: ${this._formatDateTime(data.resume_at)}
                 </div>
               </div>
-              <button class="cancel-scheduled-btn" @click=${() => this._cancelScheduled(id)} aria-label="Cancel scheduled pause for ${data.friendly_name || id}">
+              <button type="button" class="cancel-scheduled-btn" @click=${() => this._cancelScheduled(id)} aria-label="Cancel scheduled pause for ${data.friendly_name || id}">
                 Cancel
               </button>
             </div>
@@ -2158,6 +2410,7 @@ class AutomationPauseCard extends LitElement {
           <!-- Filter Tabs -->
           <div class="filter-tabs" role="tablist" aria-label="Filter automations by">
             <button
+              type="button"
               class="tab ${this._filterTab === "all" ? "active" : ""}"
               @click=${() => (this._filterTab = "all")}
               role="tab"
@@ -2168,6 +2421,7 @@ class AutomationPauseCard extends LitElement {
               <span class="tab-count" aria-label="${this._getAutomations().length} automations">${this._getAutomations().length}</span>
             </button>
             <button
+              type="button"
               class="tab ${this._filterTab === "areas" ? "active" : ""}"
               @click=${() => (this._filterTab = "areas")}
               role="tab"
@@ -2178,6 +2432,7 @@ class AutomationPauseCard extends LitElement {
               <span class="tab-count" aria-label="${this._getAreaCount()} areas">${this._getAreaCount()}</span>
             </button>
             <button
+              type="button"
               class="tab ${this._filterTab === "categories" ? "active" : ""}"
               @click=${() => (this._filterTab = "categories")}
               role="tab"
@@ -2188,6 +2443,7 @@ class AutomationPauseCard extends LitElement {
               <span class="tab-count" aria-label="${this._getCategoryCount()} categories">${this._getCategoryCount()}</span>
             </button>
             <button
+              type="button"
               class="tab ${this._filterTab === "labels" ? "active" : ""}"
               @click=${() => (this._filterTab = "labels")}
               role="tab"
@@ -2216,6 +2472,7 @@ class AutomationPauseCard extends LitElement {
                 <div class="selection-actions" role="toolbar" aria-label="Selection actions">
                   <span role="status" aria-live="polite">${this._selected.length} of ${this._getFilteredAutomations().length} selected</span>
                   <button
+                    type="button"
                     class="select-all-btn"
                     @click=${() => this._selectAllVisible()}
                     aria-label="${this._getFilteredAutomations().every((a) => this._selected.includes(a.id))
@@ -2227,7 +2484,7 @@ class AutomationPauseCard extends LitElement {
                       : "Select All"}
                   </button>
                   ${this._selected.length > 0
-                    ? html`<button class="select-all-btn" @click=${() => this._clearSelection()} aria-label="Clear selection">Clear</button>`
+                    ? html`<button type="button" class="select-all-btn" @click=${() => this._clearSelection()} aria-label="Clear selection">Clear</button>`
                     : ""}
                 </div>
               `
@@ -2242,6 +2499,7 @@ class AutomationPauseCard extends LitElement {
 
           <!-- Snooze Button -->
           <button
+            type="button"
             class="snooze-btn"
             ?disabled=${this._selected.length === 0 ||
             (!this._scheduleMode && !this._isDurationValid()) ||
