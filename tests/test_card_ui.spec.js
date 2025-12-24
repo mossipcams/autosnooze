@@ -1784,3 +1784,187 @@ describe('Error Message Handling', () => {
     expect(result).toBe('My Default. Check Home Assistant logs for details.');
   });
 });
+
+// =============================================================================
+// SHOULD UPDATE OPTIMIZATION
+// =============================================================================
+
+describe('shouldUpdate optimization', () => {
+  let card;
+  let createMockHass;
+
+  beforeEach(async () => {
+    createMockHass = (overrides = {}) => ({
+      states: {
+        'automation.test1': { state: 'on', attributes: { friendly_name: 'Test 1' } },
+        'sensor.autosnooze_snoozed_automations': {
+          state: '0',
+          attributes: { paused_automations: {}, scheduled_snoozes: {} },
+        },
+        ...overrides.states,
+      },
+      entities: overrides.entities || {},
+      areas: overrides.areas || {},
+      callService: jest.fn().mockResolvedValue({}),
+    });
+
+    const CardClass = customElements.get('autosnooze-card');
+    card = new CardClass();
+    card.setConfig({ title: 'AutoSnooze' });
+    card.hass = createMockHass();
+    document.body.appendChild(card);
+    await card.updateComplete;
+  });
+
+  afterEach(() => {
+    if (card && card.parentNode) {
+      card.parentNode.removeChild(card);
+    }
+  });
+
+  test('shouldUpdate returns true for non-hass property changes', () => {
+    const changedProps = new Map();
+    changedProps.set('_selected', []);
+    expect(card.shouldUpdate(changedProps)).toBe(true);
+  });
+
+  test('shouldUpdate returns true when oldHass is undefined', () => {
+    const changedProps = new Map();
+    changedProps.set('hass', undefined);
+    expect(card.shouldUpdate(changedProps)).toBe(true);
+  });
+
+  test('shouldUpdate returns true when newHass is null', () => {
+    card.hass = null;
+    const changedProps = new Map();
+    changedProps.set('hass', createMockHass());
+    expect(card.shouldUpdate(changedProps)).toBe(true);
+  });
+
+  test('shouldUpdate returns true when autosnooze sensor changes', () => {
+    const oldHass = createMockHass();
+    const newHass = createMockHass({
+      states: {
+        'sensor.autosnooze_snoozed_automations': {
+          state: '1',
+          attributes: { paused_automations: { 'automation.test1': {} }, scheduled_snoozes: {} },
+        },
+      },
+    });
+    card.hass = newHass;
+    const changedProps = new Map();
+    changedProps.set('hass', oldHass);
+    expect(card.shouldUpdate(changedProps)).toBe(true);
+  });
+
+  test('shouldUpdate returns true when entities registry changes', () => {
+    const oldHass = createMockHass({ entities: { a: 1 } });
+    const newHass = createMockHass({ entities: { b: 2 } });
+    card.hass = newHass;
+    const changedProps = new Map();
+    changedProps.set('hass', oldHass);
+    expect(card.shouldUpdate(changedProps)).toBe(true);
+  });
+
+  test('shouldUpdate returns true when areas change', () => {
+    const oldHass = createMockHass({ areas: { area1: { name: 'Old' } } });
+    const newHass = createMockHass({ areas: { area1: { name: 'New' } } });
+    card.hass = newHass;
+    const changedProps = new Map();
+    changedProps.set('hass', oldHass);
+    expect(card.shouldUpdate(changedProps)).toBe(true);
+  });
+
+  test('shouldUpdate returns true when an automation state changes', () => {
+    const oldHass = createMockHass();
+    const newHass = createMockHass({
+      states: {
+        'automation.test1': { state: 'off', attributes: { friendly_name: 'Test 1' } },
+      },
+    });
+    card.hass = newHass;
+    const changedProps = new Map();
+    changedProps.set('hass', oldHass);
+    expect(card.shouldUpdate(changedProps)).toBe(true);
+  });
+
+  test('shouldUpdate returns true when an automation is removed', () => {
+    const oldHass = createMockHass({
+      states: {
+        'automation.test1': { state: 'on', attributes: { friendly_name: 'Test 1' } },
+        'automation.test2': { state: 'on', attributes: { friendly_name: 'Test 2' } },
+      },
+    });
+    const newHass = createMockHass(); // only has test1
+    card.hass = newHass;
+    const changedProps = new Map();
+    changedProps.set('hass', oldHass);
+    expect(card.shouldUpdate(changedProps)).toBe(true);
+  });
+
+  test('shouldUpdate returns false when no relevant changes', () => {
+    const hass = createMockHass();
+    card.hass = hass;
+    const changedProps = new Map();
+    changedProps.set('hass', hass); // Same object reference
+    expect(card.shouldUpdate(changedProps)).toBe(false);
+  });
+});
+
+// =============================================================================
+// KEYBOARD ACCESSIBILITY
+// =============================================================================
+
+describe('Keyboard accessibility', () => {
+  let card;
+
+  beforeEach(async () => {
+    const CardClass = customElements.get('autosnooze-card');
+    card = new CardClass();
+    card.setConfig({ title: 'AutoSnooze' });
+    card.hass = {
+      states: {
+        'automation.test1': { state: 'on', attributes: { friendly_name: 'Test 1' } },
+        'sensor.autosnooze_snoozed_automations': {
+          state: '0',
+          attributes: { paused_automations: {}, scheduled_snoozes: {} },
+        },
+      },
+      entities: {},
+      areas: {},
+      callService: jest.fn().mockResolvedValue({}),
+    };
+    document.body.appendChild(card);
+    await card.updateComplete;
+  });
+
+  afterEach(() => {
+    if (card && card.parentNode) {
+      card.parentNode.removeChild(card);
+    }
+  });
+
+  test('_handleKeyDown triggers callback on Enter key', () => {
+    const callback = jest.fn();
+    const event = { key: 'Enter', preventDefault: jest.fn() };
+    card._handleKeyDown(event, callback);
+    expect(event.preventDefault).toHaveBeenCalled();
+    expect(callback).toHaveBeenCalled();
+  });
+
+  test('_handleKeyDown triggers callback on Space key', () => {
+    const callback = jest.fn();
+    const event = { key: ' ', preventDefault: jest.fn() };
+    card._handleKeyDown(event, callback);
+    expect(event.preventDefault).toHaveBeenCalled();
+    expect(callback).toHaveBeenCalled();
+  });
+
+  test('_handleKeyDown does not trigger callback on other keys', () => {
+    const callback = jest.fn();
+    const event = { key: 'Tab', preventDefault: jest.fn() };
+    card._handleKeyDown(event, callback);
+    expect(event.preventDefault).not.toHaveBeenCalled();
+    expect(callback).not.toHaveBeenCalled();
+  });
+});
