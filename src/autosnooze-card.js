@@ -1,6 +1,6 @@
 import { LitElement, html, css } from "lit";
 
-// Version 0.2.5 - Add mobile responsive layout for better phone experience
+// x-release-please-version
 const CARD_VERSION = "0.2.5";
 
 // ============================================================================
