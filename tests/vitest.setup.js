@@ -1,14 +1,16 @@
 /**
- * Jest setup file for testing Lit components
+ * Vitest setup file for testing Lit components
  * Provides browser API mocks needed for LitElement
  */
+
+import { vi } from 'vitest';
 
 // Mock customElements if not fully supported by jsdom
 if (!window.customElements) {
   window.customElements = {
-    define: jest.fn(),
-    get: jest.fn(),
-    whenDefined: jest.fn().mockResolvedValue(undefined),
+    define: vi.fn(),
+    get: vi.fn(),
+    whenDefined: vi.fn().mockResolvedValue(undefined),
   };
 }
 
@@ -92,9 +94,9 @@ global.createMockHass = (overrides = {}) => {
     entities: {},
     areas: {},
     connection: {
-      sendMessagePromise: jest.fn().mockResolvedValue([]),
+      sendMessagePromise: vi.fn().mockResolvedValue([]),
     },
-    callService: jest.fn().mockResolvedValue(undefined),
+    callService: vi.fn().mockResolvedValue(undefined),
     ...overrides,
   };
 };
