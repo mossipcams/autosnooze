@@ -423,931 +423,466 @@ class AutomationPauseCard extends LitElement {
   static styles = css`
     :host {
       display: block;
-    }
-    ha-card {
-      padding: 16px;
+      --snooze-primary: var(--primary-color, #2196f3);
+      --snooze-warning: var(--warning-color, #ff9800);
+      --snooze-bg: var(--card-background-color);
+      --snooze-secondary-bg: var(--secondary-background-color);
     }
 
-    /* Header */
+    ha-card {
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    /* =========================
+       HEADER & TOP BAR
+       ========================= */
     .header {
       display: flex;
       align-items: center;
-      gap: 8px;
-      margin-bottom: 16px;
-      font-size: 1.2em;
+      justify-content: space-between;
+      font-size: 1.2rem;
       font-weight: 500;
     }
-    .header ha-icon {
-      color: var(--primary-color);
-    }
-    .status-summary {
-      margin-left: auto;
-      font-size: 0.85em;
-      color: var(--secondary-text-color);
-    }
-
-    /* Section A: Snooze Setup */
-    .snooze-setup {
-      margin-bottom: 20px;
-    }
-
-    /* Filter Tabs */
-    .filter-tabs {
-      display: flex;
-      gap: 8px;
-      margin-bottom: 12px;
-      border-bottom: 1px solid var(--divider-color);
-      padding-bottom: 8px;
-      flex-wrap: wrap;
-    }
-    .tab {
-      padding: 6px 16px;
-      border-radius: 16px;
-      cursor: pointer;
-      font-size: 0.9em;
-      background: transparent;
-      border: 1px solid var(--divider-color);
-      color: var(--primary-text-color);
-      transition: all 0.2s;
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      min-height: 44px;
-      box-sizing: border-box;
-    }
-    .tab:hover {
-      background: var(--primary-color);
-      color: var(--text-primary-color);
-      opacity: 0.8;
-    }
-    .tab:focus-visible {
-      outline: 2px solid var(--primary-color);
-      outline-offset: 2px;
-    }
-    .tab.active {
-      background: var(--primary-color);
-      color: var(--text-primary-color);
-      border-color: var(--primary-color);
-    }
-    .tab-count {
-      background: rgba(0, 0, 0, 0.2);
-      padding: 2px 6px;
-      border-radius: 10px;
-      font-size: 0.8em;
-    }
-    .tab.active .tab-count {
-      background: rgba(255, 255, 255, 0.2);
-    }
-
-    /* Search */
-    .search-box {
-      margin-bottom: 12px;
-    }
-    .search-box input {
-      width: 100%;
-      padding: 10px 12px;
-      border: 1px solid var(--divider-color);
-      border-radius: 8px;
-      background: var(--card-background-color);
-      color: var(--primary-text-color);
-      box-sizing: border-box;
-      font-size: 0.95em;
-      min-height: 44px;
-    }
-    .search-box input:focus {
-      outline: none;
-      border-color: var(--primary-color);
-    }
-
-    /* Selection List */
-    .selection-list {
-      max-height: 300px;
-      overflow-y: auto;
-      border: 1px solid var(--divider-color);
-      border-radius: 8px;
-      margin-bottom: 12px;
-    }
-    .list-empty {
-      padding: 20px;
-      text-align: center;
-      color: var(--secondary-text-color);
-      font-size: 0.9em;
-    }
-    .list-item {
+    .header-title {
       display: flex;
       align-items: center;
       gap: 10px;
+    }
+    .header ha-icon {
+      color: var(--snooze-primary);
+    }
+    .status-badge {
+      font-size: 0.75rem;
+      font-weight: 600;
+      padding: 4px 10px;
+      border-radius: 12px;
+      background: rgba(var(--rgb-primary-text-color), 0.05);
+      color: var(--secondary-text-color);
+    }
+
+    /* =========================
+       FILTER TABS (Scrollable)
+       ========================= */
+    .filter-tabs {
+      display: flex;
+      gap: 8px;
+      overflow-x: auto;
+      padding-bottom: 4px; /* Space for scrollbar if visible */
+      scrollbar-width: none; /* Firefox */
+      -ms-overflow-style: none; /* IE/Edge */
+      margin: 0 -16px; /* Bleed to edges */
+      padding: 0 16px 8px 16px;
+    }
+    .filter-tabs::-webkit-scrollbar {
+      display: none;
+    }
+
+    .tab {
+      flex: 0 0 auto; /* Don't shrink */
+      padding: 8px 16px;
+      border-radius: 20px;
+      cursor: pointer;
+      font-size: 0.9rem;
+      font-weight: 500;
+      background: var(--snooze-secondary-bg);
+      border: 1px solid transparent;
+      color: var(--primary-text-color);
+      transition: all 0.2s ease;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .tab.active {
+      background: var(--snooze-primary);
+      color: var(--text-primary-color);
+    }
+    .tab-count {
+      background: rgba(0,0,0,0.15);
+      padding: 2px 6px;
+      border-radius: 10px;
+      font-size: 0.75em;
+    }
+    .tab.active .tab-count {
+      background: rgba(255,255,255,0.25);
+    }
+
+    /* =========================
+       SEARCH & SELECTION
+       ========================= */
+    .search-box input {
+      width: 100%;
       padding: 12px;
+      border: 1px solid var(--divider-color);
+      border-radius: 12px;
+      background: var(--snooze-secondary-bg);
+      color: var(--primary-text-color);
+      box-sizing: border-box;
+      font-size: 1rem;
+    }
+    .search-box input:focus {
+      outline: 2px solid var(--snooze-primary);
+      background: var(--snooze-bg);
+    }
+
+    .selection-actions {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 0.85rem;
+      color: var(--secondary-text-color);
+      margin-bottom: 8px;
+    }
+    .text-btn {
+      background: none;
+      border: none;
+      color: var(--snooze-primary);
+      font-weight: 500;
+      cursor: pointer;
+      padding: 4px 8px;
+    }
+
+    .selection-list {
+      max-height: 40vh; /* Responsive height */
+      overflow-y: auto;
+      border: 1px solid var(--divider-color);
+      border-radius: 12px;
+    }
+
+    .list-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 16px;
       cursor: pointer;
       border: none;
       border-bottom: 1px solid var(--divider-color);
-      transition: background 0.2s;
-      min-height: 48px;
-      width: 100%;
       background: transparent;
+      width: 100%;
       text-align: left;
-      font-family: inherit;
-      font-size: inherit;
-      color: inherit;
-      box-sizing: border-box;
+      color: var(--primary-text-color);
+      transition: background 0.1s;
     }
-    .list-item:last-child {
-      border-bottom: none;
-    }
-    .list-item:hover {
-      background: var(--secondary-background-color);
-    }
-    .list-item:focus-visible {
-      outline: 2px solid var(--primary-color);
-      outline-offset: -2px;
-    }
-    .list-item.selected {
+    .list-item:active {
       background: rgba(var(--rgb-primary-color), 0.1);
     }
-    .list-item ha-icon {
-      color: var(--primary-color);
-      flex-shrink: 0;
+    .list-item.selected {
+      background: rgba(var(--rgb-primary-color), 0.08);
     }
+    /* Hide default checkbox, use custom styling logic if desired,
+       but standard checkbox is reliable */
     .list-item input[type="checkbox"] {
-      width: 18px;
-      height: 18px;
-      cursor: pointer;
-      accent-color: var(--primary-color);
-      flex-shrink: 0;
-    }
-    .group-header input[type="checkbox"] {
-      width: 18px;
-      height: 18px;
-      cursor: pointer;
-      accent-color: var(--primary-color);
+      width: 20px;
+      height: 20px;
+      accent-color: var(--snooze-primary);
     }
     .list-item-content {
       flex: 1;
-      min-width: 0;
+      display: flex;
+      flex-direction: column;
     }
     .list-item-name {
-      font-size: 0.95em;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
+      font-size: 0.95rem;
+      font-weight: 500;
     }
     .list-item-meta {
-      font-size: 0.8em;
+      font-size: 0.8rem;
       color: var(--secondary-text-color);
-      margin-top: 2px;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }
-    .list-item-meta ha-icon {
-      --mdc-icon-size: 12px;
-      margin-right: 4px;
-      vertical-align: middle;
+      display: flex;
+      align-items: center;
+      gap: 4px;
     }
 
     /* Group Headers */
     .group-header {
+      width: 100%;
       display: flex;
       align-items: center;
-      gap: 8px;
-      padding: 10px 12px;
-      background: var(--secondary-background-color);
-      cursor: pointer;
-      font-weight: 500;
-      font-size: 0.9em;
+      gap: 12px;
+      padding: 12px 16px;
+      background: var(--snooze-secondary-bg);
       border: none;
       border-bottom: 1px solid var(--divider-color);
-      width: 100%;
-      text-align: left;
-      font-family: inherit;
-      color: inherit;
-      box-sizing: border-box;
-      min-height: 44px;
-    }
-    .group-header:hover {
-      background: var(--divider-color);
-    }
-    .group-header:focus-visible {
-      outline: 2px solid var(--primary-color);
-      outline-offset: -2px;
-    }
-    .group-header ha-icon {
-      transition: transform 0.2s;
-    }
-    .group-header.expanded ha-icon {
-      transform: rotate(90deg);
+      color: var(--primary-text-color);
+      font-weight: 600;
+      cursor: pointer;
     }
     .group-badge {
       margin-left: auto;
+      background: var(--divider-color);
       padding: 2px 8px;
-      background: var(--primary-color);
-      color: var(--text-primary-color);
-      border-radius: 12px;
-      font-size: 0.8em;
+      border-radius: 10px;
+      font-size: 0.75rem;
     }
 
-    /* Selection Actions */
-    .selection-actions {
-      display: flex;
-      gap: 8px;
-      margin-bottom: 8px;
-      padding: 8px 12px;
-      background: var(--secondary-background-color);
-      border-radius: 8px;
-      align-items: center;
-      font-size: 0.9em;
-    }
-    .selection-actions span {
-      flex: 1;
-      color: var(--secondary-text-color);
-    }
-    .select-all-btn {
-      padding: 4px 12px;
-      border: 1px solid var(--divider-color);
-      border-radius: 6px;
-      background: var(--card-background-color);
-      color: var(--primary-text-color);
-      cursor: pointer;
-      font-size: 0.85em;
-      transition: all 0.2s;
-      min-height: 44px;
-      box-sizing: border-box;
-    }
-    .select-all-btn:hover {
-      background: var(--primary-color);
-      color: var(--text-primary-color);
-      border-color: var(--primary-color);
-    }
-    .select-all-btn:focus-visible {
-      outline: 2px solid var(--primary-color);
-      outline-offset: 2px;
-    }
-
-    /* Duration Section */
+    /* =========================
+       DURATION SELECTOR
+       ========================= */
     .duration-section-header {
-      font-size: 0.9em;
+      font-size: 0.9rem;
       font-weight: 500;
-      margin-bottom: 8px;
       color: var(--secondary-text-color);
+      margin-bottom: 10px;
     }
 
-    /* Duration Pills */
-    .duration-selector {
+    .duration-pills {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+      gap: 8px;
       margin-bottom: 12px;
     }
-    .duration-pills {
-      display: flex;
-      gap: 8px;
-      flex-wrap: wrap;
-      margin-bottom: 8px;
-    }
     .pill {
-      padding: 8px 16px;
-      border-radius: 20px;
+      padding: 10px;
+      border-radius: 12px;
       border: 1px solid var(--divider-color);
-      background: var(--card-background-color);
-      cursor: pointer;
-      font-size: 0.9em;
-      transition: all 0.2s;
-      min-height: 44px;
-      box-sizing: border-box;
+      background: var(--snooze-bg);
       color: var(--primary-text-color);
-    }
-    .pill:hover {
-      border-color: var(--primary-color);
-    }
-    .pill:focus-visible {
-      outline: 2px solid var(--primary-color);
-      outline-offset: 2px;
+      cursor: pointer;
+      font-weight: 500;
     }
     .pill.active {
-      background: var(--primary-color);
-      color: var(--text-primary-color);
-      border-color: var(--primary-color);
+      background: var(--snooze-primary);
+      color: white;
+      border-color: var(--snooze-primary);
     }
 
-    /* Duration Input */
+    /* Custom Input */
     .custom-duration-input {
-      margin-top: 8px;
+      margin-top: 12px;
     }
     .duration-input {
       width: 100%;
-      padding: 10px 12px;
+      padding: 12px;
+      border: 1px solid var(--divider-color);
+      border-radius: 12px;
+      background: var(--snooze-bg);
+      color: var(--primary-text-color);
+      font-size: 1.1rem; /* Larger font for numbers */
+      box-sizing: border-box;
+    }
+
+    /* Schedule Mode Inputs */
+    .schedule-inputs {
+      background: var(--snooze-secondary-bg);
+      border-radius: 12px;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+    .datetime-field label {
+      display: block;
+      margin-bottom: 8px;
+      font-weight: 500;
+      color: var(--secondary-text-color);
+    }
+    .datetime-row {
+      display: flex;
+      gap: 10px;
+    }
+    .datetime-row select,
+    .datetime-row input {
+      padding: 12px;
       border: 1px solid var(--divider-color);
       border-radius: 8px;
-      background: var(--card-background-color);
+      background: var(--snooze-bg);
       color: var(--primary-text-color);
-      font-size: 0.95em;
-      box-sizing: border-box;
-      min-height: 44px;
+      font-size: 1rem;
     }
-    .duration-input:focus {
-      outline: none;
-      border-color: var(--primary-color);
+    .datetime-row select {
+      flex: 2; /* Date takes more space */
     }
-    .duration-input.invalid {
-      border-color: #f44336;
-    }
-    .duration-help {
-      font-size: 0.8em;
-      color: var(--secondary-text-color);
-      margin-top: 4px;
-    }
-    .duration-preview {
-      font-size: 0.85em;
-      color: var(--primary-color);
-      font-weight: 500;
-      margin-top: 4px;
+    .datetime-row input {
+      flex: 1; /* Time takes less */
     }
 
-    /* Snooze Button */
+    .schedule-link {
+      background: none;
+      border: none;
+      color: var(--snooze-primary);
+      padding: 12px 0;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      cursor: pointer;
+      font-size: 0.9rem;
+    }
+
+    /* =========================
+       MAIN SNOOZE BUTTON
+       ========================= */
     .snooze-btn {
       width: 100%;
-      padding: 14px;
+      padding: 16px;
       border: none;
-      border-radius: 8px;
-      background: var(--primary-color);
-      color: var(--text-primary-color);
-      font-size: 1em;
-      font-weight: 500;
+      border-radius: 14px;
+      background: var(--snooze-primary);
+      color: white;
+      font-size: 1.1rem;
+      font-weight: 600;
       cursor: pointer;
-      transition: opacity 0.2s;
-      min-height: 48px;
+      box-shadow: 0 2px 8px rgba(var(--rgb-primary-color), 0.3);
+      transition: transform 0.1s;
     }
-    .snooze-btn:hover:not(:disabled) {
-      opacity: 0.9;
-    }
-    .snooze-btn:focus-visible {
-      outline: 2px solid var(--primary-color);
-      outline-offset: 2px;
+    .snooze-btn:active {
+      transform: scale(0.98);
     }
     .snooze-btn:disabled {
-      opacity: 0.4;
-      cursor: not-allowed;
+      opacity: 0.5;
+      box-shadow: none;
     }
 
-    /* Section B: Active Snoozes */
-    .snooze-list {
-      border: 2px solid #ff9800;
-      border-radius: 8px;
-      background: rgba(255, 152, 0, 0.05);
-      padding: 12px;
-      margin-top: 20px;
+    /* =========================
+       ACTIVE SNOOZES SECTION
+       ========================= */
+    .snooze-list, .scheduled-list {
+      border-top: 1px solid var(--divider-color);
+      padding-top: 16px;
+      margin-top: 8px;
     }
+
     .list-header {
       display: flex;
       align-items: center;
       gap: 8px;
-      font-weight: 500;
+      font-weight: 600;
+      font-size: 1rem;
       margin-bottom: 12px;
-      font-size: 1em;
-    }
-    .list-header ha-icon {
-      color: #ff9800;
+      color: var(--snooze-warning);
     }
 
-    /* Pause Group */
     .pause-group {
-      background: var(--card-background-color);
-      border-radius: 8px;
-      margin-bottom: 8px;
+      background: var(--snooze-secondary-bg);
+      border-radius: 12px;
+      overflow: hidden;
+      margin-bottom: 12px;
+      border: 1px solid var(--divider-color);
     }
+
     .pause-group-header {
+      padding: 10px 16px;
+      background: rgba(255, 152, 0, 0.1);
+      color: #e65100;
+      font-weight: 500;
+      font-size: 0.9rem;
       display: flex;
       align-items: center;
       gap: 8px;
-      padding: 8px 12px;
-      color: #ff9800;
-      font-size: 0.85em;
-      border-bottom: 1px solid var(--divider-color);
-    }
-    .pause-group-header ha-icon {
-      --mdc-icon-size: 18px;
-    }
-    .pause-group-header .countdown {
-      font-weight: 600;
-      font-variant-numeric: tabular-nums;
     }
 
-    /* Paused Item */
     .paused-item {
       display: flex;
       align-items: center;
-      gap: 12px;
-      padding: 10px 12px;
-    }
-    .paused-item + .paused-item {
+      justify-content: space-between;
+      padding: 12px 16px;
       border-top: 1px solid var(--divider-color);
     }
-    .paused-icon {
-      color: var(--secondary-text-color);
-      opacity: 0.6;
-    }
     .paused-info {
-      flex: 1;
+      display: flex;
+      flex-direction: column;
     }
     .paused-name {
       font-weight: 500;
     }
     .paused-time {
-      font-size: 0.85em;
+      font-size: 0.8rem;
       color: var(--secondary-text-color);
     }
-    .countdown {
-      font-size: 0.9em;
-      color: #ff9800;
-      font-weight: 500;
-      white-space: nowrap;
-    }
-    .wake-btn {
-      padding: 6px 12px;
+
+    .wake-btn, .cancel-scheduled-btn {
+      padding: 8px 16px;
       border: 1px solid var(--divider-color);
-      border-radius: 6px;
-      background: var(--card-background-color);
-      color: var(--primary-text-color);
+      border-radius: 8px;
+      background: var(--snooze-bg);
+      font-weight: 500;
       cursor: pointer;
-      font-size: 0.85em;
-      transition: all 0.2s;
-      min-height: 44px;
-      box-sizing: border-box;
-    }
-    .wake-btn:hover {
-      background: var(--primary-color);
-      color: var(--text-primary-color);
-      border-color: var(--primary-color);
-    }
-    .wake-btn:focus-visible {
-      outline: 2px solid var(--primary-color);
-      outline-offset: 2px;
     }
 
-    /* Wake All Button */
     .wake-all {
       width: 100%;
-      padding: 10px;
-      border: 1px solid #ff9800;
-      border-radius: 6px;
+      padding: 12px;
+      margin-top: 8px;
       background: transparent;
-      color: #ff9800;
-      cursor: pointer;
-      font-size: 0.9em;
-      font-weight: 500;
-      transition: all 0.2s;
-      min-height: 44px;
-    }
-    .wake-all:hover {
-      background: #ff9800;
-      color: white;
-    }
-    .wake-all:focus-visible {
-      outline: 2px solid #ff9800;
-      outline-offset: 2px;
-    }
-
-    /* Wake All Button - Pending State */
-    .wake-all.pending {
-      background: #ff9800;
-      color: white;
-    }
-
-    /* Empty State */
-    .empty {
-      padding: 20px;
-      text-align: center;
-      color: var(--secondary-text-color);
-      font-size: 0.9em;
-    }
-
-    /* Schedule Link (Progressive Disclosure) */
-    .schedule-link {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      margin-top: 12px;
-      padding: 8px 4px;
-      color: var(--primary-color);
-      cursor: pointer;
-      font-size: 0.9em;
-      background: none;
-      border: none;
-      font-family: inherit;
-      min-height: 44px;
-      box-sizing: border-box;
-    }
-    .schedule-link:hover {
-      text-decoration: underline;
-    }
-    .schedule-link:focus-visible {
-      outline: 2px solid var(--primary-color);
-      outline-offset: 2px;
-    }
-    .schedule-link ha-icon {
-      --mdc-icon-size: 18px;
-    }
-
-    /* Field Hint */
-    .field-hint {
-      font-size: 0.8em;
-      color: var(--secondary-text-color);
-      margin-top: 4px;
-    }
-
-    /* Schedule Datetime Inputs */
-    .schedule-inputs {
-      display: flex;
-      flex-direction: column;
-      gap: 12px;
-      padding: 12px;
-      background: var(--secondary-background-color);
+      border: 1px solid var(--snooze-warning);
+      color: var(--snooze-warning);
       border-radius: 8px;
-      margin-bottom: 12px;
-    }
-    .datetime-field {
-      display: flex;
-      flex-direction: column;
-      gap: 4px;
-    }
-    .datetime-field label {
-      font-size: 0.85em;
-      color: var(--secondary-text-color);
-      font-weight: 500;
-    }
-    .datetime-row {
-      display: flex;
-      gap: 8px;
-    }
-    .datetime-row select,
-    .datetime-row input[type="time"] {
-      padding: 10px 12px;
-      border: 1px solid var(--divider-color);
-      border-radius: 6px;
-      background: var(--card-background-color);
-      color: var(--primary-text-color);
-      font-size: 0.95em;
-      min-height: 44px;
-      box-sizing: border-box;
-    }
-    .datetime-row select {
-      flex: 1;
-      min-width: 0;
-    }
-    .datetime-row input[type="time"] {
-      width: 110px;
-      flex-shrink: 0;
-    }
-    .datetime-row select:focus,
-    .datetime-row input:focus {
-      outline: none;
-      border-color: var(--primary-color);
+      font-weight: 600;
     }
 
-    /* Scheduled Snoozes Section */
-    .scheduled-list {
-      border: 2px solid #2196f3;
-      border-radius: 8px;
-      background: rgba(33, 150, 243, 0.05);
-      padding: 12px;
-      margin-top: 12px;
-    }
-    .scheduled-list .list-header ha-icon {
-      color: #2196f3;
-    }
-    .scheduled-item {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      padding: 12px;
-      background: var(--card-background-color);
-      border-radius: 8px;
-      margin-bottom: 8px;
-    }
-    .scheduled-item:last-of-type {
-      margin-bottom: 12px;
-    }
-    .scheduled-icon {
-      color: #2196f3;
-      opacity: 0.8;
-    }
-    .scheduled-time {
-      font-size: 0.85em;
-      color: #2196f3;
-      font-weight: 500;
-    }
-    .cancel-scheduled-btn {
-      padding: 6px 12px;
-      border: 1px solid var(--divider-color);
-      border-radius: 6px;
-      background: var(--card-background-color);
-      color: var(--primary-text-color);
-      cursor: pointer;
-      font-size: 0.85em;
-      transition: all 0.2s;
-      min-height: 44px;
-      box-sizing: border-box;
-    }
-    .cancel-scheduled-btn:hover {
-      background: #f44336;
-      color: white;
-      border-color: #f44336;
-    }
-    .cancel-scheduled-btn:focus-visible {
-      outline: 2px solid var(--primary-color);
-      outline-offset: 2px;
-    }
-
-    /* Toast */
+    /* =========================
+       TOAST NOTIFICATION
+       ========================= */
     .toast {
       position: fixed;
-      bottom: 20px;
-      left: 50%;
-      transform: translateX(-50%);
-      padding: 12px 20px;
-      background: var(--primary-color);
-      color: var(--text-primary-color);
-      border-radius: 8px;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-      z-index: 1000;
-      animation: slideUp 0.3s ease-out;
+      bottom: 24px;
+      left: 20px;
+      right: 20px;
+      background: #323232;
+      color: white;
+      padding: 16px;
+      border-radius: 12px;
       display: flex;
       align-items: center;
-      gap: 12px;
+      justify-content: space-between;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+      z-index: 999;
+      font-size: 0.95rem;
     }
     .toast-undo-btn {
-      padding: 4px 12px;
-      border: 1px solid rgba(255, 255, 255, 0.5);
-      border-radius: 4px;
       background: transparent;
-      color: var(--text-primary-color);
+      border: 1px solid rgba(255,255,255,0.3);
+      color: #90caf9;
+      padding: 6px 12px;
+      border-radius: 6px;
+      font-weight: 600;
       cursor: pointer;
-      font-size: 0.85em;
-      font-weight: 500;
-      transition: all 0.2s;
-      min-height: 44px;
-      box-sizing: border-box;
-    }
-    .toast-undo-btn:hover {
-      background: rgba(255, 255, 255, 0.2);
-      border-color: rgba(255, 255, 255, 0.8);
-    }
-    .toast-undo-btn:focus-visible {
-      outline: 2px solid white;
-      outline-offset: 2px;
-    }
-    @keyframes slideUp {
-      from {
-        transform: translateX(-50%) translateY(100px);
-        opacity: 0;
-      }
-      to {
-        transform: translateX(-50%) translateY(0);
-        opacity: 1;
-      }
     }
 
-    /* Mobile Responsive Styles */
+    /* =========================
+       MOBILE SPECIFIC OVERRIDES
+       ========================= */
     @media (max-width: 480px) {
       ha-card {
-        padding: 10px;
-      }
-
-      .header {
-        font-size: 1.1em;
-        margin-bottom: 12px;
-      }
-
-      .status-summary {
-        font-size: 0.8em;
-      }
-
-      /* Compact tabs to fit in single row */
-      .filter-tabs {
-        gap: 4px;
-        margin-bottom: 8px;
-        padding-bottom: 6px;
-      }
-
-      .tab {
-        padding: 5px 8px;
-        font-size: 0.8em;
-        border-radius: 12px;
-        min-height: 44px;
-      }
-
-      .tab-count {
-        padding: 1px 5px;
-        font-size: 0.75em;
-      }
-
-      /* Compact search */
-      .search-box {
-        margin-bottom: 8px;
-      }
-
-      .search-box input {
-        padding: 8px 10px;
-        font-size: 0.9em;
-        min-height: 44px;
-      }
-
-      /* Compact selection actions */
-      .selection-actions {
-        padding: 6px 10px;
-        margin-bottom: 6px;
-        font-size: 0.85em;
-        gap: 6px;
-      }
-
-      .select-all-btn {
-        padding: 3px 8px;
-        font-size: 0.8em;
-        min-height: 44px;
-      }
-
-      /* Reduced selection list height */
-      .selection-list {
-        max-height: 180px;
-        margin-bottom: 10px;
-      }
-
-      .list-item {
-        padding: 10px;
-        gap: 8px;
-        min-height: 44px;
-      }
-
-      .list-item-name {
-        font-size: 0.9em;
-      }
-
-      .group-header {
-        padding: 8px 10px;
-        font-size: 0.85em;
-        min-height: 44px;
-      }
-
-      /* Compact duration selector */
-      .snooze-setup {
-        margin-bottom: 12px;
-      }
-
-      .duration-section-header {
-        font-size: 0.85em;
-        margin-bottom: 6px;
-      }
-
-      .duration-pills {
-        gap: 6px;
-        margin-bottom: 6px;
-      }
-
-      .pill {
-        padding: 6px 10px;
-        font-size: 0.85em;
-        border-radius: 16px;
-        min-height: 44px;
-      }
-
-      .duration-input {
-        padding: 8px 10px;
-        font-size: 0.9em;
-        min-height: 44px;
-      }
-
-      .schedule-link {
-        margin-top: 8px;
-        padding: 6px 0;
-        font-size: 0.85em;
-        min-height: 44px;
-      }
-
-      /* Compact schedule inputs */
-      .schedule-inputs {
-        padding: 10px;
-        gap: 10px;
-        margin-bottom: 10px;
-      }
-
-      .datetime-row {
-        flex-wrap: wrap;
-      }
-
-      .datetime-row select {
-        flex: 1 1 100%;
-        min-width: 0;
-        min-height: 44px;
-      }
-
-      .datetime-row input[type="time"] {
-        flex: 1;
-        width: auto;
-        min-width: 100px;
-        min-height: 44px;
-      }
-
-      .field-hint {
-        font-size: 0.75em;
-      }
-
-      /* Compact snooze button */
-      .snooze-btn {
         padding: 12px;
-        font-size: 0.95em;
-        min-height: 48px;
+        border-radius: 0; /* Flush on very small screens? Optional. */
+        box-shadow: none;
       }
 
-      /* Compact active snoozes section */
-      .snooze-list {
-        padding: 10px;
-        margin-top: 12px;
+      /* Stack the Date/Time inputs vertically on mobile for larger touch targets */
+      .datetime-row {
+        flex-direction: column;
+        gap: 8px;
+      }
+      .datetime-row select,
+      .datetime-row input {
+        width: 100%;
+        flex: none;
+        padding: 14px; /* Taller tap target */
       }
 
-      .list-header {
-        font-size: 0.95em;
-        margin-bottom: 10px;
-        gap: 6px;
+      /* Make tabs spill off screen with padding */
+      .filter-tabs {
+        margin: 0 -12px;
+        padding: 0 12px 12px 12px;
       }
 
-      .pause-group {
-        margin-bottom: 6px;
+      /* Make list items slightly taller */
+      .list-item {
+        padding: 14px 12px;
       }
 
-      .pause-group-header {
-        padding: 6px 10px;
-        font-size: 0.8em;
-      }
-
-      /* Stack paused items vertically on mobile */
+      /* Active snoozes cleanup */
       .paused-item {
-        flex-wrap: wrap;
-        padding: 8px 10px;
-        gap: 6px;
+        padding: 14px 12px;
       }
 
-      .paused-icon {
-        display: none;
-      }
-
-      .paused-info {
-        flex: 1 1 100%;
-        min-width: 0;
-      }
-
-      .paused-name {
-        font-size: 0.9em;
-      }
-
-      .wake-btn {
-        margin-left: auto;
-        padding: 5px 10px;
-        font-size: 0.8em;
-        min-height: 44px;
-      }
-
-      .wake-all {
-        padding: 8px;
-        font-size: 0.85em;
-        min-height: 44px;
-      }
-
-      /* Compact scheduled section */
-      .scheduled-list {
-        padding: 10px;
-        margin-top: 10px;
-      }
-
-      .scheduled-item {
-        flex-wrap: wrap;
-        padding: 10px;
-        gap: 6px;
-        margin-bottom: 6px;
-      }
-
-      .scheduled-icon {
-        display: none;
-      }
-
-      .scheduled-time,
-      .paused-time {
-        font-size: 0.8em;
-      }
-
-      .cancel-scheduled-btn {
-        margin-left: auto;
-        padding: 5px 10px;
-        font-size: 0.8em;
-        min-height: 44px;
-      }
-
-      /* Adjust toast for mobile */
-      .toast {
-        bottom: 10px;
-        padding: 10px 16px;
-        font-size: 0.9em;
-        max-width: calc(100vw - 20px);
-      }
-
-      .toast-undo-btn {
-        min-height: 44px;
+      .snooze-btn {
+        position: sticky;
+        bottom: 12px;
+        z-index: 10;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.2);
       }
     }
   `;
