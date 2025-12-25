@@ -1813,6 +1813,29 @@ class AutomationPauseCard extends LitElement {
     return `${date}T${time}${offsetStr}`;
   }
 
+  _getCurrentDateTime() {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, "0");
+    const day = String(now.getDate()).padStart(2, "0");
+    const hours = String(now.getHours()).padStart(2, "0");
+    const minutes = String(now.getMinutes()).padStart(2, "0");
+
+    return {
+      date: `${year}-${month}-${day}`,
+      time: `${hours}:${minutes}`
+    };
+  }
+
+  _enterScheduleMode() {
+    const { date, time } = this._getCurrentDateTime();
+    this._scheduleMode = true;
+    this._disableAtDate = date;
+    this._disableAtTime = time;
+    this._resumeAtDate = date;
+    this._resumeAtTime = time;
+  }
+
   _getLocale() {
     // Use Home Assistant's locale setting, fallback to browser default
     return this.hass?.locale?.language || undefined;
@@ -2298,7 +2321,7 @@ class AutomationPauseCard extends LitElement {
             <button
               type="button"
               class="schedule-link"
-              @click=${() => (this._scheduleMode = true)}
+              @click=${() => this._enterScheduleMode()}
             >
               <ha-icon icon="mdi:calendar-clock" aria-hidden="true"></ha-icon>
               Pick specific date/time instead
