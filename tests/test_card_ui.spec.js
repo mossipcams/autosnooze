@@ -1040,7 +1040,7 @@ describe('Snooze Operations', () => {
     test('calls pause service with schedule parameters including timezone', async () => {
       card._selected = ['automation.test'];
       card._scheduleMode = true;
-      card._resumeAtDate = '2025-12-25';
+      card._resumeAtDate = '2026-01-15';
       card._resumeAtTime = '12:00';
 
       await card._snooze();
@@ -1051,15 +1051,15 @@ describe('Snooze Operations', () => {
       expect(callArgs[1]).toBe('pause');
       expect(callArgs[2].entity_id).toEqual(['automation.test']);
       // Datetime should include timezone offset (e.g., +00:00 or -05:00)
-      expect(callArgs[2].resume_at).toMatch(/^2025-12-25T12:00[+-]\d{2}:\d{2}$/);
+      expect(callArgs[2].resume_at).toMatch(/^2026-01-15T12:00[+-]\d{2}:\d{2}$/);
     });
 
     test('includes disable_at with timezone when set', async () => {
       card._selected = ['automation.test'];
       card._scheduleMode = true;
-      card._disableAtDate = '2025-12-25';
+      card._disableAtDate = '2026-01-15';
       card._disableAtTime = '10:00';
-      card._resumeAtDate = '2025-12-25';
+      card._resumeAtDate = '2026-01-15';
       card._resumeAtTime = '12:00';
 
       await card._snooze();
@@ -1070,8 +1070,8 @@ describe('Snooze Operations', () => {
       expect(callArgs[1]).toBe('pause');
       expect(callArgs[2].entity_id).toEqual(['automation.test']);
       // Datetime should include timezone offset
-      expect(callArgs[2].resume_at).toMatch(/^2025-12-25T12:00[+-]\d{2}:\d{2}$/);
-      expect(callArgs[2].disable_at).toMatch(/^2025-12-25T10:00[+-]\d{2}:\d{2}$/);
+      expect(callArgs[2].resume_at).toMatch(/^2026-01-15T12:00[+-]\d{2}:\d{2}$/);
+      expect(callArgs[2].disable_at).toMatch(/^2026-01-15T10:00[+-]\d{2}:\d{2}$/);
     });
 
     test('shows toast when resume_at not set', async () => {
@@ -1088,9 +1088,9 @@ describe('Snooze Operations', () => {
     test('clears schedule inputs after snooze', async () => {
       card._selected = ['automation.test'];
       card._scheduleMode = true;
-      card._disableAtDate = '2025-12-25';
+      card._disableAtDate = '2026-01-15';
       card._disableAtTime = '10:00';
-      card._resumeAtDate = '2025-12-25';
+      card._resumeAtDate = '2026-01-15';
       card._resumeAtTime = '12:00';
 
       await card._snooze();
@@ -1667,9 +1667,9 @@ describe('Undo Functionality in Snooze', () => {
   test('undo after scheduled snooze calls cancel_scheduled service', async () => {
     card._selected = ['automation.test'];
     card._scheduleMode = true;
-    card._disableAtDate = '2025-12-25';
+    card._disableAtDate = '2026-01-15';
     card._disableAtTime = '10:00';
-    card._resumeAtDate = '2025-12-25';
+    card._resumeAtDate = '2026-01-15';
     card._resumeAtTime = '12:00';
 
     await card._snooze();
