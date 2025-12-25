@@ -28,6 +28,8 @@
     "@babel/preset-env": "^7.23.0",
     "@rollup/plugin-node-resolve": "^16.0.3",
     "@rollup/plugin-terser": "^0.4.4",
+    "@stryker-mutator/core": "^9.4.0",
+    "@stryker-mutator/vitest-runner": "^9.4.0",
     "@vitest/coverage-v8": "^4.0.16",
     "eslint": "^8.57.0",
     "husky": "^9.0.0",

@@ -1,0 +1,11 @@
+{
+  "$schema": "./node_modules/@stryker-mutator/core/schema/stryker-schema.json",
+  "testRunner": "vitest",
+  "mutate": ["src/**/*.js"],
+  "reporters": ["clear-text", "progress", "html"],
+  "concurrency": 4,
+  "timeoutMS": 30000,
+  "vitest": {
+    "configFile": "vitest.config.js"
+  }
+}
