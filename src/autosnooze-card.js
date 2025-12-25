@@ -1,7 +1,6 @@
 import { LitElement, html, css } from "lit";
 
-// x-release-please-version
-const CARD_VERSION = "0.2.5";
+const CARD_VERSION = "0.2.5"; // x-release-please-version
 
 // ============================================================================
 // CONSTANTS
