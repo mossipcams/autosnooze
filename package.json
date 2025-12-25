@@ -6,9 +6,9 @@
   "scripts": {
     "build": "rollup -c",
     "watch": "rollup -c -w",
-    "test": "jest",
-    "test:watch": "jest --watch",
-    "test:coverage": "jest --coverage",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
     "lint": "eslint src/ tests/*.spec.js",
     "lint:fix": "eslint src/ tests/*.spec.js --fix",
     "prepare": "husky || true"
@@ -28,13 +28,13 @@
     "@babel/preset-env": "^7.23.0",
     "@rollup/plugin-node-resolve": "^16.0.3",
     "@rollup/plugin-terser": "^0.4.4",
-    "babel-jest": "^29.7.0",
+    "@vitest/coverage-v8": "^4.0.16",
     "eslint": "^8.57.0",
     "husky": "^9.0.0",
-    "jest": "^29.7.0",
-    "jest-environment-jsdom": "^29.7.0",
+    "jsdom": "^27.3.0",
     "lint-staged": "^15.0.0",
-    "rollup": "^4.54.0"
+    "rollup": "^4.54.0",
+    "vitest": "^4.0.16"
   },
   "lint-staged": {
     "src/**/*.js": [
@@ -50,43 +50,6 @@
     "tests/**/*.py": [
       "ruff check --fix",
       "ruff format"
-    ]
-  },
-  "jest": {
-    "testEnvironment": "jsdom",
-    "testMatch": [
-      "**/tests/**/*.spec.js"
-    ],
-    "setupFilesAfterEnv": [
-      "<rootDir>/tests/jest.setup.js"
-    ],
-    "transform": {
-      "^.+\\.js$": "babel-jest"
-    },
-    "transformIgnorePatterns": [
-      "node_modules/(?!(lit|@lit|lit-html|lit-element)/)"
-    ],
-    "moduleNameMapper": {
-      "^lit$": "<rootDir>/node_modules/lit/index.js",
-      "^lit/(.*)$": "<rootDir>/node_modules/lit/$1"
-    },
-    "collectCoverageFrom": [
-      "src/**/*.js",
-      "!src/**/*.test.js"
-    ],
-    "coverageThreshold": {
-      "global": {
-        "branches": 85,
-        "functions": 85,
-        "lines": 85,
-        "statements": 85
-      }
-    },
-    "coverageReporters": [
-      "text",
-      "text-summary",
-      "html",
-      "lcov"
     ]
   }
 }

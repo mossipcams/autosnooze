@@ -9,6 +9,7 @@
  * - Toast notifications and error handling
  */
 
+import { vi } from 'vitest';
 import '../src/autosnooze-card.js';
 
 // =============================================================================
@@ -102,7 +103,7 @@ describe('AutoSnooze Card Editor', () => {
     editor.setConfig({ title: 'My Card' });
     await editor.updateComplete;
 
-    const eventSpy = jest.fn();
+    const eventSpy = vi.fn();
     editor.addEventListener('config-changed', eventSpy);
 
     const input = editor.shadowRoot.querySelector('input[type="text"]');
@@ -538,12 +539,12 @@ describe('AutoSnooze Card Main Component', () => {
     });
 
     test('pending state auto-resets after timeout', () => {
-      jest.useFakeTimers();
+      vi.useFakeTimers();
       card._handleWakeAll();
       expect(card._wakeAllPending).toBe(true);
-      jest.advanceTimersByTime(3000);
+      vi.advanceTimersByTime(3000);
       expect(card._wakeAllPending).toBe(false);
-      jest.useRealTimers();
+      vi.useRealTimers();
     });
 
     test('handles service error on second click', async () => {
@@ -556,16 +557,16 @@ describe('AutoSnooze Card Main Component', () => {
 
   describe('Search Input Handling', () => {
     test('_handleSearchInput debounces search updates', async () => {
-      jest.useFakeTimers();
+      vi.useFakeTimers();
 
       const event = { target: { value: 'test' } };
       card._handleSearchInput(event);
 
       expect(card._search).toBe('');
-      jest.advanceTimersByTime(350);
+      vi.advanceTimersByTime(350);
       expect(card._search).toBe('test');
 
-      jest.useRealTimers();
+      vi.useRealTimers();
     });
   });
 
@@ -686,7 +687,7 @@ describe('AutoSnooze Card Main Component', () => {
     test('checkbox click stops propagation', async () => {
       const checkbox = card.shadowRoot.querySelector('.list-item input[type="checkbox"]');
       const clickEvent = new MouseEvent('click', { bubbles: true });
-      const stopPropSpy = jest.spyOn(clickEvent, 'stopPropagation');
+      const stopPropSpy = vi.spyOn(clickEvent, 'stopPropagation');
 
       checkbox.dispatchEvent(clickEvent);
 
@@ -730,14 +731,14 @@ describe('Lifecycle Methods', () => {
   });
 
   test('connectedCallback starts countdown interval', async () => {
-    jest.useFakeTimers();
+    vi.useFakeTimers();
 
     document.body.appendChild(card);
     await card.updateComplete;
 
     expect(card._syncTimeout).not.toBeNull();
 
-    jest.useRealTimers();
+    vi.useRealTimers();
   });
 
   test('disconnectedCallback clears intervals', async () => {
@@ -1196,7 +1197,7 @@ describe('Toast Notifications', () => {
   test('_showToast with undo option creates undo button', () => {
     card._showToast('Test message', {
       showUndo: true,
-      onUndo: jest.fn(),
+      onUndo: vi.fn(),
     });
 
     const toast = card.shadowRoot.querySelector('.toast');
@@ -1206,7 +1207,7 @@ describe('Toast Notifications', () => {
   });
 
   test('clicking undo button calls onUndo callback', () => {
-    const onUndoMock = jest.fn();
+    const onUndoMock = vi.fn();
     card._showToast('Test message', {
       showUndo: true,
       onUndo: onUndoMock,
@@ -1221,7 +1222,7 @@ describe('Toast Notifications', () => {
   test('clicking undo button removes toast', () => {
     card._showToast('Test message', {
       showUndo: true,
-      onUndo: jest.fn(),
+      onUndo: vi.fn(),
     });
 
     const undoBtn = card.shadowRoot.querySelector('.toast-undo-btn');
@@ -1232,17 +1233,17 @@ describe('Toast Notifications', () => {
   });
 
   test('toast auto-removes after timeout', () => {
-    jest.useFakeTimers();
+    vi.useFakeTimers();
 
     card._showToast('Test message');
 
     expect(card.shadowRoot.querySelector('.toast')).not.toBeNull();
 
-    jest.advanceTimersByTime(5300);
+    vi.advanceTimersByTime(5300);
 
     expect(card.shadowRoot.querySelector('.toast')).toBeNull();
 
-    jest.useRealTimers();
+    vi.useRealTimers();
   });
 });
 
@@ -1579,7 +1580,7 @@ describe('Rendering with Paused/Scheduled Automations', () => {
   });
 
   test('clicking wake button calls _wake', async () => {
-    const wakeSpy = jest.spyOn(card, '_wake');
+    const wakeSpy = vi.spyOn(card, '_wake');
     const wakeBtn = card.shadowRoot.querySelector('.wake-btn');
     wakeBtn.click();
 
@@ -1588,7 +1589,7 @@ describe('Rendering with Paused/Scheduled Automations', () => {
   });
 
   test('clicking cancel scheduled button calls _cancelScheduled', async () => {
-    const cancelSpy = jest.spyOn(card, '_cancelScheduled');
+    const cancelSpy = vi.spyOn(card, '_cancelScheduled');
     const cancelBtn = card.shadowRoot.querySelector('.cancel-scheduled-btn');
     cancelBtn.click();
 
@@ -1805,7 +1806,7 @@ describe('shouldUpdate optimization', () => {
       },
       entities: overrides.entities || {},
       areas: overrides.areas || {},
-      callService: jest.fn().mockResolvedValue({}),
+      callService: vi.fn().mockResolvedValue({}),
     });
 
     const CardClass = customElements.get('autosnooze-card');
@@ -1932,7 +1933,7 @@ describe('Keyboard accessibility', () => {
       },
       entities: {},
       areas: {},
-      callService: jest.fn().mockResolvedValue({}),
+      callService: vi.fn().mockResolvedValue({}),
     };
     document.body.appendChild(card);
     await card.updateComplete;
@@ -1945,24 +1946,24 @@ describe('Keyboard accessibility', () => {
   });
 
   test('_handleKeyDown triggers callback on Enter key', () => {
-    const callback = jest.fn();
-    const event = { key: 'Enter', preventDefault: jest.fn() };
+    const callback = vi.fn();
+    const event = { key: 'Enter', preventDefault: vi.fn() };
     card._handleKeyDown(event, callback);
     expect(event.preventDefault).toHaveBeenCalled();
     expect(callback).toHaveBeenCalled();
   });
 
   test('_handleKeyDown triggers callback on Space key', () => {
-    const callback = jest.fn();
-    const event = { key: ' ', preventDefault: jest.fn() };
+    const callback = vi.fn();
+    const event = { key: ' ', preventDefault: vi.fn() };
     card._handleKeyDown(event, callback);
     expect(event.preventDefault).toHaveBeenCalled();
     expect(callback).toHaveBeenCalled();
   });
 
   test('_handleKeyDown does not trigger callback on other keys', () => {
-    const callback = jest.fn();
-    const event = { key: 'Tab', preventDefault: jest.fn() };
+    const callback = vi.fn();
+    const event = { key: 'Tab', preventDefault: vi.fn() };
     card._handleKeyDown(event, callback);
     expect(event.preventDefault).not.toHaveBeenCalled();
     expect(callback).not.toHaveBeenCalled();

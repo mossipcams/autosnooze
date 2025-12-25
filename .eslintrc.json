@@ -2,7 +2,6 @@
   "env": {
     "browser": true,
     "es2021": true,
-    "jest": true,
     "node": true
   },
   "extends": "eslint:recommended",
@@ -15,7 +14,13 @@
     "HTMLElement": "readonly",
     "createMockHass": "readonly",
     "waitForLitUpdate": "readonly",
-    "createAndConnectElement": "readonly"
+    "createAndConnectElement": "readonly",
+    "vi": "readonly",
+    "describe": "readonly",
+    "test": "readonly",
+    "expect": "readonly",
+    "beforeEach": "readonly",
+    "afterEach": "readonly"
   },
   "rules": {
     "no-unused-vars": ["error", { "argsIgnorePattern": "^_" }],
