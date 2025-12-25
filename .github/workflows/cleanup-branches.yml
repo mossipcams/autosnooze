@@ -92,10 +92,10 @@ jobs:
             echo "Updating existing issue #$EXISTING"
             gh issue comment "$EXISTING" --body "## Updated Branch Cleanup Report ($(date -u +%Y-%m-%d))
 
-The following merged branches can be deleted:
-$BRANCHES
+            The following merged branches can be deleted:
+            $BRANCHES
 
-To delete these branches, run the workflow manually with dry_run=false."
+            To delete these branches, run the workflow manually with dry_run=false."
           else
             echo "Creating new cleanup issue"
             gh issue create \
@@ -103,16 +103,16 @@ To delete these branches, run the workflow manually with dry_run=false."
               --label "branch-cleanup" \
               --body "## Merged Branches Ready for Cleanup
 
-The following branches have been merged and can be deleted:
-$BRANCHES
+            The following branches have been merged and can be deleted:
+            $BRANCHES
 
-### How to delete
-1. Go to Actions → Cleanup Stale Branches
-2. Click 'Run workflow'
-3. Set 'Dry run' to **false**
-4. Click 'Run workflow'
+            ### How to delete
+            1. Go to Actions → Cleanup Stale Branches
+            2. Click 'Run workflow'
+            3. Set 'Dry run' to **false**
+            4. Click 'Run workflow'
 
-This issue will be closed automatically after cleanup."
+            This issue will be closed automatically after cleanup."
           fi
 
       - name: Report stale unmerged branches
