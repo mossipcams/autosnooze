@@ -1,0 +1,14 @@
+{
+  "include": ["custom_components/autosnooze"],
+  "exclude": ["**/node_modules", "**/__pycache__", "tests"],
+  "pythonVersion": "3.12",
+  "typeCheckingMode": "basic",
+  "reportMissingImports": false,
+  "reportMissingTypeStubs": false,
+  "reportOptionalMemberAccess": true,
+  "reportOptionalSubscript": true,
+  "reportOptionalCall": true,
+  "reportArgumentType": true,
+  "reportReturnType": true,
+  "reportGeneralTypeIssues": true
+}

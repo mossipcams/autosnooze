@@ -9,7 +9,7 @@ from homeassistant.config_entries import ConfigFlow, ConfigFlowResult
 from . import DOMAIN
 
 
-class AutomationPauseConfigFlow(ConfigFlow, domain=DOMAIN):
+class AutomationPauseConfigFlow(ConfigFlow, domain=DOMAIN):  # pyright: ignore[reportCallIssue,reportGeneralTypeIssues]
     """Handle config flow for AutoSnooze."""
 
     VERSION = 1

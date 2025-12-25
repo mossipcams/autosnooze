@@ -135,7 +135,8 @@ async def async_pause_automations(
             friendly_name = get_friendly_name(hass, entity_id)
 
             if use_scheduled:
-                # Schedule future disable
+                # Schedule future disable (disable_at is guaranteed non-None when use_scheduled is True)
+                assert disable_at is not None
                 scheduled = ScheduledSnooze(
                     entity_id=entity_id,
                     friendly_name=friendly_name,
