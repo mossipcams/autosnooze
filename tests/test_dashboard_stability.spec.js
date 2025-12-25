@@ -9,6 +9,7 @@
  * - Popular card conflict testing (button-card, mushroom, mini-graph-card patterns)
  */
 
+import { vi } from 'vitest';
 import '../src/autosnooze-card.js';
 
 // =============================================================================
@@ -29,8 +30,8 @@ describe('Console Error Monitoring', () => {
     originalConsoleWarn = console.warn;
 
     // Spy on console methods
-    consoleErrorSpy = jest.fn();
-    consoleWarnSpy = jest.fn();
+    consoleErrorSpy = vi.fn();
+    consoleWarnSpy = vi.fn();
     console.error = consoleErrorSpy;
     console.warn = consoleWarnSpy;
 
@@ -192,7 +193,7 @@ describe('Console Error Monitoring', () => {
 
   describe('Service call error handling', () => {
     test('failed service call shows toast but no console error', async () => {
-      card.hass.callService = jest.fn().mockRejectedValue(new Error('Service failed'));
+      card.hass.callService = vi.fn().mockRejectedValue(new Error('Service failed'));
       consoleErrorSpy.mockClear();
 
       card._selected = ['automation.test'];
@@ -608,7 +609,7 @@ describe('Cross-Card Compatibility', () => {
       await card1.updateComplete;
       await card2.updateComplete;
 
-      const card2Spy = jest.fn();
+      const card2Spy = vi.fn();
       card2.addEventListener('some-event', card2Spy);
 
       // Dispatch event on card1
@@ -655,12 +656,12 @@ describe('Cleanup Verification', () => {
 
   afterEach(() => {
     document.body.innerHTML = '';
-    jest.clearAllTimers();
+    vi.clearAllTimers();
   });
 
   describe('Interval cleanup', () => {
     test('disconnectedCallback clears countdown interval', async () => {
-      jest.useFakeTimers();
+      vi.useFakeTimers();
 
       const CardClass = customElements.get('autosnooze-card');
       const card = new CardClass();
@@ -678,11 +679,11 @@ describe('Cleanup Verification', () => {
       // Interval should be cleared
       expect(card._interval).toBeNull();
 
-      jest.useRealTimers();
+      vi.useRealTimers();
     });
 
     test('multiple connect/disconnect cycles clean up properly', async () => {
-      jest.useFakeTimers();
+      vi.useFakeTimers();
 
       const CardClass = customElements.get('autosnooze-card');
       const card = new CardClass();
@@ -698,13 +699,13 @@ describe('Cleanup Verification', () => {
         expect(card._interval).toBeNull();
       }
 
-      jest.useRealTimers();
+      vi.useRealTimers();
     });
   });
 
   describe('Timeout cleanup', () => {
     test('search timeout is cleared on disconnect', async () => {
-      jest.useFakeTimers();
+      vi.useFakeTimers();
 
       const CardClass = customElements.get('autosnooze-card');
       const card = new CardClass();
@@ -724,13 +725,13 @@ describe('Cleanup Verification', () => {
       card.remove();
 
       // Advance timers - should not cause errors
-      jest.advanceTimersByTime(1000);
+      vi.advanceTimersByTime(1000);
 
-      jest.useRealTimers();
+      vi.useRealTimers();
     });
 
     test('sync timeout is cleared on disconnect', async () => {
-      jest.useFakeTimers();
+      vi.useFakeTimers();
 
       const CardClass = customElements.get('autosnooze-card');
       const card = new CardClass();
@@ -743,10 +744,10 @@ describe('Cleanup Verification', () => {
 
       // Should not throw when timeouts would fire
       expect(() => {
-        jest.advanceTimersByTime(5000);
+        vi.advanceTimersByTime(5000);
       }).not.toThrow();
 
-      jest.useRealTimers();
+      vi.useRealTimers();
     });
   });
 
