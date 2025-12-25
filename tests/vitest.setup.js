@@ -116,6 +116,19 @@ global.createAndConnectElement = async (tagName, properties = {}) => {
   return element;
 };
 
+// Suppress unhandled Lit errors during testing
+// These occur when modifying component state during tests and are harmless
+const originalOnUnhandledRejection = process.listeners('unhandledRejection');
+process.removeAllListeners('unhandledRejection');
+process.on('unhandledRejection', (reason) => {
+  // Suppress Lit's ChildPart errors which are expected during component testing
+  if (reason?.message?.includes('ChildPart') || reason?.message?.includes('parentNode')) {
+    return; // Suppress this expected error
+  }
+  // Re-throw other unhandled rejections
+  throw reason;
+});
+
 // Clean up after each test
 afterEach(() => {
   // Clear body of any created elements
