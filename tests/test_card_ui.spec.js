@@ -114,6 +114,98 @@ describe('AutoSnooze Card Editor', () => {
     const detail = eventSpy.mock.calls[0][0].detail;
     expect(detail.config.title).toBe('New Title');
   });
+
+  // Tests to catch mutation survivors
+  test('_valueChanged does nothing when config is not set', () => {
+    const freshEditor = new (customElements.get('autosnooze-card-editor'))();
+    // Don't call setConfig - _config should be empty object by default
+    freshEditor._config = null; // Force null config
+
+    const eventSpy = vi.fn();
+    freshEditor.addEventListener('config-changed', eventSpy);
+
+    // Should return early without dispatching event
+    freshEditor._valueChanged('title', 'Test');
+
+    expect(eventSpy).not.toHaveBeenCalled();
+  });
+
+  test('removes null values from config', async () => {
+    editor.setConfig({ title: 'Test', nullable: 'value' });
+
+    const eventPromise = new Promise((resolve) => {
+      editor.addEventListener('config-changed', (e) => resolve(e.detail));
+    });
+
+    editor._valueChanged('nullable', null);
+
+    const detail = await eventPromise;
+    expect(detail.config.nullable).toBeUndefined();
+    expect(detail.config.title).toBe('Test');
+  });
+
+  test('removes undefined values from config', async () => {
+    editor.setConfig({ title: 'Test', undef: 'value' });
+
+    const eventPromise = new Promise((resolve) => {
+      editor.addEventListener('config-changed', (e) => resolve(e.detail));
+    });
+
+    editor._valueChanged('undef', undefined);
+
+    const detail = await eventPromise;
+    expect(detail.config.undef).toBeUndefined();
+  });
+
+  test('config-changed event bubbles', async () => {
+    editor.setConfig({ title: 'Original' });
+    await editor.updateComplete;
+
+    const eventPromise = new Promise((resolve) => {
+      // Listen on parent to verify bubbling
+      document.body.addEventListener('config-changed', (e) => resolve(e), { once: true });
+    });
+
+    editor._valueChanged('title', 'New');
+
+    const event = await eventPromise;
+    expect(event.bubbles).toBe(true);
+  });
+
+  test('config-changed event is composed', async () => {
+    editor.setConfig({ title: 'Original' });
+    await editor.updateComplete;
+
+    const eventPromise = new Promise((resolve) => {
+      editor.addEventListener('config-changed', (e) => resolve(e), { once: true });
+    });
+
+    editor._valueChanged('title', 'New');
+
+    const event = await eventPromise;
+    expect(event.composed).toBe(true);
+  });
+
+  test('renders empty string when no title configured', async () => {
+    editor.setConfig({});
+    await editor.updateComplete;
+
+    const input = editor.shadowRoot.querySelector('input[type="text"]');
+    expect(input.value).toBe('');
+  });
+
+  test('render returns empty template when config not set', async () => {
+    const freshEditor = new (customElements.get('autosnooze-card-editor'))();
+    freshEditor._config = null;
+    document.body.appendChild(freshEditor);
+    await freshEditor.updateComplete;
+
+    // Should render without error
+    const content = freshEditor.shadowRoot.innerHTML;
+    expect(content).toBeDefined();
+
+    freshEditor.remove();
+  });
 });
 
 // =============================================================================
@@ -1908,6 +2000,178 @@ describe('shouldUpdate optimization', () => {
     card.hass = hass;
     const changedProps = new Map();
     changedProps.set('hass', hass); // Same object reference
+    expect(card.shouldUpdate(changedProps)).toBe(false);
+  });
+
+  // Tests to catch mutation survivors - more specific condition testing
+  test('shouldUpdate returns false when hass changes but sensor is identical object', () => {
+    const sensor = {
+      state: '0',
+      attributes: { paused_automations: {}, scheduled_snoozes: {} },
+    };
+    const oldHass = {
+      states: {
+        'automation.test1': { state: 'on', attributes: { friendly_name: 'Test 1' } },
+        'sensor.autosnooze_snoozed_automations': sensor,
+      },
+      entities: {},
+      areas: {},
+    };
+    const newHass = {
+      states: {
+        'automation.test1': oldHass.states['automation.test1'], // Same reference
+        'sensor.autosnooze_snoozed_automations': sensor, // Same reference
+      },
+      entities: oldHass.entities, // Same reference
+      areas: oldHass.areas, // Same reference
+    };
+    card.hass = newHass;
+    const changedProps = new Map();
+    changedProps.set('hass', oldHass);
+    expect(card.shouldUpdate(changedProps)).toBe(false);
+  });
+
+  test('shouldUpdate returns false when entities registry is same reference', () => {
+    const entities = { 'automation.test1': { entity_id: 'automation.test1' } };
+    const sensor = { state: '0', attributes: { paused_automations: {}, scheduled_snoozes: {} } };
+    const automation = { state: 'on', attributes: { friendly_name: 'Test 1' } };
+    const areas = {}; // Shared reference for areas
+    const oldHass = {
+      states: { 'automation.test1': automation, 'sensor.autosnooze_snoozed_automations': sensor },
+      entities: entities,
+      areas: areas,
+    };
+    const newHass = {
+      states: { 'automation.test1': automation, 'sensor.autosnooze_snoozed_automations': sensor },
+      entities: entities, // Same reference - should return false
+      areas: areas, // Must be same reference
+    };
+    card.hass = newHass;
+    const changedProps = new Map();
+    changedProps.set('hass', oldHass);
+    expect(card.shouldUpdate(changedProps)).toBe(false);
+  });
+
+  test('shouldUpdate returns false when areas is same reference', () => {
+    const areas = { area1: { name: 'Living Room' } };
+    const sensor = { state: '0', attributes: { paused_automations: {}, scheduled_snoozes: {} } };
+    const automation = { state: 'on', attributes: { friendly_name: 'Test 1' } };
+    const entities = {};
+    const oldHass = {
+      states: { 'automation.test1': automation, 'sensor.autosnooze_snoozed_automations': sensor },
+      entities: entities,
+      areas: areas,
+    };
+    const newHass = {
+      states: { 'automation.test1': automation, 'sensor.autosnooze_snoozed_automations': sensor },
+      entities: entities,
+      areas: areas, // Same reference - should return false
+    };
+    card.hass = newHass;
+    const changedProps = new Map();
+    changedProps.set('hass', oldHass);
+    expect(card.shouldUpdate(changedProps)).toBe(false);
+  });
+
+  test('shouldUpdate returns false when automation state is same reference', () => {
+    const sensor = { state: '0', attributes: { paused_automations: {}, scheduled_snoozes: {} } };
+    const automation = { state: 'on', attributes: { friendly_name: 'Test 1' } };
+    const entities = {};
+    const areas = {};
+    const oldHass = {
+      states: { 'automation.test1': automation, 'sensor.autosnooze_snoozed_automations': sensor },
+      entities: entities,
+      areas: areas,
+    };
+    const newHass = {
+      states: { 'automation.test1': automation, 'sensor.autosnooze_snoozed_automations': sensor },
+      entities: entities, // Must be same reference
+      areas: areas, // Must be same reference
+    };
+    card.hass = newHass;
+    const changedProps = new Map();
+    changedProps.set('hass', oldHass);
+    expect(card.shouldUpdate(changedProps)).toBe(false);
+  });
+
+  test('shouldUpdate returns true only when specific automation changes', () => {
+    const sensor = { state: '0', attributes: { paused_automations: {}, scheduled_snoozes: {} } };
+    const oldHass = {
+      states: {
+        'automation.test1': { state: 'on', attributes: { friendly_name: 'Test 1' } },
+        'sensor.autosnooze_snoozed_automations': sensor,
+        'light.test': { state: 'on' }, // Non-automation entity
+      },
+      entities: {},
+      areas: {},
+    };
+    const newHass = {
+      states: {
+        'automation.test1': { state: 'off', attributes: { friendly_name: 'Test 1' } }, // Changed!
+        'sensor.autosnooze_snoozed_automations': sensor,
+        'light.test': { state: 'off' }, // Changed but not automation
+      },
+      entities: {},
+      areas: {},
+    };
+    card.hass = newHass;
+    const changedProps = new Map();
+    changedProps.set('hass', oldHass);
+    expect(card.shouldUpdate(changedProps)).toBe(true);
+  });
+
+  test('shouldUpdate checks automation removal correctly', () => {
+    const sensor = { state: '0', attributes: { paused_automations: {}, scheduled_snoozes: {} } };
+    const oldHass = {
+      states: {
+        'automation.test1': { state: 'on', attributes: { friendly_name: 'Test 1' } },
+        'automation.to_remove': { state: 'on', attributes: { friendly_name: 'To Remove' } },
+        'sensor.autosnooze_snoozed_automations': sensor,
+      },
+      entities: {},
+      areas: {},
+    };
+    const newHass = {
+      states: {
+        'automation.test1': oldHass.states['automation.test1'],
+        'sensor.autosnooze_snoozed_automations': sensor,
+        // automation.to_remove is missing!
+      },
+      entities: {},
+      areas: {},
+    };
+    card.hass = newHass;
+    const changedProps = new Map();
+    changedProps.set('hass', oldHass);
+    expect(card.shouldUpdate(changedProps)).toBe(true);
+  });
+
+  test('shouldUpdate ignores non-automation entity removal', () => {
+    const sensor = { state: '0', attributes: { paused_automations: {}, scheduled_snoozes: {} } };
+    const automation = { state: 'on', attributes: { friendly_name: 'Test 1' } };
+    const entities = {}; // Shared reference
+    const areas = {}; // Shared reference
+    const oldHass = {
+      states: {
+        'automation.test1': automation,
+        'sensor.autosnooze_snoozed_automations': sensor,
+        'light.to_remove': { state: 'on' }, // Non-automation
+      },
+      entities: entities,
+      areas: areas,
+    };
+    const newHass = {
+      states: {
+        'automation.test1': automation,
+        'sensor.autosnooze_snoozed_automations': sensor,
+        // light.to_remove is missing but that's not an automation
+      },
+      entities: entities, // Must be same reference
+      areas: areas, // Must be same reference
+    };
+    card.hass = newHass;
+    const changedProps = new Map();
+    changedProps.set('hass', oldHass);
     expect(card.shouldUpdate(changedProps)).toBe(false);
   });
 });

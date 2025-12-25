@@ -9,3 +9,4 @@ config/
 coverage/
 .coverage
 coverage.xml
+reports/
