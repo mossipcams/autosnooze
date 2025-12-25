@@ -8,6 +8,7 @@
  * - Uncategorized automations are grouped together and sorted last
  */
 
+import { vi } from 'vitest';
 import '../src/autosnooze-card.js';
 
 describe('Categories Feature', () => {
@@ -221,7 +222,7 @@ describe('Entity Registry Fetch', () => {
     });
 
     card.hass.connection = {
-      sendMessagePromise: jest.fn().mockResolvedValue([
+      sendMessagePromise: vi.fn().mockResolvedValue([
         { entity_id: 'automation.test', categories: { automation: 'cat_test' }, labels: [] },
       ]),
     };
@@ -229,7 +230,7 @@ describe('Entity Registry Fetch', () => {
     card._entityRegistryFetched = false;
     card._entityRegistry = {};
 
-    fetchRegistrySpy = jest.spyOn(card, '_fetchRegistry');
+    fetchRegistrySpy = vi.spyOn(card, '_fetchRegistry');
   });
 
   afterEach(() => {
@@ -295,7 +296,7 @@ describe('Category Registry Fetch', () => {
     });
 
     card.hass.connection = {
-      sendMessagePromise: jest.fn().mockResolvedValue([
+      sendMessagePromise: vi.fn().mockResolvedValue([
         { category_id: 'cat_lighting', name: 'Lighting' },
         { category_id: 'cat_security', name: 'Security' },
       ]),

@@ -10,6 +10,7 @@
  * 9. Locale support for date/time formatting
  */
 
+import { vi } from 'vitest';
 import '../src/autosnooze-card.js';
 
 describe('Defect Fixes - Regression Tests', () => {
@@ -143,7 +144,7 @@ describe('Defect Fixes - Regression Tests', () => {
       card._entityRegistryFetched = false;
       card._entityRegistry = {};
       card.hass.connection = {
-        sendMessagePromise: jest.fn().mockResolvedValue([
+        sendMessagePromise: vi.fn().mockResolvedValue([
           { entity_id: 'automation.test', categories: {}, labels: [] },
         ]),
       };
