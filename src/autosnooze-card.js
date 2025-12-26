@@ -1,6 +1,7 @@
 import { LitElement, html, css } from "lit";
 
-const CARD_VERSION = "0.2.5"; // x-release-please-version
+// x-release-please-version
+const CARD_VERSION = "0.2.5";
 
 // ============================================================================
 // CONSTANTS
@@ -422,466 +423,986 @@ class AutomationPauseCard extends LitElement {
   static styles = css`
     :host {
       display: block;
-      --snooze-primary: var(--primary-color, #2196f3);
-      --snooze-warning: var(--warning-color, #ff9800);
-      --snooze-bg: var(--card-background-color);
-      --snooze-secondary-bg: var(--secondary-background-color);
     }
-
     ha-card {
       padding: 16px;
-      display: flex;
-      flex-direction: column;
-      gap: 16px;
     }
 
-    /* =========================
-       HEADER & TOP BAR
-       ========================= */
+    /* Header */
     .header {
       display: flex;
       align-items: center;
-      justify-content: space-between;
-      font-size: 1.2rem;
+      gap: 8px;
+      margin-bottom: 16px;
+      font-size: 1.2em;
       font-weight: 500;
     }
-    .header-title {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-    }
     .header ha-icon {
-      color: var(--snooze-primary);
+      color: var(--primary-color);
     }
-    .status-badge {
-      font-size: 0.75rem;
-      font-weight: 600;
-      padding: 4px 10px;
-      border-radius: 12px;
-      background: rgba(var(--rgb-primary-text-color), 0.05);
+    .status-summary {
+      margin-left: auto;
+      font-size: 0.85em;
       color: var(--secondary-text-color);
     }
 
-    /* =========================
-       FILTER TABS (Scrollable)
-       ========================= */
+    /* Section A: Snooze Setup */
+    .snooze-setup {
+      margin-bottom: 20px;
+    }
+
+    /* Filter Tabs */
     .filter-tabs {
       display: flex;
       gap: 8px;
-      overflow-x: auto;
-      padding-bottom: 4px; /* Space for scrollbar if visible */
-      scrollbar-width: none; /* Firefox */
-      -ms-overflow-style: none; /* IE/Edge */
-      margin: 0 -16px; /* Bleed to edges */
-      padding: 0 16px 8px 16px;
+      margin-bottom: 12px;
+      border-bottom: 1px solid var(--divider-color);
+      padding-bottom: 8px;
+      flex-wrap: wrap;
     }
-    .filter-tabs::-webkit-scrollbar {
-      display: none;
-    }
-
     .tab {
-      flex: 0 0 auto; /* Don't shrink */
-      padding: 8px 16px;
-      border-radius: 20px;
+      padding: 6px 16px;
+      border-radius: 16px;
       cursor: pointer;
-      font-size: 0.9rem;
-      font-weight: 500;
-      background: var(--snooze-secondary-bg);
-      border: 1px solid transparent;
+      font-size: 0.9em;
+      background: transparent;
+      border: 1px solid var(--divider-color);
       color: var(--primary-text-color);
-      transition: all 0.2s ease;
+      transition: all 0.2s;
       display: flex;
       align-items: center;
-      gap: 8px;
+      gap: 6px;
+      min-height: 44px;
+      box-sizing: border-box;
+    }
+    .tab:hover {
+      background: var(--primary-color);
+      color: var(--text-primary-color);
+      opacity: 0.8;
+    }
+    .tab:focus-visible {
+      outline: 2px solid var(--primary-color);
+      outline-offset: 2px;
     }
     .tab.active {
-      background: var(--snooze-primary);
+      background: var(--primary-color);
       color: var(--text-primary-color);
+      border-color: var(--primary-color);
     }
     .tab-count {
-      background: rgba(0,0,0,0.15);
+      background: rgba(0, 0, 0, 0.2);
       padding: 2px 6px;
       border-radius: 10px;
-      font-size: 0.75em;
+      font-size: 0.8em;
     }
     .tab.active .tab-count {
-      background: rgba(255,255,255,0.25);
+      background: rgba(255, 255, 255, 0.2);
     }
 
-    /* =========================
-       SEARCH & SELECTION
-       ========================= */
+    /* Search */
+    .search-box {
+      margin-bottom: 12px;
+    }
     .search-box input {
       width: 100%;
-      padding: 12px;
+      padding: 10px 12px;
       border: 1px solid var(--divider-color);
-      border-radius: 12px;
-      background: var(--snooze-secondary-bg);
+      border-radius: 8px;
+      background: var(--card-background-color);
       color: var(--primary-text-color);
       box-sizing: border-box;
-      font-size: 1rem;
+      font-size: 0.95em;
+      min-height: 44px;
     }
     .search-box input:focus {
-      outline: 2px solid var(--snooze-primary);
-      background: var(--snooze-bg);
+      outline: none;
+      border-color: var(--primary-color);
     }
 
-    .selection-actions {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      font-size: 0.85rem;
-      color: var(--secondary-text-color);
-      margin-bottom: 8px;
-    }
-    .text-btn {
-      background: none;
-      border: none;
-      color: var(--snooze-primary);
-      font-weight: 500;
-      cursor: pointer;
-      padding: 4px 8px;
-    }
-
+    /* Selection List */
     .selection-list {
-      max-height: 40vh; /* Responsive height */
+      max-height: 300px;
       overflow-y: auto;
       border: 1px solid var(--divider-color);
-      border-radius: 12px;
+      border-radius: 8px;
+      margin-bottom: 12px;
     }
-
+    .list-empty {
+      padding: 20px;
+      text-align: center;
+      color: var(--secondary-text-color);
+      font-size: 0.9em;
+    }
     .list-item {
       display: flex;
       align-items: center;
-      gap: 12px;
-      padding: 12px 16px;
+      gap: 10px;
+      padding: 12px;
       cursor: pointer;
       border: none;
       border-bottom: 1px solid var(--divider-color);
-      background: transparent;
+      transition: background 0.2s;
+      min-height: 48px;
       width: 100%;
+      background: transparent;
       text-align: left;
-      color: var(--primary-text-color);
-      transition: background 0.1s;
+      font-family: inherit;
+      font-size: inherit;
+      color: inherit;
+      box-sizing: border-box;
     }
-    .list-item:active {
-      background: rgba(var(--rgb-primary-color), 0.1);
+    .list-item:last-child {
+      border-bottom: none;
+    }
+    .list-item:hover {
+      background: var(--secondary-background-color);
+    }
+    .list-item:focus-visible {
+      outline: 2px solid var(--primary-color);
+      outline-offset: -2px;
     }
     .list-item.selected {
-      background: rgba(var(--rgb-primary-color), 0.08);
+      background: rgba(var(--rgb-primary-color), 0.1);
     }
-    /* Hide default checkbox, use custom styling logic if desired,
-       but standard checkbox is reliable */
+    .list-item ha-icon {
+      color: var(--primary-color);
+      flex-shrink: 0;
+    }
     .list-item input[type="checkbox"] {
-      width: 20px;
-      height: 20px;
-      accent-color: var(--snooze-primary);
+      width: 18px;
+      height: 18px;
+      cursor: pointer;
+      accent-color: var(--primary-color);
+      flex-shrink: 0;
+    }
+    .group-header input[type="checkbox"] {
+      width: 18px;
+      height: 18px;
+      cursor: pointer;
+      accent-color: var(--primary-color);
     }
     .list-item-content {
       flex: 1;
-      display: flex;
-      flex-direction: column;
+      min-width: 0;
     }
     .list-item-name {
-      font-size: 0.95rem;
-      font-weight: 500;
+      font-size: 0.95em;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
     }
     .list-item-meta {
-      font-size: 0.8rem;
+      font-size: 0.8em;
       color: var(--secondary-text-color);
-      display: flex;
-      align-items: center;
-      gap: 4px;
+      margin-top: 2px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .list-item-meta ha-icon {
+      --mdc-icon-size: 12px;
+      margin-right: 4px;
+      vertical-align: middle;
     }
 
     /* Group Headers */
     .group-header {
-      width: 100%;
       display: flex;
       align-items: center;
-      gap: 12px;
-      padding: 12px 16px;
-      background: var(--snooze-secondary-bg);
+      gap: 8px;
+      padding: 10px 12px;
+      background: var(--secondary-background-color);
+      cursor: pointer;
+      font-weight: 500;
+      font-size: 0.9em;
       border: none;
       border-bottom: 1px solid var(--divider-color);
-      color: var(--primary-text-color);
-      font-weight: 600;
-      cursor: pointer;
+      width: 100%;
+      text-align: left;
+      font-family: inherit;
+      color: inherit;
+      box-sizing: border-box;
+      min-height: 44px;
+    }
+    .group-header:hover {
+      background: var(--divider-color);
+    }
+    .group-header:focus-visible {
+      outline: 2px solid var(--primary-color);
+      outline-offset: -2px;
+    }
+    .group-header ha-icon {
+      transition: transform 0.2s;
+    }
+    .group-header.expanded ha-icon {
+      transform: rotate(90deg);
     }
     .group-badge {
       margin-left: auto;
-      background: var(--divider-color);
       padding: 2px 8px;
-      border-radius: 10px;
-      font-size: 0.75rem;
-    }
-
-    /* =========================
-       DURATION SELECTOR
-       ========================= */
-    .duration-section-header {
-      font-size: 0.9rem;
-      font-weight: 500;
-      color: var(--secondary-text-color);
-      margin-bottom: 10px;
-    }
-
-    .duration-pills {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
-      gap: 8px;
-      margin-bottom: 12px;
-    }
-    .pill {
-      padding: 10px;
+      background: var(--primary-color);
+      color: var(--text-primary-color);
       border-radius: 12px;
+      font-size: 0.8em;
+    }
+
+    /* Selection Actions */
+    .selection-actions {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 8px;
+      padding: 8px 12px;
+      background: var(--secondary-background-color);
+      border-radius: 8px;
+      align-items: center;
+      font-size: 0.9em;
+    }
+    .selection-actions span {
+      flex: 1;
+      color: var(--secondary-text-color);
+    }
+    .select-all-btn {
+      padding: 4px 12px;
       border: 1px solid var(--divider-color);
-      background: var(--snooze-bg);
+      border-radius: 6px;
+      background: var(--card-background-color);
       color: var(--primary-text-color);
       cursor: pointer;
-      font-weight: 500;
+      font-size: 0.85em;
+      transition: all 0.2s;
+      min-height: 44px;
+      box-sizing: border-box;
     }
-    .pill.active {
-      background: var(--snooze-primary);
-      color: white;
-      border-color: var(--snooze-primary);
+    .select-all-btn:hover {
+      background: var(--primary-color);
+      color: var(--text-primary-color);
+      border-color: var(--primary-color);
+    }
+    .select-all-btn:focus-visible {
+      outline: 2px solid var(--primary-color);
+      outline-offset: 2px;
     }
 
-    /* Custom Input */
+    /* Duration Section */
+    .duration-section-header {
+      font-size: 0.9em;
+      font-weight: 500;
+      margin-bottom: 8px;
+      color: var(--secondary-text-color);
+    }
+
+    /* Duration Pills */
+    .duration-selector {
+      margin-bottom: 12px;
+    }
+    .duration-pills {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-bottom: 8px;
+    }
+    .pill {
+      padding: 8px 16px;
+      border-radius: 20px;
+      border: 1px solid var(--divider-color);
+      background: var(--card-background-color);
+      cursor: pointer;
+      font-size: 0.9em;
+      transition: all 0.2s;
+      min-height: 44px;
+      box-sizing: border-box;
+      color: var(--primary-text-color);
+    }
+    .pill:hover {
+      border-color: var(--primary-color);
+    }
+    .pill:focus-visible {
+      outline: 2px solid var(--primary-color);
+      outline-offset: 2px;
+    }
+    .pill.active {
+      background: var(--primary-color);
+      color: var(--text-primary-color);
+      border-color: var(--primary-color);
+    }
+
+    /* Duration Input */
     .custom-duration-input {
-      margin-top: 12px;
+      margin-top: 8px;
     }
     .duration-input {
       width: 100%;
-      padding: 12px;
-      border: 1px solid var(--divider-color);
-      border-radius: 12px;
-      background: var(--snooze-bg);
-      color: var(--primary-text-color);
-      font-size: 1.1rem; /* Larger font for numbers */
-      box-sizing: border-box;
-    }
-
-    /* Schedule Mode Inputs */
-    .schedule-inputs {
-      background: var(--snooze-secondary-bg);
-      border-radius: 12px;
-      padding: 16px;
-      display: flex;
-      flex-direction: column;
-      gap: 16px;
-    }
-    .datetime-field label {
-      display: block;
-      margin-bottom: 8px;
-      font-weight: 500;
-      color: var(--secondary-text-color);
-    }
-    .datetime-row {
-      display: flex;
-      gap: 10px;
-    }
-    .datetime-row select,
-    .datetime-row input {
-      padding: 12px;
+      padding: 10px 12px;
       border: 1px solid var(--divider-color);
       border-radius: 8px;
-      background: var(--snooze-bg);
+      background: var(--card-background-color);
       color: var(--primary-text-color);
-      font-size: 1rem;
+      font-size: 0.95em;
+      box-sizing: border-box;
+      min-height: 44px;
     }
-    .datetime-row select {
-      flex: 2; /* Date takes more space */
+    .duration-input:focus {
+      outline: none;
+      border-color: var(--primary-color);
     }
-    .datetime-row input {
-      flex: 1; /* Time takes less */
+    .duration-input.invalid {
+      border-color: #f44336;
+    }
+    .duration-help {
+      font-size: 0.8em;
+      color: var(--secondary-text-color);
+      margin-top: 4px;
+    }
+    .duration-preview {
+      font-size: 0.85em;
+      color: var(--primary-color);
+      font-weight: 500;
+      margin-top: 4px;
     }
 
-    .schedule-link {
-      background: none;
-      border: none;
-      color: var(--snooze-primary);
-      padding: 12px 0;
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      cursor: pointer;
-      font-size: 0.9rem;
-    }
-
-    /* =========================
-       MAIN SNOOZE BUTTON
-       ========================= */
+    /* Snooze Button */
     .snooze-btn {
       width: 100%;
-      padding: 16px;
+      padding: 14px;
       border: none;
-      border-radius: 14px;
-      background: var(--snooze-primary);
-      color: white;
-      font-size: 1.1rem;
-      font-weight: 600;
+      border-radius: 8px;
+      background: var(--primary-color);
+      color: var(--text-primary-color);
+      font-size: 1em;
+      font-weight: 500;
       cursor: pointer;
-      box-shadow: 0 2px 8px rgba(var(--rgb-primary-color), 0.3);
-      transition: transform 0.1s;
+      transition: opacity 0.2s;
+      min-height: 48px;
     }
-    .snooze-btn:active {
-      transform: scale(0.98);
+    .snooze-btn:hover:not(:disabled) {
+      opacity: 0.9;
+    }
+    .snooze-btn:focus-visible {
+      outline: 2px solid var(--primary-color);
+      outline-offset: 2px;
     }
     .snooze-btn:disabled {
-      opacity: 0.5;
-      box-shadow: none;
+      opacity: 0.4;
+      cursor: not-allowed;
     }
 
-    /* =========================
-       ACTIVE SNOOZES SECTION
-       ========================= */
-    .snooze-list, .scheduled-list {
-      border-top: 1px solid var(--divider-color);
-      padding-top: 16px;
-      margin-top: 8px;
+    /* Section B: Active Snoozes */
+    .snooze-list {
+      border: 2px solid #ff9800;
+      border-radius: 8px;
+      background: rgba(255, 152, 0, 0.05);
+      padding: 12px;
+      margin-top: 20px;
     }
-
     .list-header {
       display: flex;
       align-items: center;
       gap: 8px;
-      font-weight: 600;
-      font-size: 1rem;
-      margin-bottom: 12px;
-      color: var(--snooze-warning);
-    }
-
-    .pause-group {
-      background: var(--snooze-secondary-bg);
-      border-radius: 12px;
-      overflow: hidden;
-      margin-bottom: 12px;
-      border: 1px solid var(--divider-color);
-    }
-
-    .pause-group-header {
-      padding: 10px 16px;
-      background: rgba(255, 152, 0, 0.1);
-      color: #e65100;
       font-weight: 500;
-      font-size: 0.9rem;
+      margin-bottom: 12px;
+      font-size: 1em;
+    }
+    .list-header ha-icon {
+      color: #ff9800;
+    }
+
+    /* Pause Group */
+    .pause-group {
+      background: var(--card-background-color);
+      border-radius: 8px;
+      margin-bottom: 8px;
+    }
+    .pause-group-header {
       display: flex;
       align-items: center;
       gap: 8px;
+      padding: 8px 12px;
+      color: #ff9800;
+      font-size: 0.85em;
+      border-bottom: 1px solid var(--divider-color);
+    }
+    .pause-group-header ha-icon {
+      --mdc-icon-size: 18px;
+    }
+    .pause-group-header .countdown {
+      font-weight: 600;
+      font-variant-numeric: tabular-nums;
     }
 
+    /* Paused Item */
     .paused-item {
       display: flex;
       align-items: center;
-      justify-content: space-between;
-      padding: 12px 16px;
+      gap: 12px;
+      padding: 10px 12px;
+    }
+    .paused-item + .paused-item {
       border-top: 1px solid var(--divider-color);
     }
+    .paused-icon {
+      color: var(--secondary-text-color);
+      opacity: 0.6;
+    }
     .paused-info {
-      display: flex;
-      flex-direction: column;
+      flex: 1;
     }
     .paused-name {
       font-weight: 500;
     }
     .paused-time {
-      font-size: 0.8rem;
+      font-size: 0.85em;
       color: var(--secondary-text-color);
     }
-
-    .wake-btn, .cancel-scheduled-btn {
-      padding: 8px 16px;
-      border: 1px solid var(--divider-color);
-      border-radius: 8px;
-      background: var(--snooze-bg);
+    .countdown {
+      font-size: 0.9em;
+      color: #ff9800;
       font-weight: 500;
+      white-space: nowrap;
+    }
+    .wake-btn {
+      padding: 6px 12px;
+      border: 1px solid var(--divider-color);
+      border-radius: 6px;
+      background: var(--card-background-color);
+      color: var(--primary-text-color);
       cursor: pointer;
+      font-size: 0.85em;
+      transition: all 0.2s;
+      min-height: 44px;
+      box-sizing: border-box;
+    }
+    .wake-btn:hover {
+      background: var(--primary-color);
+      color: var(--text-primary-color);
+      border-color: var(--primary-color);
+    }
+    .wake-btn:focus-visible {
+      outline: 2px solid var(--primary-color);
+      outline-offset: 2px;
     }
 
+    /* Wake All Button */
     .wake-all {
       width: 100%;
-      padding: 12px;
-      margin-top: 8px;
+      padding: 10px;
+      border: 1px solid #ff9800;
+      border-radius: 6px;
       background: transparent;
-      border: 1px solid var(--snooze-warning);
-      color: var(--snooze-warning);
-      border-radius: 8px;
-      font-weight: 600;
+      color: #ff9800;
+      cursor: pointer;
+      font-size: 0.9em;
+      font-weight: 500;
+      transition: all 0.2s;
+      min-height: 44px;
+    }
+    .wake-all:hover {
+      background: #ff9800;
+      color: white;
+    }
+    .wake-all:focus-visible {
+      outline: 2px solid #ff9800;
+      outline-offset: 2px;
     }
 
-    /* =========================
-       TOAST NOTIFICATION
-       ========================= */
-    .toast {
-      position: fixed;
-      bottom: 24px;
-      left: 20px;
-      right: 20px;
-      background: #323232;
+    /* Wake All Button - Pending State */
+    .wake-all.pending {
+      background: #ff9800;
       color: white;
-      padding: 16px;
-      border-radius: 12px;
+    }
+
+    /* Empty State */
+    .empty {
+      padding: 20px;
+      text-align: center;
+      color: var(--secondary-text-color);
+      font-size: 0.9em;
+    }
+
+    /* Schedule Link (Progressive Disclosure) */
+    .schedule-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      margin-top: 12px;
+      padding: 8px 4px;
+      color: var(--primary-color);
+      cursor: pointer;
+      font-size: 0.9em;
+      background: none;
+      border: none;
+      font-family: inherit;
+      min-height: 44px;
+      box-sizing: border-box;
+    }
+    .schedule-link:hover {
+      text-decoration: underline;
+    }
+    .schedule-link:focus-visible {
+      outline: 2px solid var(--primary-color);
+      outline-offset: 2px;
+    }
+    .schedule-link ha-icon {
+      --mdc-icon-size: 18px;
+    }
+
+    /* Field Hint */
+    .field-hint {
+      font-size: 0.8em;
+      color: var(--secondary-text-color);
+      margin-top: 4px;
+    }
+
+    /* Schedule Datetime Inputs */
+    .schedule-inputs {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      padding: 12px;
+      background: var(--secondary-background-color);
+      border-radius: 8px;
+      margin-bottom: 12px;
+    }
+    .datetime-field {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .datetime-field label {
+      font-size: 0.85em;
+      color: var(--secondary-text-color);
+      font-weight: 500;
+    }
+    .datetime-row {
+      display: flex;
+      gap: 8px;
+    }
+    .datetime-row select,
+    .datetime-row input[type="time"] {
+      padding: 10px 12px;
+      border: 1px solid var(--divider-color);
+      border-radius: 6px;
+      background: var(--card-background-color);
+      color: var(--primary-text-color);
+      font-size: 0.95em;
+      min-height: 44px;
+      box-sizing: border-box;
+    }
+    .datetime-row select {
+      flex: 1;
+      min-width: 0;
+    }
+    .datetime-row input[type="time"] {
+      width: 110px;
+      flex-shrink: 0;
+    }
+    .datetime-row select:focus,
+    .datetime-row input:focus {
+      outline: none;
+      border-color: var(--primary-color);
+    }
+
+    /* Scheduled Snoozes Section */
+    .scheduled-list {
+      border: 2px solid #2196f3;
+      border-radius: 8px;
+      background: rgba(33, 150, 243, 0.05);
+      padding: 12px;
+      margin-top: 12px;
+    }
+    .scheduled-list .list-header ha-icon {
+      color: #2196f3;
+    }
+    .scheduled-item {
       display: flex;
       align-items: center;
-      justify-content: space-between;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-      z-index: 999;
-      font-size: 0.95rem;
+      gap: 12px;
+      padding: 12px;
+      background: var(--card-background-color);
+      border-radius: 8px;
+      margin-bottom: 8px;
     }
-    .toast-undo-btn {
-      background: transparent;
-      border: 1px solid rgba(255,255,255,0.3);
-      color: #90caf9;
+    .scheduled-item:last-of-type {
+      margin-bottom: 12px;
+    }
+    .scheduled-icon {
+      color: #2196f3;
+      opacity: 0.8;
+    }
+    .scheduled-time {
+      font-size: 0.85em;
+      color: #2196f3;
+      font-weight: 500;
+    }
+    .cancel-scheduled-btn {
       padding: 6px 12px;
+      border: 1px solid var(--divider-color);
       border-radius: 6px;
-      font-weight: 600;
+      background: var(--card-background-color);
+      color: var(--primary-text-color);
       cursor: pointer;
+      font-size: 0.85em;
+      transition: all 0.2s;
+      min-height: 44px;
+      box-sizing: border-box;
+    }
+    .cancel-scheduled-btn:hover {
+      background: #f44336;
+      color: white;
+      border-color: #f44336;
+    }
+    .cancel-scheduled-btn:focus-visible {
+      outline: 2px solid var(--primary-color);
+      outline-offset: 2px;
     }
 
-    /* =========================
-       MOBILE SPECIFIC OVERRIDES
-       ========================= */
+    /* Toast */
+    .toast {
+      position: fixed;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      padding: 12px 20px;
+      background: var(--primary-color);
+      color: var(--text-primary-color);
+      border-radius: 8px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+      z-index: 1000;
+      animation: slideUp 0.3s ease-out;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .toast-undo-btn {
+      padding: 4px 12px;
+      border: 1px solid rgba(255, 255, 255, 0.5);
+      border-radius: 4px;
+      background: transparent;
+      color: var(--text-primary-color);
+      cursor: pointer;
+      font-size: 0.85em;
+      font-weight: 500;
+      transition: all 0.2s;
+      min-height: 44px;
+      box-sizing: border-box;
+    }
+    .toast-undo-btn:hover {
+      background: rgba(255, 255, 255, 0.2);
+      border-color: rgba(255, 255, 255, 0.8);
+    }
+    .toast-undo-btn:focus-visible {
+      outline: 2px solid white;
+      outline-offset: 2px;
+    }
+    @keyframes slideUp {
+      from {
+        transform: translateX(-50%) translateY(100px);
+        opacity: 0;
+      }
+      to {
+        transform: translateX(-50%) translateY(0);
+        opacity: 1;
+      }
+    }
+
+    /* Mobile Responsive Styles */
     @media (max-width: 480px) {
       ha-card {
         padding: 12px;
-        border-radius: 0; /* Flush on very small screens? Optional. */
-        box-shadow: none;
       }
 
-      /* Stack the Date/Time inputs vertically on mobile for larger touch targets */
-      .datetime-row {
-        flex-direction: column;
+      /* --- Typography Scale: 0.75em (small), 0.9em (body), 1em (emphasis) --- */
+
+      .header {
+        font-size: 1em;
+        margin-bottom: 16px;
+      }
+
+      .status-summary {
+        font-size: 0.75em;
+      }
+
+      /* --- Filter Tabs: consistent height with balanced padding --- */
+      .filter-tabs {
+        gap: 6px;
+        margin-bottom: 12px;
+        padding-bottom: 8px;
+      }
+
+      .tab {
+        padding: 10px 12px;
+        font-size: 0.9em;
+        border-radius: 22px;
+        min-height: 44px;
+        flex: 1 1 auto;
+        justify-content: center;
+      }
+
+      .tab-count {
+        padding: 2px 6px;
+        font-size: 0.75em;
+      }
+
+      /* --- Search: consistent with other inputs --- */
+      .search-box {
+        margin-bottom: 12px;
+      }
+
+      .search-box input {
+        padding: 12px;
+        font-size: 0.9em;
+        min-height: 44px;
+      }
+
+      /* --- Selection Actions --- */
+      .selection-actions {
+        padding: 10px 12px;
+        margin-bottom: 12px;
+        font-size: 0.9em;
         gap: 8px;
       }
-      .datetime-row select,
-      .datetime-row input {
-        width: 100%;
-        flex: none;
-        padding: 14px; /* Taller tap target */
+
+      .select-all-btn {
+        padding: 10px 14px;
+        font-size: 0.9em;
+        min-height: 44px;
       }
 
-      /* Make tabs spill off screen with padding */
-      .filter-tabs {
-        margin: 0 -12px;
-        padding: 0 12px 12px 12px;
+      /* --- Selection List: taller for better visibility --- */
+      .selection-list {
+        max-height: 250px;
+        margin-bottom: 16px;
       }
 
-      /* Make list items slightly taller */
       .list-item {
-        padding: 14px 12px;
+        padding: 12px;
+        gap: 10px;
+        min-height: 48px;
       }
 
-      /* Active snoozes cleanup */
-      .paused-item {
-        padding: 14px 12px;
+      .list-item-name {
+        font-size: 0.9em;
       }
 
+      .list-item-meta {
+        font-size: 0.75em;
+      }
+
+      .group-header {
+        padding: 12px;
+        font-size: 0.9em;
+        min-height: 48px;
+      }
+
+      /* --- Section Separator --- */
+      .snooze-setup {
+        margin-bottom: 16px;
+        padding-bottom: 16px;
+        border-bottom: 1px solid var(--divider-color);
+      }
+
+      /* --- Duration Selector --- */
+      .duration-section-header {
+        font-size: 0.9em;
+        margin-bottom: 10px;
+      }
+
+      .duration-pills {
+        gap: 8px;
+        margin-bottom: 10px;
+      }
+
+      .pill {
+        padding: 10px 14px;
+        font-size: 0.9em;
+        border-radius: 22px;
+        min-height: 44px;
+      }
+
+      .duration-input {
+        padding: 12px;
+        font-size: 0.9em;
+        min-height: 44px;
+      }
+
+      .duration-help,
+      .duration-preview {
+        font-size: 0.75em;
+      }
+
+      .schedule-link {
+        margin-top: 12px;
+        padding: 10px 4px;
+        font-size: 0.9em;
+        min-height: 44px;
+      }
+
+      /* --- Schedule Inputs --- */
+      .schedule-inputs {
+        padding: 12px;
+        gap: 12px;
+        margin-bottom: 12px;
+      }
+
+      .datetime-field label {
+        font-size: 0.9em;
+        margin-bottom: 6px;
+      }
+
+      .datetime-row {
+        flex-wrap: nowrap;
+        gap: 8px;
+      }
+
+      .datetime-row select {
+        flex: 1;
+        min-width: 0;
+        min-height: 44px;
+        padding: 10px 8px;
+        font-size: 0.9em;
+      }
+
+      .datetime-row input[type="time"] {
+        flex: 0 0 auto;
+        width: 100px;
+        min-height: 44px;
+        padding: 10px 8px;
+        font-size: 0.9em;
+      }
+
+      .field-hint {
+        font-size: 0.75em;
+      }
+
+      /* --- Main Action Button: prominent --- */
       .snooze-btn {
-        position: sticky;
-        bottom: 12px;
-        z-index: 10;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+        padding: 14px;
+        font-size: 1em;
+        min-height: 52px;
+        font-weight: 600;
+      }
+
+      /* --- Active Snoozes Section --- */
+      .snooze-list {
+        padding: 12px;
+        margin-top: 20px;
+        border-radius: 12px;
+      }
+
+      .list-header {
+        font-size: 1em;
+        margin-bottom: 12px;
+        gap: 8px;
+      }
+
+      .pause-group {
+        margin-bottom: 8px;
+        border-radius: 8px;
+        overflow: hidden;
+      }
+
+      .pause-group-header {
+        padding: 10px 12px;
+        font-size: 0.9em;
+      }
+
+      /* Paused items: single row with truncation */
+      .paused-item {
+        flex-wrap: nowrap;
+        padding: 12px;
+        gap: 12px;
+        align-items: center;
+      }
+
+      .paused-icon {
+        display: block;
+        flex-shrink: 0;
+        --mdc-icon-size: 20px;
+      }
+
+      .paused-info {
+        flex: 1;
+        min-width: 0;
+        overflow: hidden;
+      }
+
+      .paused-name {
+        font-size: 0.9em;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      .paused-time {
+        font-size: 0.75em;
+      }
+
+      /* Full-width wake button on mobile */
+      .wake-btn {
+        padding: 10px 16px;
+        font-size: 0.9em;
+        min-height: 44px;
+        flex-shrink: 0;
+      }
+
+      .wake-all {
+        padding: 12px;
+        font-size: 0.9em;
+        min-height: 48px;
+        margin-top: 8px;
+      }
+
+      /* --- Scheduled Section --- */
+      .scheduled-list {
+        padding: 12px;
+        margin-top: 12px;
+        border-radius: 12px;
+      }
+
+      .scheduled-item {
+        flex-wrap: nowrap;
+        padding: 12px;
+        gap: 12px;
+        margin-bottom: 8px;
+        align-items: center;
+      }
+
+      .scheduled-icon {
+        display: block;
+        flex-shrink: 0;
+        --mdc-icon-size: 20px;
+      }
+
+      .scheduled-time {
+        font-size: 0.75em;
+      }
+
+      .cancel-scheduled-btn {
+        padding: 10px 16px;
+        font-size: 0.9em;
+        min-height: 44px;
+        flex-shrink: 0;
+      }
+
+      /* --- Toast --- */
+      .toast {
+        bottom: 16px;
+        padding: 12px 16px;
+        font-size: 0.9em;
+        max-width: calc(100vw - 32px);
+        border-radius: 12px;
+      }
+
+      .toast-undo-btn {
+        padding: 8px 14px;
+        min-height: 40px;
+        font-size: 0.9em;
+      }
+
+      /* --- Empty States --- */
+      .list-empty,
+      .empty {
+        padding: 24px 16px;
+        font-size: 0.9em;
       }
     }
   `;

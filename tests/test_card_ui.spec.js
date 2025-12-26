@@ -1492,8 +1492,13 @@ describe('Schedule Mode Validation', () => {
     card._selected = ['automation.test'];
     card._scheduleMode = true;
 
+    // Use local date methods to avoid UTC/local timezone mismatch
     const pastDate = new Date(Date.now() - 86400000);
-    card._resumeAtDate = pastDate.toISOString().split('T')[0];
+    const year = pastDate.getFullYear();
+    const month = String(pastDate.getMonth() + 1).padStart(2, '0');
+    const day = String(pastDate.getDate()).padStart(2, '0');
+
+    card._resumeAtDate = `${year}-${month}-${day}`;
     card._resumeAtTime = '10:00';
     card._disableAtDate = '';
     card._disableAtTime = '';
@@ -1512,9 +1517,16 @@ describe('Schedule Mode Validation', () => {
     card._scheduleMode = true;
 
     // Set resume time to 2 seconds from now (within the 5 second buffer)
+    // Use local date methods to avoid UTC/local timezone mismatch
     const nearFuture = new Date(Date.now() + 2000);
-    card._resumeAtDate = nearFuture.toISOString().split('T')[0];
-    card._resumeAtTime = nearFuture.toTimeString().slice(0, 5); // HH:MM format
+    const year = nearFuture.getFullYear();
+    const month = String(nearFuture.getMonth() + 1).padStart(2, '0');
+    const day = String(nearFuture.getDate()).padStart(2, '0');
+    const hours = String(nearFuture.getHours()).padStart(2, '0');
+    const minutes = String(nearFuture.getMinutes()).padStart(2, '0');
+
+    card._resumeAtDate = `${year}-${month}-${day}`;
+    card._resumeAtTime = `${hours}:${minutes}`;
     card._disableAtDate = '';
     card._disableAtTime = '';
 
@@ -1531,8 +1543,13 @@ describe('Schedule Mode Validation', () => {
     card._selected = ['automation.test'];
     card._scheduleMode = true;
 
+    // Use local date methods to avoid UTC/local timezone mismatch
     const futureDate = new Date(Date.now() + 86400000);
-    const dateStr = futureDate.toISOString().split('T')[0];
+    const year = futureDate.getFullYear();
+    const month = String(futureDate.getMonth() + 1).padStart(2, '0');
+    const day = String(futureDate.getDate()).padStart(2, '0');
+    const dateStr = `${year}-${month}-${day}`;
+
     card._resumeAtDate = dateStr;
     card._resumeAtTime = '10:00';
     card._disableAtDate = dateStr;
