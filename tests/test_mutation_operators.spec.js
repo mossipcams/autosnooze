@@ -10,7 +10,6 @@
  * - Array/Object mutations
  */
 
-import { vi } from 'vitest';
 import '../src/autosnooze-card.js';
 
 // =============================================================================
