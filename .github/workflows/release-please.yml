@@ -5,6 +5,9 @@ on:
     branches:
       - main
 
+# Required repository settings (Settings > Actions > General):
+# 1. Workflow permissions: "Read and write permissions"
+# 2. Check: "Allow GitHub Actions to create and approve pull requests"
 permissions:
   contents: write
   pull-requests: write
