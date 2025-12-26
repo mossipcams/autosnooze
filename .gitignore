@@ -10,3 +10,7 @@ coverage/
 .coverage
 coverage.xml
 reports/
+
+# Stryker mutation testing
+.stryker-tmp/
+stryker-result.txt
