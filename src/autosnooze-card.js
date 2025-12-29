@@ -1142,7 +1142,7 @@ class AutomationPauseCard extends LitElement {
 
       /* --- Filter Tabs: Segmented control style --- */
       .filter-tabs {
-        gap: 0;
+        gap: 2px;
         margin-bottom: 14px;
         padding: 3px;
         background: color-mix(in srgb, var(--secondary-background-color) 80%, var(--divider-color));
@@ -1156,13 +1156,15 @@ class AutomationPauseCard extends LitElement {
         font-size: 0.82em;
         font-weight: 500;
         border-radius: 11px;
-        min-height: 42px;
+        min-height: 44px;
         flex: 1 1 0;
         justify-content: center;
         border: none;
         background: transparent;
         transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
         gap: 4px;
+        touch-action: manipulation;
+        -webkit-tap-highlight-color: transparent;
       }
 
       .tab:hover:not(.active) {
@@ -1256,12 +1258,14 @@ class AutomationPauseCard extends LitElement {
 
       /* --- Selection List: Card-style items with depth --- */
       .selection-list {
-        max-height: 260px;
+        max-height: min(260px, 40dvh);
         margin-bottom: 16px;
         border-radius: 14px;
         border: 1.5px solid color-mix(in srgb, var(--divider-color) 60%, transparent);
         background: var(--card-background-color);
         box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+        overscroll-behavior: contain;
+        -webkit-overflow-scrolling: touch;
       }
 
       .list-item {
@@ -1269,7 +1273,14 @@ class AutomationPauseCard extends LitElement {
         gap: 12px;
         min-height: 52px;
         border-bottom: 1px solid color-mix(in srgb, var(--divider-color) 50%, transparent);
-        transition: background 0.15s ease;
+        transition: background 0.15s ease, transform 0.1s ease;
+        touch-action: manipulation;
+        -webkit-tap-highlight-color: transparent;
+      }
+
+      .list-item:active {
+        transform: scale(0.985);
+        background: color-mix(in srgb, var(--primary-color) 6%, transparent);
       }
 
       .list-item:last-child {
@@ -1313,6 +1324,16 @@ class AutomationPauseCard extends LitElement {
           color-mix(in srgb, var(--secondary-background-color) 90%, var(--divider-color)) 100%
         );
         letter-spacing: -0.01em;
+        touch-action: manipulation;
+        -webkit-tap-highlight-color: transparent;
+      }
+
+      .group-header:active {
+        background: linear-gradient(
+          180deg,
+          color-mix(in srgb, var(--secondary-background-color) 95%, var(--primary-color)) 0%,
+          color-mix(in srgb, var(--secondary-background-color) 85%, var(--divider-color)) 100%
+        );
       }
 
       .group-badge {
@@ -1354,6 +1375,12 @@ class AutomationPauseCard extends LitElement {
         background: var(--card-background-color);
         transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
         box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+        touch-action: manipulation;
+        -webkit-tap-highlight-color: transparent;
+      }
+
+      .pill:active:not(.active) {
+        transform: scale(0.95);
       }
 
       .pill:hover:not(.active) {
@@ -1495,6 +1522,8 @@ class AutomationPauseCard extends LitElement {
                     0 2px 4px rgba(0, 0, 0, 0.1);
         transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
         margin-top: 6px;
+        touch-action: manipulation;
+        -webkit-tap-highlight-color: transparent;
       }
 
       .snooze-btn:hover:not(:disabled) {
@@ -1504,7 +1533,9 @@ class AutomationPauseCard extends LitElement {
       }
 
       .snooze-btn:active:not(:disabled) {
-        transform: translateY(0);
+        transform: translateY(0) scale(0.98);
+        box-shadow: 0 2px 8px color-mix(in srgb, var(--primary-color) 20%, transparent),
+                    0 1px 2px rgba(0, 0, 0, 0.08);
       }
 
       .snooze-btn:disabled {
@@ -1615,6 +1646,12 @@ class AutomationPauseCard extends LitElement {
         background: var(--card-background-color);
         color: #4caf50;
         transition: all 0.15s ease;
+        touch-action: manipulation;
+        -webkit-tap-highlight-color: transparent;
+      }
+
+      .wake-btn:active {
+        transform: scale(0.95);
       }
 
       .wake-btn:hover {
@@ -1705,6 +1742,12 @@ class AutomationPauseCard extends LitElement {
         background: var(--card-background-color);
         color: #f44336;
         transition: all 0.15s ease;
+        touch-action: manipulation;
+        -webkit-tap-highlight-color: transparent;
+      }
+
+      .cancel-scheduled-btn:active {
+        transform: scale(0.95);
       }
 
       .cancel-scheduled-btn:hover {
@@ -1995,6 +2038,7 @@ class AutomationPauseCard extends LitElement {
   }
 
   _toggleSelection(id) {
+    this._hapticFeedback("selection");
     if (this._selected.includes(id)) {
       this._selected = this._selected.filter((s) => s !== id);
     } else {
@@ -2299,6 +2343,30 @@ class AutomationPauseCard extends LitElement {
     }
   }
 
+  /**
+   * Trigger haptic feedback for touch interactions.
+   * Uses the Vibration API when available for tactile response.
+   * @param {string} type - Feedback type: 'light', 'medium', 'heavy', 'success', 'error'
+   */
+  _hapticFeedback(type = "light") {
+    if (!navigator.vibrate) return;
+
+    const patterns = {
+      light: 10,
+      medium: 20,
+      heavy: 30,
+      success: [10, 50, 10],
+      error: [20, 100, 20, 100, 20],
+      selection: 8
+    };
+
+    try {
+      navigator.vibrate(patterns[type] || patterns.light);
+    } catch {
+      // Vibration not supported or blocked - fail silently
+    }
+  }
+
   async _snooze() {
     if (this._selected.length === 0 || this._loading) return;
 
@@ -2393,6 +2461,9 @@ class AutomationPauseCard extends LitElement {
         toastMessage = `Snoozed ${count} automation${count !== 1 ? "s" : ""} for ${durationText}`;
       }
 
+      // Haptic feedback on successful snooze
+      this._hapticFeedback("success");
+
       // Show toast with undo option
       this._showToast(toastMessage, {
         showUndo: true,
@@ -2433,6 +2504,7 @@ class AutomationPauseCard extends LitElement {
       this._resumeAtTime = "";
     } catch (e) {
       console.error("Snooze failed:", e);
+      this._hapticFeedback("error");
       // Safety check before showing error toast
       if (this.isConnected && this.shadowRoot) {
         this._showToast(this._getErrorMessage(e, "Failed to snooze automations"));
@@ -2454,12 +2526,14 @@ class AutomationPauseCard extends LitElement {
       await this.hass.callService("autosnooze", "cancel", {
         entity_id: entityId,
       });
+      this._hapticFeedback("success");
       // Safety check after async operation
       if (this.isConnected && this.shadowRoot) {
         this._showToast("Automation resumed successfully");
       }
     } catch (e) {
       console.error("Wake failed:", e);
+      this._hapticFeedback("error");
       if (this.isConnected && this.shadowRoot) {
         this._showToast(this._getErrorMessage(e, "Failed to resume automation"));
       }
@@ -2474,18 +2548,21 @@ class AutomationPauseCard extends LitElement {
       this._wakeAllPending = false;
       try {
         await this.hass.callService("autosnooze", "cancel_all", {});
+        this._hapticFeedback("success");
         // Safety check after async operation
         if (this.isConnected && this.shadowRoot) {
           this._showToast("All automations resumed successfully");
         }
       } catch (e) {
         console.error("Wake all failed:", e);
+        this._hapticFeedback("error");
         if (this.isConnected && this.shadowRoot) {
           this._showToast("Failed to resume automations. Check Home Assistant logs for details.");
         }
       }
     } else {
       // First click - start confirmation
+      this._hapticFeedback("medium");
       this._wakeAllPending = true;
       this._wakeAllTimeout = setTimeout(() => {
         this._wakeAllPending = false;
@@ -2499,12 +2576,14 @@ class AutomationPauseCard extends LitElement {
       await this.hass.callService("autosnooze", "cancel_scheduled", {
         entity_id: entityId,
       });
+      this._hapticFeedback("success");
       // Safety check after async operation
       if (this.isConnected && this.shadowRoot) {
         this._showToast("Scheduled snooze cancelled successfully");
       }
     } catch (e) {
       console.error("Cancel scheduled failed:", e);
+      this._hapticFeedback("error");
       if (this.isConnected && this.shadowRoot) {
         this._showToast(this._getErrorMessage(e, "Failed to cancel scheduled snooze"));
       }
