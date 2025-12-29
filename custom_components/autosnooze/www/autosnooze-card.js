@@ -1206,9 +1206,6 @@ const t=window,e=t.ShadowRoot&&(void 0===t.ShadyCSS||t.ShadyCSS.nativeShadow)&&"
         font-size: 1em;
         font-weight: 700;
         font-variant-numeric: tabular-nums;
-        padding: 3px 8px;
-        background: rgba(255, 152, 0, 0.15);
-        border-radius: 6px;
       }
 
       /* Paused items */
