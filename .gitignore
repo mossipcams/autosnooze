@@ -8,6 +8,7 @@ __pycache__/
 # Claude Code - keep hooks, ignore user-specific files
 CLAUDE.md
 .devcontainer/
+.claude/plans/
 
 # Local development
 config/
