@@ -20,7 +20,6 @@ permissions: {}
 jobs:
   validate-hacs:
     name: HACS Validation
-    if: false # Disabled - not currently used
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
