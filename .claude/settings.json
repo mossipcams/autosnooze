@@ -1,4 +1,5 @@
 {
+  "commitMessageSuffix": "",
   "allowedTools": [
     "Bash(cat:*)",
     "Bash(head:*)",
