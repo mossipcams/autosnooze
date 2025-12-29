@@ -429,15 +429,15 @@ const t=window,e=t.ShadowRoot&&(void 0===t.ShadyCSS||t.ShadyCSS.nativeShadow)&&"
       align-items: center;
       gap: 8px;
       padding: 8px 12px;
-      color: #e65100;
+      color: var(--primary-text-color);
       font-size: 0.85em;
       border-bottom: 1px solid var(--divider-color);
     }
     .pause-group-header ha-icon {
       --mdc-icon-size: 18px;
+      color: #ff9800;
     }
     .pause-group-header .countdown {
-      color: var(--secondary-text-color);
       font-weight: 600;
       font-variant-numeric: tabular-nums;
     }
@@ -468,7 +468,7 @@ const t=window,e=t.ShadowRoot&&(void 0===t.ShadyCSS||t.ShadyCSS.nativeShadow)&&"
     }
     .countdown {
       font-size: 0.9em;
-      color: var(--secondary-text-color);
+      color: var(--primary-text-color);
       font-weight: 500;
       white-space: nowrap;
     }
@@ -1194,15 +1194,10 @@ const t=window,e=t.ShadowRoot&&(void 0===t.ShadyCSS||t.ShadyCSS.nativeShadow)&&"
         padding: 12px 14px;
         font-size: 0.85em;
         font-weight: 600;
-        background: linear-gradient(
-          135deg,
-          rgba(255, 152, 0, 0.1) 0%,
-          rgba(255, 152, 0, 0.05) 100%
-        );
+        background: var(--secondary-background-color);
       }
 
       .pause-group-header .countdown {
-        color: var(--secondary-text-color);
         font-size: 1em;
         font-weight: 700;
         font-variant-numeric: tabular-nums;
