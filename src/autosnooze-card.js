@@ -1597,38 +1597,21 @@ class AutomationPauseCard extends LitElement {
         border-radius: 6px;
       }
 
-      /* Paused items: Refined layout (Safari-compatible) */
+      /* Paused items */
       .paused-item {
-        display: flex;
-        flex-direction: row;
-        flex-wrap: nowrap;
         padding: 12px 14px;
         gap: 12px;
-        align-items: center;
         background: var(--card-background-color);
-        -webkit-box-align: center; /* Safari fallback */
-      }
-
-      .paused-item > * {
-        /* Safari fix: force all children to vertically center */
-        align-self: center;
-        flex-shrink: 0;
       }
 
       .paused-icon {
-        display: flex;
-        align-items: center;
-        flex: 0 0 auto;
         --mdc-icon-size: 18px;
         opacity: 0.5;
       }
 
       .paused-info {
-        /* Safari fix: 0% basis + width:0 for text truncation */
-        flex: 1 1 0%;
-        flex-shrink: 1 !important; /* Override parent > * rule */
+        flex: 1;
         min-width: 0;
-        width: 0;
         overflow: hidden;
       }
 
@@ -1638,25 +1621,21 @@ class AutomationPauseCard extends LitElement {
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
-        letter-spacing: -0.01em;
-        line-height: 1.3;
       }
 
       .paused-time {
         font-size: 0.72em;
         opacity: 0.6;
         margin-top: 2px;
-        line-height: 1.2;
       }
 
-      /* Wake button: Refined action */
+      /* Wake button */
       .wake-btn {
-        padding: 8px 14px;
+        padding: 10px 14px;
         font-size: 0.82em;
         font-weight: 600;
-        min-height: 36px;
+        min-height: 40px;
         flex-shrink: 0;
-        align-self: center;
         border-radius: 10px;
         border: 1.5px solid color-mix(in srgb, #4caf50 60%, var(--divider-color));
         background: var(--card-background-color);
