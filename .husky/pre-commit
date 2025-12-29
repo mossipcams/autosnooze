@@ -1,6 +1,13 @@
 # Run lint-staged for formatting and linting
 npx lint-staged
 
+# Build the card if source files changed
+if git diff --cached --name-only | grep -q "^src/"; then
+  echo "Building card (src/ changed)..."
+  npm run build
+  git add custom_components/autosnooze/www/autosnooze-card.js
+fi
+
 # Run quick tests (fail fast, no coverage for speed)
 echo "Running JavaScript tests..."
 npm test -- --bail=1 --changed=HEAD~1
