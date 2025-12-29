@@ -1,11 +1,20 @@
 node_modules/
 __pycache__/
 *.pyc
+
+# macOS
+.DS_Store
+
 # Claude Code - keep hooks, ignore user-specific files
 CLAUDE.md
 .devcontainer/
+
+# Local development
 config/
 .venv/
+brands/
+
+# Test coverage
 coverage/
 .coverage
 coverage.xml
