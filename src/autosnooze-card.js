@@ -817,7 +817,7 @@ class AutomationPauseCard extends LitElement {
       align-items: center;
       gap: 8px;
       padding: 8px 12px;
-      color: #ff9800;
+      color: #e65100;
       font-size: 0.85em;
       border-bottom: 1px solid var(--divider-color);
     }
@@ -855,7 +855,7 @@ class AutomationPauseCard extends LitElement {
     }
     .countdown {
       font-size: 0.9em;
-      color: #ff9800;
+      color: #e65100;
       font-weight: 500;
       white-space: nowrap;
     }
