@@ -1631,11 +1631,12 @@ class AutomationPauseCard extends LitElement {
 
       /* Wake button */
       .wake-btn {
-        padding: 10px 14px;
+        padding: 8px 14px;
         font-size: 0.82em;
         font-weight: 600;
-        min-height: 40px;
+        min-height: 36px;
         flex-shrink: 0;
+        align-self: center;
         border-radius: 10px;
         border: 1.5px solid color-mix(in srgb, #4caf50 60%, var(--divider-color));
         background: var(--card-background-color);
