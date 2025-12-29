@@ -9,6 +9,7 @@ __pycache__/
 CLAUDE.md
 .devcontainer/
 .claude/plans/
+docs/ROADMAP.md
 
 # Local development
 config/
@@ -24,3 +25,6 @@ reports/
 # Stryker mutation testing
 .stryker-tmp/
 stryker-result.txt
+
+# Linter caches
+.eslintcache
