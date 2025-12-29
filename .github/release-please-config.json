@@ -12,11 +12,6 @@
           "type": "json",
           "path": "custom_components/autosnooze/manifest.json",
           "jsonpath": "$.version"
-        },
-        {
-          "type": "generic",
-          "path": "src/autosnooze-card.js",
-          "glob": false
         }
       ]
     }

@@ -10,6 +10,7 @@
     "sourceType": "module"
   },
   "globals": {
+    "__VERSION__": "readonly",
     "customElements": "readonly",
     "HTMLElement": "readonly",
     "createMockHass": "readonly",

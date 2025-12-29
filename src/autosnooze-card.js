@@ -1,7 +1,7 @@
 import { LitElement, html, css } from "lit";
 
-// x-release-please-version
-const CARD_VERSION = "0.2.5";
+// Version injected from package.json at build time
+const CARD_VERSION = __VERSION__;
 
 // ============================================================================
 // CONSTANTS
