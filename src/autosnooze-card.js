@@ -825,6 +825,7 @@ class AutomationPauseCard extends LitElement {
       --mdc-icon-size: 18px;
     }
     .pause-group-header .countdown {
+      color: var(--secondary-text-color);
       font-weight: 600;
       font-variant-numeric: tabular-nums;
     }
@@ -855,7 +856,7 @@ class AutomationPauseCard extends LitElement {
     }
     .countdown {
       font-size: 0.9em;
-      color: #e65100;
+      color: var(--secondary-text-color);
       font-weight: 500;
       white-space: nowrap;
     }
@@ -1589,6 +1590,7 @@ class AutomationPauseCard extends LitElement {
       }
 
       .pause-group-header .countdown {
+        color: var(--secondary-text-color);
         font-size: 1em;
         font-weight: 700;
         font-variant-numeric: tabular-nums;
