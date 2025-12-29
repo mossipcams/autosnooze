@@ -1599,24 +1599,30 @@ class AutomationPauseCard extends LitElement {
 
       /* Paused items: Refined layout */
       .paused-item {
+        display: flex;
+        flex-direction: row;
         flex-wrap: nowrap;
-        padding: 14px;
+        padding: 12px 14px;
         gap: 12px;
         align-items: center;
         background: var(--card-background-color);
       }
 
       .paused-icon {
-        display: block;
+        display: flex;
+        align-items: center;
         flex-shrink: 0;
         --mdc-icon-size: 18px;
         opacity: 0.5;
       }
 
       .paused-info {
-        flex: 1;
+        flex: 1 1 auto;
         min-width: 0;
         overflow: hidden;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
       }
 
       .paused-name {
@@ -1626,21 +1632,24 @@ class AutomationPauseCard extends LitElement {
         overflow: hidden;
         text-overflow: ellipsis;
         letter-spacing: -0.01em;
+        line-height: 1.3;
       }
 
       .paused-time {
         font-size: 0.72em;
         opacity: 0.6;
         margin-top: 2px;
+        line-height: 1.2;
       }
 
       /* Wake button: Refined action */
       .wake-btn {
-        padding: 10px 14px;
+        padding: 8px 14px;
         font-size: 0.82em;
         font-weight: 600;
-        min-height: 40px;
+        min-height: 36px;
         flex-shrink: 0;
+        align-self: center;
         border-radius: 10px;
         border: 1.5px solid color-mix(in srgb, #4caf50 60%, var(--divider-color));
         background: var(--card-background-color);
