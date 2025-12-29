@@ -1,9 +1,9 @@
-# Check branch naming convention
+# Auto-fix branch naming convention
 BRANCH=$(git rev-parse --abbrev-ref HEAD)
 if [[ "$BRANCH" == claude/* ]]; then
-  echo "ERROR: Branch name '$BRANCH' uses forbidden 'claude/' prefix."
-  echo "Use conventional prefixes: fix/, feat/, chore/, refactor/, test/, docs/"
-  exit 1
+  NEW_BRANCH="${BRANCH#claude/}"
+  echo "Renaming branch: $BRANCH -> $NEW_BRANCH"
+  git branch -m "$NEW_BRANCH"
 fi
 
 # Run lint-staged for formatting and linting
