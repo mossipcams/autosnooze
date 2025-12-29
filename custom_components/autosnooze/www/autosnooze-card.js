@@ -437,6 +437,7 @@ const t=window,e=t.ShadowRoot&&(void 0===t.ShadyCSS||t.ShadyCSS.nativeShadow)&&"
       --mdc-icon-size: 18px;
     }
     .pause-group-header .countdown {
+      color: var(--secondary-text-color);
       font-weight: 600;
       font-variant-numeric: tabular-nums;
     }
@@ -467,7 +468,7 @@ const t=window,e=t.ShadowRoot&&(void 0===t.ShadyCSS||t.ShadyCSS.nativeShadow)&&"
     }
     .countdown {
       font-size: 0.9em;
-      color: #e65100;
+      color: var(--secondary-text-color);
       font-weight: 500;
       white-space: nowrap;
     }
@@ -1201,6 +1202,7 @@ const t=window,e=t.ShadowRoot&&(void 0===t.ShadyCSS||t.ShadyCSS.nativeShadow)&&"
       }
 
       .pause-group-header .countdown {
+        color: var(--secondary-text-color);
         font-size: 1em;
         font-weight: 700;
         font-variant-numeric: tabular-nums;
