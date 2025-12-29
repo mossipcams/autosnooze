@@ -21,7 +21,7 @@
   "author": "",
   "license": "MIT",
   "dependencies": {
-    "lit": "^2.8.0"
+    "lit": "^3.3.2"
   },
   "devDependencies": {
     "@babel/core": "^7.23.0",
