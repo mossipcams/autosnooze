@@ -336,6 +336,8 @@ class AutomationPauseCard extends LitElement {
       this[targetProp] = itemMap;
       this[fetchedFlag] = true;
     } catch (err) {
+      // nosemgrep: javascript.lang.security.audit.unsafe-formatstring.unsafe-formatstring
+      // logName is always a hardcoded string literal, not user input
       console.warn(`[AutoSnooze] Failed to fetch ${logName}:`, err);
     }
   }
