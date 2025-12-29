@@ -1104,148 +1104,338 @@ class AutomationPauseCard extends LitElement {
       }
     }
 
-    /* Mobile Responsive Styles */
+    /* Mobile Responsive Styles - Refined Utility Aesthetic */
     @media (max-width: 480px) {
       ha-card {
-        padding: 12px;
+        padding: 14px;
+        background: linear-gradient(
+          180deg,
+          var(--card-background-color) 0%,
+          color-mix(in srgb, var(--card-background-color) 97%, var(--primary-color)) 100%
+        );
       }
 
-      /* --- Typography Scale: 0.75em (small), 0.9em (body), 1em (emphasis) --- */
-
+      /* --- Header: Compact with visual weight --- */
       .header {
-        font-size: 1em;
-        margin-bottom: 16px;
+        font-size: 1.05em;
+        font-weight: 600;
+        margin-bottom: 18px;
+        padding-bottom: 12px;
+        border-bottom: 1px solid color-mix(in srgb, var(--divider-color) 60%, transparent);
+        letter-spacing: -0.01em;
+      }
+
+      .header ha-icon {
+        --mdc-icon-size: 22px;
+        opacity: 0.9;
       }
 
       .status-summary {
-        font-size: 0.75em;
+        font-size: 0.7em;
+        font-weight: 500;
+        padding: 4px 10px;
+        background: color-mix(in srgb, var(--primary-color) 12%, transparent);
+        border-radius: 12px;
+        letter-spacing: 0.02em;
+        text-transform: uppercase;
       }
 
-      /* --- Filter Tabs: consistent height with balanced padding --- */
+      /* --- Filter Tabs: Segmented control style --- */
       .filter-tabs {
-        gap: 6px;
-        margin-bottom: 12px;
-        padding-bottom: 8px;
+        gap: 0;
+        margin-bottom: 14px;
+        padding: 3px;
+        background: color-mix(in srgb, var(--secondary-background-color) 80%, var(--divider-color));
+        border-radius: 14px;
+        border-bottom: none;
+        padding-bottom: 3px;
       }
 
       .tab {
-        padding: 10px 12px;
-        font-size: 0.9em;
-        border-radius: 22px;
-        min-height: 44px;
-        flex: 1 1 auto;
+        padding: 10px 8px;
+        font-size: 0.82em;
+        font-weight: 500;
+        border-radius: 11px;
+        min-height: 42px;
+        flex: 1 1 0;
         justify-content: center;
+        border: none;
+        background: transparent;
+        transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        gap: 4px;
+      }
+
+      .tab:hover:not(.active) {
+        background: color-mix(in srgb, var(--card-background-color) 50%, transparent);
+      }
+
+      .tab.active {
+        background: var(--card-background-color);
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08), 0 1px 2px rgba(0, 0, 0, 0.06);
+        color: var(--primary-color);
+        font-weight: 600;
       }
 
       .tab-count {
-        padding: 2px 6px;
-        font-size: 0.75em;
+        padding: 2px 5px;
+        font-size: 0.72em;
+        font-weight: 600;
+        background: color-mix(in srgb, var(--primary-color) 15%, transparent);
+        border-radius: 6px;
+        min-width: 18px;
+        text-align: center;
       }
 
-      /* --- Search: consistent with other inputs --- */
+      .tab.active .tab-count {
+        background: color-mix(in srgb, var(--primary-color) 20%, transparent);
+        color: var(--primary-color);
+      }
+
+      /* --- Search: Refined input with subtle depth --- */
       .search-box {
-        margin-bottom: 12px;
+        margin-bottom: 14px;
       }
 
       .search-box input {
-        padding: 12px;
+        padding: 13px 14px;
         font-size: 0.9em;
-        min-height: 44px;
+        min-height: 46px;
+        border-radius: 12px;
+        border: 1.5px solid color-mix(in srgb, var(--divider-color) 70%, transparent);
+        background: var(--card-background-color);
+        box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.04);
+        transition: all 0.2s ease;
       }
 
-      /* --- Selection Actions --- */
+      .search-box input:focus {
+        border-color: var(--primary-color);
+        box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary-color) 12%, transparent);
+      }
+
+      .search-box input::placeholder {
+        color: var(--secondary-text-color);
+        opacity: 0.6;
+      }
+
+      /* --- Selection Actions: Refined toolbar --- */
       .selection-actions {
-        padding: 10px 12px;
+        padding: 10px 14px;
         margin-bottom: 12px;
-        font-size: 0.9em;
-        gap: 8px;
+        font-size: 0.85em;
+        gap: 10px;
+        background: linear-gradient(
+          135deg,
+          color-mix(in srgb, var(--secondary-background-color) 90%, var(--primary-color)) 0%,
+          var(--secondary-background-color) 100%
+        );
+        border-radius: 10px;
+        border: 1px solid color-mix(in srgb, var(--divider-color) 40%, transparent);
+      }
+
+      .selection-actions span {
+        font-weight: 500;
+        color: var(--primary-text-color);
+        opacity: 0.8;
       }
 
       .select-all-btn {
-        padding: 10px 14px;
-        font-size: 0.9em;
-        min-height: 44px;
+        padding: 8px 14px;
+        font-size: 0.82em;
+        font-weight: 600;
+        min-height: 38px;
+        border-radius: 8px;
+        border: 1.5px solid color-mix(in srgb, var(--primary-color) 40%, var(--divider-color));
+        background: var(--card-background-color);
+        transition: all 0.15s ease;
       }
 
-      /* --- Selection List: taller for better visibility --- */
+      .select-all-btn:hover {
+        background: var(--primary-color);
+        border-color: var(--primary-color);
+      }
+
+      /* --- Selection List: Card-style items with depth --- */
       .selection-list {
-        max-height: 250px;
+        max-height: 260px;
         margin-bottom: 16px;
+        border-radius: 14px;
+        border: 1.5px solid color-mix(in srgb, var(--divider-color) 60%, transparent);
+        background: var(--card-background-color);
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
       }
 
       .list-item {
-        padding: 12px;
-        gap: 10px;
-        min-height: 48px;
+        padding: 14px;
+        gap: 12px;
+        min-height: 52px;
+        border-bottom: 1px solid color-mix(in srgb, var(--divider-color) 50%, transparent);
+        transition: background 0.15s ease;
+      }
+
+      .list-item:last-child {
+        border-bottom: none;
+      }
+
+      .list-item.selected {
+        background: linear-gradient(
+          135deg,
+          color-mix(in srgb, var(--primary-color) 8%, transparent) 0%,
+          color-mix(in srgb, var(--primary-color) 4%, transparent) 100%
+        );
+      }
+
+      .list-item input[type="checkbox"] {
+        width: 20px;
+        height: 20px;
+        border-radius: 6px;
       }
 
       .list-item-name {
         font-size: 0.9em;
+        font-weight: 500;
+        letter-spacing: -0.01em;
       }
 
       .list-item-meta {
-        font-size: 0.75em;
+        font-size: 0.72em;
+        opacity: 0.7;
+        margin-top: 3px;
       }
 
       .group-header {
-        padding: 12px;
-        font-size: 0.9em;
+        padding: 12px 14px;
+        font-size: 0.85em;
+        font-weight: 600;
         min-height: 48px;
+        background: linear-gradient(
+          180deg,
+          var(--secondary-background-color) 0%,
+          color-mix(in srgb, var(--secondary-background-color) 90%, var(--divider-color)) 100%
+        );
+        letter-spacing: -0.01em;
+      }
+
+      .group-badge {
+        font-size: 0.72em;
+        font-weight: 700;
+        padding: 3px 8px;
+        border-radius: 8px;
       }
 
       /* --- Section Separator --- */
       .snooze-setup {
-        margin-bottom: 16px;
-        padding-bottom: 16px;
-        border-bottom: 1px solid var(--divider-color);
+        margin-bottom: 0;
+        padding-bottom: 0;
+        border-bottom: none;
       }
 
-      /* --- Duration Selector --- */
+      /* --- Duration Selector: Pill-style chips --- */
       .duration-section-header {
-        font-size: 0.9em;
-        margin-bottom: 10px;
+        font-size: 0.8em;
+        font-weight: 600;
+        margin-bottom: 12px;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        opacity: 0.7;
       }
 
       .duration-pills {
         gap: 8px;
-        margin-bottom: 10px;
-      }
-
-      .pill {
-        padding: 10px 14px;
-        font-size: 0.9em;
-        border-radius: 22px;
-        min-height: 44px;
-      }
-
-      .duration-input {
-        padding: 12px;
-        font-size: 0.9em;
-        min-height: 44px;
-      }
-
-      .duration-help,
-      .duration-preview {
-        font-size: 0.75em;
-      }
-
-      .schedule-link {
-        margin-top: 12px;
-        padding: 10px 4px;
-        font-size: 0.9em;
-        min-height: 44px;
-      }
-
-      /* --- Schedule Inputs --- */
-      .schedule-inputs {
-        padding: 12px;
-        gap: 12px;
         margin-bottom: 12px;
       }
 
-      .datetime-field label {
+      .pill {
+        padding: 11px 16px;
+        font-size: 0.88em;
+        font-weight: 500;
+        border-radius: 24px;
+        min-height: 44px;
+        border: 1.5px solid color-mix(in srgb, var(--divider-color) 80%, transparent);
+        background: var(--card-background-color);
+        transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+      }
+
+      .pill:hover:not(.active) {
+        border-color: var(--primary-color);
+        transform: translateY(-1px);
+      }
+
+      .pill.active {
+        background: linear-gradient(
+          135deg,
+          var(--primary-color) 0%,
+          color-mix(in srgb, var(--primary-color) 85%, #000) 100%
+        );
+        border-color: var(--primary-color);
+        box-shadow: 0 2px 8px color-mix(in srgb, var(--primary-color) 30%, transparent);
+        transform: translateY(-1px);
+      }
+
+      .duration-input {
+        padding: 13px 14px;
         font-size: 0.9em;
-        margin-bottom: 6px;
+        min-height: 46px;
+        border-radius: 12px;
+        border: 1.5px solid color-mix(in srgb, var(--divider-color) 70%, transparent);
+        box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.04);
+      }
+
+      .duration-input:focus {
+        box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary-color) 12%, transparent);
+      }
+
+      .duration-help {
+        font-size: 0.72em;
+        opacity: 0.6;
+        margin-top: 6px;
+      }
+
+      .duration-preview {
+        font-size: 0.78em;
+        font-weight: 600;
+        margin-top: 6px;
+        padding: 6px 10px;
+        background: color-mix(in srgb, var(--primary-color) 10%, transparent);
+        border-radius: 6px;
+        display: inline-block;
+      }
+
+      .schedule-link {
+        margin-top: 14px;
+        padding: 10px 6px;
+        font-size: 0.85em;
+        font-weight: 500;
+        min-height: 44px;
+        opacity: 0.8;
+        transition: opacity 0.15s ease;
+      }
+
+      .schedule-link:hover {
+        opacity: 1;
+      }
+
+      /* --- Schedule Inputs: Refined form layout --- */
+      .schedule-inputs {
+        padding: 14px;
+        gap: 14px;
+        margin-bottom: 14px;
+        border-radius: 14px;
+        background: linear-gradient(
+          180deg,
+          var(--secondary-background-color) 0%,
+          color-mix(in srgb, var(--secondary-background-color) 95%, var(--divider-color)) 100%
+        );
+        border: 1px solid color-mix(in srgb, var(--divider-color) 40%, transparent);
+      }
+
+      .datetime-field label {
+        font-size: 0.8em;
+        font-weight: 600;
+        margin-bottom: 8px;
+        text-transform: uppercase;
+        letter-spacing: 0.03em;
+        opacity: 0.7;
       }
 
       .datetime-row {
@@ -1256,67 +1446,140 @@ class AutomationPauseCard extends LitElement {
       .datetime-row select {
         flex: 1;
         min-width: 0;
-        min-height: 44px;
-        padding: 10px 8px;
+        min-height: 46px;
+        padding: 10px 12px;
         font-size: 0.9em;
+        border-radius: 10px;
+        border: 1.5px solid color-mix(in srgb, var(--divider-color) 70%, transparent);
+        background: var(--card-background-color);
       }
 
       .datetime-row input[type="time"] {
         flex: 0 0 auto;
-        width: 100px;
-        min-height: 44px;
-        padding: 10px 8px;
+        width: 105px;
+        min-height: 46px;
+        padding: 10px 10px;
         font-size: 0.9em;
+        font-weight: 500;
+        border-radius: 10px;
+        border: 1.5px solid color-mix(in srgb, var(--divider-color) 70%, transparent);
+        background: var(--card-background-color);
+      }
+
+      .datetime-row select:focus,
+      .datetime-row input:focus {
+        border-color: var(--primary-color);
+        box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary-color) 12%, transparent);
       }
 
       .field-hint {
-        font-size: 0.75em;
+        font-size: 0.7em;
+        opacity: 0.6;
+        font-style: italic;
       }
 
-      /* --- Main Action Button: prominent --- */
+      /* --- Main Action Button: Prominent with depth --- */
       .snooze-btn {
-        padding: 14px;
+        padding: 16px;
         font-size: 1em;
-        min-height: 52px;
-        font-weight: 600;
+        min-height: 56px;
+        font-weight: 700;
+        border-radius: 14px;
+        letter-spacing: 0.01em;
+        background: linear-gradient(
+          135deg,
+          var(--primary-color) 0%,
+          color-mix(in srgb, var(--primary-color) 85%, #000) 100%
+        );
+        box-shadow: 0 4px 14px color-mix(in srgb, var(--primary-color) 25%, transparent),
+                    0 2px 4px rgba(0, 0, 0, 0.1);
+        transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        margin-top: 6px;
       }
 
-      /* --- Active Snoozes Section --- */
+      .snooze-btn:hover:not(:disabled) {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px color-mix(in srgb, var(--primary-color) 35%, transparent),
+                    0 3px 6px rgba(0, 0, 0, 0.12);
+      }
+
+      .snooze-btn:active:not(:disabled) {
+        transform: translateY(0);
+      }
+
+      .snooze-btn:disabled {
+        background: var(--disabled-color, #9e9e9e);
+        box-shadow: none;
+      }
+
+      /* --- Active Snoozes Section: Warm accent with depth --- */
       .snooze-list {
-        padding: 12px;
-        margin-top: 20px;
-        border-radius: 12px;
+        padding: 14px;
+        margin-top: 24px;
+        border-radius: 16px;
+        border: 2px solid #ff9800;
+        background: linear-gradient(
+          180deg,
+          rgba(255, 152, 0, 0.06) 0%,
+          rgba(255, 152, 0, 0.02) 100%
+        );
+        box-shadow: 0 4px 16px rgba(255, 152, 0, 0.08);
       }
 
       .list-header {
-        font-size: 1em;
-        margin-bottom: 12px;
+        font-size: 0.95em;
+        font-weight: 700;
+        margin-bottom: 14px;
         gap: 8px;
+        letter-spacing: -0.01em;
+      }
+
+      .list-header ha-icon {
+        --mdc-icon-size: 20px;
       }
 
       .pause-group {
-        margin-bottom: 8px;
-        border-radius: 8px;
+        margin-bottom: 10px;
+        border-radius: 12px;
         overflow: hidden;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+        border: 1px solid color-mix(in srgb, var(--divider-color) 50%, transparent);
       }
 
       .pause-group-header {
-        padding: 10px 12px;
-        font-size: 0.9em;
+        padding: 12px 14px;
+        font-size: 0.85em;
+        font-weight: 600;
+        background: linear-gradient(
+          135deg,
+          rgba(255, 152, 0, 0.1) 0%,
+          rgba(255, 152, 0, 0.05) 100%
+        );
       }
 
-      /* Paused items: single row with truncation */
+      .pause-group-header .countdown {
+        font-size: 1em;
+        font-weight: 700;
+        font-variant-numeric: tabular-nums;
+        padding: 3px 8px;
+        background: rgba(255, 152, 0, 0.15);
+        border-radius: 6px;
+      }
+
+      /* Paused items: Refined layout */
       .paused-item {
         flex-wrap: nowrap;
-        padding: 12px;
+        padding: 14px;
         gap: 12px;
         align-items: center;
+        background: var(--card-background-color);
       }
 
       .paused-icon {
         display: block;
         flex-shrink: 0;
-        --mdc-icon-size: 20px;
+        --mdc-icon-size: 18px;
+        opacity: 0.5;
       }
 
       .paused-info {
@@ -1327,82 +1590,170 @@ class AutomationPauseCard extends LitElement {
 
       .paused-name {
         font-size: 0.9em;
+        font-weight: 500;
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
+        letter-spacing: -0.01em;
       }
 
       .paused-time {
-        font-size: 0.75em;
+        font-size: 0.72em;
+        opacity: 0.6;
+        margin-top: 2px;
       }
 
-      /* Full-width wake button on mobile */
+      /* Wake button: Refined action */
       .wake-btn {
-        padding: 10px 16px;
-        font-size: 0.9em;
-        min-height: 44px;
+        padding: 10px 14px;
+        font-size: 0.82em;
+        font-weight: 600;
+        min-height: 40px;
         flex-shrink: 0;
+        border-radius: 10px;
+        border: 1.5px solid color-mix(in srgb, #4caf50 60%, var(--divider-color));
+        background: var(--card-background-color);
+        color: #4caf50;
+        transition: all 0.15s ease;
+      }
+
+      .wake-btn:hover {
+        background: #4caf50;
+        color: white;
+        border-color: #4caf50;
       }
 
       .wake-all {
-        padding: 12px;
+        padding: 14px;
         font-size: 0.9em;
-        min-height: 48px;
-        margin-top: 8px;
-      }
-
-      /* --- Scheduled Section --- */
-      .scheduled-list {
-        padding: 12px;
+        font-weight: 600;
+        min-height: 50px;
         margin-top: 12px;
         border-radius: 12px;
+        border: 2px solid #ff9800;
+        transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+      }
+
+      .wake-all:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(255, 152, 0, 0.2);
+      }
+
+      .wake-all.pending {
+        animation: pulse-orange 1.5s infinite;
+      }
+
+      @keyframes pulse-orange {
+        0%, 100% { box-shadow: 0 0 0 0 rgba(255, 152, 0, 0.4); }
+        50% { box-shadow: 0 0 0 8px rgba(255, 152, 0, 0); }
+      }
+
+      /* --- Scheduled Section: Cool accent with depth --- */
+      .scheduled-list {
+        padding: 14px;
+        margin-top: 14px;
+        border-radius: 16px;
+        border: 2px solid #2196f3;
+        background: linear-gradient(
+          180deg,
+          rgba(33, 150, 243, 0.06) 0%,
+          rgba(33, 150, 243, 0.02) 100%
+        );
+        box-shadow: 0 4px 16px rgba(33, 150, 243, 0.08);
+      }
+
+      .scheduled-list .list-header ha-icon {
+        color: #2196f3;
       }
 
       .scheduled-item {
         flex-wrap: nowrap;
-        padding: 12px;
+        padding: 14px;
         gap: 12px;
-        margin-bottom: 8px;
+        margin-bottom: 10px;
         align-items: center;
+        border-radius: 12px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+        border: 1px solid color-mix(in srgb, var(--divider-color) 50%, transparent);
+      }
+
+      .scheduled-item:last-of-type {
+        margin-bottom: 14px;
       }
 
       .scheduled-icon {
         display: block;
         flex-shrink: 0;
-        --mdc-icon-size: 20px;
+        --mdc-icon-size: 18px;
+        opacity: 0.8;
       }
 
       .scheduled-time {
-        font-size: 0.75em;
+        font-size: 0.72em;
+        font-weight: 600;
+        color: #2196f3;
       }
 
       .cancel-scheduled-btn {
-        padding: 10px 16px;
-        font-size: 0.9em;
-        min-height: 44px;
+        padding: 10px 14px;
+        font-size: 0.82em;
+        font-weight: 600;
+        min-height: 40px;
         flex-shrink: 0;
+        border-radius: 10px;
+        border: 1.5px solid color-mix(in srgb, #f44336 60%, var(--divider-color));
+        background: var(--card-background-color);
+        color: #f44336;
+        transition: all 0.15s ease;
       }
 
-      /* --- Toast --- */
+      .cancel-scheduled-btn:hover {
+        background: #f44336;
+        color: white;
+        border-color: #f44336;
+      }
+
+      /* --- Toast: Refined notification --- */
       .toast {
-        bottom: 16px;
-        padding: 12px 16px;
+        bottom: 20px;
+        padding: 14px 18px;
         font-size: 0.9em;
+        font-weight: 500;
         max-width: calc(100vw - 32px);
-        border-radius: 12px;
+        border-radius: 14px;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2),
+                    0 4px 12px rgba(0, 0, 0, 0.15);
+        backdrop-filter: blur(8px);
+        background: linear-gradient(
+          135deg,
+          var(--primary-color) 0%,
+          color-mix(in srgb, var(--primary-color) 85%, #000) 100%
+        );
       }
 
       .toast-undo-btn {
         padding: 8px 14px;
-        min-height: 40px;
-        font-size: 0.9em;
+        min-height: 36px;
+        font-size: 0.85em;
+        font-weight: 600;
+        border-radius: 8px;
+        border: 1.5px solid rgba(255, 255, 255, 0.3);
+        background: rgba(255, 255, 255, 0.1);
+        transition: all 0.15s ease;
       }
 
-      /* --- Empty States --- */
+      .toast-undo-btn:hover {
+        background: rgba(255, 255, 255, 0.25);
+        border-color: rgba(255, 255, 255, 0.5);
+      }
+
+      /* --- Empty States: Refined messaging --- */
       .list-empty,
       .empty {
-        padding: 24px 16px;
+        padding: 28px 20px;
         font-size: 0.9em;
+        opacity: 0.6;
+        font-style: italic;
       }
     }
   `;
