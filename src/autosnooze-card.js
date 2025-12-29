@@ -1597,7 +1597,7 @@ class AutomationPauseCard extends LitElement {
         border-radius: 6px;
       }
 
-      /* Paused items: Refined layout */
+      /* Paused items: Refined layout (Safari-compatible) */
       .paused-item {
         display: flex;
         flex-direction: row;
@@ -1606,23 +1606,30 @@ class AutomationPauseCard extends LitElement {
         gap: 12px;
         align-items: center;
         background: var(--card-background-color);
+        -webkit-box-align: center; /* Safari fallback */
+      }
+
+      .paused-item > * {
+        /* Safari fix: force all children to vertically center */
+        align-self: center;
+        flex-shrink: 0;
       }
 
       .paused-icon {
         display: flex;
         align-items: center;
-        flex-shrink: 0;
+        flex: 0 0 auto;
         --mdc-icon-size: 18px;
         opacity: 0.5;
       }
 
       .paused-info {
-        flex: 1 1 auto;
+        /* Safari fix: 0% basis + width:0 for text truncation */
+        flex: 1 1 0%;
+        flex-shrink: 1 !important; /* Override parent > * rule */
         min-width: 0;
+        width: 0;
         overflow: hidden;
-        display: flex;
-        flex-direction: column;
-        justify-content: center;
       }
 
       .paused-name {
