@@ -1155,11 +1155,11 @@ class AutomationPauseCard extends LitElement {
       }
 
       .tab {
-        padding: 10px 8px;
+        padding: 8px 6px;
         font-size: 0.82em;
         font-weight: 500;
         border-radius: 11px;
-        min-height: 44px;
+        min-height: 40px;
         flex: 1 1 0;
         justify-content: center;
         border: none;
@@ -1261,7 +1261,7 @@ class AutomationPauseCard extends LitElement {
 
       /* --- Selection List: Card-style items with depth --- */
       .selection-list {
-        max-height: min(260px, 40dvh);
+        max-height: min(200px, 35dvh);
         margin-bottom: 16px;
         border-radius: 14px;
         border: 1.5px solid color-mix(in srgb, var(--divider-color) 60%, transparent);
