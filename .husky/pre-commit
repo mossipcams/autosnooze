@@ -1,3 +1,11 @@
+# Auto-fix branch naming convention - remove claude/ prefix
+BRANCH=$(git rev-parse --abbrev-ref HEAD)
+if [[ "$BRANCH" == claude/* ]]; then
+  NEW_BRANCH="${BRANCH#claude/}"
+  echo "Renaming branch: $BRANCH -> $NEW_BRANCH"
+  git branch -m "$NEW_BRANCH"
+fi
+
 # Run lint-staged for formatting and linting
 npx lint-staged
 
