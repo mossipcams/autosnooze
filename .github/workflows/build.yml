@@ -156,27 +156,10 @@ jobs:
           echo "Version validation passed: $PACKAGE_VERSION"
 
       # === Testing ===
-      - name: Debug - Test environment info
-        run: |
-          echo "Node version: $(node --version)"
-          echo "npm version: $(npm --version)"
-          echo "Checking jsdom version..."
-          npm ls jsdom
-
-      - name: Run JavaScript tests (no coverage)
-        run: npx vitest run --pool forks --reporter=verbose
-        timeout-minutes: 5
-        env:
-          NODE_OPTIONS: '--max-old-space-size=4096'
-          CI: 'true'
-        # First test without coverage to isolate the issue
-
       - name: Run JavaScript tests with coverage
-        if: success()
         run: npm run test:coverage
         timeout-minutes: 5
         env:
-          NODE_OPTIONS: '--max-old-space-size=4096'
           CI: 'true'
         # Vitest coverage thresholds are enforced via vitest.config.js (85% minimum)
 
