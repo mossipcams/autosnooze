@@ -163,8 +163,17 @@ jobs:
           echo "Checking jsdom version..."
           npm ls jsdom
 
+      - name: Run JavaScript tests (no coverage)
+        run: npx vitest run --pool forks --reporter=verbose
+        timeout-minutes: 5
+        env:
+          NODE_OPTIONS: '--max-old-space-size=4096'
+          CI: 'true'
+        # First test without coverage to isolate the issue
+
       - name: Run JavaScript tests with coverage
-        run: npx vitest run --coverage --pool forks --fileParallelism=false
+        if: success()
+        run: npm run test:coverage
         timeout-minutes: 5
         env:
           NODE_OPTIONS: '--max-old-space-size=4096'
