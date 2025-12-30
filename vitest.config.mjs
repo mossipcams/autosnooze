@@ -10,6 +10,7 @@ export default defineConfig({
     include: ['**/tests/**/*.spec.js'],
     setupFiles: ['./tests/vitest.setup.js'],
     globals: true,
+    pool: 'forks',
     coverage: {
       provider: 'v8',
       include: ['src/**/*.js'],
