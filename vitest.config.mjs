@@ -1,5 +1,6 @@
 import { defineConfig } from 'vitest/config';
 import { readFileSync } from 'fs';
+import { resolve } from 'path';
 
 const pkg = JSON.parse(readFileSync('./package.json', 'utf-8'));
 
@@ -27,7 +28,7 @@ export default defineConfig({
       reporter: ['text', 'text-summary', 'html', 'lcov'],
     },
     alias: {
-      lit: '/node_modules/lit/index.js',
+      lit: resolve('./node_modules/lit/index.js'),
     },
   },
 });
