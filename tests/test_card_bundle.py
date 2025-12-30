@@ -462,7 +462,7 @@ class TestCDNCacheBusting:
 
         built_content = BUILT_CARD_PATH.read_text()
         # The version appears in the description like: "(v0.2.6)"
-        built_match = re.search(r'\(v(\d+\.\d+\.\d+)\)', built_content)
+        built_match = re.search(r"\(v(\d+\.\d+\.\d+)\)", built_content)
         built_version = built_match.group(1) if built_match else None
 
         assert manifest_version == built_version, (
