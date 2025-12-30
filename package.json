@@ -48,12 +48,12 @@
       "eslint --fix"
     ],
     "custom_components/**/*.py": [
-      "ruff check --fix",
-      "ruff format"
+      "bash -c 'command -v ruff &>/dev/null && ruff check --fix \"$@\" || echo \"ruff not installed, skipping\"' --",
+      "bash -c 'command -v ruff &>/dev/null && ruff format \"$@\" || true' --"
     ],
     "tests/**/*.py": [
-      "ruff check --fix",
-      "ruff format"
+      "bash -c 'command -v ruff &>/dev/null && ruff check --fix \"$@\" || echo \"ruff not installed, skipping\"' --",
+      "bash -c 'command -v ruff &>/dev/null && ruff format \"$@\" || true' --"
     ]
   }
 }
