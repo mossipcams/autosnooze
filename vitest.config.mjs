@@ -1,12 +1,9 @@
 import { defineConfig } from 'vitest/config';
-import { readFileSync } from 'fs';
-import { resolve } from 'path';
-
-const pkg = JSON.parse(readFileSync('./package.json', 'utf-8'));
 
 export default defineConfig({
   define: {
-    __VERSION__: JSON.stringify(pkg.version),
+    // Provide a test version for __VERSION__ global used in the card
+    __VERSION__: JSON.stringify('0.0.0-test'),
   },
   test: {
     environment: 'jsdom',
@@ -28,7 +25,7 @@ export default defineConfig({
       reporter: ['text', 'text-summary', 'html', 'lcov'],
     },
     alias: {
-      lit: resolve('./node_modules/lit/index.js'),
+      lit: '/node_modules/lit/index.js',
     },
   },
 });
