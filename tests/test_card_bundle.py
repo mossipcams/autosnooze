@@ -447,17 +447,26 @@ class TestCDNCacheBusting:
         )
 
     def test_version_matches_across_files(self) -> None:
-        """Test that version is consistent across manifest, init, and source."""
+        """Test that version is consistent across manifest and built card.
+
+        Note: The source file (src/autosnooze-card.js) uses __VERSION__ as a
+        build-time placeholder that gets replaced by Rollup. We check the
+        built output file instead for the actual version.
+        """
         manifest = json.loads(self.MANIFEST_PATH.read_text())
         manifest_version = manifest.get("version")
 
-        source_content = SOURCE_CARD_PATH.read_text()
-        source_match = re.search(r'CARD_VERSION\s*=\s*["\']([^"\']+)["\']', source_content)
-        source_version = source_match.group(1) if source_match else None
+        # Check built file - the version is injected at build time via Rollup
+        if not BUILT_CARD_PATH.exists():
+            pytest.skip("Built card not found - run npm run build first")
 
-        assert manifest_version == source_version, (
+        built_content = BUILT_CARD_PATH.read_text()
+        built_match = re.search(r'CARD_VERSION\s*=\s*["\']([^"\']+)["\']', built_content)
+        built_version = built_match.group(1) if built_match else None
+
+        assert manifest_version == built_version, (
             f"Version mismatch: manifest.json has {manifest_version}, "
-            f"source has {source_version}. These must match for cache busting."
+            f"built card has {built_version}. These must match for cache busting."
         )
 
     def test_lovelace_resource_uses_versioned_url(self) -> None:
