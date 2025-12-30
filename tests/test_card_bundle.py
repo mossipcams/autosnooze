@@ -449,9 +449,9 @@ class TestCDNCacheBusting:
     def test_version_matches_across_files(self) -> None:
         """Test that version is consistent across manifest and built card.
 
-        Note: The source file (src/autosnooze-card.js) uses __VERSION__ as a
-        build-time placeholder that gets replaced by Rollup. We check the
-        built output file instead for the actual version.
+        Note: The source file uses __VERSION__ as a build-time placeholder that
+        gets replaced by Rollup. In the minified output, the variable is inlined
+        into the description string, so we extract it from there.
         """
         manifest = json.loads(self.MANIFEST_PATH.read_text())
         manifest_version = manifest.get("version")
@@ -461,7 +461,8 @@ class TestCDNCacheBusting:
             pytest.skip("Built card not found - run npm run build first")
 
         built_content = BUILT_CARD_PATH.read_text()
-        built_match = re.search(r'CARD_VERSION\s*=\s*["\']([^"\']+)["\']', built_content)
+        # The version appears in the description like: "(v0.2.6)"
+        built_match = re.search(r'\(v(\d+\.\d+\.\d+)\)', built_content)
         built_version = built_match.group(1) if built_match else None
 
         assert manifest_version == built_version, (
