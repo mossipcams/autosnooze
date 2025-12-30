@@ -158,6 +158,9 @@ jobs:
       # === Testing ===
       - name: Run JavaScript tests with coverage
         run: npm run test:coverage
+        timeout-minutes: 5
+        env:
+          NODE_OPTIONS: '--max-old-space-size=4096'
         # Vitest coverage thresholds are enforced via vitest.config.js (85% minimum)
 
       - name: Run Python tests with coverage
