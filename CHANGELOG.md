@@ -1,5 +1,26 @@
 # Changelog
 
+## [0.2.7](https://github.com/mossipcams/autosnooze/compare/v0.2.6...v0.2.7) (2025-12-30)
+
+
+### Bug Fixes
+
+* add include-component-in-tag to match existing release tag format ([5a57bf8](https://github.com/mossipcams/autosnooze/commit/5a57bf8e36de48ef290621815e84bfa0f8867c05))
+* add pool forks and debug info for CI test hang ([8cddaf8](https://github.com/mossipcams/autosnooze/commit/8cddaf8822ee6a16cdfcfe495bccc85850b16494))
+* add timeout and memory limit for CI tests ([31caf05](https://github.com/mossipcams/autosnooze/commit/31caf05f6778e499a00bbef54d4604e4e5e1d513))
+* check built card for version instead of source file ([f77f8ae](https://github.com/mossipcams/autosnooze/commit/f77f8ae64fad3cf2332ba0dbc498b499c88a3295))
+* downgrade jsdom from 27.x to 25.x to fix ESM error ([fc98e01](https://github.com/mossipcams/autosnooze/commit/fc98e015c0009c8573138d6837bcc2ee661a427b))
+* downgrade vitest from 4.x to 3.x to fix CI hang ([b0b63df](https://github.com/mossipcams/autosnooze/commit/b0b63df422ed00eb940f2d608939d4ef9f141133))
+* isolate CI test hang - run tests without coverage first ([d4205f4](https://github.com/mossipcams/autosnooze/commit/d4205f4f729ad2cc3bc8c8b11a28875eb7efc613))
+* make pre-commit work without ruff installed locally ([c5f737b](https://github.com/mossipcams/autosnooze/commit/c5f737b9791745e824db04d78c80e9d0a81ed726))
+* rename vitest.config.js to .mjs for ESM compatibility ([1147465](https://github.com/mossipcams/autosnooze/commit/1147465199284a085b55090586d8ffad994aa6cf))
+* restore claude/ branch prefix removal in pre-commit ([796fd0b](https://github.com/mossipcams/autosnooze/commit/796fd0b4fee355bab82acb8582498d6d186a5726))
+* simplify vitest config to fix CI hang ([51476b7](https://github.com/mossipcams/autosnooze/commit/51476b7c3172088bada5bae0056efa14c115082e))
+* switch from v8 to istanbul coverage provider ([605a627](https://github.com/mossipcams/autosnooze/commit/605a627595e61c2d78f6bd6e7f7189a04a91bb76))
+* update version extraction regex for minified output ([d91a6fe](https://github.com/mossipcams/autosnooze/commit/d91a6fe5b027fe3bdef55d39a05cb4dffd46665a))
+* use pool forks to prevent test hang in CI ([b12bcdf](https://github.com/mossipcams/autosnooze/commit/b12bcdf9acc1aeebe752b366f71bb7d724ffe618))
+* use relative path for lit alias in vitest config ([ea19866](https://github.com/mossipcams/autosnooze/commit/ea19866c3fc8670354be186024f6a4999c37bcf4))
+
 ## [0.2.6](https://github.com/mossipcams/autosnooze/compare/autosnooze-v0.2.5...autosnooze-v0.2.6) (2025-12-29)
 
 
