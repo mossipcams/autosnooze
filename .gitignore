@@ -5,10 +5,10 @@ __pycache__/
 # macOS
 .DS_Store
 
-# Claude Code - keep hooks, ignore user-specific files
+# Claude Code
+.claude/
 CLAUDE.md
 .devcontainer/
-.claude/plans/
 docs/ROADMAP.md
 
 # Local development
