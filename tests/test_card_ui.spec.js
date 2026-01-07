@@ -310,6 +310,103 @@ describe('AutoSnooze Card Main Component', () => {
       const filtered = card._getFilteredAutomations();
       expect(filtered.length).toBe(2);
     });
+
+    test('_getFilteredAutomations excludes automations with autosnooze_exclude label', () => {
+      // Set up label registry with exclude label
+      card._labelRegistry = {
+        label_exclude: { name: 'autosnooze_exclude' },
+      };
+      // Set up entity registry with labels on one automation
+      card._entityRegistry = {
+        'automation.test_automation': {
+          entity_id: 'automation.test_automation',
+          labels: ['label_exclude'],
+        },
+        'automation.living_room': {
+          entity_id: 'automation.living_room',
+          labels: [],
+        },
+      };
+      card._automationsCache = null; // Clear cache to force recalculation
+      card._search = '';
+
+      const filtered = card._getFilteredAutomations();
+      expect(filtered.length).toBe(1);
+      expect(filtered[0].id).toBe('automation.living_room');
+    });
+
+    test('_getFilteredAutomations uses whitelist mode when autosnooze_include label exists', () => {
+      // Set up label registry with include label
+      card._labelRegistry = {
+        label_include: { name: 'autosnooze_include' },
+      };
+      // Set up entity registry - only living_room has the include label
+      card._entityRegistry = {
+        'automation.test_automation': {
+          entity_id: 'automation.test_automation',
+          labels: [],
+        },
+        'automation.living_room': {
+          entity_id: 'automation.living_room',
+          labels: ['label_include'],
+        },
+      };
+      card._automationsCache = null;
+      card._search = '';
+
+      const filtered = card._getFilteredAutomations();
+      expect(filtered.length).toBe(1);
+      expect(filtered[0].id).toBe('automation.living_room');
+    });
+
+    test('_getFilteredAutomations include label takes precedence over exclude label', () => {
+      // Set up both labels
+      card._labelRegistry = {
+        label_include: { name: 'autosnooze_include' },
+        label_exclude: { name: 'autosnooze_exclude' },
+      };
+      // One automation has include, another has exclude
+      card._entityRegistry = {
+        'automation.test_automation': {
+          entity_id: 'automation.test_automation',
+          labels: ['label_exclude'], // Would be excluded, but include mode takes over
+        },
+        'automation.living_room': {
+          entity_id: 'automation.living_room',
+          labels: ['label_include'],
+        },
+      };
+      card._automationsCache = null;
+      card._search = '';
+
+      const filtered = card._getFilteredAutomations();
+      // Only the one with include label should show (whitelist mode)
+      expect(filtered.length).toBe(1);
+      expect(filtered[0].id).toBe('automation.living_room');
+    });
+
+    test('_getFilteredAutomations search works with label filtering', () => {
+      // Set up exclude label
+      card._labelRegistry = {
+        label_exclude: { name: 'autosnooze_exclude' },
+      };
+      card._entityRegistry = {
+        'automation.test_automation': {
+          entity_id: 'automation.test_automation',
+          labels: ['label_exclude'],
+        },
+        'automation.living_room': {
+          entity_id: 'automation.living_room',
+          labels: [],
+        },
+      };
+      card._automationsCache = null;
+      card._search = 'living';
+
+      const filtered = card._getFilteredAutomations();
+      expect(filtered.length).toBe(1);
+      expect(filtered[0].id).toBe('automation.living_room');
+    });
   });
 
   describe('Selection', () => {
@@ -834,6 +931,8 @@ describe('Lifecycle Methods', () => {
   });
 
   test('disconnectedCallback clears intervals', async () => {
+    vi.useFakeTimers();
+
     document.body.appendChild(card);
     await card.updateComplete;
 
@@ -846,6 +945,8 @@ describe('Lifecycle Methods', () => {
     expect(card._interval).toBeNull();
     expect(card._syncTimeout).toBeNull();
     expect(card._searchTimeout).toBeNull();
+
+    vi.useRealTimers();
   });
 
   test('_updateCountdownIfNeeded updates countdown elements', async () => {
