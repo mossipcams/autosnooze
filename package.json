@@ -31,7 +31,7 @@
     "@rollup/plugin-terser": "^0.4.4",
     "@stryker-mutator/core": "^9.4.0",
     "@stryker-mutator/vitest-runner": "^9.4.0",
-    "@vitest/coverage-istanbul": "^3.2.4",
+    "@vitest/coverage-istanbul": "^4.0.16",
     "@vitest/coverage-v8": "^4.0.16",
     "eslint": "^8.57.0",
     "husky": "^9.0.0",
