@@ -73,6 +73,25 @@ title: AutoSnooze
 |-------|------|------------|-----------------|
 |`title`|string|`AutoSnooze`|Card header title|
 
+### Filtering with Labels
+
+Control which automations appear in the card using Home Assistant labels:
+
+|Label|Behavior|
+|-----|--------|
+|`autosnooze_include`|**Whitelist mode**: Only automations with this label are shown|
+|`autosnooze_exclude`|**Blacklist mode**: Automations with this label are hidden|
+
+**How it works:**
+- If **any** automation has the `autosnooze_include` label, the card switches to whitelist mode and only shows automations with that label
+- Otherwise, the card shows all automations except those with `autosnooze_exclude`
+
+**To set up:**
+1. Go to **Settings → Labels** and create `autosnooze_include` or `autosnooze_exclude`
+2. Edit an automation and assign the label under **Labels**
+
+This is useful for hiding automations you never want to snooze (like critical security automations) or limiting the card to only show specific automations.
+
 -----
 
 ## Usage Examples
