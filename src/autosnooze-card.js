@@ -47,6 +47,9 @@ const ERROR_MESSAGES = {
   disable_after_resume: "Failed to snooze: Snooze time must be before resume time",
 };
 
+// Automations with this label will be hidden from the card
+const EXCLUDE_LABEL = "autosnooze_exclude";
+
 // ============================================================================
 // CARD EDITOR
 // ============================================================================
@@ -1847,8 +1850,19 @@ class AutomationPauseCard extends LitElement {
     const search = this._search.toLowerCase();
 
     let filtered = automations;
+
+    // Filter out automations with the exclude label
+    filtered = filtered.filter((a) => {
+      if (!a.labels || a.labels.length === 0) return true;
+      return !a.labels.some((labelId) => {
+        const labelName = this._labelRegistry[labelId]?.name;
+        return labelName?.toLowerCase() === EXCLUDE_LABEL;
+      });
+    });
+
+    // Filter by search term
     if (search) {
-      filtered = automations.filter(
+      filtered = filtered.filter(
         (a) =>
           a.name.toLowerCase().includes(search) ||
           a.id.toLowerCase().includes(search)
