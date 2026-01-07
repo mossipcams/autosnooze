@@ -31,14 +31,14 @@
     "@rollup/plugin-terser": "^0.4.4",
     "@stryker-mutator/core": "^9.4.0",
     "@stryker-mutator/vitest-runner": "^9.4.0",
-    "@vitest/coverage-istanbul": "^4.0.16",
-    "@vitest/coverage-v8": "^4.0.16",
+    "@vitest/coverage-istanbul": "^3.2.4",
+    "@vitest/coverage-v8": "^3.2.4",
     "eslint": "^8.57.0",
     "husky": "^9.0.0",
     "jsdom": "^27.4.0",
     "lint-staged": "^15.0.0",
     "rollup": "^4.55.1",
-    "vitest": "^4.0.16"
+    "vitest": "^3.2.4"
   },
   "lint-staged": {
     "src/**/*.js": [
