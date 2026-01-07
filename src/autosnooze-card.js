@@ -47,8 +47,10 @@ const ERROR_MESSAGES = {
   disable_after_resume: "Failed to snooze: Snooze time must be before resume time",
 };
 
-// Automations with this label will be hidden from the card
+// Label-based filtering: if any automation has INCLUDE_LABEL, only those are shown (whitelist mode)
+// Otherwise, automations with EXCLUDE_LABEL are hidden (blacklist mode)
 const EXCLUDE_LABEL = "autosnooze_exclude";
+const INCLUDE_LABEL = "autosnooze_include";
 
 // ============================================================================
 // CARD EDITOR
@@ -1851,14 +1853,25 @@ class AutomationPauseCard extends LitElement {
 
     let filtered = automations;
 
-    // Filter out automations with the exclude label
-    filtered = filtered.filter((a) => {
-      if (!a.labels || a.labels.length === 0) return true;
-      return !a.labels.some((labelId) => {
+    // Helper to check if automation has a specific label
+    const hasLabel = (auto, targetLabel) => {
+      if (!auto.labels || auto.labels.length === 0) return false;
+      return auto.labels.some((labelId) => {
         const labelName = this._labelRegistry[labelId]?.name;
-        return labelName?.toLowerCase() === EXCLUDE_LABEL;
+        return labelName?.toLowerCase() === targetLabel;
       });
-    });
+    };
+
+    // Check if any automation has the include label (enables whitelist mode)
+    const hasIncludeLabel = automations.some((a) => hasLabel(a, INCLUDE_LABEL));
+
+    if (hasIncludeLabel) {
+      // Include mode: only show automations with the include label
+      filtered = filtered.filter((a) => hasLabel(a, INCLUDE_LABEL));
+    } else {
+      // Exclude mode: hide automations with the exclude label
+      filtered = filtered.filter((a) => !hasLabel(a, EXCLUDE_LABEL));
+    }
 
     // Filter by search term
     if (search) {
