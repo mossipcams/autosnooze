@@ -10,9 +10,6 @@ export default defineConfig({
     include: ['**/tests/**/*.spec.js'],
     setupFiles: ['./tests/vitest.setup.js'],
     globals: true,
-    testTimeout: 30000,
-    hookTimeout: 30000,
-    pool: 'forks',
     coverage: {
       provider: 'istanbul',
       include: ['src/**/*.js'],
