@@ -27,4 +27,4 @@ jobs:
       - name: Run actionlint
         uses: docker://rhysd/actionlint:1.7.4
         with:
-          args: -color .github/workflows/
+          args: -color
