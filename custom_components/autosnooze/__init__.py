@@ -8,6 +8,7 @@ from typing import Any
 
 from homeassistant.components.http import StaticPathConfig
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers import label_registry as lr
 from homeassistant.helpers.storage import Store
 
 from .const import (
@@ -15,6 +16,8 @@ from .const import (
     CARD_URL,
     CARD_URL_VERSIONED,
     DOMAIN,
+    LABEL_EXCLUDE_CONFIG,
+    LABEL_INCLUDE_CONFIG,
     PLATFORMS,
     STORAGE_VERSION,
     VERSION,
@@ -64,6 +67,34 @@ __all__ = [
 ]
 
 
+async def _async_ensure_labels_exist(hass: HomeAssistant) -> None:
+    """Ensure AutoSnooze filter labels exist in the label registry.
+
+    Creates autosnooze_include and autosnooze_exclude labels if they don't
+    already exist. These labels enable the frontend's whitelist/blacklist
+    filtering functionality.
+
+    This is idempotent - if labels already exist, they are not modified.
+    """
+    label_reg = lr.async_get(hass)
+
+    for config in [LABEL_INCLUDE_CONFIG, LABEL_EXCLUDE_CONFIG]:
+        try:
+            label_reg.async_create(
+                name=config["name"],
+                color=config.get("color"),
+                icon=config.get("icon"),
+                description=config.get("description"),
+            )
+            _LOGGER.info("Created label '%s' for AutoSnooze filtering", config["name"])
+
+        except ValueError:
+            # Label already exists
+            _LOGGER.debug("Label '%s' already exists", config["name"])
+        except Exception as err:
+            _LOGGER.warning("Failed to create label '%s': %s", config["name"], err)
+
+
 async def async_setup_entry(hass: HomeAssistant, entry: AutomationPauseConfigEntry) -> bool:
     """Set up AutoSnooze from a config entry."""
     store = Store[dict[str, Any]](hass, STORAGE_VERSION, f"{DOMAIN}.storage")
@@ -82,6 +113,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: AutomationPauseConfigEnt
     # cleaned up as "deleted". This matches the pattern used for Lovelace registration.
     if hass.is_running:
         await _async_register_lovelace_resource(hass)
+        await _async_ensure_labels_exist(hass)
         await async_load_stored(hass, data)
     else:
 
@@ -90,6 +122,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: AutomationPauseConfigEnt
             if data.unloaded:
                 return
             await _async_register_lovelace_resource(hass)
+            await _async_ensure_labels_exist(hass)
             await async_load_stored(hass, data)
 
         # Store the unsub function so we can cancel on early unload
