@@ -10,7 +10,7 @@
  * - Array/Object mutations
  */
 
-import '../src/autosnooze-card.js';
+import '../custom_components/autosnooze/www/autosnooze-card.js';
 
 // =============================================================================
 // ARITHMETIC OPERATORS

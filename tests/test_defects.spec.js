@@ -11,7 +11,7 @@
  */
 
 import { vi } from 'vitest';
-import '../src/autosnooze-card.js';
+import '../custom_components/autosnooze/www/autosnooze-card.js';
 
 describe('Defect Fixes - Regression Tests', () => {
   let card;
