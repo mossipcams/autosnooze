@@ -4,16 +4,11 @@
     "es2021": true,
     "node": true
   },
-  "extends": [
-    "eslint:recommended",
-    "plugin:@typescript-eslint/recommended"
-  ],
-  "parser": "@typescript-eslint/parser",
+  "extends": "eslint:recommended",
   "parserOptions": {
     "ecmaVersion": "latest",
     "sourceType": "module"
   },
-  "plugins": ["@typescript-eslint"],
   "globals": {
     "__VERSION__": "readonly",
     "customElements": "readonly",
@@ -29,34 +24,12 @@
     "afterEach": "readonly"
   },
   "rules": {
-    "@typescript-eslint/no-unused-vars": ["error", { "argsIgnorePattern": "^_" }],
-    "no-unused-vars": "off",
+    "no-unused-vars": ["error", { "argsIgnorePattern": "^_" }],
     "no-console": "off",
     "prefer-const": "error",
     "no-var": "error",
     "eqeqeq": ["error", "always"],
     "no-multiple-empty-lines": ["error", { "max": 2 }],
     "no-regex-spaces": "off"
-  },
-  "overrides": [
-    {
-      "files": ["src/**/*.ts"],
-      "parserOptions": {
-        "project": ["./tsconfig.json"]
-      }
-    },
-    {
-      "files": ["tests/**/*.ts"],
-      "parserOptions": {
-        "project": ["./tsconfig.test.json"]
-      }
-    },
-    {
-      "files": ["tests/**/*.js"],
-      "rules": {
-        "@typescript-eslint/no-unused-vars": "off"
-      }
-    }
-  ],
-  "ignorePatterns": ["*.mjs", "custom_components/**/*.js"]
+  }
 }
