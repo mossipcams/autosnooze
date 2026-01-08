@@ -10,7 +10,7 @@
  */
 
 import { vi } from 'vitest';
-import '../src/autosnooze-card.js';
+import '../custom_components/autosnooze/www/autosnooze-card.js';
 
 // =============================================================================
 // CARD REGISTRATION
@@ -949,18 +949,32 @@ describe('Lifecycle Methods', () => {
     vi.useRealTimers();
   });
 
-  test('_updateCountdownIfNeeded updates countdown elements', async () => {
+  test('_updateCountdownIfNeeded triggers update when paused automations exist', async () => {
+    // Set up card with paused automations
+    card.hass = createMockHass({
+      states: {
+        'sensor.autosnooze_snoozed_automations': {
+          state: '1',
+          attributes: {
+            paused_automations: {
+              'automation.test': {
+                entity_id: 'automation.test',
+                resume_at: new Date(Date.now() + 3600000).toISOString(),
+              },
+            },
+            scheduled_snoozes: {},
+          },
+        },
+      },
+    });
+
     document.body.appendChild(card);
     await card.updateComplete;
 
-    const countdownEl = document.createElement('span');
-    countdownEl.className = 'countdown';
-    countdownEl.dataset.resumeAt = new Date(Date.now() + 3600000).toISOString();
-    card.shadowRoot.appendChild(countdownEl);
-
+    const requestUpdateSpy = vi.spyOn(card, 'requestUpdate');
     card._updateCountdownIfNeeded();
 
-    expect(countdownEl.textContent).toMatch(/\d+/);
+    expect(requestUpdateSpy).toHaveBeenCalled();
   });
 
   test('_updateCountdownIfNeeded handles no countdown elements', () => {

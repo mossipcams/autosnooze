@@ -14,6 +14,8 @@ on:
       - 'requirements_test.txt'
       - 'pyproject.toml'
       - '.eslintrc.json'
+      - 'tsconfig.json'
+      - 'tsconfig.test.json'
   pull_request:
     branches: [main]
     paths:
@@ -27,6 +29,8 @@ on:
       - 'requirements_test.txt'
       - 'pyproject.toml'
       - '.eslintrc.json'
+      - 'tsconfig.json'
+      - 'tsconfig.test.json'
   workflow_dispatch:
 
 concurrency:
@@ -109,7 +113,7 @@ jobs:
           retry_wait_seconds: 5
           command: npm audit --audit-level=high
 
-      # === JavaScript Linting ===
+      # === TypeScript/JavaScript Linting ===
       - name: Cache ESLint
         uses: actions/cache@9255dc7a253b0ccc959486e2bca901246202afeb # v4
         with:
@@ -118,8 +122,11 @@ jobs:
           restore-keys: |
             eslint-${{ runner.os }}-
 
-      - name: Run ESLint (JavaScript linter)
+      - name: Run ESLint (TypeScript/JavaScript linter)
         run: npm run lint -- --cache --cache-location .eslintcache
+
+      - name: Run TypeScript type checking
+        run: npm run typecheck
 
       # === Validation ===
       - name: Validate version consistency
@@ -156,12 +163,12 @@ jobs:
           echo "Version validation passed: $PACKAGE_VERSION"
 
       # === Testing ===
-      - name: Run JavaScript tests with coverage
+      - name: Run TypeScript/JavaScript tests with coverage
         run: npm run test:coverage
         timeout-minutes: 5
         env:
           CI: 'true'
-        # Vitest coverage thresholds are enforced via vitest.config.js (85% minimum)
+        # Vitest coverage thresholds are enforced via vitest.config.mjs (85% minimum)
 
       - name: Run Python tests with coverage
         run: pytest tests/ -v --cov=custom_components/autosnooze --cov-report=term-missing --cov-report=xml
