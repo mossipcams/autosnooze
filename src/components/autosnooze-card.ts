@@ -607,6 +607,11 @@ export class AutomationPauseCard extends LitElement {
 
     this._loading = true;
     try {
+      if (!this.hass) {
+        this._loading = false;
+        return;
+      }
+
       const count = this._selected.length;
       const snoozedEntities = [...this._selected];
       const wasScheduleMode = this._scheduleMode;
@@ -624,7 +629,7 @@ export class AutomationPauseCard extends LitElement {
           return;
         }
 
-        await pauseAutomations(this.hass!, {
+        await pauseAutomations(this.hass, {
           entity_id: this._selected,
           resume_at: resumeAt,
           ...(disableAt && { disable_at: disableAt }),
@@ -643,7 +648,7 @@ export class AutomationPauseCard extends LitElement {
       } else {
         const { days, hours, minutes } = this._customDuration;
 
-        await pauseAutomations(this.hass!, {
+        await pauseAutomations(this.hass, {
           entity_id: this._selected,
           days,
           hours,
@@ -665,11 +670,12 @@ export class AutomationPauseCard extends LitElement {
         showUndo: true,
         onUndo: async () => {
           try {
+            if (!this.hass) return;
             for (const entityId of snoozedEntities) {
               if (wasScheduleMode && hadDisableAt) {
-                await cancelScheduled(this.hass!, entityId);
+                await cancelScheduled(this.hass, entityId);
               } else {
-                await wakeAutomation(this.hass!, entityId);
+                await wakeAutomation(this.hass, entityId);
               }
             }
             if (this.isConnected) {
@@ -701,8 +707,9 @@ export class AutomationPauseCard extends LitElement {
   }
 
   private async _wake(entityId: string): Promise<void> {
+    if (!this.hass) return;
     try {
-      await wakeAutomation(this.hass!, entityId);
+      await wakeAutomation(this.hass, entityId);
       this._hapticFeedback('success');
       if (this.isConnected && this.shadowRoot) {
         this._showToast('Automation resumed successfully');
@@ -716,15 +723,16 @@ export class AutomationPauseCard extends LitElement {
     }
   }
 
-  private _handleWakeAll = async (): Promise<void> => {
+  private async _handleWakeAll(): Promise<void> {
     if (this._wakeAllPending) {
       if (this._wakeAllTimeout !== null) {
         clearTimeout(this._wakeAllTimeout);
         this._wakeAllTimeout = null;
       }
       this._wakeAllPending = false;
+      if (!this.hass) return;
       try {
-        await wakeAll(this.hass!);
+        await wakeAll(this.hass);
         this._hapticFeedback('success');
         if (this.isConnected && this.shadowRoot) {
           this._showToast('All automations resumed successfully');
@@ -744,11 +752,12 @@ export class AutomationPauseCard extends LitElement {
         this._wakeAllTimeout = null;
       }, UI_TIMING.WAKE_ALL_CONFIRM_MS);
     }
-  };
+  }
 
   private async _cancelScheduled(entityId: string): Promise<void> {
+    if (!this.hass) return;
     try {
-      await cancelScheduled(this.hass!, entityId);
+      await cancelScheduled(this.hass, entityId);
       this._hapticFeedback('success');
       if (this.isConnected && this.shadowRoot) {
         this._showToast('Scheduled snooze cancelled successfully');
@@ -1037,7 +1046,7 @@ export class AutomationPauseCard extends LitElement {
               <button
                 type="button"
                 class="wake-all ${this._wakeAllPending ? 'pending' : ''}"
-                @click=${this._handleWakeAll}
+                @click=${() => this._handleWakeAll()}
                 aria-label="${this._wakeAllPending ? 'Confirm resume all automations' : 'Resume all paused automations'}"
               >
                 ${this._wakeAllPending ? 'Confirm Resume All' : 'Resume All'}
