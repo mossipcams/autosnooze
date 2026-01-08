@@ -43,9 +43,7 @@ class TestAsyncEnsureLabelsExist:
         assert mock_label_registry.async_create.call_count == 2
 
     @pytest.mark.asyncio
-    async def test_skips_existing_labels(
-        self, mock_hass: MagicMock, mock_label_registry: MagicMock
-    ) -> None:
+    async def test_skips_existing_labels(self, mock_hass: MagicMock, mock_label_registry: MagicMock) -> None:
         """Test skips creation when labels already exist."""
         mock_label_registry.async_get_label_by_name.return_value = MagicMock()
 
@@ -136,9 +134,7 @@ class TestAsyncEnsureLabelsExist:
         assert exclude_call.kwargs["description"] == LABEL_EXCLUDE_CONFIG["description"]
 
     @pytest.mark.asyncio
-    async def test_creates_only_missing_labels(
-        self, mock_hass: MagicMock, mock_label_registry: MagicMock
-    ) -> None:
+    async def test_creates_only_missing_labels(self, mock_hass: MagicMock, mock_label_registry: MagicMock) -> None:
         """Test only creates labels that don't exist."""
 
         # Include label exists, exclude doesn't
@@ -161,9 +157,7 @@ class TestAsyncEnsureLabelsExist:
         assert call_name == LABEL_EXCLUDE_CONFIG["name"]
 
     @pytest.mark.asyncio
-    async def test_logs_info_when_creating_label(
-        self, mock_hass: MagicMock, mock_label_registry: MagicMock
-    ) -> None:
+    async def test_logs_info_when_creating_label(self, mock_hass: MagicMock, mock_label_registry: MagicMock) -> None:
         """Test logs info message when creating a label."""
         with (
             patch(
@@ -178,9 +172,7 @@ class TestAsyncEnsureLabelsExist:
         assert mock_logger.info.call_count == 2
 
     @pytest.mark.asyncio
-    async def test_logs_debug_when_label_exists(
-        self, mock_hass: MagicMock, mock_label_registry: MagicMock
-    ) -> None:
+    async def test_logs_debug_when_label_exists(self, mock_hass: MagicMock, mock_label_registry: MagicMock) -> None:
         """Test logs debug message when label already exists."""
         mock_label_registry.async_get_label_by_name.return_value = MagicMock()
 
@@ -197,9 +189,7 @@ class TestAsyncEnsureLabelsExist:
         assert mock_logger.debug.call_count == 2
 
     @pytest.mark.asyncio
-    async def test_logs_warning_on_exception(
-        self, mock_hass: MagicMock, mock_label_registry: MagicMock
-    ) -> None:
+    async def test_logs_warning_on_exception(self, mock_hass: MagicMock, mock_label_registry: MagicMock) -> None:
         """Test logs warning when an exception occurs."""
         mock_label_registry.async_create.side_effect = Exception("Test error")
 
