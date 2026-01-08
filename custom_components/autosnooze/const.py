@@ -83,3 +83,22 @@ PAUSE_BY_LABEL_SCHEMA = vol.Schema(
         **_DURATION_AND_DATE_SCHEMA,
     }
 )
+
+# Label-based filtering constants
+# These labels control which automations appear in the AutoSnooze card
+LABEL_INCLUDE_NAME = "autosnooze_include"
+LABEL_EXCLUDE_NAME = "autosnooze_exclude"
+
+LABEL_INCLUDE_CONFIG: dict[str, str] = {
+    "name": LABEL_INCLUDE_NAME,
+    "color": "green",
+    "icon": "mdi:check-circle",
+    "description": "Automations with this label will be shown in the AutoSnooze card (whitelist mode)",
+}
+
+LABEL_EXCLUDE_CONFIG: dict[str, str] = {
+    "name": LABEL_EXCLUDE_NAME,
+    "color": "red",
+    "icon": "mdi:cancel",
+    "description": "Automations with this label will be hidden from the AutoSnooze card",
+}
