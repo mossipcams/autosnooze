@@ -49,7 +49,8 @@ jobs:
 
           DELETED=0
           BRANCHES_TO_DELETE=""
-          for branch in $MERGED; do
+          while read -r branch; do
+            [ -z "$branch" ] && continue
             # Skip protected branches
             if echo "$PROTECTED" | grep -qw "$branch"; then
               echo "Skipping protected: $branch"
@@ -64,7 +65,7 @@ jobs:
               gh api -X DELETE "repos/${{ github.repository }}/git/refs/heads/$branch" 2>/dev/null || true
               DELETED=$((DELETED + 1))
             fi
-          done
+          done <<< "$MERGED"
 
           echo ""
           echo "=== Summary ==="
@@ -75,13 +76,13 @@ jobs:
           fi
 
           # Save for issue creation
-          echo "dry_run=$DRY_RUN" >> $GITHUB_OUTPUT
-          echo "deleted=$DELETED" >> $GITHUB_OUTPUT
           {
+            echo "dry_run=$DRY_RUN"
+            echo "deleted=$DELETED"
             echo "branches<<EOF"
             echo -e "$BRANCHES_TO_DELETE"
             echo "EOF"
-          } >> $GITHUB_OUTPUT
+          } >> "$GITHUB_OUTPUT"
 
       - name: Create issue for review (scheduled runs only)
         if: github.event_name == 'schedule' && steps.find-branches.outputs.branches != ''
