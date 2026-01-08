@@ -10,7 +10,7 @@
  */
 
 import { vi } from 'vitest';
-import '../custom_components/autosnooze/www/autosnooze-card.js';
+import '../src/autosnooze-card.js';
 
 // =============================================================================
 // CONSOLE ERROR MONITORING

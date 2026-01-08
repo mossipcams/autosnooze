@@ -7,13 +7,13 @@ export default defineConfig({
   },
   test: {
     environment: 'jsdom',
-    include: ['**/tests/**/*.spec.{js,ts}'],
-    setupFiles: ['./tests/vitest.setup.ts'],
+    include: ['**/tests/**/*.spec.js'],
+    setupFiles: ['./tests/vitest.setup.js'],
     globals: true,
     coverage: {
       provider: 'istanbul',
-      include: ['src/**/*.ts'],
-      exclude: ['src/**/*.test.ts', 'src/legacy/**'],
+      include: ['src/**/*.js'],
+      exclude: ['src/**/*.test.js'],
       thresholds: {
         global: {
           branches: 85,
