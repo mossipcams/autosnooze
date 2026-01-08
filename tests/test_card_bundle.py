@@ -30,7 +30,7 @@ import pytest
 # Paths
 PROJECT_ROOT = Path(__file__).parent.parent
 BUILT_CARD_PATH = PROJECT_ROOT / "custom_components" / "autosnooze" / "www" / "autosnooze-card.js"
-SOURCE_CARD_PATH = PROJECT_ROOT / "src" / "autosnooze-card.js"
+SOURCE_CARD_PATH = PROJECT_ROOT / "src" / "index.ts"
 ROLLUP_CONFIG_PATH = PROJECT_ROOT / "rollup.config.mjs"
 PACKAGE_JSON_PATH = PROJECT_ROOT / "package.json"
 PACKAGE_LOCK_PATH = PROJECT_ROOT / "package-lock.json"
@@ -141,20 +141,22 @@ class TestSourceFileDocumentsBareImport:
     def test_source_file_exists(self) -> None:
         """Test that the source file exists."""
         assert SOURCE_CARD_PATH.exists(), (
-            f"Source file not found at {SOURCE_CARD_PATH}. The source should be in src/autosnooze-card.js"
+            f"Source file not found at {SOURCE_CARD_PATH}. The source should be in src/index.ts"
         )
 
     def test_source_file_has_bare_lit_import(self) -> None:
-        """Test that source file has the bare 'lit' import.
+        """Test that source files have the bare 'lit' import.
 
-        This test documents that the source file CANNOT be served directly
-        to browsers - it MUST be bundled first. If this test fails because
+        This test documents that the source files CANNOT be served directly
+        to browsers - they MUST be bundled first. If this test fails because
         someone removed the lit import, the card likely won't work at all.
         """
-        if not SOURCE_CARD_PATH.exists():
-            pytest.skip("Source file not found")
+        # Check the main component file for lit imports
+        main_component = PROJECT_ROOT / "src" / "components" / "autosnooze-card.ts"
+        if not main_component.exists():
+            pytest.skip("Main component file not found")
 
-        content = SOURCE_CARD_PATH.read_text()
+        content = main_component.read_text()
 
         has_bare_import = 'from "lit"' in content or "from 'lit'" in content
 
