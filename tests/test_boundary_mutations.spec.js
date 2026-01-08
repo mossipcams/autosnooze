@@ -9,7 +9,7 @@
  * - Date/time formatting
  */
 
-import '../src/autosnooze-card.js';
+import '../custom_components/autosnooze/www/autosnooze-card.js';
 
 // =============================================================================
 // HELPER: Create Card Instance
