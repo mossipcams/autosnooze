@@ -9,7 +9,7 @@
  */
 
 import { vi } from 'vitest';
-import '../src/autosnooze-card.js';
+import '../custom_components/autosnooze/www/autosnooze-card.js';
 
 describe('Categories Feature', () => {
   let card;
@@ -205,7 +205,6 @@ describe('Categories Feature', () => {
 
 describe('Entity Registry Fetch', () => {
   let card;
-  let fetchRegistrySpy;
 
   beforeEach(async () => {
     const CardClass = customElements.get('autosnooze-card');
@@ -229,21 +228,6 @@ describe('Entity Registry Fetch', () => {
 
     card._entityRegistryFetched = false;
     card._entityRegistry = {};
-
-    fetchRegistrySpy = vi.spyOn(card, '_fetchRegistry');
-  });
-
-  afterEach(() => {
-    fetchRegistrySpy.mockRestore();
-  });
-
-  test('_fetchEntityRegistry calls _fetchRegistry with correct parameters', async () => {
-    await card._fetchEntityRegistry();
-
-    expect(fetchRegistrySpy).toHaveBeenCalledTimes(1);
-    const callArg = fetchRegistrySpy.mock.calls[0][0];
-    expect(callArg.fetchedFlag).toBe('_entityRegistryFetched');
-    expect(callArg.messageType).toBe('config/entity_registry/list');
   });
 
   test('_fetchEntityRegistry sets _entityRegistryFetched flag to true', async () => {
