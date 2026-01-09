@@ -54,11 +54,12 @@ jobs:
           COUNT=0
           DELETED=0
 
-          for tag in $RELEASES; do
+          while read -r tag; do
+            [ -z "$tag" ] && continue
             COUNT=$((COUNT + 1))
 
             # Keep the first KEEP_COUNT releases
-            if [ $COUNT -le $KEEP_COUNT ]; then
+            if [ "$COUNT" -le "$KEEP_COUNT" ]; then
               echo "Keeping: $tag (#$COUNT)"
               continue
             fi
@@ -72,7 +73,7 @@ jobs:
               gh release delete "$tag" --yes --cleanup-tag 2>/dev/null || true
               DELETED=$((DELETED + 1))
             fi
-          done
+          done <<< "$RELEASES"
 
           echo ""
           echo "=== Summary ==="
