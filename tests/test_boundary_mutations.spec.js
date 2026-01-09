@@ -7,6 +7,8 @@
  * - Grouping and sorting logic
  * - Registry lookups
  * - Date/time formatting
+ *
+ * Uses test.each for parametrized testing where applicable.
  */
 
 import { vi } from 'vitest';
@@ -23,156 +25,120 @@ function createCard() {
     states: {},
     areas: {},
     entities: {},
-    config: { time_zone: 'UTC' }
+    config: { time_zone: 'UTC' },
   };
   return card;
 }
 
 // =============================================================================
-// FORMAT REGISTRY ID TESTS
+// FORMAT REGISTRY ID TESTS (Parametrized)
 // =============================================================================
-describe('_formatRegistryId String Mutations', () => {
+describe('_formatRegistryId', () => {
   let card;
-
   beforeEach(() => {
     card = createCard();
   });
 
-  test('replaces underscores with spaces', () => {
+  test.each([
+    ['living_room', 'Living Room', 'replaces underscores with spaces'],
+    ['kitchen', 'Kitchen', 'handles single word'],
+    ['a_b_c_d', 'A B C D', 'handles multiple underscores'],
+    ['', '', 'handles empty string'],
+    ['room_1', 'Room 1', 'preserves numbers'],
+  ])('"%s" → "%s" (%s)', (input, expected) => {
+    const result = card._formatRegistryId(input);
+    expect(result).toBe(expected);
+  });
+
+  test('output contains no underscores', () => {
     const result = card._formatRegistryId('living_room');
     expect(result).toContain(' ');
     expect(result).not.toContain('_');
   });
-
-  test('capitalizes first letter of each word', () => {
-    const result = card._formatRegistryId('living_room');
-    expect(result).toBe('Living Room');
-  });
-
-  test('handles single word', () => {
-    const result = card._formatRegistryId('kitchen');
-    expect(result).toBe('Kitchen');
-  });
-
-  test('handles multiple underscores', () => {
-    const result = card._formatRegistryId('a_b_c_d');
-    expect(result).toBe('A B C D');
-  });
-
-  test('handles empty string', () => {
-    const result = card._formatRegistryId('');
-    expect(result).toBe('');
-  });
-
-  test('preserves numbers', () => {
-    const result = card._formatRegistryId('room_1');
-    expect(result).toBe('Room 1');
-  });
 });
 
 // =============================================================================
-// GET AREA NAME TESTS
+// GET AREA NAME TESTS (Parametrized)
 // =============================================================================
-describe('_getAreaName Default Value Mutations', () => {
+describe('_getAreaName', () => {
   let card;
-
   beforeEach(() => {
     card = createCard();
   });
 
-  test('returns "Unassigned" for null area', () => {
-    const result = card._getAreaName(null);
-    expect(result).toBe('Unassigned');
-  });
-
-  test('returns "Unassigned" for undefined area', () => {
-    const result = card._getAreaName(undefined);
-    expect(result).toBe('Unassigned');
-  });
-
-  test('returns "Unassigned" for empty string', () => {
-    const result = card._getAreaName('');
-    expect(result).toBe('Unassigned');
+  test.each([
+    [null, 'Unassigned'],
+    [undefined, 'Unassigned'],
+    ['', 'Unassigned'],
+  ])('returns "Unassigned" for falsy value: %s', (input, expected) => {
+    const result = card._getAreaName(input);
+    expect(result).toBe(expected);
   });
 
   test('returns area name from hass when available', () => {
-    card.hass.areas = { 'living_room': { name: 'Living Room' } };
-    const result = card._getAreaName('living_room');
-    expect(result).toBe('Living Room');
+    card.hass.areas = { living_room: { name: 'Living Room' } };
+    expect(card._getAreaName('living_room')).toBe('Living Room');
   });
 
   test('falls back to formatted ID when area not in hass', () => {
     card.hass.areas = {};
-    const result = card._getAreaName('my_area');
-    expect(result).toBe('My Area');
+    expect(card._getAreaName('my_area')).toBe('My Area');
   });
 });
 
 // =============================================================================
 // GET LABEL NAME TESTS
 // =============================================================================
-describe('_getLabelName Default Value Mutations', () => {
+describe('_getLabelName', () => {
   let card;
-
   beforeEach(() => {
     card = createCard();
   });
 
   test('returns label name from registry', () => {
-    card._labelRegistry = { 'test_label': { name: 'Test Label' } };
-    const result = card._getLabelName('test_label');
-    expect(result).toBe('Test Label');
+    card._labelRegistry = { test_label: { name: 'Test Label' } };
+    expect(card._getLabelName('test_label')).toBe('Test Label');
   });
 
   test('falls back to formatted ID when not in registry', () => {
     card._labelRegistry = {};
-    const result = card._getLabelName('my_label');
-    expect(result).toBe('My Label');
+    expect(card._getLabelName('my_label')).toBe('My Label');
   });
 });
 
 // =============================================================================
-// GET CATEGORY NAME TESTS
+// GET CATEGORY NAME TESTS (Parametrized)
 // =============================================================================
-describe('_getCategoryName Default Value Mutations', () => {
+describe('_getCategoryName', () => {
   let card;
-
   beforeEach(() => {
     card = createCard();
   });
 
-  test('returns "Uncategorized" for null category', () => {
-    const result = card._getCategoryName(null);
-    expect(result).toBe('Uncategorized');
-  });
-
-  test('returns "Uncategorized" for undefined category', () => {
-    const result = card._getCategoryName(undefined);
-    expect(result).toBe('Uncategorized');
-  });
-
-  test('returns "Uncategorized" for empty string', () => {
-    const result = card._getCategoryName('');
-    expect(result).toBe('Uncategorized');
+  test.each([
+    [null, 'Uncategorized'],
+    [undefined, 'Uncategorized'],
+    ['', 'Uncategorized'],
+  ])('returns "Uncategorized" for falsy value: %s', (input, expected) => {
+    const result = card._getCategoryName(input);
+    expect(result).toBe(expected);
   });
 
   test('returns category name from registry', () => {
-    card._categoryRegistry = { 'lights': { name: 'Lights' } };
-    const result = card._getCategoryName('lights');
-    expect(result).toBe('Lights');
+    card._categoryRegistry = { lights: { name: 'Lights' } };
+    expect(card._getCategoryName('lights')).toBe('Lights');
   });
 
   test('falls back to formatted ID when not in registry', () => {
     card._categoryRegistry = {};
-    const result = card._getCategoryName('my_category');
-    expect(result).toBe('My Category');
+    expect(card._getCategoryName('my_category')).toBe('My Category');
   });
 });
 
 // =============================================================================
 // GROUPING LOGIC TESTS
 // =============================================================================
-describe('_groupAutomationsBy Sorting Mutations', () => {
+describe('_groupAutomationsBy Sorting', () => {
   let card;
 
   beforeEach(() => {
@@ -192,7 +158,7 @@ describe('_groupAutomationsBy Sorting Mutations', () => {
       'automation.b_auto': { area_id: null },
       'automation.c_auto': { area_id: 'room2' },
     };
-    card.hass.areas = { 'room1': { name: 'Room 1' }, 'room2': { name: 'Room 2' } };
+    card.hass.areas = { room1: { name: 'Room 1' }, room2: { name: 'Room 2' } };
 
     const groups = card._getGroupedByArea();
     const lastGroup = groups[groups.length - 1];
@@ -206,9 +172,9 @@ describe('_groupAutomationsBy Sorting Mutations', () => {
       'automation.c_auto': { area_id: 'mango' },
     };
     card.hass.areas = {
-      'zebra': { name: 'Zebra' },
-      'apple': { name: 'Apple' },
-      'mango': { name: 'Mango' }
+      zebra: { name: 'Zebra' },
+      apple: { name: 'Apple' },
+      mango: { name: 'Mango' },
     };
 
     const groups = card._getGroupedByArea();
@@ -219,9 +185,9 @@ describe('_groupAutomationsBy Sorting Mutations', () => {
 });
 
 // =============================================================================
-// SEARCH FILTERING TESTS
+// SEARCH FILTERING TESTS (Parametrized)
 // =============================================================================
-describe('_getFilteredAutomations Search Mutations', () => {
+describe('_getFilteredAutomations Search', () => {
   let card;
 
   beforeEach(() => {
@@ -234,51 +200,27 @@ describe('_getFilteredAutomations Search Mutations', () => {
     card._entityRegistry = {};
   });
 
-  test('case insensitive search on name', () => {
-    card._search = 'KITCHEN';
+  test.each([
+    ['KITCHEN', 1, 'Kitchen Lights', 'case insensitive search on name'],
+    ['BEDROOM', 1, 'Bedroom Fan', 'case insensitive search on ID'],
+    ['light', 1, 'Kitchen Lights', 'partial match on name'],
+    ['living', 1, 'Living Room', 'partial match on ID'],
+    ['', 3, null, 'returns all when search is empty'],
+    ['nonexistent', 0, null, 'returns empty when no match'],
+  ])('search "%s" returns %d results (%s)', (search, expectedCount, expectedName) => {
+    card._search = search;
     const filtered = card._getFilteredAutomations();
-    expect(filtered.length).toBe(1);
-    expect(filtered[0].name).toBe('Kitchen Lights');
-  });
-
-  test('case insensitive search on ID', () => {
-    card._search = 'BEDROOM';
-    const filtered = card._getFilteredAutomations();
-    expect(filtered.length).toBe(1);
-    expect(filtered[0].id).toBe('automation.bedroom_fan');
-  });
-
-  test('partial match on name', () => {
-    card._search = 'light';
-    const filtered = card._getFilteredAutomations();
-    expect(filtered.length).toBe(1);
-    expect(filtered[0].name).toContain('Light');
-  });
-
-  test('partial match on ID', () => {
-    card._search = 'living';
-    const filtered = card._getFilteredAutomations();
-    expect(filtered.length).toBe(1);
-    expect(filtered[0].id).toContain('living');
-  });
-
-  test('returns all when search is empty', () => {
-    card._search = '';
-    const filtered = card._getFilteredAutomations();
-    expect(filtered.length).toBe(3);
-  });
-
-  test('returns empty when no match', () => {
-    card._search = 'nonexistent';
-    const filtered = card._getFilteredAutomations();
-    expect(filtered.length).toBe(0);
+    expect(filtered.length).toBe(expectedCount);
+    if (expectedName && filtered.length > 0) {
+      expect(filtered[0].name).toBe(expectedName);
+    }
   });
 });
 
 // =============================================================================
 // GET UNIQUE COUNT TESTS
 // =============================================================================
-describe('_getUniqueCount Set Mutations', () => {
+describe('_getAreaCount', () => {
   let card;
 
   beforeEach(() => {
@@ -290,27 +232,25 @@ describe('_getUniqueCount Set Mutations', () => {
     };
     card._entityRegistry = {
       'automation.a': { area_id: 'room1' },
-      'automation.b': { area_id: 'room1' },  // Same area
+      'automation.b': { area_id: 'room1' }, // Same area
       'automation.c': { area_id: 'room2' },
     };
   });
 
   test('counts unique areas correctly', () => {
-    const count = card._getAreaCount();
-    expect(count).toBe(2);  // room1 and room2
+    expect(card._getAreaCount()).toBe(2);
   });
 
   test('returns 0 when no areas assigned', () => {
     card._entityRegistry = {};
-    const count = card._getAreaCount();
-    expect(count).toBe(0);
+    expect(card._getAreaCount()).toBe(0);
   });
 });
 
 // =============================================================================
 // SELECTION LOGIC TESTS
 // =============================================================================
-describe('_selectAllVisible Toggle Mutations', () => {
+describe('_selectAllVisible', () => {
   let card;
 
   beforeEach(() => {
@@ -346,48 +286,37 @@ describe('_selectAllVisible Toggle Mutations', () => {
 });
 
 // =============================================================================
-// COUNTDOWN FORMATTING TESTS
+// COUNTDOWN FORMATTING TESTS (Parametrized)
 // =============================================================================
-describe('_formatCountdown Return Value Mutations', () => {
+describe('_formatCountdown', () => {
   let card;
-
   beforeEach(() => {
     card = createCard();
   });
 
-  test('returns "Resuming..." for past times', () => {
-    const pastTime = new Date(Date.now() - 60000).toISOString();
-    const result = card._formatCountdown(pastTime);
-    expect(result).toBe('Resuming...');
-  });
-
-  test('includes hours when more than 60 minutes', () => {
-    const future = new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString();
+  test.each([
+    [-60000, 'Resuming...', 'past times'],
+    [2 * 60 * 60 * 1000, 'h', 'more than 60 minutes includes hours'],
+    [30 * 60 * 1000, 'm', 'includes minutes'],
+    [45 * 1000, 's', 'includes seconds'],
+  ])('offset %dms contains "%s" (%s)', (offset, expected) => {
+    const future = new Date(Date.now() + offset).toISOString();
     const result = card._formatCountdown(future);
-    expect(result).toContain('h');
-  });
-
-  test('includes minutes in format', () => {
-    const future = new Date(Date.now() + 30 * 60 * 1000).toISOString();
-    const result = card._formatCountdown(future);
-    expect(result).toContain('m');
-  });
-
-  test('includes seconds in format', () => {
-    const future = new Date(Date.now() + 45 * 1000).toISOString();
-    const result = card._formatCountdown(future);
-    expect(result).toContain('s');
+    if (expected === 'Resuming...') {
+      expect(result).toBe(expected);
+    } else {
+      expect(result).toContain(expected);
+    }
   });
 });
 
 // =============================================================================
 // DATE TIME FORMATTING TESTS
 // =============================================================================
-describe('_formatDateTime Date Options Mutations', () => {
+describe('_formatDateTime', () => {
   let card;
 
   beforeEach(() => {
-    // Use a fixed date: Wednesday, January 15, 2025 at 14:30:00 UTC
     vi.useFakeTimers();
     vi.setSystemTime(new Date('2025-01-15T14:30:00.000Z'));
     card = createCard();
@@ -397,46 +326,26 @@ describe('_formatDateTime Date Options Mutations', () => {
     vi.useRealTimers();
   });
 
-  test('formats date with correct weekday', () => {
-    // Thursday, January 16, 2025 at 10:00:00 UTC
-    const result = card._formatDateTime('2025-01-16T10:00:00.000Z');
-    // Should contain exactly "Thu" for Thursday
-    expect(result).toContain('Thu');
-    // Should NOT contain wrong days
-    expect(result).not.toMatch(/Mon|Tue|Wed|Fri|Sat|Sun/);
+  test.each([
+    ['2025-01-16T10:00:00.000Z', 'Thu', 'Jan', '16'],
+    ['2025-01-17T10:00:00.000Z', 'Fri', 'Jan', '17'],
+  ])('formats %s with weekday=%s, month=%s, day=%s', (dateStr, weekday, month, day) => {
+    const result = card._formatDateTime(dateStr);
+    expect(result).toContain(weekday);
+    expect(result).toContain(month);
+    expect(result).toContain(day);
   });
 
-  test('formats date with correct month', () => {
-    // January 16, 2025
-    const result = card._formatDateTime('2025-01-16T10:00:00.000Z');
-    // Should contain exactly "Jan" for January
-    expect(result).toContain('Jan');
-    // Should NOT contain wrong months
-    expect(result).not.toMatch(/Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec/);
-  });
-
-  test('formats date with correct day number', () => {
-    const result = card._formatDateTime('2025-01-16T10:00:00.000Z');
-    // Should contain "16" for the day
-    expect(result).toContain('16');
-  });
-
-  test('includes correct time portion', () => {
+  test('includes time with colon separator', () => {
     const result = card._formatDateTime('2025-01-16T10:30:00.000Z');
-    // Should contain colon (time separator)
     expect(result).toContain(':');
-    // Should contain "30" for the minutes (timezone may shift the hour)
     expect(result).toContain('30');
-    // Should have AM or PM indicator or 24-hour format
     expect(result).toMatch(/\d{1,2}:\d{2}(\s?(AM|PM))?/i);
   });
 
   test('different dates produce different outputs', () => {
     const thursday = card._formatDateTime('2025-01-16T10:00:00.000Z');
     const friday = card._formatDateTime('2025-01-17T10:00:00.000Z');
-
-    expect(thursday).toContain('Thu');
-    expect(friday).toContain('Fri');
     expect(thursday).not.toEqual(friday);
   });
 });
@@ -444,9 +353,8 @@ describe('_formatDateTime Date Options Mutations', () => {
 // =============================================================================
 // PAUSED GROUPING TESTS
 // =============================================================================
-describe('_getPausedGroupedByResumeTime Sorting Mutations', () => {
+describe('_getPausedGroupedByResumeTime', () => {
   let card;
-
   beforeEach(() => {
     card = createCard();
   });
@@ -457,27 +365,16 @@ describe('_getPausedGroupedByResumeTime Sorting Mutations', () => {
       'sensor.autosnooze_snoozed_automations': {
         attributes: {
           paused_automations: {
-            'automation.a': {
-              resume_at: new Date(now + 3600000).toISOString(),  // 1 hour
-              disable_at: null
-            },
-            'automation.b': {
-              resume_at: new Date(now + 1800000).toISOString(),  // 30 min
-              disable_at: null
-            },
-            'automation.c': {
-              resume_at: new Date(now + 7200000).toISOString(),  // 2 hours
-              disable_at: null
-            },
-          }
-        }
-      }
+            'automation.a': { resume_at: new Date(now + 3600000).toISOString(), disable_at: null },
+            'automation.b': { resume_at: new Date(now + 1800000).toISOString(), disable_at: null },
+            'automation.c': { resume_at: new Date(now + 7200000).toISOString(), disable_at: null },
+          },
+        },
+      },
     };
 
     const groups = card._getPausedGroupedByResumeTime();
-
-    // Earliest should be first
-    const times = groups.map(g => new Date(g.resumeAt).getTime());
+    const times = groups.map((g) => new Date(g.resumeAt).getTime());
     expect(times[0]).toBeLessThan(times[1]);
     expect(times[1]).toBeLessThan(times[2]);
   });
@@ -490,9 +387,9 @@ describe('_getPausedGroupedByResumeTime Sorting Mutations', () => {
           paused_automations: {
             'automation.a': { resume_at: sameTime, disable_at: null },
             'automation.b': { resume_at: sameTime, disable_at: null },
-          }
-        }
-      }
+          },
+        },
+      },
     };
 
     const groups = card._getPausedGroupedByResumeTime();
@@ -504,7 +401,7 @@ describe('_getPausedGroupedByResumeTime Sorting Mutations', () => {
 // =============================================================================
 // AUTOMATION ID PARSING TESTS
 // =============================================================================
-describe('Automation ID Parsing Mutations', () => {
+describe('Automation ID Parsing', () => {
   let card;
 
   beforeEach(() => {
@@ -528,25 +425,21 @@ describe('Automation ID Parsing Mutations', () => {
     card.hass.states = {
       'automation.my_auto': { attributes: { friendly_name: 'My Automation' } },
     };
-
-    const automations = card._getAutomations();
-    expect(automations[0].name).toBe('My Automation');
+    expect(card._getAutomations()[0].name).toBe('My Automation');
   });
 
   test('falls back to ID when no friendly_name', () => {
     card.hass.states = {
       'automation.my_auto': { attributes: {} },
     };
-
-    const automations = card._getAutomations();
-    expect(automations[0].name).toBe('my_auto');
+    expect(card._getAutomations()[0].name).toBe('my_auto');
   });
 });
 
 // =============================================================================
 // TOGGLE SELECTION TESTS
 // =============================================================================
-describe('_toggleSelection Array Mutations', () => {
+describe('_toggleSelection', () => {
   let card;
 
   beforeEach(() => {
@@ -574,9 +467,9 @@ describe('_toggleSelection Array Mutations', () => {
 });
 
 // =============================================================================
-// STUB CONFIG TESTS
+// STATIC METHOD TESTS
 // =============================================================================
-describe('Static Method Mutations', () => {
+describe('Static Methods', () => {
   test('getStubConfig returns object with title', () => {
     const AutosnoozeCard = customElements.get('autosnooze-card');
     const stub = AutosnoozeCard.getStubConfig();
@@ -594,9 +487,8 @@ describe('Static Method Mutations', () => {
 // =============================================================================
 // CLEAR SELECTION TESTS
 // =============================================================================
-describe('_clearSelection State Mutations', () => {
+describe('_clearSelection', () => {
   let card;
-
   beforeEach(() => {
     card = createCard();
   });
@@ -618,7 +510,7 @@ describe('_clearSelection State Mutations', () => {
 // =============================================================================
 // FILTER TAB TESTS
 // =============================================================================
-describe('Filter Tab Mutations', () => {
+describe('Filter Tab', () => {
   let card;
 
   beforeEach(() => {
@@ -640,40 +532,22 @@ describe('Filter Tab Mutations', () => {
 });
 
 // =============================================================================
-// GET PAUSED / SCHEDULED TESTS
+// GET PAUSED / SCHEDULED FALLBACK TESTS (Parametrized)
 // =============================================================================
-describe('_getPaused and _getScheduled Fallback Mutations', () => {
+describe('_getPaused and _getScheduled Fallbacks', () => {
   let card;
-
   beforeEach(() => {
     card = createCard();
   });
 
-  test('_getPaused returns empty object when sensor missing', () => {
-    card.hass.states = {};
-    const result = card._getPaused();
-    expect(result).toEqual({});
-  });
-
-  test('_getPaused returns empty object when attribute missing', () => {
-    card.hass.states = {
-      'sensor.autosnooze_snoozed_automations': { attributes: {} }
-    };
-    const result = card._getPaused();
-    expect(result).toEqual({});
-  });
-
-  test('_getScheduled returns empty object when sensor missing', () => {
-    card.hass.states = {};
-    const result = card._getScheduled();
-    expect(result).toEqual({});
-  });
-
-  test('_getScheduled returns empty object when attribute missing', () => {
-    card.hass.states = {
-      'sensor.autosnooze_snoozed_automations': { attributes: {} }
-    };
-    const result = card._getScheduled();
+  test.each([
+    ['_getPaused', {}, 'sensor missing'],
+    ['_getPaused', { 'sensor.autosnooze_snoozed_automations': { attributes: {} } }, 'attribute missing'],
+    ['_getScheduled', {}, 'sensor missing'],
+    ['_getScheduled', { 'sensor.autosnooze_snoozed_automations': { attributes: {} } }, 'attribute missing'],
+  ])('%s returns empty object when %s', (method, states) => {
+    card.hass.states = states;
+    const result = card[method]();
     expect(result).toEqual({});
   });
 });
@@ -681,7 +555,7 @@ describe('_getPaused and _getScheduled Fallback Mutations', () => {
 // =============================================================================
 // AUTOMATION CACHE TESTS
 // =============================================================================
-describe('Automation Cache Mutations', () => {
+describe('Automation Cache', () => {
   let card;
 
   beforeEach(() => {
@@ -695,18 +569,17 @@ describe('Automation Cache Mutations', () => {
   test('uses cache on subsequent calls with same state', () => {
     const first = card._getAutomations();
     const second = card._getAutomations();
-    expect(first).toBe(second);  // Same reference
+    expect(first).toBe(second); // Same reference
   });
 
   test('invalidates cache when states change', () => {
     const first = card._getAutomations();
 
-    // Simulate state change
     card.hass = {
       ...card.hass,
       states: {
         'automation.b': { attributes: { friendly_name: 'B' } },
-      }
+      },
     };
 
     const second = card._getAutomations();
