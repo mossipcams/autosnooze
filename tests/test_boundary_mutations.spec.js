@@ -9,6 +9,7 @@
  * - Date/time formatting
  */
 
+import { vi } from 'vitest';
 import '../custom_components/autosnooze/www/autosnooze-card.js';
 
 // =============================================================================
@@ -386,31 +387,57 @@ describe('_formatDateTime Date Options Mutations', () => {
   let card;
 
   beforeEach(() => {
+    // Use a fixed date: Wednesday, January 15, 2025 at 14:30:00 UTC
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2025-01-15T14:30:00.000Z'));
     card = createCard();
   });
 
-  test('formats date with weekday', () => {
-    const date = new Date();
-    date.setDate(date.getDate() + 1);  // Tomorrow
-    const result = card._formatDateTime(date.toISOString());
-    // Should contain day abbreviation (Mon, Tue, etc.)
-    expect(result).toMatch(/Mon|Tue|Wed|Thu|Fri|Sat|Sun/);
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
-  test('formats date with month', () => {
-    const date = new Date();
-    date.setDate(date.getDate() + 1);
-    const result = card._formatDateTime(date.toISOString());
-    // Should contain month abbreviation
-    expect(result).toMatch(/Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec/);
+  test('formats date with correct weekday', () => {
+    // Thursday, January 16, 2025 at 10:00:00 UTC
+    const result = card._formatDateTime('2025-01-16T10:00:00.000Z');
+    // Should contain exactly "Thu" for Thursday
+    expect(result).toContain('Thu');
+    // Should NOT contain wrong days
+    expect(result).not.toMatch(/Mon|Tue|Wed|Fri|Sat|Sun/);
   });
 
-  test('includes time portion', () => {
-    const date = new Date();
-    date.setDate(date.getDate() + 1);
-    const result = card._formatDateTime(date.toISOString());
+  test('formats date with correct month', () => {
+    // January 16, 2025
+    const result = card._formatDateTime('2025-01-16T10:00:00.000Z');
+    // Should contain exactly "Jan" for January
+    expect(result).toContain('Jan');
+    // Should NOT contain wrong months
+    expect(result).not.toMatch(/Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec/);
+  });
+
+  test('formats date with correct day number', () => {
+    const result = card._formatDateTime('2025-01-16T10:00:00.000Z');
+    // Should contain "16" for the day
+    expect(result).toContain('16');
+  });
+
+  test('includes correct time portion', () => {
+    const result = card._formatDateTime('2025-01-16T10:30:00.000Z');
     // Should contain colon (time separator)
     expect(result).toContain(':');
+    // Should contain "30" for the minutes (timezone may shift the hour)
+    expect(result).toContain('30');
+    // Should have AM or PM indicator or 24-hour format
+    expect(result).toMatch(/\d{1,2}:\d{2}(\s?(AM|PM))?/i);
+  });
+
+  test('different dates produce different outputs', () => {
+    const thursday = card._formatDateTime('2025-01-16T10:00:00.000Z');
+    const friday = card._formatDateTime('2025-01-17T10:00:00.000Z');
+
+    expect(thursday).toContain('Thu');
+    expect(friday).toContain('Fri');
+    expect(thursday).not.toEqual(friday);
   });
 });
 
