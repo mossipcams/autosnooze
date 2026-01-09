@@ -342,9 +342,7 @@ class TestAsyncSave:
 
         async def failing_save(data):
             call_count[0] += 1
-            if should_retry and call_count[0] < 3:
-                raise error_type("Test error")
-            elif not should_retry:
+            if (should_retry and call_count[0] < 3) or not should_retry:
                 raise error_type("Test error")
 
         mock_store.async_save = failing_save
