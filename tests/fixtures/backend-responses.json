@@ -1,0 +1,171 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "description": "Captured backend responses for frontend testing - mirrors actual Home Assistant error structures. NOTE: Dates in this file are examples only. Tests should generate dynamic dates using getFutureISODateTime() helpers.",
+
+  "success_responses": {
+    "pause": {
+      "description": "Successful pause service call returns undefined/null"
+    },
+    "cancel": {
+      "description": "Successful cancel service call returns undefined/null"
+    },
+    "cancel_all": {
+      "description": "Successful cancel_all service call returns undefined/null"
+    },
+    "cancel_scheduled": {
+      "description": "Successful cancel_scheduled service call returns undefined/null"
+    }
+  },
+
+  "error_responses": {
+    "not_automation": {
+      "description": "Error when entity_id is not an automation entity",
+      "example_triggers": [
+        { "entity_id": "light.living_room" },
+        { "entity_id": "sensor.temperature" },
+        { "entity_id": ["automation.valid", "light.invalid"] }
+      ],
+      "response": {
+        "code": "service_validation_error",
+        "message": "light.living_room is not an automation",
+        "translation_domain": "autosnooze",
+        "translation_key": "not_automation",
+        "translation_placeholders": { "entity_id": "light.living_room" }
+      },
+      "response_variants": [
+        {
+          "note": "Response from HA WebSocket with error in data property",
+          "translation_key": "not_automation",
+          "data": {
+            "translation_key": "not_automation"
+          },
+          "message": "light.living_room is not an automation"
+        },
+        {
+          "note": "Response from HA REST API",
+          "message": "not_automation: light.living_room is not an automation"
+        }
+      ]
+    },
+
+    "resume_time_past": {
+      "description": "Error when resume_at datetime is in the past",
+      "example_triggers_note": "Use getPastDate() helper in tests instead of hardcoded dates",
+      "example_triggers": [
+        { "entity_id": "automation.test", "resume_at": "<past_datetime>" }
+      ],
+      "response": {
+        "code": "service_validation_error",
+        "message": "Resume time must be in the future",
+        "translation_domain": "autosnooze",
+        "translation_key": "resume_time_past"
+      },
+      "response_variants": [
+        {
+          "note": "Response with translation_key in data",
+          "translation_key": "resume_time_past",
+          "data": {
+            "translation_key": "resume_time_past"
+          }
+        },
+        {
+          "note": "Response with message containing key pattern",
+          "message": "resume time past error occurred"
+        }
+      ]
+    },
+
+    "disable_after_resume": {
+      "description": "Error when disable_at is >= resume_at",
+      "example_triggers_note": "Use getFutureDate() helpers in tests to generate valid test cases",
+      "example_triggers": [
+        {
+          "entity_id": "automation.test",
+          "disable_at": "<future_datetime_later>",
+          "resume_at": "<future_datetime_earlier>"
+        }
+      ],
+      "response": {
+        "code": "service_validation_error",
+        "message": "Disable time must be before resume time",
+        "translation_domain": "autosnooze",
+        "translation_key": "disable_after_resume"
+      },
+      "response_variants": [
+        {
+          "note": "Response with message pattern",
+          "message": "Snooze time must be disable after resume time"
+        }
+      ]
+    },
+
+    "invalid_duration": {
+      "description": "Error when duration (days/hours/minutes) are all zero",
+      "example_triggers": [
+        { "entity_id": "automation.test", "days": 0, "hours": 0, "minutes": 0 },
+        { "entity_id": "automation.test" }
+      ],
+      "response": {
+        "code": "service_validation_error",
+        "message": "Duration must be greater than zero",
+        "translation_domain": "autosnooze",
+        "translation_key": "invalid_duration"
+      },
+      "response_variants": [
+        {
+          "note": "Response with translation key in error object",
+          "translation_key": "invalid_duration"
+        },
+        {
+          "note": "Response pattern in message",
+          "message": "invalid duration: must specify at least one time value"
+        }
+      ]
+    }
+  },
+
+  "sensor_state_schema": {
+    "description": "Schema for autosnooze sensor state - tests should generate dynamic data",
+    "entity_id": "sensor.autosnooze_snoozed_automations",
+    "state": "<count_as_string>",
+    "attributes": {
+      "paused_automations": {
+        "<entity_id>": {
+          "entity_id": "<entity_id>",
+          "friendly_name": "<display_name>",
+          "resume_at": "<future_iso_datetime>",
+          "paused_at": "<past_iso_datetime>",
+          "days": "<number>",
+          "hours": "<number>",
+          "minutes": "<number>",
+          "disable_at": "<iso_datetime_or_null>"
+        }
+      },
+      "scheduled_snoozes": {
+        "<entity_id>": {
+          "entity_id": "<entity_id>",
+          "friendly_name": "<display_name>",
+          "disable_at": "<future_iso_datetime>",
+          "resume_at": "<future_iso_datetime_after_disable_at>"
+        }
+      }
+    }
+  },
+
+  "paused_automation_required_fields": [
+    "entity_id",
+    "friendly_name",
+    "resume_at",
+    "paused_at",
+    "days",
+    "hours",
+    "minutes"
+  ],
+
+  "scheduled_snooze_required_fields": [
+    "entity_id",
+    "friendly_name",
+    "disable_at",
+    "resume_at"
+  ]
+}
