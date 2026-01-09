@@ -153,7 +153,12 @@ class TestValidateStoredEntry:
             # Valid entries
             (
                 "automation.test",
-                {"resume_at": "2025-01-01T01:00:00+00:00", "paused_at": "2025-01-01T00:00:00+00:00", "days": 0, "hours": 1},
+                {
+                    "resume_at": "2025-01-01T01:00:00+00:00",
+                    "paused_at": "2025-01-01T00:00:00+00:00",
+                    "days": 0,
+                    "hours": 1,
+                },
                 "paused",
                 True,
                 "accepts valid paused entry",
