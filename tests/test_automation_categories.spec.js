@@ -187,18 +187,40 @@ describe('Categories Feature', () => {
   });
 
   describe('Categories tab UI', () => {
-    test('switching to categories tab changes filterTab', async () => {
+    test('switching to categories tab renders category groups', async () => {
+      // Start with a different tab
+      card._filterTab = 'all';
+      await card.updateComplete;
+
+      // Get initial group headers count (should be 0 or different structure in 'all' tab)
+      const initialHeaders = card.shadowRoot.querySelectorAll('.group-header');
+
+      // Switch to categories tab
       card._filterTab = 'categories';
       await card.updateComplete;
-      expect(card._filterTab).toBe('categories');
+
+      // Verify the DOM actually changed - categories tab should show group headers
+      const categoryHeaders = card.shadowRoot.querySelectorAll('.group-header');
+      expect(categoryHeaders.length).toBeGreaterThan(0);
+
+      // Verify category names are rendered (Lighting, Security, Uncategorized)
+      const headerTexts = Array.from(categoryHeaders).map((h) => h.textContent);
+      expect(headerTexts.some((t) => t.includes('Lighting') || t.includes('Security'))).toBe(true);
     });
 
-    test('renders category groups in categories tab', async () => {
+    test('renders category groups in categories tab with correct count', async () => {
       card._filterTab = 'categories';
       await card.updateComplete;
 
       const groupHeaders = card.shadowRoot.querySelectorAll('.group-header');
-      expect(groupHeaders.length).toBeGreaterThan(0);
+      // Should have 3 groups: Lighting (2 automations), Security (1), Uncategorized (1)
+      expect(groupHeaders.length).toBe(3);
+
+      // Verify the card rendered content (check for checkboxes or list items)
+      const checkboxes = card.shadowRoot.querySelectorAll('input[type="checkbox"]');
+      const listItems = card.shadowRoot.querySelectorAll('label, .item, li');
+      // Should have rendered some interactive elements for the automations
+      expect(checkboxes.length + listItems.length).toBeGreaterThan(0);
     });
   });
 });
