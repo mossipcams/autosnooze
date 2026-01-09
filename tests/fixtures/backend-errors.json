@@ -1,0 +1,26 @@
+{
+  "$schema": "./error-schema.json",
+  "description": "Captured backend error responses from Home Assistant ServiceValidationError",
+  "translation_domain": "autosnooze",
+  "errors": {
+    "not_automation": {
+      "translation_key": "not_automation",
+      "message": "light.living_room is not an automation",
+      "translation_placeholders": {
+        "entity_id": "light.living_room"
+      }
+    },
+    "resume_time_past": {
+      "translation_key": "resume_time_past",
+      "message": "Resume time must be in the future"
+    },
+    "disable_after_resume": {
+      "translation_key": "disable_after_resume",
+      "message": "Disable time must be before resume time"
+    },
+    "invalid_duration": {
+      "translation_key": "invalid_duration",
+      "message": "Duration must be greater than zero"
+    }
+  }
+}
