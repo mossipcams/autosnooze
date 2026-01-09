@@ -5,7 +5,7 @@
 
 import { LitElement, html, PropertyValues, TemplateResult } from 'lit';
 import { property, state } from 'lit/decorators.js';
-import type { HomeAssistant, HassLabel, HassCategory, HassEntityRegistryEntry, HassEntities } from '../types/hass.js';
+import type { HomeAssistant, HassLabel, HassCategory, HassEntityRegistryEntry, HassEntities, ScheduledSnoozeAttribute } from '../types/hass.js';
 import type { AutoSnoozeCardConfig, FilterTab } from '../types/card.js';
 import type { AutomationItem, ParsedDuration, PauseGroup } from '../types/automation.js';
 import { cardStyles } from '../styles/card.styles.js';
@@ -84,7 +84,7 @@ export class AutomationPauseCard extends LitElement {
   @state() private _entityRegistry: Record<string, HassEntityRegistryEntry> = {};
   @state() private _showCustomInput: boolean = false;
   @state() private _automationsCache: AutomationItem[] | null = null;
-  @state() private _automationsCacheKey: boolean | null = null;
+  @state() private _automationsCacheVersion: number = 0;
   @state() private _wakeAllPending: boolean = false;
 
   private _interval: number | null = null;
@@ -93,6 +93,7 @@ export class AutomationPauseCard extends LitElement {
   private _categoriesFetched: boolean = false;
   private _entityRegistryFetched: boolean = false;
   private _lastHassStates: HassEntities | null = null;
+  private _lastCacheVersion: number = 0;
   private _searchTimeout: number | null = null;
   private _wakeAllTimeout: number | null = null;
   private _toastTimeout: number | null = null;
@@ -262,17 +263,18 @@ export class AutomationPauseCard extends LitElement {
     if (this._entityRegistryFetched || !this.hass?.connection) return;
     this._entityRegistry = await fetchEntityRegistry(this.hass);
     this._entityRegistryFetched = true;
+    this._automationsCacheVersion++;
   }
 
   private _getAutomations(): AutomationItem[] {
     if (!this.hass?.states) return [];
 
     const statesRef = this.hass.states;
-    const registryKey = this._entityRegistryFetched;
+    const currentVersion = this._automationsCacheVersion;
 
     if (
       this._lastHassStates === statesRef &&
-      this._automationsCacheKey === registryKey &&
+      this._lastCacheVersion === currentVersion &&
       this._automationsCache
     ) {
       return this._automationsCache;
@@ -280,7 +282,7 @@ export class AutomationPauseCard extends LitElement {
 
     const result = getAutomations(this.hass, this._entityRegistry);
     this._automationsCache = result;
-    this._automationsCacheKey = registryKey;
+    this._lastCacheVersion = currentVersion;
     this._lastHassStates = statesRef;
 
     return result;
@@ -356,7 +358,7 @@ export class AutomationPauseCard extends LitElement {
     return getPausedGroupedByResumeTime(this.hass);
   }
 
-  private _getScheduled(): Record<string, unknown> {
+  private _getScheduled(): Record<string, ScheduledSnoozeAttribute> {
     if (!this.hass) return {};
     return getScheduled(this.hass);
   }
@@ -1099,7 +1101,7 @@ export class AutomationPauseCard extends LitElement {
 
     const paused = this._getPaused();
     const pausedCount = Object.keys(paused).length;
-    const scheduled = this._getScheduled() as Record<string, { friendly_name?: string; disable_at?: string; resume_at: string }>;
+    const scheduled = this._getScheduled();
     const scheduledCount = Object.keys(scheduled).length;
 
     const currentDuration =
