@@ -10,6 +10,7 @@ __pycache__/
 CLAUDE.md
 .devcontainer/
 docs/ROADMAP.md
+USER_FLOWS.md
 
 # Local development
 config/
