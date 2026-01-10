@@ -5,7 +5,7 @@
  */
 
 import { vi } from 'vitest';
-import '../custom_components/autosnooze/www/autosnooze-card.js';
+import '../src/index.js';
 
 describe('Console Error Monitoring', () => {
   let card;

@@ -14,7 +14,7 @@ import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 
 // Import the built card to test error handling
-import '../custom_components/autosnooze/www/autosnooze-card.js';
+import '../src/index.js';
 
 // Get the directory of this test file
 const __dirname = dirname(fileURLToPath(import.meta.url));

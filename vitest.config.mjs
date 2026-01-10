@@ -10,6 +10,9 @@ export default defineConfig({
     include: ['**/tests/**/*.spec.{js,ts}'],
     setupFiles: ['./tests/vitest.setup.ts'],
     globals: true,
+    deps: {
+      inline: ['lit', 'lit-element', 'lit-html', '@lit/reactive-element'],
+    },
     coverage: {
       provider: 'istanbul',
       include: ['src/**/*.ts'],
@@ -23,9 +26,6 @@ export default defineConfig({
         },
       },
       reporter: ['text', 'text-summary', 'html', 'lcov'],
-    },
-    alias: {
-      lit: '/node_modules/lit/index.js',
     },
   },
 });

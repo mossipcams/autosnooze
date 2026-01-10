@@ -10,7 +10,7 @@
  * - Array/Object mutations
  */
 
-import '../custom_components/autosnooze/www/autosnooze-card.js';
+import '../src/index.js';
 
 // =============================================================================
 // ARITHMETIC OPERATORS
@@ -100,22 +100,13 @@ describe('Arithmetic Operator Mutations', () => {
   });
 
   describe('Countdown calculations', () => {
-    test('60 seconds difference shows 1m', () => {
-      const future = new Date(Date.now() + 60500).toISOString();
-      const result = card._formatCountdown(future);
-      expect(result).toMatch(/1m/);
-    });
-
-    test('3600 seconds difference shows 1h', () => {
-      const future = new Date(Date.now() + 3600500).toISOString();
-      const result = card._formatCountdown(future);
-      expect(result).toMatch(/1h/);
-    });
-
-    test('86400 seconds difference shows 1d', () => {
-      const future = new Date(Date.now() + 86400500).toISOString();
-      const result = card._formatCountdown(future);
-      expect(result).toMatch(/1d/);
+    test.each([
+      [60500, /1m/, '1 minute'],
+      [3600500, /1h/, '1 hour'],
+      [86400500, /1d/, '1 day'],
+    ])('%s ms shows %s', (ms, pattern) => {
+      const future = new Date(Date.now() + ms).toISOString();
+      expect(card._formatCountdown(future)).toMatch(pattern);
     });
   });
 
@@ -186,68 +177,42 @@ describe('Comparison Operator Mutations', () => {
   });
 
   describe('Countdown boundary checks', () => {
-    test('0 diff returns Resuming...', () => {
-      const now = new Date().toISOString();
-      expect(card._formatCountdown(now)).toBe('Resuming...');
+    test.each([
+      [0, 'Resuming...', 'now'],
+      [-10000, 'Resuming...', 'past'],
+    ])('returns %s for %s time', (offset, expected) => {
+      const time = new Date(Date.now() + offset).toISOString();
+      expect(card._formatCountdown(time)).toBe(expected);
     });
 
-    test('negative diff returns Resuming...', () => {
-      const past = new Date(Date.now() - 10000).toISOString();
-      expect(card._formatCountdown(past)).toBe('Resuming...');
-    });
-
-    test('positive 1ms diff does not return Resuming...', () => {
+    test('positive diff does not return Resuming...', () => {
       const future = new Date(Date.now() + 2000).toISOString();
       expect(card._formatCountdown(future)).not.toBe('Resuming...');
     });
   });
 
-  describe('Duration format thresholds', () => {
-    test('exactly 1 day shows singular', () => {
-      expect(card._formatDuration(1, 0, 0)).toBe('1 day');
-    });
-
-    test('exactly 2 days shows plural', () => {
-      expect(card._formatDuration(2, 0, 0)).toBe('2 days');
-    });
-
-    test('exactly 1 hour shows singular', () => {
-      expect(card._formatDuration(0, 1, 0)).toBe('1 hour');
-    });
-
-    test('exactly 2 hours shows plural', () => {
-      expect(card._formatDuration(0, 2, 0)).toBe('2 hours');
-    });
-
-    test('exactly 1 minute shows singular', () => {
-      expect(card._formatDuration(0, 0, 1)).toBe('1 minute');
-    });
-
-    test('exactly 2 minutes shows plural', () => {
-      expect(card._formatDuration(0, 0, 2)).toBe('2 minutes');
+  describe('Duration format singular/plural', () => {
+    test.each([
+      [1, 0, 0, '1 day'],
+      [2, 0, 0, '2 days'],
+      [0, 1, 0, '1 hour'],
+      [0, 2, 0, '2 hours'],
+      [0, 0, 1, '1 minute'],
+      [0, 0, 2, '2 minutes'],
+    ])('_formatDuration(%d, %d, %d) = "%s"', (d, h, m, expected) => {
+      expect(card._formatDuration(d, h, m)).toBe(expected);
     });
   });
 
   describe('Selection length checks', () => {
-    test('0 selected means snooze button disabled', async () => {
-      card._selected = [];
+    test.each([
+      [[], true, 'disabled when empty'],
+      [['automation.a'], false, 'enabled with selection'],
+    ])('snooze button is %s', async (selected, expectedDisabled) => {
+      card._selected = selected;
       await card.updateComplete;
       const btn = card.shadowRoot.querySelector('.snooze-btn');
-      expect(btn.disabled).toBe(true);
-    });
-
-    test('1 selected means snooze button enabled', async () => {
-      card._selected = ['automation.a'];
-      await card.updateComplete;
-      const btn = card.shadowRoot.querySelector('.snooze-btn');
-      expect(btn.disabled).toBe(false);
-    });
-
-    test('2 selected still shows enabled', async () => {
-      card._selected = ['automation.a', 'automation.b'];
-      await card.updateComplete;
-      const btn = card.shadowRoot.querySelector('.snooze-btn');
-      expect(btn.disabled).toBe(false);
+      expect(btn.disabled).toBe(expectedDisabled);
     });
   });
 

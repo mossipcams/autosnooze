@@ -10,7 +10,7 @@
  */
 
 import { vi } from 'vitest';
-import '../custom_components/autosnooze/www/autosnooze-card.js';
+import '../src/index.js';
 
 // =============================================================================
 // CONSTANT VALUE TESTS
@@ -116,32 +116,14 @@ describe('Constant Values - Mutation Killing', () => {
   });
 
   describe('Countdown Formatting Constants', () => {
-    test('_formatCountdown uses 86400000ms for day calculation', () => {
-      // Add extra buffer to avoid timing edge cases
-      const oneDayFromNow = new Date(Date.now() + 86400000 + 2000).toISOString();
-      const result = card._formatCountdown(oneDayFromNow);
-      expect(result).toMatch(/1d/);
-    });
-
-    test('_formatCountdown uses 3600000ms for hour calculation', () => {
-      // Add buffer for timing
-      const oneHourFromNow = new Date(Date.now() + 3600000 + 2000).toISOString();
-      const result = card._formatCountdown(oneHourFromNow);
-      expect(result).toMatch(/1h/);
-    });
-
-    test('_formatCountdown uses 60000ms for minute calculation', () => {
-      // Add buffer for timing
-      const twoMinutesFromNow = new Date(Date.now() + 120000 + 2000).toISOString();
-      const result = card._formatCountdown(twoMinutesFromNow);
-      expect(result).toMatch(/2m/);
-    });
-
-    test('_formatCountdown uses 1000ms for second calculation', () => {
-      // Add buffer for timing
-      const thirtySecondsFromNow = new Date(Date.now() + 30000 + 2000).toISOString();
-      const result = card._formatCountdown(thirtySecondsFromNow);
-      expect(result).toMatch(/0m/);
+    test.each([
+      [86400000 + 2000, /1d/, 'day'],
+      [3600000 + 2000, /1h/, 'hour'],
+      [120000 + 2000, /2m/, 'minute'],
+      [30000 + 2000, /0m/, 'second'],
+    ])('_formatCountdown calculates %s correctly', (ms, pattern) => {
+      const future = new Date(Date.now() + ms).toISOString();
+      expect(card._formatCountdown(future)).toMatch(pattern);
     });
   });
 });
@@ -551,81 +533,44 @@ describe('Conditional Logic - Mutation Killing', () => {
   });
 
   describe('_hasResumeAt and _hasDisableAt', () => {
-    test('_hasResumeAt returns false when date is empty', () => {
-      card._resumeAtDate = '';
-      card._resumeAtTime = '12:00';
-      expect(card._hasResumeAt()).toBeFalsy();
-    });
-
-    test('_hasResumeAt returns false when time is empty', () => {
-      card._resumeAtDate = '2024-12-25';
-      card._resumeAtTime = '';
-      expect(card._hasResumeAt()).toBeFalsy();
-    });
-
-    test('_hasResumeAt returns true when both set', () => {
-      card._resumeAtDate = '2024-12-25';
-      card._resumeAtTime = '12:00';
-      expect(card._hasResumeAt()).toBeTruthy();
-    });
-
-    test('_hasDisableAt returns false when date is empty', () => {
-      card._disableAtDate = '';
-      card._disableAtTime = '10:00';
-      expect(card._hasDisableAt()).toBeFalsy();
-    });
-
-    test('_hasDisableAt returns false when time is empty', () => {
-      card._disableAtDate = '2024-12-25';
-      card._disableAtTime = '';
-      expect(card._hasDisableAt()).toBeFalsy();
-    });
-
-    test('_hasDisableAt returns true when both set', () => {
-      card._disableAtDate = '2024-12-25';
-      card._disableAtTime = '10:00';
-      expect(card._hasDisableAt()).toBeTruthy();
+    test.each([
+      ['_hasResumeAt', '_resumeAtDate', '_resumeAtTime', '', '12:00', false],
+      ['_hasResumeAt', '_resumeAtDate', '_resumeAtTime', '2024-12-25', '', false],
+      ['_hasResumeAt', '_resumeAtDate', '_resumeAtTime', '2024-12-25', '12:00', true],
+      ['_hasDisableAt', '_disableAtDate', '_disableAtTime', '', '10:00', false],
+      ['_hasDisableAt', '_disableAtDate', '_disableAtTime', '2024-12-25', '', false],
+      ['_hasDisableAt', '_disableAtDate', '_disableAtTime', '2024-12-25', '10:00', true],
+    ])('%s returns %s when date=%s, time=%s', (method, dateProp, timeProp, date, time, expected) => {
+      card[dateProp] = date;
+      card[timeProp] = time;
+      expect(card[method]()).toBe(expected);
     });
   });
 
   describe('_combineDateTime Conditionals', () => {
-    test('returns null when date is null', () => {
-      expect(card._combineDateTime(null, '12:00')).toBeNull();
-    });
-
-    test('returns null when time is null', () => {
-      expect(card._combineDateTime('2024-12-25', null)).toBeNull();
-    });
-
-    test('returns null when date is empty', () => {
-      expect(card._combineDateTime('', '12:00')).toBeNull();
-    });
-
-    test('returns null when time is empty', () => {
-      expect(card._combineDateTime('2024-12-25', '')).toBeNull();
+    test.each([
+      [null, '12:00', null, 'null date'],
+      ['2024-12-25', null, null, 'null time'],
+      ['', '12:00', null, 'empty date'],
+      ['2024-12-25', '', null, 'empty time'],
+    ])('returns null for %s', (date, time, expected) => {
+      expect(card._combineDateTime(date, time)).toBe(expected);
     });
 
     test('returns formatted datetime when both provided', () => {
       const result = card._combineDateTime('2024-12-25', '12:00');
-      expect(result).not.toBeNull();
       expect(result).toMatch(/^2024-12-25T12:00[+-]\d{2}:\d{2}$/);
     });
   });
 
   describe('_getLocale Conditionals', () => {
-    test('returns hass locale when available', () => {
-      card.hass.locale = { language: 'fr-FR' };
-      expect(card._getLocale()).toBe('fr-FR');
-    });
-
-    test('returns undefined when hass locale is missing', () => {
-      card.hass.locale = null;
-      expect(card._getLocale()).toBeUndefined();
-    });
-
-    test('returns undefined when hass locale language is missing', () => {
-      card.hass.locale = {};
-      expect(card._getLocale()).toBeUndefined();
+    test.each([
+      [{ language: 'fr-FR' }, 'fr-FR', 'returns language when set'],
+      [null, undefined, 'undefined when locale is null'],
+      [{}, undefined, 'undefined when language is missing'],
+    ])('%s', (locale, expected) => {
+      card.hass.locale = locale;
+      expect(card._getLocale()).toBe(expected);
     });
   });
 

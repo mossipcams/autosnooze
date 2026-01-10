@@ -4,7 +4,7 @@
  * Tests for handling large numbers of automations efficiently.
  */
 
-import '../custom_components/autosnooze/www/autosnooze-card.js';
+import '../src/index.js';
 
 describe('Stress Testing', () => {
   let mockHass;

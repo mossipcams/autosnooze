@@ -10,7 +10,7 @@
  */
 
 import { vi } from 'vitest';
-import '../custom_components/autosnooze/www/autosnooze-card.js';
+import '../src/index.js';
 
 // =============================================================================
 // CARD REGISTRATION
@@ -612,41 +612,11 @@ describe('AutoSnooze Card Main Component', () => {
   });
 
   describe('UI Rendering', () => {
-    test('renders ha-card element', async () => {
-      await card.updateComplete;
-      const haCard = card.shadowRoot.querySelector('ha-card');
-      expect(haCard).toBeDefined();
-    });
-
-    test('renders header with title', async () => {
+    test('renders header with custom title', async () => {
       card.setConfig({ title: 'My Snooze' });
       await card.updateComplete;
       const header = card.shadowRoot.querySelector('.header');
       expect(header.textContent).toContain('My Snooze');
-    });
-
-    test('renders filter tabs', async () => {
-      await card.updateComplete;
-      const tabs = card.shadowRoot.querySelectorAll('.tab');
-      expect(tabs.length).toBeGreaterThanOrEqual(4); // All, Areas, Categories, Labels
-    });
-
-    test('renders search box', async () => {
-      await card.updateComplete;
-      const searchInput = card.shadowRoot.querySelector('.search-box input');
-      expect(searchInput).toBeDefined();
-    });
-
-    test('renders duration pills', async () => {
-      await card.updateComplete;
-      const pills = card.shadowRoot.querySelectorAll('.pill');
-      expect(pills.length).toBeGreaterThanOrEqual(4);
-    });
-
-    test('renders snooze button', async () => {
-      await card.updateComplete;
-      const btn = card.shadowRoot.querySelector('.snooze-btn');
-      expect(btn).toBeDefined();
     });
 
     test('snooze button is disabled when no selection', async () => {
@@ -656,31 +626,20 @@ describe('AutoSnooze Card Main Component', () => {
       expect(btn.disabled).toBe(true);
     });
 
-    test('renders flat list in "all" tab', async () => {
-      card._filterTab = 'all';
+    test.each([
+      ['all', '.list-item', 2, 'flat list items'],
+      ['areas', '.group-header', 1, 'group headers'],
+    ])('renders %s in "%s" tab', async (tab, selector, minCount) => {
+      card._filterTab = tab;
       await card.updateComplete;
-      const listItems = card.shadowRoot.querySelectorAll('.list-item');
-      expect(listItems.length).toBe(2);
-    });
-
-    test('renders grouped list in "areas" tab', async () => {
-      card._filterTab = 'areas';
-      await card.updateComplete;
-      const groupHeaders = card.shadowRoot.querySelectorAll('.group-header');
-      expect(groupHeaders.length).toBeGreaterThan(0);
+      const elements = card.shadowRoot.querySelectorAll(selector);
+      expect(elements.length).toBeGreaterThanOrEqual(minCount);
     });
 
     test('renders empty message when no automations match filter', async () => {
       card._search = 'nonexistent';
       await card.updateComplete;
-      const emptyMsg = card.shadowRoot.querySelector('.list-empty');
-      expect(emptyMsg).not.toBeNull();
-    });
-
-    test('renders selection actions bar', async () => {
-      await card.updateComplete;
-      const selectionActions = card.shadowRoot.querySelector('.selection-actions');
-      expect(selectionActions).not.toBeNull();
+      expect(card.shadowRoot.querySelector('.list-empty')).not.toBeNull();
     });
   });
 

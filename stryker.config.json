@@ -1,11 +1,13 @@
 {
   "$schema": "./node_modules/@stryker-mutator/core/schema/stryker-schema.json",
   "testRunner": "vitest",
-  "mutate": ["src/**/*.js"],
+  "mutate": ["src/**/*.ts"],
+  "ignorePatterns": ["brands/**", ".venv/**", "node_modules/**", "custom_components/**", "config/**"],
   "reporters": ["clear-text", "progress", "html"],
   "concurrency": 4,
   "timeoutMS": 30000,
+  "coverageAnalysis": "all",
   "vitest": {
-    "configFile": "vitest.config.js"
+    "configFile": "vitest.config.mjs"
   }
 }
