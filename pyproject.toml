@@ -78,4 +78,4 @@ show_missing = true
 
 [tool.mutmut]
 paths_to_mutate = ["custom_components/autosnooze/"]
-tests_dir = ["tests/test_models_coverage.py", "tests/test_services_coverage.py", "tests/test_coordinator_coverage.py", "tests/test_sensor_coverage.py", "tests/test_persistence_robustness.py", "tests/test_init_coverage.py", "tests/test_coordinator_mutations.py", "tests/test_validation_edge_cases.py"]
+tests_dir = ["tests/"]
