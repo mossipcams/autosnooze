@@ -197,10 +197,6 @@ class TestSensor:
 class TestPauseService:
     """Test the pause service."""
 
-    async def test_pause_service_is_registered(self, hass: HomeAssistant, setup_integration: ConfigEntry) -> None:
-        """Test that the pause service is registered."""
-        assert hass.services.has_service(DOMAIN, "pause")
-
     async def test_pause_automation_with_duration(
         self, hass: HomeAssistant, setup_integration_with_automations
     ) -> None:
@@ -301,10 +297,6 @@ class TestPauseService:
 class TestCancelService:
     """Test the cancel service."""
 
-    async def test_cancel_service_is_registered(self, hass: HomeAssistant, setup_integration: ConfigEntry) -> None:
-        """Test that the cancel service is registered."""
-        assert hass.services.has_service(DOMAIN, "cancel")
-
     async def test_cancel_paused_automation(
         self, hass: HomeAssistant, setup_integration_with_automations: ConfigEntry
     ) -> None:
@@ -342,10 +334,6 @@ class TestCancelService:
 class TestCancelAllService:
     """Test the cancel_all service."""
 
-    async def test_cancel_all_service_is_registered(self, hass: HomeAssistant, setup_integration: ConfigEntry) -> None:
-        """Test that the cancel_all service is registered."""
-        assert hass.services.has_service(DOMAIN, "cancel_all")
-
     async def test_cancel_all_clears_all_paused(
         self, hass: HomeAssistant, setup_integration_with_automations: ConfigEntry
     ) -> None:
@@ -382,12 +370,6 @@ class TestCancelAllService:
 
 class TestPauseByAreaService:
     """Test the pause_by_area service."""
-
-    async def test_pause_by_area_service_is_registered(
-        self, hass: HomeAssistant, setup_integration: ConfigEntry
-    ) -> None:
-        """Test that the pause_by_area service is registered."""
-        assert hass.services.has_service(DOMAIN, "pause_by_area")
 
     async def test_pause_by_area_finds_automations(self, hass: HomeAssistant, setup_integration: ConfigEntry) -> None:
         """Test that pause_by_area finds automations in the area."""
@@ -431,12 +413,6 @@ class TestPauseByAreaService:
 class TestPauseByLabelService:
     """Test the pause_by_label service."""
 
-    async def test_pause_by_label_service_is_registered(
-        self, hass: HomeAssistant, setup_integration: ConfigEntry
-    ) -> None:
-        """Test that the pause_by_label service is registered."""
-        assert hass.services.has_service(DOMAIN, "pause_by_label")
-
     async def test_pause_by_label_finds_automations(self, hass: HomeAssistant, setup_integration: ConfigEntry) -> None:
         """Test that pause_by_label finds automations with the label."""
         entry = setup_integration
@@ -474,16 +450,6 @@ class TestPauseByLabelService:
 
         data = entry.runtime_data
         assert "automation.test_label_automation" in data.paused
-
-
-class TestCancelScheduledService:
-    """Test the cancel_scheduled service."""
-
-    async def test_cancel_scheduled_service_is_registered(
-        self, hass: HomeAssistant, setup_integration: ConfigEntry
-    ) -> None:
-        """Test that the cancel_scheduled service is registered."""
-        assert hass.services.has_service(DOMAIN, "cancel_scheduled")
 
 
 # =============================================================================

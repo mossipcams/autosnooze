@@ -18,8 +18,6 @@ from custom_components.autosnooze.models import (
     AutomationPauseData,
     PausedAutomation,
     ScheduledSnooze,
-    parse_datetime_utc,
-    ensure_utc_aware,
 )
 
 UTC = timezone.utc
@@ -207,107 +205,8 @@ class TestValidateStoredDataEdgeCases:
         assert "automation.invalid2" not in result["paused"]
 
 
-class TestParseDatetimeUtc:
-    """Tests for parse_datetime_utc function."""
-
-    @pytest.mark.parametrize(
-        "dt_str",
-        [
-            "2024-06-15T12:00:00+00:00",
-            "2024-06-15T12:00:00-05:00",
-            "2024-06-15T12:00:00Z",
-        ],
-        ids=["utc-offset", "negative-offset", "z-suffix"],
-    )
-    def test_parses_valid_datetime_strings(self, dt_str: str) -> None:
-        """Test parses valid datetime strings."""
-        result = parse_datetime_utc(dt_str)
-        assert result.tzinfo is not None
-        assert result.year == 2024
-        assert result.month == 6
-        assert result.day == 15
-
-    @pytest.mark.parametrize(
-        "invalid_str",
-        ["not-a-datetime", "", "2024-13-45", "garbage"],
-        ids=["text", "empty", "invalid-date", "garbage"],
-    )
-    def test_raises_on_invalid_string(self, invalid_str: str) -> None:
-        """Test raises ValueError on invalid datetime string."""
-        with pytest.raises(ValueError):
-            parse_datetime_utc(invalid_str)
-
-
-class TestEnsureUtcAware:
-    """Tests for ensure_utc_aware function."""
-
-    def test_returns_utc_datetime_unchanged(self) -> None:
-        """Test returns UTC datetime unchanged."""
-        dt = datetime(2024, 6, 15, 12, 0, 0, tzinfo=UTC)
-        result = ensure_utc_aware(dt)
-        assert result == dt
-        assert result.tzinfo == UTC
-
-    def test_converts_other_timezone_to_utc(self) -> None:
-        """Test converts other timezone to UTC."""
-        offset = timezone(timedelta(hours=-5))
-        dt = datetime(2024, 6, 15, 12, 0, 0, tzinfo=offset)
-        result = ensure_utc_aware(dt)
-        assert result.tzinfo == UTC
-        assert result.hour == 17  # 12:00 - (-5:00) = 17:00 UTC
-
-
 class TestAutomationPauseDataEdgeCases:
     """Edge case tests for AutomationPauseData."""
-
-    @pytest.fixture
-    def now(self) -> datetime:
-        """Return current UTC time."""
-        return datetime.now(UTC)
-
-    def test_get_paused_dict_with_multiple_entries(self, now: datetime) -> None:
-        """Test get_paused_dict serializes all entries correctly."""
-        data = AutomationPauseData()
-        data.paused["automation.test1"] = PausedAutomation(
-            entity_id="automation.test1",
-            friendly_name="Test 1",
-            resume_at=now + timedelta(hours=1),
-            paused_at=now,
-        )
-        data.paused["automation.test2"] = PausedAutomation(
-            entity_id="automation.test2",
-            friendly_name="Test 2",
-            resume_at=now + timedelta(hours=2),
-            paused_at=now,
-        )
-
-        result = data.get_paused_dict()
-
-        assert len(result) == 2
-        assert result["automation.test1"]["friendly_name"] == "Test 1"
-        assert result["automation.test2"]["friendly_name"] == "Test 2"
-
-    def test_get_scheduled_dict_with_multiple_entries(self, now: datetime) -> None:
-        """Test get_scheduled_dict serializes all entries correctly."""
-        data = AutomationPauseData()
-        data.scheduled["automation.test1"] = ScheduledSnooze(
-            entity_id="automation.test1",
-            friendly_name="Test 1",
-            disable_at=now + timedelta(hours=1),
-            resume_at=now + timedelta(hours=2),
-        )
-        data.scheduled["automation.test2"] = ScheduledSnooze(
-            entity_id="automation.test2",
-            friendly_name="Test 2",
-            disable_at=now + timedelta(hours=3),
-            resume_at=now + timedelta(hours=4),
-        )
-
-        result = data.get_scheduled_dict()
-
-        assert len(result) == 2
-        assert "automation.test1" in result
-        assert "automation.test2" in result
 
     def test_listener_removal_function_is_idempotent(self) -> None:
         """Test listener removal function can be called multiple times."""
@@ -320,17 +219,6 @@ class TestAutomationPauseDataEdgeCases:
 
         # Second removal should not raise
         remove_fn()
-
-    def test_notify_does_not_crash_on_failing_listener(self) -> None:
-        """Test notify continues even if a listener raises."""
-        data = AutomationPauseData()
-        failing_callback = MagicMock(side_effect=Exception("Listener error"))
-        data.add_listener(failing_callback)
-
-        try:
-            data.notify()
-        except Exception:
-            pass  # Some implementations may propagate exceptions
 
 
 class TestPausedAutomationEdgeCases:

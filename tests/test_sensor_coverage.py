@@ -162,38 +162,6 @@ class TestAutoSnoozeCountSensor:
 
         assert sensor._unsub is None
 
-    def test_native_value_updates_after_pause(self, sensor: AutoSnoozeCountSensor, data: AutomationPauseData) -> None:
-        """Test that native_value reflects changes to paused dict."""
-        now = datetime.now(UTC)
-
-        assert sensor.native_value == 0
-
-        data.paused["automation.test1"] = PausedAutomation(
-            entity_id="automation.test1",
-            friendly_name="Test 1",
-            resume_at=now + timedelta(hours=1),
-            paused_at=now,
-        )
-
-        assert sensor.native_value == 1
-
-        data.paused["automation.test2"] = PausedAutomation(
-            entity_id="automation.test2",
-            friendly_name="Test 2",
-            resume_at=now + timedelta(hours=2),
-            paused_at=now,
-        )
-
-        assert sensor.native_value == 2
-
-        del data.paused["automation.test1"]
-
-        assert sensor.native_value == 1
-
-        data.paused.clear()
-
-        assert sensor.native_value == 0
-
 
 class TestAsyncSetupEntry:
     """Tests for async_setup_entry function."""

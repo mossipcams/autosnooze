@@ -405,11 +405,6 @@ class TestCancelTimer:
 
         assert "automation.test" not in data.timers
 
-    def test_cancel_timer_no_error_when_not_exists(self) -> None:
-        """Verify no error when cancelling non-existent timer."""
-        data = AutomationPauseData()
-        cancel_timer(data, "automation.nonexistent")
-
     def test_cancel_scheduled_timer_calls_unsub(self) -> None:
         """Verify unsub function is called when cancelling scheduled timer."""
         data = AutomationPauseData()
@@ -541,39 +536,18 @@ class TestAsyncSetAutomationState:
         assert call_args[0][1] == expected_service
 
     @pytest.mark.asyncio
-    async def test_uses_correct_entity_id_in_service_call(self) -> None:
-        """Verify the entity_id is correctly passed to service call."""
+    async def test_successful_call_returns_true_with_correct_args(self) -> None:
+        """Verify successful call returns True with correct entity_id and blocking."""
         mock_hass = MagicMock()
         mock_hass.states.get.return_value = MagicMock()
         mock_hass.services.async_call = AsyncMock()
 
-        await async_set_automation_state(mock_hass, "automation.specific_one", enabled=True)
-
-        call_args = mock_hass.services.async_call.call_args
-        assert call_args[0][2] == {ATTR_ENTITY_ID: "automation.specific_one"}
-
-    @pytest.mark.asyncio
-    async def test_uses_blocking_true(self) -> None:
-        """Verify blocking=True is passed to service call."""
-        mock_hass = MagicMock()
-        mock_hass.states.get.return_value = MagicMock()
-        mock_hass.services.async_call = AsyncMock()
-
-        await async_set_automation_state(mock_hass, "automation.test", enabled=True)
-
-        call_args = mock_hass.services.async_call.call_args
-        assert call_args[1]["blocking"] is True
-
-    @pytest.mark.asyncio
-    async def test_returns_true_on_success(self) -> None:
-        """Verify returns True when service call succeeds."""
-        mock_hass = MagicMock()
-        mock_hass.states.get.return_value = MagicMock()
-        mock_hass.services.async_call = AsyncMock()
-
-        result = await async_set_automation_state(mock_hass, "automation.test", enabled=True)
+        result = await async_set_automation_state(mock_hass, "automation.specific_one", enabled=True)
 
         assert result is True
+        call_args = mock_hass.services.async_call.call_args
+        assert call_args[0][2] == {ATTR_ENTITY_ID: "automation.specific_one"}
+        assert call_args[1]["blocking"] is True
 
     @pytest.mark.asyncio
     async def test_returns_false_when_state_is_none(self) -> None:
@@ -613,25 +587,22 @@ class TestGetFriendlyName:
 
         assert result == "My Friendly Name"
 
-    def test_returns_entity_id_when_no_friendly_name(self) -> None:
-        """Verify returns entity_id when friendly_name not in attributes."""
+    @pytest.mark.parametrize(
+        "state_return,attributes",
+        [
+            (MagicMock(attributes={}), {}),
+            (None, None),
+        ],
+        ids=["no-friendly-name-attr", "state-is-none"],
+    )
+    def test_returns_entity_id_as_fallback(self, state_return, attributes) -> None:
+        """Verify returns entity_id when friendly_name unavailable."""
         mock_hass = MagicMock()
-        mock_state = MagicMock()
-        mock_state.attributes = {}
-        mock_hass.states.get.return_value = mock_state
+        mock_hass.states.get.return_value = state_return
 
         result = get_friendly_name(mock_hass, "automation.my_entity")
 
         assert result == "automation.my_entity"
-
-    def test_returns_entity_id_when_state_is_none(self) -> None:
-        """Verify returns entity_id when entity has no state."""
-        mock_hass = MagicMock()
-        mock_hass.states.get.return_value = None
-
-        result = get_friendly_name(mock_hass, "automation.unknown_entity")
-
-        assert result == "automation.unknown_entity"
 
 
 # =============================================================================

@@ -247,44 +247,34 @@ class TestStorageValidation:
         return hass
 
     @pytest.mark.asyncio
-    async def test_handles_empty_storage(self, mock_hass: MagicMock, mock_store: MagicMock) -> None:
-        """Test that empty storage is handled gracefully."""
+    @pytest.mark.parametrize(
+        "storage,expected_paused,expected_scheduled",
+        [
+            (None, 0, 0),
+            ({"scheduled": {}}, 0, 0),
+            ({"paused": {}}, 0, 0),
+        ],
+        ids=["empty-storage", "missing-paused-key", "missing-scheduled-key"],
+    )
+    async def test_handles_missing_or_empty_storage(
+        self,
+        mock_hass: MagicMock,
+        mock_store: MagicMock,
+        storage: dict | None,
+        expected_paused: int,
+        expected_scheduled: int,
+    ) -> None:
+        """Test that missing or malformed storage is handled gracefully."""
         from custom_components.autosnooze.coordinator import async_load_stored as _async_load_stored
         from custom_components.autosnooze.models import AutomationPauseData
 
         data = AutomationPauseData(store=mock_store)
-        mock_store.async_load = AsyncMock(return_value=None)
+        mock_store.async_load = AsyncMock(return_value=storage)
 
         await _async_load_stored(mock_hass, data)
 
-        assert len(data.paused) == 0
-        assert len(data.scheduled) == 0
-
-    @pytest.mark.asyncio
-    async def test_handles_missing_paused_key(self, mock_hass: MagicMock, mock_store: MagicMock) -> None:
-        """Test that missing 'paused' key is handled gracefully."""
-        from custom_components.autosnooze.coordinator import async_load_stored as _async_load_stored
-        from custom_components.autosnooze.models import AutomationPauseData
-
-        data = AutomationPauseData(store=mock_store)
-        mock_store.async_load = AsyncMock(return_value={"scheduled": {}})
-
-        await _async_load_stored(mock_hass, data)
-
-        assert len(data.paused) == 0
-
-    @pytest.mark.asyncio
-    async def test_handles_missing_scheduled_key(self, mock_hass: MagicMock, mock_store: MagicMock) -> None:
-        """Test that missing 'scheduled' key is handled gracefully."""
-        from custom_components.autosnooze.coordinator import async_load_stored as _async_load_stored
-        from custom_components.autosnooze.models import AutomationPauseData
-
-        data = AutomationPauseData(store=mock_store)
-        mock_store.async_load = AsyncMock(return_value={"paused": {}})
-
-        await _async_load_stored(mock_hass, data)
-
-        assert len(data.scheduled) == 0
+        assert len(data.paused) == expected_paused
+        assert len(data.scheduled) == expected_scheduled
 
     @pytest.mark.asyncio
     async def test_skips_entries_with_invalid_datetime(self, mock_hass: MagicMock, mock_store: MagicMock) -> None:

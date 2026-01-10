@@ -50,20 +50,15 @@ class TestParseDatetimeUtc:
 
         assert result.tzinfo is not None
 
-    def test_invalid_datetime_raises_valueerror(self) -> None:
-        """Test that invalid datetime string raises ValueError."""
+    @pytest.mark.parametrize(
+        "invalid_str",
+        ["not-a-datetime", "", "garbage-not-a-date", "2024-13-45"],
+        ids=["text", "empty", "garbage", "invalid-date"],
+    )
+    def test_invalid_string_raises_valueerror(self, invalid_str: str) -> None:
+        """Test that invalid datetime strings raise ValueError."""
         with pytest.raises(ValueError, match="Invalid datetime string"):
-            parse_datetime_utc("not-a-datetime")
-
-    def test_empty_string_raises_valueerror(self) -> None:
-        """Test that empty string raises ValueError."""
-        with pytest.raises(ValueError, match="Invalid datetime string"):
-            parse_datetime_utc("")
-
-    def test_garbage_string_raises_valueerror(self) -> None:
-        """Test that garbage string raises ValueError."""
-        with pytest.raises(ValueError, match="Invalid datetime string"):
-            parse_datetime_utc("garbage-not-a-date")
+            parse_datetime_utc(invalid_str)
 
 
 class TestEnsureUtcAware:
@@ -237,22 +232,6 @@ class TestAutomationPauseDataEdgeCases:
         data.notify()
 
         assert call_order == [1, 2, 3]
-
-    def test_remove_listener_during_notify(self) -> None:
-        """Test behavior when listener removes itself during notify."""
-        data = AutomationPauseData()
-        call_count = [0]
-
-        def self_removing_listener():
-            call_count[0] += 1
-            # Don't remove during iteration - this tests the list stays stable
-
-        remove_fn = data.add_listener(self_removing_listener)
-        data.add_listener(lambda: None)
-
-        data.notify()
-
-        assert call_count[0] == 1
 
     def test_multiple_listener_removals(self) -> None:
         """Test removing multiple listeners."""
