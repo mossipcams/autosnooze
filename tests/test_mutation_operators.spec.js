@@ -176,20 +176,7 @@ describe('Comparison Operator Mutations', () => {
     }
   });
 
-  describe('Countdown boundary checks', () => {
-    test.each([
-      [0, 'Resuming...', 'now'],
-      [-10000, 'Resuming...', 'past'],
-    ])('returns %s for %s time', (offset, expected) => {
-      const time = new Date(Date.now() + offset).toISOString();
-      expect(card._formatCountdown(time)).toBe(expected);
-    });
-
-    test('positive diff does not return Resuming...', () => {
-      const future = new Date(Date.now() + 2000).toISOString();
-      expect(card._formatCountdown(future)).not.toBe('Resuming...');
-    });
-  });
+  // Countdown boundary tests consolidated in test_boundary_mutations.spec.js
 
   describe('Duration format singular/plural', () => {
     test.each([
@@ -321,33 +308,7 @@ describe('Logical Operator Mutations', () => {
   });
 
   describe('AND conditions (&&)', () => {
-    test('_hasResumeAt requires both date AND time', () => {
-      card._resumeAtDate = '2026-01-15';
-      card._resumeAtTime = '';
-      expect(card._hasResumeAt()).toBeFalsy();
-
-      card._resumeAtDate = '';
-      card._resumeAtTime = '12:00';
-      expect(card._hasResumeAt()).toBeFalsy();
-
-      card._resumeAtDate = '2026-01-15';
-      card._resumeAtTime = '12:00';
-      expect(card._hasResumeAt()).toBeTruthy();
-    });
-
-    test('_hasDisableAt requires both date AND time', () => {
-      card._disableAtDate = '2026-01-15';
-      card._disableAtTime = '';
-      expect(card._hasDisableAt()).toBeFalsy();
-
-      card._disableAtDate = '';
-      card._disableAtTime = '10:00';
-      expect(card._hasDisableAt()).toBeFalsy();
-
-      card._disableAtDate = '2026-01-15';
-      card._disableAtTime = '10:00';
-      expect(card._hasDisableAt()).toBeTruthy();
-    });
+    // _hasResumeAt/_hasDisableAt tests consolidated in test_mutation_coverage.spec.js with test.each()
 
     test('snooze button disabled when loading AND selected', async () => {
       card._selected = ['automation.test'];
@@ -431,20 +392,7 @@ describe('Array Operation Mutations', () => {
     }
   });
 
-  describe('Array includes/indexOf', () => {
-    test('toggleSelection adds when not present', () => {
-      card._selected = ['automation.a'];
-      card._toggleSelection('automation.b');
-      expect(card._selected).toContain('automation.b');
-    });
-
-    test('toggleSelection removes when present', () => {
-      card._selected = ['automation.a', 'automation.b'];
-      card._toggleSelection('automation.a');
-      expect(card._selected).not.toContain('automation.a');
-      expect(card._selected).toContain('automation.b');
-    });
-  });
+  // Array includes/indexOf tests consolidated in test_boundary_mutations.spec.js
 
   describe('Array filter', () => {
     test('_getAutomations filters to automation entities only', () => {

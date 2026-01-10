@@ -181,27 +181,7 @@ describe('String Literal Values - Mutation Killing', () => {
     });
   });
 
-  describe('Group Name Literals', () => {
-    test('_getAreaName returns exactly "Unassigned" for null', () => {
-      expect(card._getAreaName(null)).toBe('Unassigned');
-    });
-
-    test('_getAreaName returns exactly "Unassigned" for undefined', () => {
-      expect(card._getAreaName(undefined)).toBe('Unassigned');
-    });
-
-    test('_getCategoryName returns exactly "Uncategorized" for null', () => {
-      expect(card._getCategoryName(null)).toBe('Uncategorized');
-    });
-
-    test('_getCategoryName returns exactly "Uncategorized" for undefined', () => {
-      expect(card._getCategoryName(undefined)).toBe('Uncategorized');
-    });
-
-    test('_getLabelName formats snake_case to Title Case', () => {
-      expect(card._getLabelName('my_custom_label')).toBe('My Custom Label');
-    });
-  });
+  // Group Name Literals tests consolidated in test_boundary_mutations.spec.js
 
   describe('Stub Config Strings', () => {
     test('getStubConfig returns title exactly "AutoSnooze"', () => {
@@ -487,50 +467,7 @@ describe('Conditional Logic - Mutation Killing', () => {
     });
   });
 
-  describe('_toggleSelection Conditionals', () => {
-    test('adds item when not selected', () => {
-      card._selected = [];
-      card._toggleSelection('automation.test');
-      expect(card._selected).toContain('automation.test');
-    });
-
-    test('removes item when already selected', () => {
-      card._selected = ['automation.test'];
-      card._toggleSelection('automation.test');
-      expect(card._selected).not.toContain('automation.test');
-    });
-
-    test('preserves other selections when toggling', () => {
-      card._selected = ['automation.other', 'automation.test'];
-      card._toggleSelection('automation.test');
-      expect(card._selected).toContain('automation.other');
-      expect(card._selected).not.toContain('automation.test');
-    });
-  });
-
-  describe('_selectAllVisible Conditionals', () => {
-    test('selects all when none selected', () => {
-      card._selected = [];
-      card._selectAllVisible();
-      expect(card._selected.length).toBeGreaterThan(0);
-    });
-
-    test('deselects all when all selected', () => {
-      const automations = card._getFilteredAutomations();
-      card._selected = automations.map((a) => a.id);
-      card._selectAllVisible();
-      expect(card._selected.length).toBe(0);
-    });
-
-    test('selects remaining when some selected', () => {
-      const automations = card._getFilteredAutomations();
-      if (automations.length > 1) {
-        card._selected = [automations[0].id];
-        card._selectAllVisible();
-        expect(card._selected.length).toBe(automations.length);
-      }
-    });
-  });
+  // _toggleSelection and _selectAllVisible tests consolidated in test_boundary_mutations.spec.js
 
   describe('_hasResumeAt and _hasDisableAt', () => {
     test.each([

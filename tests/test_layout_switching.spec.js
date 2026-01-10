@@ -73,7 +73,8 @@ describe('Layout Switching', () => {
   });
 
   describe('Tab switching stability', () => {
-    test('rapid tab switching does not cause errors', async () => {
+    test('rapid tab switching preserves state and renders correctly', async () => {
+      card._selected = ['automation.living_room_lights'];
       const tabs = ['all', 'areas', 'categories', 'labels'];
 
       for (let i = 0; i < 10; i++) {
@@ -81,15 +82,9 @@ describe('Layout Switching', () => {
         await card.updateComplete;
       }
 
-      expect(card.shadowRoot.querySelector('ha-card')).not.toBeNull();
-    });
-
-    test('all layouts render with multiple automations', async () => {
-      for (const tab of ['all', 'areas', 'categories', 'labels']) {
-        card._filterTab = tab;
-        await card.updateComplete;
-        expect(card.shadowRoot.querySelector('ha-card')).not.toBeNull();
-      }
+      // Verify state is preserved after rapid switching
+      expect(card._selected).toContain('automation.living_room_lights');
+      expect(card._filterTab).toBe('areas'); // 10 % 4 = 2 -> 'categories', but 0-indexed cycle ends at 'areas'
     });
   });
 
@@ -138,53 +133,33 @@ describe('Layout Switching', () => {
   });
 
   describe('Empty state handling', () => {
-    test('all tab handles empty automations list', async () => {
+    test.each([
+      ['all', {}, {}, {}, 'empty automations list'],
+      ['areas', {}, {}, {}, 'no areas defined'],
+      ['categories', {}, {}, {}, 'no categories'],
+      ['labels', {}, {}, {}, 'no labels'],
+    ])('%s tab shows empty message for %s', async (tab, categoryReg, labelReg, entityReg) => {
       card.hass = createMockHass({
         states: {
-          'sensor.autosnooze_status': {
-            state: 'idle',
-            attributes: { paused_count: 0, scheduled_count: 0 },
-          },
-          'sensor.autosnooze_snoozed_automations': {
-            state: '0',
-            attributes: { paused_automations: {}, scheduled_snoozes: {} },
-          },
+          'sensor.autosnooze_status': { state: 'idle', attributes: { paused_count: 0, scheduled_count: 0 } },
+          'sensor.autosnooze_snoozed_automations': { state: '0', attributes: { paused_automations: {}, scheduled_snoozes: {} } },
         },
       });
-      card._filterTab = 'all';
+      card._categoryRegistry = categoryReg;
+      card._labelRegistry = labelReg;
+      card._entityRegistry = entityReg;
+      card._filterTab = tab;
       await card.updateComplete;
 
-      expect(card.shadowRoot.querySelector('ha-card')).not.toBeNull();
-    });
-
-    test('areas tab handles no areas defined', async () => {
-      card.hass = { ...mockHass, areas: {} };
-      card._filterTab = 'areas';
-      await card.updateComplete;
-
-      expect(card.shadowRoot.querySelector('ha-card')).not.toBeNull();
-    });
-
-    test('categories tab handles no categories', async () => {
-      card._categoryRegistry = {};
-      card._filterTab = 'categories';
-      await card.updateComplete;
-
-      expect(card.shadowRoot.querySelector('ha-card')).not.toBeNull();
-    });
-
-    test('labels tab handles no labels', async () => {
-      card._labelRegistry = {};
-      card._entityRegistry = {};
-      card._filterTab = 'labels';
-      await card.updateComplete;
-
-      expect(card.shadowRoot.querySelector('ha-card')).not.toBeNull();
+      const emptyMessage = card.shadowRoot.querySelector('.list-empty');
+      expect(emptyMessage).not.toBeNull();
     });
   });
 
   describe('Concurrent state updates', () => {
-    test('simultaneous hass and config updates', async () => {
+    test('simultaneous hass and config updates preserves state', async () => {
+      card._selected = ['automation.living_room_lights'];
+
       const newHass = createComplexMockHass();
       newHass.states['automation.new_automation'] = {
         entity_id: 'automation.new_automation',
@@ -197,10 +172,10 @@ describe('Layout Switching', () => {
       await card.updateComplete;
 
       expect(card.config.title).toBe('Updated Title');
-      expect(card.shadowRoot.querySelector('ha-card')).not.toBeNull();
+      expect(card._selected).toContain('automation.living_room_lights');
     });
 
-    test('multiple rapid hass updates', async () => {
+    test('rapid hass updates include new automations in list', async () => {
       for (let i = 0; i < 5; i++) {
         const newHass = createComplexMockHass();
         newHass.states['automation.dynamic_' + i] = {
@@ -212,7 +187,9 @@ describe('Layout Switching', () => {
       }
       await card.updateComplete;
 
-      expect(card.shadowRoot.querySelector('ha-card')).not.toBeNull();
+      // The final hass update should include the last dynamic automation
+      const automations = card._getAutomations();
+      expect(automations.some(a => a.id === 'automation.dynamic_4')).toBe(true);
     });
   });
 });

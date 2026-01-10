@@ -466,46 +466,9 @@ describe('_toggleSelection', () => {
   });
 });
 
-// =============================================================================
-// STATIC METHOD TESTS
-// =============================================================================
-describe('Static Methods', () => {
-  test('getStubConfig returns object with title', () => {
-    const AutosnoozeCard = customElements.get('autosnooze-card');
-    const stub = AutosnoozeCard.getStubConfig();
-    expect(stub).toHaveProperty('title');
-    expect(stub.title).toBe('AutoSnooze');
-  });
+// Static Method Tests consolidated in test_card_ui.spec.js
 
-  test('getConfigElement creates editor element', () => {
-    const AutosnoozeCard = customElements.get('autosnooze-card');
-    const element = AutosnoozeCard.getConfigElement();
-    expect(element.tagName.toLowerCase()).toBe('autosnooze-card-editor');
-  });
-});
-
-// =============================================================================
-// CLEAR SELECTION TESTS
-// =============================================================================
-describe('_clearSelection', () => {
-  let card;
-  beforeEach(() => {
-    card = createCard();
-  });
-
-  test('clears all selected items', () => {
-    card._selected = ['automation.a', 'automation.b', 'automation.c'];
-    card._clearSelection();
-    expect(card._selected.length).toBe(0);
-    expect(Array.isArray(card._selected)).toBe(true);
-  });
-
-  test('works when already empty', () => {
-    card._selected = [];
-    card._clearSelection();
-    expect(card._selected.length).toBe(0);
-  });
-});
+// _clearSelection tests consolidated in test_card_ui.spec.js
 
 // =============================================================================
 // FILTER TAB TESTS

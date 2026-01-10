@@ -76,56 +76,7 @@ describe('Defect Fixes - Regression Tests', () => {
     });
   });
 
-  describe('Defect #3: Duration button mutual exclusivity', () => {
-    test('clicking Custom toggles _showCustomInput', async () => {
-      expect(card._showCustomInput).toBe(false);
-
-      const pills = card.shadowRoot.querySelectorAll('.pill');
-      const customPill = Array.from(pills).find((p) => p.textContent.includes('Custom'));
-      customPill.click();
-      await card.updateComplete;
-
-      expect(card._showCustomInput).toBe(true);
-    });
-
-    test('custom input renders when _showCustomInput is true', async () => {
-      card._showCustomInput = true;
-      await card.updateComplete;
-
-      const customInput = card.shadowRoot.querySelector('.custom-duration-input');
-      expect(customInput).not.toBeNull();
-    });
-
-    test('custom input hidden when _showCustomInput is false', async () => {
-      card._showCustomInput = false;
-      await card.updateComplete;
-
-      const customInput = card.shadowRoot.querySelector('.custom-duration-input');
-      expect(customInput).toBeNull();
-    });
-
-    test('clicking preset duration hides custom input', async () => {
-      card._showCustomInput = true;
-      await card.updateComplete;
-
-      const pills = card.shadowRoot.querySelectorAll('.pill');
-      const presetPill = pills[0]; // First pill is a preset (30m)
-      presetPill.click();
-      await card.updateComplete;
-
-      expect(card._showCustomInput).toBe(false);
-    });
-
-    test('preset pill is not active when custom input is shown', async () => {
-      card._showCustomInput = true;
-      await card.updateComplete;
-
-      const pills = card.shadowRoot.querySelectorAll('.pill');
-      const presetPill = pills[0];
-
-      expect(presetPill.classList.contains('active')).toBe(false);
-    });
-  });
+  // Defect #3 tests moved to test_card_ui.spec.js - Custom Duration Input section
 
   describe('Defect #4: Entity Registry fetch for categories', () => {
     test('card has _entityRegistry property', () => {
@@ -157,57 +108,26 @@ describe('Defect Fixes - Regression Tests', () => {
   });
 
   describe('Defect #7: iOS Companion App card stability', () => {
-    test('card handles missing hass gracefully', async () => {
+    test('card has default empty config before setConfig is called', () => {
+      const CardClass = customElements.get('autosnooze-card');
+      const newCard = new CardClass();
+      expect(newCard.config).toEqual({});
+    });
+
+    test('card setConfig updates config property', () => {
       const CardClass = customElements.get('autosnooze-card');
       const newCard = new CardClass();
       newCard.setConfig({ title: 'Test' });
-      // Don't set hass - verify no crash when accessing methods
-      expect(newCard.config).toBeDefined();
       expect(newCard.config.title).toBe('Test');
     });
 
-    test('card handles missing config gracefully', async () => {
-      const CardClass = customElements.get('autosnooze-card');
-      const newCard = new CardClass();
-      newCard.hass = mockHass;
-      // config should be empty object by default
-      expect(newCard.config).toBeDefined();
-    });
-
-    test('card renders after both hass and config are set', async () => {
+    test('_getAutomations returns empty array when hass not set', () => {
       const CardClass = customElements.get('autosnooze-card');
       const newCard = new CardClass();
       newCard.setConfig({ title: 'Test' });
-      newCard.hass = mockHass;
-      document.body.appendChild(newCard);
-      await newCard.updateComplete;
-
-      expect(newCard.shadowRoot.querySelector('ha-card')).not.toBeNull();
-      newCard.remove();
+      expect(newCard._getAutomations()).toEqual([]);
     });
   });
 
-  describe('Defect #9: Locale support for date/time formatting', () => {
-    test('_getLocale method exists', () => {
-      expect(typeof card._getLocale).toBe('function');
-    });
-
-    test('_getLocale returns hass locale when available', () => {
-      card.hass.locale = { language: 'de-DE' };
-      expect(card._getLocale()).toBe('de-DE');
-    });
-
-    test('_getLocale handles missing locale gracefully', () => {
-      card.hass.locale = null;
-      // Should not throw when locale is null
-      expect(() => card._getLocale()).not.toThrow();
-    });
-
-    test('_formatDateTime uses locale', () => {
-      card.hass.locale = { language: 'en-US' };
-      const result = card._formatDateTime('2024-12-25T14:30:00Z');
-      expect(typeof result).toBe('string');
-      expect(result.length).toBeGreaterThan(0);
-    });
-  });
+  // Defect #9 locale tests consolidated in test_mutation_coverage.spec.js
 });

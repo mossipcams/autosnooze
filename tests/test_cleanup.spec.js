@@ -84,7 +84,7 @@ describe('Cleanup Verification', () => {
   });
 
   describe('Timeout cleanup', () => {
-    test('search timeout is cleared on disconnect', async () => {
+    test('search timeout is cleared on disconnect (no pending updates)', async () => {
       vi.useFakeTimers();
 
       const CardClass = customElements.get('autosnooze-card');
@@ -100,28 +100,14 @@ describe('Cleanup Verification', () => {
         searchInput.dispatchEvent(new Event('input', { bubbles: true }));
       }
 
+      // Search should be empty before debounce completes
+      expect(card._search).toBe('');
+
       card.remove();
 
+      // After disconnect, timeout should be cleared - search should stay empty
       vi.advanceTimersByTime(1000);
-
-      vi.useRealTimers();
-    });
-
-    test('sync timeout is cleared on disconnect', async () => {
-      vi.useFakeTimers();
-
-      const CardClass = customElements.get('autosnooze-card');
-      const card = new CardClass();
-      card.setConfig({ title: 'Test' });
-      card.hass = mockHass;
-      document.body.appendChild(card);
-      await card.updateComplete;
-
-      card.remove();
-
-      expect(() => {
-        vi.advanceTimersByTime(5000);
-      }).not.toThrow();
+      expect(card._searchTimeout).toBeNull();
 
       vi.useRealTimers();
     });
@@ -152,19 +138,34 @@ describe('Cleanup Verification', () => {
   });
 
   describe('Memory leak prevention', () => {
-    test('creating and destroying many cards does not leak', async () => {
+    test('creating and destroying many cards clears all timeouts', async () => {
+      vi.useFakeTimers();
       const CardClass = customElements.get('autosnooze-card');
+      const cards = [];
 
-      for (let i = 0; i < 20; i++) {
+      for (let i = 0; i < 5; i++) {
         const card = new CardClass();
         card.setConfig({ title: 'Temp Card ' + i });
         card.hass = mockHass;
         document.body.appendChild(card);
         await card.updateComplete;
-        card.remove();
+        cards.push(card);
       }
 
-      expect(document.body.children.length).toBe(0);
+      // All cards should have sync timeouts scheduled
+      cards.forEach((card) => {
+        expect(card._syncTimeout).not.toBeNull();
+      });
+
+      // Remove all cards
+      cards.forEach((card) => card.remove());
+
+      // All timeouts should be cleared
+      cards.forEach((card) => {
+        expect(card._syncTimeout).toBeNull();
+      });
+
+      vi.useRealTimers();
     });
   });
 });
