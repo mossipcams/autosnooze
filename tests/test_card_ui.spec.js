@@ -539,19 +539,16 @@ describe('AutoSnooze Card Main Component', () => {
   });
 
   describe('Area/Label Helpers', () => {
-    test('_getAreaName returns "Unassigned" for null area', () => {
-      expect(card._getAreaName(null)).toBe('Unassigned');
+    test.each([
+      ['null', null, 'Unassigned'],
+      ['undefined', undefined, 'Unassigned'],
+      ['formats area_id', 'living_room', 'Living Room'],
+    ])('_getAreaName with %s returns %s', (_, input, expected) => {
+      expect(card._getAreaName(input)).toBe(expected);
     });
 
     test('_getAreaName returns area name from hass', () => {
-      card.hass = {
-        ...mockHass,
-        areas: { living_room: { name: 'Living Room' } },
-      };
-      expect(card._getAreaName('living_room')).toBe('Living Room');
-    });
-
-    test('_getAreaName formats area_id if no name', () => {
+      card.hass = { ...mockHass, areas: { living_room: { name: 'Living Room' } } };
       expect(card._getAreaName('living_room')).toBe('Living Room');
     });
 
@@ -559,13 +556,12 @@ describe('AutoSnooze Card Main Component', () => {
       expect(card._getCategoryName(null)).toBe('Uncategorized');
     });
 
-    test('_getLabelName returns label name from registry', () => {
-      card._labelRegistry = { lighting: { name: 'Lighting' } };
-      expect(card._getLabelName('lighting')).toBe('Lighting');
-    });
-
-    test('_getLabelName formats label_id if not in registry', () => {
-      expect(card._getLabelName('my_custom_label')).toBe('My Custom Label');
+    test.each([
+      ['from registry', { lighting: { name: 'Lighting' } }, 'lighting', 'Lighting'],
+      ['formatted from id', {}, 'my_custom_label', 'My Custom Label'],
+    ])('_getLabelName %s', (_, registry, input, expected) => {
+      card._labelRegistry = registry;
+      expect(card._getLabelName(input)).toBe(expected);
     });
   });
 
@@ -812,47 +808,21 @@ describe('AutoSnooze Card Main Component', () => {
   });
 
   describe('Filter Tab Interactions', () => {
-    test('clicking Areas tab changes filter to areas', async () => {
-      const tabs = card.shadowRoot.querySelectorAll('.tab');
-      const areasTab = Array.from(tabs).find((t) => t.textContent.includes('Areas'));
-
-      areasTab.click();
-      await card.updateComplete;
-
-      expect(card._filterTab).toBe('areas');
-    });
-
-    test('clicking Categories tab changes filter to categories', async () => {
-      const tabs = card.shadowRoot.querySelectorAll('.tab');
-      const categoriesTab = Array.from(tabs).find((t) => t.textContent.includes('Categories'));
-
-      categoriesTab.click();
-      await card.updateComplete;
-
-      expect(card._filterTab).toBe('categories');
-    });
-
-    test('clicking Labels tab changes filter to labels', async () => {
-      const tabs = card.shadowRoot.querySelectorAll('.tab');
-      const labelsTab = Array.from(tabs).find((t) => t.textContent.includes('Labels'));
-
-      labelsTab.click();
-      await card.updateComplete;
-
-      expect(card._filterTab).toBe('labels');
-    });
-
-    test('clicking All tab changes filter to all', async () => {
-      card._filterTab = 'areas';
+    test.each([
+      ['Areas', 'areas'],
+      ['Categories', 'categories'],
+      ['Labels', 'labels'],
+      ['All', 'all'],
+    ])('clicking %s tab changes filter to %s', async (tabLabel, expectedFilter) => {
+      if (expectedFilter === 'all') card._filterTab = 'areas';
       await card.updateComplete;
 
       const tabs = card.shadowRoot.querySelectorAll('.tab');
-      const allTab = Array.from(tabs).find((t) => t.textContent.includes('All'));
-
-      allTab.click();
+      const tab = Array.from(tabs).find((t) => t.textContent.includes(tabLabel));
+      tab.click();
       await card.updateComplete;
 
-      expect(card._filterTab).toBe('all');
+      expect(card._filterTab).toBe(expectedFilter);
     });
   });
 
@@ -1938,77 +1908,7 @@ describe('Undo Functionality in Snooze', () => {
   });
 });
 
-// =============================================================================
-// ERROR MESSAGE HANDLING
-// =============================================================================
-
-describe('Error Message Handling', () => {
-  let card;
-  let mockHass;
-
-  beforeEach(async () => {
-    mockHass = createMockHass({
-      states: {
-        'automation.test': {
-          entity_id: 'automation.test',
-          state: 'on',
-          attributes: { friendly_name: 'Test Automation' },
-        },
-        'sensor.autosnooze_status': {
-          state: 'idle',
-          attributes: { paused_count: 0, scheduled_count: 0 },
-        },
-        'sensor.autosnooze_snoozed_automations': {
-          state: '0',
-          attributes: { paused_automations: {}, scheduled_snoozes: {} },
-        },
-      },
-    });
-
-    const CardClass = customElements.get('autosnooze-card');
-    card = new CardClass();
-    card.setConfig({ title: 'AutoSnooze' });
-    card.hass = mockHass;
-    document.body.appendChild(card);
-    await card.updateComplete;
-  });
-
-  afterEach(() => {
-    if (card && card.parentNode) {
-      card.parentNode.removeChild(card);
-    }
-  });
-
-  test('_getErrorMessage returns message for known translation_key', () => {
-    const error = { translation_key: 'not_automation' };
-    const result = card._getErrorMessage(error, 'Default');
-    expect(result).toBe('Failed to snooze: One or more selected items are not automations');
-  });
-
-  test('_getErrorMessage returns message for translation_key in data', () => {
-    const error = { data: { translation_key: 'invalid_duration' } };
-    const result = card._getErrorMessage(error, 'Default');
-    expect(result).toBe('Failed to snooze: Please specify a valid duration (days, hours, or minutes)');
-  });
-
-  test('_getErrorMessage matches error message patterns', () => {
-    const error = { message: 'Something with resume_time_past in it' };
-    const result = card._getErrorMessage(error, 'Default');
-    expect(result).toBe('Failed to snooze: Resume time must be in the future');
-  });
-
-  test('_getErrorMessage matches lowercase patterns with spaces', () => {
-    const error = { message: 'Something about disable after resume' };
-    const result = card._getErrorMessage(error, 'Default');
-    expect(result).toBe('Failed to snooze: Snooze time must be before resume time');
-  });
-
-  test('_getErrorMessage returns default for unknown errors', () => {
-    const error = { message: 'Unknown error xyz' };
-    const result = card._getErrorMessage(error, 'My Default');
-    expect(result).toBe('My Default. Check Home Assistant logs for details.');
-  });
-});
+// Error message handling tests are in test_mutation_coverage.spec.js
 
 // =============================================================================
 // SHOULD UPDATE OPTIMIZATION
@@ -2308,60 +2208,4 @@ describe('shouldUpdate optimization', () => {
   });
 });
 
-// =============================================================================
-// KEYBOARD ACCESSIBILITY
-// =============================================================================
-
-describe('Keyboard accessibility', () => {
-  let card;
-
-  beforeEach(async () => {
-    const CardClass = customElements.get('autosnooze-card');
-    card = new CardClass();
-    card.setConfig({ title: 'AutoSnooze' });
-    card.hass = {
-      states: {
-        'automation.test1': { state: 'on', attributes: { friendly_name: 'Test 1' } },
-        'sensor.autosnooze_snoozed_automations': {
-          state: '0',
-          attributes: { paused_automations: {}, scheduled_snoozes: {} },
-        },
-      },
-      entities: {},
-      areas: {},
-      callService: vi.fn().mockResolvedValue({}),
-    };
-    document.body.appendChild(card);
-    await card.updateComplete;
-  });
-
-  afterEach(() => {
-    if (card && card.parentNode) {
-      card.parentNode.removeChild(card);
-    }
-  });
-
-  test('_handleKeyDown triggers callback on Enter key', () => {
-    const callback = vi.fn();
-    const event = { key: 'Enter', preventDefault: vi.fn() };
-    card._handleKeyDown(event, callback);
-    expect(event.preventDefault).toHaveBeenCalled();
-    expect(callback).toHaveBeenCalled();
-  });
-
-  test('_handleKeyDown triggers callback on Space key', () => {
-    const callback = vi.fn();
-    const event = { key: ' ', preventDefault: vi.fn() };
-    card._handleKeyDown(event, callback);
-    expect(event.preventDefault).toHaveBeenCalled();
-    expect(callback).toHaveBeenCalled();
-  });
-
-  test('_handleKeyDown does not trigger callback on other keys', () => {
-    const callback = vi.fn();
-    const event = { key: 'Tab', preventDefault: vi.fn() };
-    card._handleKeyDown(event, callback);
-    expect(event.preventDefault).not.toHaveBeenCalled();
-    expect(callback).not.toHaveBeenCalled();
-  });
-});
+// Keyboard accessibility tests are in test_mutation_coverage.spec.js
