@@ -20,6 +20,7 @@ import { parse as parseYaml } from 'yaml';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import '../src/index.js';
+import { formatDurationShort } from '../src/utils/time-formatting.js';
 
 // Get the directory of this test file
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -527,6 +528,114 @@ describe('Duration', () => {
       expect(card._parseDurationInput('120')).toEqual({ days: 0, hours: 2, minutes: 0 });
       expect(card._parseDurationInput('1')).toEqual({ days: 0, hours: 0, minutes: 1 });
     });
+
+    // Mutation-killing arithmetic verification tests
+    test('MINUTES_PER.DAY multiplication verification (1440)', () => {
+      // 1d = 1440m, not 1439 or 1441
+      const result = card._parseDurationInput('1d');
+      expect(result).toEqual({ days: 1, hours: 0, minutes: 0 });
+
+      // 2d = 2880m
+      const result2 = card._parseDurationInput('2d');
+      expect(result2).toEqual({ days: 2, hours: 0, minutes: 0 });
+
+      // Verify 1440m normalizes to exactly 1d
+      const fromMinutes = card._parseDurationInput('1440m');
+      expect(fromMinutes).toEqual({ days: 1, hours: 0, minutes: 0 });
+      expect(fromMinutes.days).toBe(1);
+      expect(fromMinutes.hours).toBe(0);
+      expect(fromMinutes.minutes).toBe(0);
+    });
+
+    test('MINUTES_PER.HOUR multiplication verification (60)', () => {
+      // 1h = 60m
+      const result = card._parseDurationInput('1h');
+      expect(result).toEqual({ days: 0, hours: 1, minutes: 0 });
+
+      // Verify 60m normalizes to exactly 1h
+      const fromMinutes = card._parseDurationInput('60m');
+      expect(fromMinutes).toEqual({ days: 0, hours: 1, minutes: 0 });
+      expect(fromMinutes.hours).toBe(1);
+      expect(fromMinutes.minutes).toBe(0);
+    });
+
+    test('Math.floor verification in day calculation', () => {
+      // 1500m / 1440 = 1.041..., floor = 1 day
+      const result = card._parseDurationInput('1500m');
+      expect(result.days).toBe(1);
+      // Not 2 (ceiling) or 1.041 (no floor)
+      expect(result.days).not.toBe(2);
+
+      // 2879m / 1440 = 1.999..., floor = 1 day
+      const edgeCase = card._parseDurationInput('2879m');
+      expect(edgeCase.days).toBe(1);
+      expect(edgeCase.hours).toBe(23);
+      expect(edgeCase.minutes).toBe(59);
+    });
+
+    test('Math.floor verification in hour calculation', () => {
+      // 90m % 1440 = 90, 90 / 60 = 1.5, floor = 1 hour
+      const result = card._parseDurationInput('90m');
+      expect(result.hours).toBe(1);
+      expect(result.minutes).toBe(30);
+      // Not 2 (ceiling)
+      expect(result.hours).not.toBe(2);
+    });
+
+    test('modulo operation verification for remainders', () => {
+      // 1500m % 1440 = 60 (remainder after days)
+      const result = card._parseDurationInput('1500m');
+      expect(result.days).toBe(1);
+      expect(result.hours).toBe(1); // 60 / 60 = 1
+      expect(result.minutes).toBe(0); // 60 % 60 = 0
+
+      // 1530m % 1440 = 90, then 90 % 60 = 30
+      const result2 = card._parseDurationInput('1530m');
+      expect(result2.days).toBe(1);
+      expect(result2.hours).toBe(1);
+      expect(result2.minutes).toBe(30);
+    });
+
+    test('Math.round verification for total minutes', () => {
+      // 0.5m rounds to 1
+      const halfMin = card._parseDurationInput('0.5m');
+      expect(halfMin).toEqual({ days: 0, hours: 0, minutes: 1 });
+
+      // 0.4m rounds to 0, which returns null
+      const lessThanHalf = card._parseDurationInput('0.4m');
+      expect(lessThanHalf).toBeNull();
+
+      // 1.4m rounds to 1
+      const onePointFour = card._parseDurationInput('1.4m');
+      expect(onePointFour).toEqual({ days: 0, hours: 0, minutes: 1 });
+
+      // 1.6m rounds to 2
+      const onePointSix = card._parseDurationInput('1.6m');
+      expect(onePointSix).toEqual({ days: 0, hours: 0, minutes: 2 });
+    });
+
+    test('negative sign in input is ignored (regex only matches digits)', () => {
+      // The regex \d+ doesn't match negative signs, so -1m extracts 1m
+      // This is the actual behavior - negative sign is treated as invalid prefix and ignored
+      expect(card._parseDurationInput('-1m')).toEqual({ days: 0, hours: 0, minutes: 1 });
+      expect(card._parseDurationInput('-1h')).toEqual({ days: 0, hours: 1, minutes: 0 });
+      expect(card._parseDurationInput('-1d')).toEqual({ days: 1, hours: 0, minutes: 0 });
+    });
+
+    test('plain negative number returns null', () => {
+      // Plain negative number without unit returns null (plainNum <= 0 check)
+      expect(card._parseDurationInput('-5')).toBeNull();
+      expect(card._parseDurationInput('-100')).toBeNull();
+    });
+
+    test('parseFloat verification for decimal parsing', () => {
+      // 1.5h = 90 minutes
+      const result = card._parseDurationInput('1.5h');
+      expect(result).toEqual({ days: 0, hours: 1, minutes: 30 });
+      // Not { hours: 1, minutes: 0.5 } or similar
+      expect(result.minutes).toBe(30);
+      expect(Number.isInteger(result.minutes)).toBe(true);
+    });
   });
 });
 
@@ -698,6 +807,56 @@ describe('Formatting', () => {
       const result = card._formatCountdown(futureTime);
       // Should show 1d format
       expect(result).toMatch(/^1d 1h 1m$/);
+    });
+
+    // formatDurationShort tests (previously missing) - tests utility function directly
+    test('formatDurationShort formats single units correctly', () => {
+      expect(formatDurationShort(1, 0, 0)).toBe('1d');
+      expect(formatDurationShort(0, 1, 0)).toBe('1h');
+      expect(formatDurationShort(0, 0, 1)).toBe('1m');
+    });
+
+    test('formatDurationShort formats multiple units with spaces', () => {
+      expect(formatDurationShort(1, 2, 30)).toBe('1d 2h 30m');
+      expect(formatDurationShort(0, 2, 30)).toBe('2h 30m');
+      expect(formatDurationShort(1, 0, 30)).toBe('1d 30m');
+      expect(formatDurationShort(1, 2, 0)).toBe('1d 2h');
+    });
+
+    test('formatDurationShort returns "0m" for all zeros', () => {
+      expect(formatDurationShort(0, 0, 0)).toBe('0m');
+    });
+
+    test('formatDurationShort omits zero units', () => {
+      const result = formatDurationShort(1, 0, 30);
+      expect(result).toBe('1d 30m');
+      expect(result).not.toContain('h');
+      expect(result.split(' ').length).toBe(2);
+    });
+
+    test('formatDurationShort uses correct unit suffixes', () => {
+      const result = formatDurationShort(2, 3, 45);
+      expect(result).toBe('2d 3h 45m');
+      expect(result).toContain('d');
+      expect(result).toContain('h');
+      expect(result).toContain('m');
+      // No pluralization in short format
+      expect(result).not.toContain('days');
+      expect(result).not.toContain('hours');
+      expect(result).not.toContain('minutes');
+    });
+
+    test('formatDurationShort space separator verification', () => {
+      const result = formatDurationShort(1, 2, 3);
+      expect(result).toBe('1d 2h 3m');
+      // Single space between parts
+      expect(result).not.toContain('  ');
+      // Parts join with space
+      const parts = result.split(' ');
+      expect(parts).toHaveLength(3);
+      expect(parts[0]).toBe('1d');
+      expect(parts[1]).toBe('2h');
+      expect(parts[2]).toBe('3m');
     });
   });
 });
@@ -1645,6 +1804,62 @@ describe('Backend Error Schema Alignment', () => {
       expect(card._getErrorMessage(undefined, 'Fallback')).toBe(
         'Fallback. Check Home Assistant logs for details.'
       );
+    });
+
+    // Mutation-killing tests for error message edge cases
+    test('fallback message includes exact suffix format', () => {
+      const result = card._getErrorMessage({}, 'Something failed');
+      expect(result).toBe('Something failed. Check Home Assistant logs for details.');
+      expect(result).toContain('. Check');
+      expect(result).toContain('Home Assistant');
+      expect(result).toContain('logs');
+      expect(result).toContain('for details.');
+      expect(result.endsWith('.')).toBe(true);
+    });
+
+    test('translation_key from data property takes precedence', () => {
+      const error = { data: { translation_key: 'not_automation' } };
+      const result = card._getErrorMessage(error, 'Default');
+      expect(result).toBe('Failed to snooze: One or more selected items are not automations');
+      expect(result).not.toContain('Default');
+      expect(result).not.toContain('Check Home Assistant');
+    });
+
+    test('translation_key at root takes precedence over message matching', () => {
+      const error = { translation_key: 'invalid_duration', message: 'some other text' };
+      const result = card._getErrorMessage(error, 'Default');
+      expect(result).toBe('Failed to snooze: Please specify a valid duration (days, hours, or minutes)');
+    });
+
+    test('message pattern matching finds key substrings', () => {
+      // Test that pattern matching works for message containing translation key
+      const error = { message: 'Error: not_automation entity detected' };
+      const result = card._getErrorMessage(error, 'Default');
+      expect(result).toBe('Failed to snooze: One or more selected items are not automations');
+    });
+
+    test('message pattern matching is case-insensitive with underscore conversion', () => {
+      // Key "not_automation" should match "not automation" in message
+      const error = { message: 'Found not automation in list' };
+      const result = card._getErrorMessage(error, 'Default');
+      expect(result).toBe('Failed to snooze: One or more selected items are not automations');
+    });
+
+    test('empty object error returns default with suffix', () => {
+      const result = card._getErrorMessage({}, 'Operation failed');
+      expect(result).toBe('Operation failed. Check Home Assistant logs for details.');
+    });
+
+    test('error with empty message returns default with suffix', () => {
+      const error = { message: '' };
+      const result = card._getErrorMessage(error, 'Action failed');
+      expect(result).toBe('Action failed. Check Home Assistant logs for details.');
+    });
+
+    test('error with unmatched translation_key returns default with suffix', () => {
+      const error = { translation_key: 'unknown_key_xyz' };
+      const result = card._getErrorMessage(error, 'Unknown error');
+      expect(result).toBe('Unknown error. Check Home Assistant logs for details.');
     });
   });
 });

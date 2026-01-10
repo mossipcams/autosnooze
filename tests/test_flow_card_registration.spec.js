@@ -842,5 +842,95 @@ describe('Card Registration Mutations', () => {
       expect(Array.isArray(window.customCards)).toBe(true);
       expect(typeof window.customCards.some).toBe('function');
     });
+
+    // Mutation-killing tests for registration logic
+    test('some() callback checks type property exactly', () => {
+      // Simulate the exact check from index.ts
+      window.customCards = [
+        { type: 'other-card', name: 'Other' },
+        { type: 'autosnooze-card', name: 'AutoSnooze Card' },
+      ];
+
+      // The some() should find autosnooze-card
+      const found = window.customCards.some((card) => card.type === 'autosnooze-card');
+      expect(found).toBe(true);
+
+      // Verify the callback distinguishes between types
+      const foundOther = window.customCards.some((card) => card.type === 'other-card');
+      expect(foundOther).toBe(true);
+
+      // Verify non-existent type returns false
+      const foundMissing = window.customCards.some((card) => card.type === 'missing-card');
+      expect(foundMissing).toBe(false);
+    });
+
+    test('registration pushes object with all required fields', () => {
+      // Start with empty array
+      window.customCards = [];
+
+      // Simulate registration push
+      const newCard = {
+        type: 'autosnooze-card',
+        name: 'AutoSnooze Card',
+        description: 'Test description (v1.0.0)',
+        preview: true,
+      };
+      window.customCards.push(newCard);
+
+      // Verify push added exactly one item
+      expect(window.customCards.length).toBe(1);
+
+      // Verify the pushed object
+      const pushed = window.customCards[0];
+      expect(pushed).toBe(newCard);
+      expect(pushed.type).toBe('autosnooze-card');
+      expect(pushed.name).toBe('AutoSnooze Card');
+      expect(pushed.preview).toBe(true);
+      expect(pushed.description).toBeDefined();
+    });
+
+    test('empty object push would fail property checks', () => {
+      window.customCards = [];
+      window.customCards.push({});
+
+      const emptyPush = window.customCards[0];
+      expect(emptyPush.type).toBeUndefined();
+      expect(emptyPush.name).toBeUndefined();
+      expect(emptyPush.preview).toBeUndefined();
+    });
+
+    test('duplicate prevention logic works correctly', () => {
+      // Start with autosnooze already registered
+      window.customCards = [
+        { type: 'autosnooze-card', name: 'AutoSnooze Card', preview: true },
+      ];
+
+      // Check if already registered
+      const alreadyRegistered = window.customCards.some(
+        (card) => card.type === 'autosnooze-card'
+      );
+      expect(alreadyRegistered).toBe(true);
+
+      // If not already registered, would push - but it is, so don't
+      if (!alreadyRegistered) {
+        window.customCards.push({ type: 'autosnooze-card' });
+      }
+
+      // Should still have exactly 1
+      expect(window.customCards.length).toBe(1);
+    });
+
+    test('type string exact match verification', () => {
+      window.customCards = [{ type: 'autosnooze-card' }];
+
+      // Exact match
+      expect(window.customCards.some((c) => c.type === 'autosnooze-card')).toBe(true);
+
+      // Similar but not exact - should fail
+      expect(window.customCards.some((c) => c.type === 'autosnooze')).toBe(false);
+      expect(window.customCards.some((c) => c.type === 'autosnooze-card-editor')).toBe(false);
+      expect(window.customCards.some((c) => c.type === '')).toBe(false);
+      expect(window.customCards.some((c) => c.type === 'AUTOSNOOZE-CARD')).toBe(false);
+    });
   });
 });

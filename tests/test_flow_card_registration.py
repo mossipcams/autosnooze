@@ -461,5 +461,3 @@ class TestRetryOrFail:
 
         result = await _async_retry_or_fail(LOVELACE_REGISTER_MAX_RETRIES, "Test condition")
         assert result is False
-
-
