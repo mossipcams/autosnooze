@@ -338,3 +338,352 @@ class TestCancelAllService:
     async def test_cancel_all_succeeds_with_nothing_paused(self, hass: HomeAssistant, setup_integration) -> None:
         """Test cancel_all succeeds when nothing is paused."""
         await hass.services.async_call(DOMAIN, "cancel_all", {}, blocking=True)
+
+
+# =============================================================================
+# Mutation-Killing Tests for Waking Operations
+# =============================================================================
+
+
+class TestCancelTimerMutations:
+    """Mutation-killing tests for cancel_timer and related functions."""
+
+    def test_cancel_timer_uses_correct_entity_id(self) -> None:
+        """Test that cancel_timer uses the provided entity_id, not None.
+
+        Catches mutation: cancel_timer(data, entity_id) -> cancel_timer(data, None)
+        """
+        mock_cancel_1 = MagicMock()
+        mock_cancel_2 = MagicMock()
+        mock_store = MagicMock()
+        data = AutomationPauseData(store=mock_store)
+        data.timers["automation.entity_1"] = mock_cancel_1
+        data.timers["automation.entity_2"] = mock_cancel_2
+
+        # Cancel only entity_1 - entity_2 should remain
+        cancel_timer(data, "automation.entity_1")
+
+        assert "automation.entity_1" not in data.timers
+        assert "automation.entity_2" in data.timers
+        mock_cancel_1.assert_called_once()
+        mock_cancel_2.assert_not_called()
+
+    def test_cancel_timer_handles_missing_key_gracefully(self) -> None:
+        """Test that cancel_timer handles non-existent key without error.
+
+        Catches mutation: timers.pop(entity_id, None) -> timers.pop(entity_id, )
+        """
+        mock_store = MagicMock()
+        data = AutomationPauseData(store=mock_store)
+        data.timers["automation.other"] = MagicMock()
+
+        # Cancel non-existent entity - should not raise
+        cancel_timer(data, "automation.nonexistent")
+
+        # Other timers should be unaffected
+        assert "automation.other" in data.timers
+
+
+class TestAsyncResumeMutations:
+    """Mutation-killing tests for async_resume function."""
+
+    @pytest.mark.asyncio
+    async def test_resume_cancels_timer_with_correct_entity_id(self) -> None:
+        """Test resume cancels the correct entity's timer.
+
+        Catches mutation: cancel_timer(data, entity_id) -> cancel_timer(data, None)
+        """
+        mock_hass = MagicMock()
+        mock_hass.services.async_call = AsyncMock()
+        mock_hass.states.get.return_value = MagicMock()
+
+        mock_store = MagicMock()
+        mock_store.async_save = AsyncMock()
+        data = AutomationPauseData(store=mock_store)
+
+        mock_cancel_1 = MagicMock()
+        mock_cancel_2 = MagicMock()
+        data.timers["automation.test1"] = mock_cancel_1
+        data.timers["automation.test2"] = mock_cancel_2
+
+        now = datetime.now(UTC)
+        data.paused["automation.test1"] = PausedAutomation(
+            entity_id="automation.test1",
+            friendly_name="Test 1",
+            resume_at=now + timedelta(hours=1),
+            paused_at=now,
+            days=0,
+            hours=1,
+            minutes=0,
+        )
+
+        await async_resume(mock_hass, data, "automation.test1")
+
+        # Only test1's timer should be cancelled
+        mock_cancel_1.assert_called_once()
+        mock_cancel_2.assert_not_called()
+        assert "automation.test2" in data.timers
+
+    @pytest.mark.asyncio
+    async def test_resume_removes_correct_entity_from_paused(self) -> None:
+        """Test resume removes only the specified entity from paused dict.
+
+        Catches mutation: data.paused.pop(entity_id, None) -> data.paused.pop(None, None)
+        """
+        mock_hass = MagicMock()
+        mock_hass.services.async_call = AsyncMock()
+        mock_hass.states.get.return_value = MagicMock()
+
+        mock_store = MagicMock()
+        mock_store.async_save = AsyncMock()
+        data = AutomationPauseData(store=mock_store)
+
+        now = datetime.now(UTC)
+        for entity_id in ["automation.test1", "automation.test2"]:
+            data.paused[entity_id] = PausedAutomation(
+                entity_id=entity_id,
+                friendly_name=entity_id,
+                resume_at=now + timedelta(hours=1),
+                paused_at=now,
+                days=0,
+                hours=1,
+                minutes=0,
+            )
+
+        await async_resume(mock_hass, data, "automation.test1")
+
+        # Only test1 should be removed
+        assert "automation.test1" not in data.paused
+        assert "automation.test2" in data.paused
+
+    @pytest.mark.asyncio
+    async def test_resume_handles_missing_entity_gracefully(self) -> None:
+        """Test resume handles entity not in paused dict.
+
+        Catches mutation: data.paused.pop(entity_id, None) -> data.paused.pop(entity_id, )
+        """
+        mock_hass = MagicMock()
+        mock_hass.services.async_call = AsyncMock()
+        mock_hass.states.get.return_value = MagicMock()
+
+        mock_store = MagicMock()
+        mock_store.async_save = AsyncMock()
+        data = AutomationPauseData(store=mock_store)
+
+        # Should not raise even though entity is not paused
+        await async_resume(mock_hass, data, "automation.not_paused")
+
+
+class TestAsyncResumeBatchMutations:
+    """Mutation-killing tests for async_resume_batch function."""
+
+    @pytest.mark.asyncio
+    async def test_batch_resume_cancels_correct_timers(self) -> None:
+        """Test batch resume cancels timers for the correct entities.
+
+        Catches mutation: cancel_timer(data, entity_id) -> cancel_timer(data, None)
+        """
+        mock_hass = MagicMock()
+        mock_hass.services.async_call = AsyncMock()
+        mock_hass.states.get.return_value = MagicMock()
+
+        mock_store = MagicMock()
+        mock_store.async_save = AsyncMock()
+        data = AutomationPauseData(store=mock_store)
+
+        mock_cancel_1 = MagicMock()
+        mock_cancel_2 = MagicMock()
+        mock_cancel_3 = MagicMock()
+        data.timers["automation.test1"] = mock_cancel_1
+        data.timers["automation.test2"] = mock_cancel_2
+        data.timers["automation.test3"] = mock_cancel_3
+
+        now = datetime.now(UTC)
+        for entity_id in ["automation.test1", "automation.test2", "automation.test3"]:
+            data.paused[entity_id] = PausedAutomation(
+                entity_id=entity_id,
+                friendly_name=entity_id,
+                resume_at=now + timedelta(hours=1),
+                paused_at=now,
+                days=0,
+                hours=1,
+                minutes=0,
+            )
+
+        # Only resume test1 and test2
+        await async_resume_batch(mock_hass, data, ["automation.test1", "automation.test2"])
+
+        # Only test1 and test2's timers should be cancelled
+        mock_cancel_1.assert_called_once()
+        mock_cancel_2.assert_called_once()
+        mock_cancel_3.assert_not_called()
+        assert "automation.test3" in data.timers
+
+    @pytest.mark.asyncio
+    async def test_batch_resume_removes_correct_entities(self) -> None:
+        """Test batch resume removes only the specified entities from paused dict."""
+        mock_hass = MagicMock()
+        mock_hass.services.async_call = AsyncMock()
+        mock_hass.states.get.return_value = MagicMock()
+
+        mock_store = MagicMock()
+        mock_store.async_save = AsyncMock()
+        data = AutomationPauseData(store=mock_store)
+
+        now = datetime.now(UTC)
+        for entity_id in ["automation.test1", "automation.test2", "automation.test3"]:
+            data.paused[entity_id] = PausedAutomation(
+                entity_id=entity_id,
+                friendly_name=entity_id,
+                resume_at=now + timedelta(hours=1),
+                paused_at=now,
+                days=0,
+                hours=1,
+                minutes=0,
+            )
+
+        # Only resume test1 and test2
+        await async_resume_batch(mock_hass, data, ["automation.test1", "automation.test2"])
+
+        assert "automation.test1" not in data.paused
+        assert "automation.test2" not in data.paused
+        assert "automation.test3" in data.paused
+
+    @pytest.mark.asyncio
+    async def test_batch_resume_handles_missing_entities(self) -> None:
+        """Test batch resume handles entities not in paused dict.
+
+        Catches mutation: data.paused.pop(entity_id, None) -> data.paused.pop(entity_id, )
+        """
+        mock_hass = MagicMock()
+        mock_hass.services.async_call = AsyncMock()
+        mock_hass.states.get.return_value = MagicMock()
+
+        mock_store = MagicMock()
+        mock_store.async_save = AsyncMock()
+        data = AutomationPauseData(store=mock_store)
+
+        now = datetime.now(UTC)
+        data.paused["automation.test1"] = PausedAutomation(
+            entity_id="automation.test1",
+            friendly_name="Test 1",
+            resume_at=now + timedelta(hours=1),
+            paused_at=now,
+            days=0,
+            hours=1,
+            minutes=0,
+        )
+
+        # Include both existing and non-existing entities
+        # Should not raise
+        await async_resume_batch(
+            mock_hass, data, ["automation.test1", "automation.not_paused"]
+        )
+
+        assert "automation.test1" not in data.paused
+
+    @pytest.mark.asyncio
+    async def test_batch_resume_saves_data_once(self) -> None:
+        """Test batch resume only saves once, not per entity."""
+        mock_hass = MagicMock()
+        mock_hass.services.async_call = AsyncMock()
+        mock_hass.states.get.return_value = MagicMock()
+
+        mock_store = MagicMock()
+        mock_store.async_save = AsyncMock()
+        data = AutomationPauseData(store=mock_store)
+
+        now = datetime.now(UTC)
+        for i in range(5):
+            entity_id = f"automation.test{i}"
+            data.paused[entity_id] = PausedAutomation(
+                entity_id=entity_id,
+                friendly_name=f"Test {i}",
+                resume_at=now + timedelta(hours=1),
+                paused_at=now,
+                days=0,
+                hours=1,
+                minutes=0,
+            )
+
+        await async_resume_batch(
+            mock_hass, data,
+            [f"automation.test{i}" for i in range(5)]
+        )
+
+        # Should only save once
+        assert mock_store.async_save.call_count == 1
+
+    @pytest.mark.asyncio
+    async def test_batch_resume_calls_service_with_correct_entity_ids(self) -> None:
+        """Test batch resume calls turn_on with correct entity_id for each entity.
+
+        Catches mutation: async_set_automation_state(hass, entity_id, ...) ->
+                          async_set_automation_state(hass, None, ...)
+        """
+        mock_hass = MagicMock()
+        mock_hass.services.async_call = AsyncMock()
+        mock_hass.states.get.return_value = MagicMock()
+
+        mock_store = MagicMock()
+        mock_store.async_save = AsyncMock()
+        data = AutomationPauseData(store=mock_store)
+
+        now = datetime.now(UTC)
+        for entity_id in ["automation.test1", "automation.test2"]:
+            data.paused[entity_id] = PausedAutomation(
+                entity_id=entity_id,
+                friendly_name=entity_id,
+                resume_at=now + timedelta(hours=1),
+                paused_at=now,
+                days=0,
+                hours=1,
+                minutes=0,
+            )
+
+        await async_resume_batch(mock_hass, data, ["automation.test1", "automation.test2"])
+
+        # Verify correct entity_ids were passed to service calls
+        call_args_list = mock_hass.services.async_call.call_args_list
+        entity_ids_called = []
+        for call in call_args_list:
+            # Call format: async_call(domain, service, {entity_id: x}, blocking=True)
+            service_data = call[0][2] if len(call[0]) > 2 else call.kwargs.get("service_data", {})
+            if ATTR_ENTITY_ID in service_data:
+                entity_ids_called.append(service_data[ATTR_ENTITY_ID])
+        assert "automation.test1" in entity_ids_called
+        assert "automation.test2" in entity_ids_called
+
+    @pytest.mark.asyncio
+    async def test_batch_resume_calls_service_with_enabled_true(self) -> None:
+        """Test batch resume calls turn_on service (enabled=True).
+
+        Catches mutation: async_set_automation_state(hass, entity_id, enabled=True) ->
+                          async_set_automation_state(hass, entity_id, enabled=None)
+        """
+        mock_hass = MagicMock()
+        mock_hass.services.async_call = AsyncMock()
+        mock_hass.states.get.return_value = MagicMock()
+
+        mock_store = MagicMock()
+        mock_store.async_save = AsyncMock()
+        data = AutomationPauseData(store=mock_store)
+
+        now = datetime.now(UTC)
+        data.paused["automation.test"] = PausedAutomation(
+            entity_id="automation.test",
+            friendly_name="Test",
+            resume_at=now + timedelta(hours=1),
+            paused_at=now,
+            days=0,
+            hours=1,
+            minutes=0,
+        )
+
+        await async_resume_batch(mock_hass, data, ["automation.test"])
+
+        # Verify turn_on was called (not turn_off)
+        mock_hass.services.async_call.assert_called()
+        call_args = mock_hass.services.async_call.call_args
+        assert call_args[0][0] == "automation"
+        assert call_args[0][1] == "turn_on"  # This verifies enabled=True path

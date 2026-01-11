@@ -399,3 +399,158 @@ class TestCancelScheduledService:
             {ATTR_ENTITY_ID: "automation.test"},
             blocking=True,
         )
+
+
+# =============================================================================
+# Mutation-Killing Tests for Scheduled Snooze Operations
+# =============================================================================
+
+
+class TestAsyncCancelScheduledMutations:
+    """Mutation-killing tests for async_cancel_scheduled functions."""
+
+    @pytest.mark.asyncio
+    async def test_cancel_scheduled_cancels_correct_timer(self) -> None:
+        """Test async_cancel_scheduled cancels timer for the correct entity.
+
+        Catches mutation: cancel_scheduled_timer(data, entity_id) ->
+                          cancel_scheduled_timer(data, None)
+        """
+        mock_hass = MagicMock()
+
+        mock_store = MagicMock()
+        mock_store.async_save = AsyncMock()
+        data = AutomationPauseData(store=mock_store)
+
+        mock_cancel_1 = MagicMock()
+        mock_cancel_2 = MagicMock()
+        data.scheduled_timers["automation.test1"] = mock_cancel_1
+        data.scheduled_timers["automation.test2"] = mock_cancel_2
+
+        now = datetime.now(UTC)
+        for entity_id in ["automation.test1", "automation.test2"]:
+            data.scheduled[entity_id] = ScheduledSnooze(
+                entity_id=entity_id,
+                friendly_name=entity_id,
+                disable_at=now + timedelta(hours=1),
+                resume_at=now + timedelta(hours=2),
+            )
+
+        await async_cancel_scheduled(mock_hass, data, "automation.test1")
+
+        # Only test1's timer should be cancelled
+        mock_cancel_1.assert_called_once()
+        mock_cancel_2.assert_not_called()
+        assert "automation.test2" in data.scheduled_timers
+
+    @pytest.mark.asyncio
+    async def test_cancel_scheduled_batch_cancels_correct_timers(self) -> None:
+        """Test async_cancel_scheduled_batch cancels timers for correct entities.
+
+        Catches mutation: cancel_scheduled_timer(data, entity_id) ->
+                          cancel_scheduled_timer(data, None)
+        """
+        mock_hass = MagicMock()
+
+        mock_store = MagicMock()
+        mock_store.async_save = AsyncMock()
+        data = AutomationPauseData(store=mock_store)
+
+        mock_cancel_1 = MagicMock()
+        mock_cancel_2 = MagicMock()
+        mock_cancel_3 = MagicMock()
+        data.scheduled_timers["automation.test1"] = mock_cancel_1
+        data.scheduled_timers["automation.test2"] = mock_cancel_2
+        data.scheduled_timers["automation.test3"] = mock_cancel_3
+
+        now = datetime.now(UTC)
+        for entity_id in ["automation.test1", "automation.test2", "automation.test3"]:
+            data.scheduled[entity_id] = ScheduledSnooze(
+                entity_id=entity_id,
+                friendly_name=entity_id,
+                disable_at=now + timedelta(hours=1),
+                resume_at=now + timedelta(hours=2),
+            )
+
+        # Only cancel test1 and test2
+        await async_cancel_scheduled_batch(mock_hass, data, ["automation.test1", "automation.test2"])
+
+        # Only test1 and test2's timers should be cancelled
+        mock_cancel_1.assert_called_once()
+        mock_cancel_2.assert_called_once()
+        mock_cancel_3.assert_not_called()
+        assert "automation.test3" in data.scheduled_timers
+
+
+class TestAsyncExecuteScheduledDisableMutations:
+    """Mutation-killing tests for async_execute_scheduled_disable function."""
+
+    @pytest.mark.asyncio
+    async def test_execute_scheduled_disable_cancels_correct_timer(self) -> None:
+        """Test async_execute_scheduled_disable cancels timer for correct entity.
+
+        Catches mutation: cancel_scheduled_timer(data, entity_id) ->
+                          cancel_scheduled_timer(data, None)
+        """
+        mock_hass = MagicMock()
+        mock_hass.services.async_call = AsyncMock()
+        mock_hass.states.get.return_value = MagicMock(attributes={"friendly_name": "Test"})
+
+        mock_store = MagicMock()
+        mock_store.async_save = AsyncMock()
+        data = AutomationPauseData(store=mock_store)
+
+        mock_cancel_1 = MagicMock()
+        mock_cancel_2 = MagicMock()
+        data.scheduled_timers["automation.test1"] = mock_cancel_1
+        data.scheduled_timers["automation.test2"] = mock_cancel_2
+
+        now = datetime.now(UTC)
+        resume_at = now + timedelta(hours=1)
+        for entity_id in ["automation.test1", "automation.test2"]:
+            data.scheduled[entity_id] = ScheduledSnooze(
+                entity_id=entity_id,
+                friendly_name=entity_id,
+                disable_at=now,
+                resume_at=resume_at,
+            )
+
+        with patch("custom_components.autosnooze.coordinator.schedule_resume"):
+            await async_execute_scheduled_disable(mock_hass, data, "automation.test1", resume_at)
+
+        # Only test1's timer should be cancelled
+        mock_cancel_1.assert_called_once()
+        mock_cancel_2.assert_not_called()
+        assert "automation.test2" in data.scheduled_timers
+
+    @pytest.mark.asyncio
+    async def test_execute_scheduled_disable_pops_correct_entity(self) -> None:
+        """Test async_execute_scheduled_disable removes the correct entity from scheduled.
+
+        Catches mutation: data.scheduled.pop(entity_id, None) ->
+                          data.scheduled.pop(None, None)
+        """
+        mock_hass = MagicMock()
+        mock_hass.services.async_call = AsyncMock()
+        mock_hass.states.get.return_value = MagicMock(attributes={"friendly_name": "Test"})
+
+        mock_store = MagicMock()
+        mock_store.async_save = AsyncMock()
+        data = AutomationPauseData(store=mock_store)
+
+        now = datetime.now(UTC)
+        resume_at = now + timedelta(hours=1)
+        for entity_id in ["automation.test1", "automation.test2"]:
+            data.scheduled[entity_id] = ScheduledSnooze(
+                entity_id=entity_id,
+                friendly_name=entity_id,
+                disable_at=now,
+                resume_at=resume_at,
+            )
+
+        with patch("custom_components.autosnooze.coordinator.schedule_resume"):
+            await async_execute_scheduled_disable(mock_hass, data, "automation.test1", resume_at)
+
+        # Only test1 should be removed from scheduled
+        assert "automation.test1" not in data.scheduled
+        assert "automation.test2" in data.scheduled
