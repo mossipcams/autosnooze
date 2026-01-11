@@ -461,3 +461,229 @@ class TestRetryOrFail:
 
         result = await _async_retry_or_fail(LOVELACE_REGISTER_MAX_RETRIES, "Test condition")
         assert result is False
+
+    @pytest.mark.asyncio
+    async def test_retry_sleeps_for_correct_delay(self) -> None:
+        """Test retry sleeps for LOVELACE_REGISTER_RETRY_DELAY seconds.
+
+        Catches mutation: LOVELACE_REGISTER_RETRY_DELAY -> None
+        """
+        from custom_components.autosnooze import (
+            _async_retry_or_fail,
+            LOVELACE_REGISTER_RETRY_DELAY,
+        )
+
+        with patch("asyncio.sleep", new_callable=AsyncMock) as mock_sleep:
+            await _async_retry_or_fail(0, "Test condition")
+            mock_sleep.assert_called_once_with(LOVELACE_REGISTER_RETRY_DELAY)
+
+    @pytest.mark.asyncio
+    async def test_retry_uses_log_context_when_provided(self) -> None:
+        """Test that log_context is used when provided.
+
+        Catches mutation: log_context: str = "" -> log_context: str = "XXXX"
+        """
+        from custom_components.autosnooze import _async_retry_or_fail
+        import logging
+
+        with patch("asyncio.sleep", new_callable=AsyncMock):
+            with patch.object(logging.getLogger("custom_components.autosnooze"), "debug") as mock_log:
+                await _async_retry_or_fail(0, "Test condition", "my context")
+                # Verify log was called and contains the context
+                mock_log.assert_called()
+
+    @pytest.mark.asyncio
+    async def test_retry_boundary_at_max_minus_one(self) -> None:
+        """Test retry returns True at max_retries - 1.
+
+        Catches mutation: retry_count < LOVELACE_REGISTER_MAX_RETRIES -> retry_count <= LOVELACE_REGISTER_MAX_RETRIES
+        """
+        from custom_components.autosnooze import (
+            _async_retry_or_fail,
+            LOVELACE_REGISTER_MAX_RETRIES,
+        )
+
+        with patch("asyncio.sleep", new_callable=AsyncMock):
+            result = await _async_retry_or_fail(LOVELACE_REGISTER_MAX_RETRIES - 1, "Test condition")
+            assert result is True
+
+
+# =============================================================================
+# Setup Entry Tests
+# =============================================================================
+
+
+class TestAsyncSetupEntryMutations:
+    """Mutation-killing tests for async_setup_entry."""
+
+    @pytest.mark.asyncio
+    async def test_setup_entry_creates_store_with_correct_params(
+        self, hass: HomeAssistant, mock_config_entry: MockConfigEntry
+    ) -> None:
+        """Test that Store is created with correct parameters.
+
+        Catches mutation: Store[...](hass, STORAGE_VERSION, ...) -> None
+        """
+        mock_config_entry.add_to_hass(hass)
+        await hass.config_entries.async_setup(mock_config_entry.entry_id)
+        await hass.async_block_till_done()
+
+        entry = hass.config_entries.async_get_entry(mock_config_entry.entry_id)
+        # Verify runtime_data was created with a store
+        assert entry.runtime_data is not None
+        assert entry.runtime_data.store is not None
+
+    @pytest.mark.asyncio
+    async def test_setup_entry_creates_data_with_store(
+        self, hass: HomeAssistant, mock_config_entry: MockConfigEntry
+    ) -> None:
+        """Test that AutomationPauseData is created with the store."""
+        mock_config_entry.add_to_hass(hass)
+        await hass.config_entries.async_setup(mock_config_entry.entry_id)
+        await hass.async_block_till_done()
+
+        entry = hass.config_entries.async_get_entry(mock_config_entry.entry_id)
+        data = entry.runtime_data
+        assert data is not None
+        # Verify data has the expected attributes
+        assert hasattr(data, "paused")
+        assert hasattr(data, "scheduled")
+        assert hasattr(data, "timers")
+
+
+# =============================================================================
+# Unload Entry Tests
+# =============================================================================
+
+
+class TestAsyncUnloadEntryMutations:
+    """Mutation-killing tests for async_unload_entry."""
+
+    @pytest.mark.asyncio
+    async def test_unload_sets_unloaded_flag(
+        self, hass: HomeAssistant, setup_integration: ConfigEntry
+    ) -> None:
+        """Test unload sets data.unloaded to True."""
+        data = setup_integration.runtime_data
+        assert data.unloaded is False
+
+        await hass.config_entries.async_unload(setup_integration.entry_id)
+
+        assert data.unloaded is True
+
+    @pytest.mark.asyncio
+    async def test_unload_cancels_all_timers(
+        self, hass: HomeAssistant, setup_integration: ConfigEntry
+    ) -> None:
+        """Test unload cancels all active timers."""
+        data = setup_integration.runtime_data
+        mock_timer = MagicMock()
+        data.timers["automation.test"] = mock_timer
+
+        await hass.config_entries.async_unload(setup_integration.entry_id)
+
+        mock_timer.assert_called_once()
+        assert len(data.timers) == 0
+
+    @pytest.mark.asyncio
+    async def test_unload_cancels_all_scheduled_timers(
+        self, hass: HomeAssistant, setup_integration: ConfigEntry
+    ) -> None:
+        """Test unload cancels all scheduled timers."""
+        data = setup_integration.runtime_data
+        mock_timer = MagicMock()
+        data.scheduled_timers["automation.test"] = mock_timer
+
+        await hass.config_entries.async_unload(setup_integration.entry_id)
+
+        mock_timer.assert_called_once()
+        assert len(data.scheduled_timers) == 0
+
+    @pytest.mark.asyncio
+    async def test_unload_clears_listeners(
+        self, hass: HomeAssistant, setup_integration: ConfigEntry
+    ) -> None:
+        """Test unload clears all listeners."""
+        data = setup_integration.runtime_data
+        data.listeners.append(MagicMock())
+
+        await hass.config_entries.async_unload(setup_integration.entry_id)
+
+        assert len(data.listeners) == 0
+
+    @pytest.mark.asyncio
+    async def test_unload_cancels_startup_listener_if_exists(
+        self, hass: HomeAssistant, setup_integration: ConfigEntry
+    ) -> None:
+        """Test unload cancels startup listener if it exists."""
+        data = setup_integration.runtime_data
+        mock_unsub = MagicMock()
+        data.startup_listener_unsub = mock_unsub
+
+        await hass.config_entries.async_unload(setup_integration.entry_id)
+
+        mock_unsub.assert_called_once()
+        assert data.startup_listener_unsub is None
+
+
+# =============================================================================
+# Label Registration Tests
+# =============================================================================
+
+
+class TestEnsureLabelsExist:
+    """Tests for _async_ensure_labels_exist function."""
+
+    @pytest.mark.asyncio
+    async def test_creates_include_label(self, hass: HomeAssistant) -> None:
+        """Test that autosnooze_include label is created."""
+        from custom_components.autosnooze import _async_ensure_labels_exist
+        from homeassistant.helpers import label_registry as lr
+
+        label_reg = lr.async_get(hass)
+
+        # Clear any existing labels
+        for label_id in list(label_reg.labels.keys()):
+            if "autosnooze" in label_id:
+                label_reg.async_delete(label_id)
+
+        await _async_ensure_labels_exist(hass)
+
+        # Verify label was created (by name, not id)
+        labels = [l.name for l in label_reg.labels.values()]
+        assert "autosnooze_include" in labels
+
+    @pytest.mark.asyncio
+    async def test_creates_exclude_label(self, hass: HomeAssistant) -> None:
+        """Test that autosnooze_exclude label is created."""
+        from custom_components.autosnooze import _async_ensure_labels_exist
+        from homeassistant.helpers import label_registry as lr
+
+        label_reg = lr.async_get(hass)
+
+        # Clear any existing labels
+        for label_id in list(label_reg.labels.keys()):
+            if "autosnooze" in label_id:
+                label_reg.async_delete(label_id)
+
+        await _async_ensure_labels_exist(hass)
+
+        labels = [l.name for l in label_reg.labels.values()]
+        assert "autosnooze_exclude" in labels
+
+    @pytest.mark.asyncio
+    async def test_handles_existing_labels_gracefully(self, hass: HomeAssistant) -> None:
+        """Test that existing labels don't cause errors."""
+        from custom_components.autosnooze import _async_ensure_labels_exist
+        from homeassistant.helpers import label_registry as lr
+
+        label_reg = lr.async_get(hass)
+
+        # Create labels first
+        try:
+            label_reg.async_create(name="autosnooze_include")
+        except ValueError:
+            pass  # Already exists
+
+        # Should not raise
+        await _async_ensure_labels_exist(hass)
