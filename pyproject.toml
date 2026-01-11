@@ -79,3 +79,4 @@ show_missing = true
 [tool.mutmut]
 paths_to_mutate = ["custom_components/autosnooze/"]
 tests_dir = ["tests/"]
+also_copy = ["custom_components/"]
