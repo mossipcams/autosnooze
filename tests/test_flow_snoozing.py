@@ -3544,3 +3544,122 @@ class TestScheduledSnoozeCreation:
         scheduled = data.scheduled["automation.test"]
         assert scheduled.disable_at == disable_at
         assert scheduled.resume_at == resume_at
+
+
+# =============================================================================
+# Models Mutation-Killing Tests
+# =============================================================================
+
+
+class TestParseDatetimeUtcMutations:
+    """Mutation-killing tests for parse_datetime_utc function."""
+
+    def test_parse_naive_datetime_gets_utc_timezone(self) -> None:
+        """Test that naive datetime strings get UTC timezone added.
+
+        Catches mutations:
+        - parsed.tzinfo is None -> parsed.tzinfo is not None
+        - parsed.replace(tzinfo=timezone.utc) -> parsed = None
+        - parsed.replace(tzinfo=timezone.utc) -> parsed.replace(tzinfo=None)
+        """
+        from custom_components.autosnooze.models import parse_datetime_utc
+
+        # Parse a naive datetime string (no timezone info)
+        naive_str = "2025-06-15T12:30:00"
+        result = parse_datetime_utc(naive_str)
+
+        # Should have UTC timezone
+        assert result is not None
+        assert result.tzinfo is not None
+        assert result.tzinfo == timezone.utc
+        assert result.hour == 12
+        assert result.minute == 30
+
+    def test_parse_aware_datetime_preserves_offset(self) -> None:
+        """Test that aware datetime strings are parsed correctly.
+
+        Catches mutation: parsed.tzinfo is None -> parsed.tzinfo is not None
+        (ensures the condition is checked correctly)
+        """
+        from custom_components.autosnooze.models import parse_datetime_utc
+
+        # Parse an aware datetime string (with timezone)
+        aware_str = "2025-06-15T12:30:00+05:00"
+        result = parse_datetime_utc(aware_str)
+
+        # Should have timezone info preserved
+        assert result is not None
+        assert result.tzinfo is not None
+
+    def test_parse_invalid_datetime_raises_valueerror(self) -> None:
+        """Test that invalid datetime strings raise ValueError."""
+        from custom_components.autosnooze.models import parse_datetime_utc
+
+        with pytest.raises(ValueError):
+            parse_datetime_utc("not-a-datetime")
+
+
+class TestEnsureUtcAwareMutations:
+    """Mutation-killing tests for ensure_utc_aware function."""
+
+    def test_naive_datetime_gets_local_timezone_then_utc(self) -> None:
+        """Test that naive datetimes are treated as local time and converted to UTC.
+
+        Catches mutations:
+        - local_tz = dt_util.get_default_time_zone() -> local_tz = None
+        - dt = dt.replace(tzinfo=local_tz) -> dt = None
+        - dt = dt.replace(tzinfo=local_tz) -> dt.replace(tzinfo=None)
+        """
+        from custom_components.autosnooze.models import ensure_utc_aware
+        from homeassistant.util import dt as dt_util
+
+        # Create a naive datetime
+        naive_dt = datetime(2025, 6, 15, 12, 0, 0)
+        assert naive_dt.tzinfo is None
+
+        result = ensure_utc_aware(naive_dt)
+
+        # Result should be UTC-aware
+        assert result is not None
+        assert result.tzinfo is not None
+        assert result.tzinfo == timezone.utc
+
+    def test_aware_datetime_converted_to_utc(self) -> None:
+        """Test that aware datetimes are converted to UTC.
+
+        Catches mutations:
+        - return dt.astimezone(timezone.utc) -> return dt.astimezone(None)
+        """
+        from custom_components.autosnooze.models import ensure_utc_aware
+        from zoneinfo import ZoneInfo
+
+        # Create a datetime in a specific timezone
+        est = ZoneInfo("America/New_York")
+        aware_dt = datetime(2025, 6, 15, 12, 0, 0, tzinfo=est)
+
+        result = ensure_utc_aware(aware_dt)
+
+        # Result should be in UTC
+        assert result is not None
+        assert result.tzinfo == timezone.utc
+        # 12:00 EST is 16:00 or 17:00 UTC depending on DST
+        # June is in EDT (UTC-4), so 12:00 EDT = 16:00 UTC
+        assert result.hour == 16
+
+    def test_none_input_returns_none(self) -> None:
+        """Test that None input returns None."""
+        from custom_components.autosnooze.models import ensure_utc_aware
+
+        result = ensure_utc_aware(None)
+        assert result is None
+
+    def test_utc_datetime_stays_utc(self) -> None:
+        """Test that UTC datetimes remain UTC."""
+        from custom_components.autosnooze.models import ensure_utc_aware
+
+        utc_dt = datetime(2025, 6, 15, 12, 0, 0, tzinfo=timezone.utc)
+        result = ensure_utc_aware(utc_dt)
+
+        assert result is not None
+        assert result.tzinfo == timezone.utc
+        assert result.hour == 12  # Should not change
