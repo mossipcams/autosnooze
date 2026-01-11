@@ -2562,6 +2562,346 @@ class TestBoundaryConditions:
                 resume_at_dt=future_time,  # Same as disable_at
             )
 
+    @pytest.mark.asyncio
+    async def test_pause_resume_time_exactly_now_is_rejected(self) -> None:
+        """Test that resume_at exactly equal to now is rejected.
+
+        Catches mutation: resume_at_dt <= now -> resume_at_dt < now
+        The mutation would allow resume_at == now, but the original rejects it.
+        """
+        from custom_components.autosnooze.services import async_pause_automations
+        from homeassistant.exceptions import ServiceValidationError
+        from homeassistant.util import dt as dt_util
+
+        mock_hass = MagicMock()
+        mock_store = MagicMock()
+        data = AutomationPauseData(store=mock_store)
+
+        fixed_now = datetime.now(UTC)
+
+        with patch.object(dt_util, "utcnow", return_value=fixed_now):
+            with pytest.raises(ServiceValidationError) as exc_info:
+                await async_pause_automations(
+                    mock_hass,
+                    data,
+                    ["automation.test"],
+                    resume_at_dt=fixed_now,  # Exactly equal to now
+                )
+            assert "resume_time_past" in str(exc_info.value.translation_key)
+
+
+class TestTimedeltaCalculationMutations:
+    """Mutation-killing tests for timedelta calculations in async_pause_automations."""
+
+    @pytest.mark.asyncio
+    async def test_resume_at_uses_addition_not_subtraction(self) -> None:
+        """Test that resume_at is calculated as now + timedelta (not now - timedelta).
+
+        Catches mutation: now + timedelta(...) -> now - timedelta(...)
+        """
+        from custom_components.autosnooze.services import async_pause_automations
+        from homeassistant.util import dt as dt_util
+
+        mock_hass = MagicMock()
+        mock_hass.states.get.return_value = MagicMock(attributes={"friendly_name": "Test"})
+        mock_store = MagicMock()
+        mock_store.async_save = AsyncMock()
+        data = AutomationPauseData(store=mock_store)
+
+        fixed_now = datetime(2025, 6, 15, 12, 0, 0, tzinfo=UTC)
+
+        with (
+            patch.object(dt_util, "utcnow", return_value=fixed_now),
+            patch(
+                "custom_components.autosnooze.services.async_set_automation_state",
+                new_callable=AsyncMock,
+                return_value=True,
+            ),
+            patch("custom_components.autosnooze.services.schedule_resume") as mock_schedule,
+        ):
+            await async_pause_automations(
+                mock_hass,
+                data,
+                ["automation.test"],
+                hours=2,
+            )
+
+            # Verify resume_at is in the future (now + 2 hours), not in the past
+            mock_schedule.assert_called_once()
+            call_args = mock_schedule.call_args
+            resume_at = call_args[0][3]  # Fourth positional arg
+            assert resume_at > fixed_now
+            assert resume_at == fixed_now + timedelta(hours=2)
+
+    @pytest.mark.asyncio
+    async def test_resume_at_includes_days_parameter(self) -> None:
+        """Test that days parameter is included in timedelta.
+
+        Catches mutation: timedelta(days=days, hours=hours, minutes=minutes) ->
+                          timedelta(hours=hours, minutes=minutes)
+        """
+        from custom_components.autosnooze.services import async_pause_automations
+        from homeassistant.util import dt as dt_util
+
+        mock_hass = MagicMock()
+        mock_hass.states.get.return_value = MagicMock(attributes={"friendly_name": "Test"})
+        mock_store = MagicMock()
+        mock_store.async_save = AsyncMock()
+        data = AutomationPauseData(store=mock_store)
+
+        fixed_now = datetime(2025, 6, 15, 12, 0, 0, tzinfo=UTC)
+
+        with (
+            patch.object(dt_util, "utcnow", return_value=fixed_now),
+            patch(
+                "custom_components.autosnooze.services.async_set_automation_state",
+                new_callable=AsyncMock,
+                return_value=True,
+            ),
+            patch("custom_components.autosnooze.services.schedule_resume") as mock_schedule,
+        ):
+            await async_pause_automations(
+                mock_hass,
+                data,
+                ["automation.test"],
+                days=3,
+                hours=1,
+            )
+
+            call_args = mock_schedule.call_args
+            resume_at = call_args[0][3]
+            # Should be 3 days + 1 hour from now
+            expected = fixed_now + timedelta(days=3, hours=1)
+            assert resume_at == expected
+
+    @pytest.mark.asyncio
+    async def test_resume_at_includes_hours_parameter(self) -> None:
+        """Test that hours parameter is included in timedelta.
+
+        Catches mutation: timedelta(days=days, hours=hours, minutes=minutes) ->
+                          timedelta(days=days, minutes=minutes)
+        """
+        from custom_components.autosnooze.services import async_pause_automations
+        from homeassistant.util import dt as dt_util
+
+        mock_hass = MagicMock()
+        mock_hass.states.get.return_value = MagicMock(attributes={"friendly_name": "Test"})
+        mock_store = MagicMock()
+        mock_store.async_save = AsyncMock()
+        data = AutomationPauseData(store=mock_store)
+
+        fixed_now = datetime(2025, 6, 15, 12, 0, 0, tzinfo=UTC)
+
+        with (
+            patch.object(dt_util, "utcnow", return_value=fixed_now),
+            patch(
+                "custom_components.autosnooze.services.async_set_automation_state",
+                new_callable=AsyncMock,
+                return_value=True,
+            ),
+            patch("custom_components.autosnooze.services.schedule_resume") as mock_schedule,
+        ):
+            await async_pause_automations(
+                mock_hass,
+                data,
+                ["automation.test"],
+                days=1,
+                hours=5,
+            )
+
+            call_args = mock_schedule.call_args
+            resume_at = call_args[0][3]
+            expected = fixed_now + timedelta(days=1, hours=5)
+            assert resume_at == expected
+
+    @pytest.mark.asyncio
+    async def test_resume_at_includes_minutes_parameter(self) -> None:
+        """Test that minutes parameter is included in timedelta.
+
+        Catches mutation: timedelta(days=days, hours=hours, minutes=minutes) ->
+                          timedelta(days=days, hours=hours)
+        """
+        from custom_components.autosnooze.services import async_pause_automations
+        from homeassistant.util import dt as dt_util
+
+        mock_hass = MagicMock()
+        mock_hass.states.get.return_value = MagicMock(attributes={"friendly_name": "Test"})
+        mock_store = MagicMock()
+        mock_store.async_save = AsyncMock()
+        data = AutomationPauseData(store=mock_store)
+
+        fixed_now = datetime(2025, 6, 15, 12, 0, 0, tzinfo=UTC)
+
+        with (
+            patch.object(dt_util, "utcnow", return_value=fixed_now),
+            patch(
+                "custom_components.autosnooze.services.async_set_automation_state",
+                new_callable=AsyncMock,
+                return_value=True,
+            ),
+            patch("custom_components.autosnooze.services.schedule_resume") as mock_schedule,
+        ):
+            await async_pause_automations(
+                mock_hass,
+                data,
+                ["automation.test"],
+                hours=2,
+                minutes=30,
+            )
+
+            call_args = mock_schedule.call_args
+            resume_at = call_args[0][3]
+            expected = fixed_now + timedelta(hours=2, minutes=30)
+            assert resume_at == expected
+
+
+class TestScheduleDisableParameterMutations:
+    """Mutation-killing tests for schedule_disable call parameters."""
+
+    @pytest.mark.asyncio
+    async def test_schedule_disable_receives_correct_hass(self) -> None:
+        """Test that schedule_disable is called with correct hass parameter.
+
+        Catches mutation: schedule_disable(hass, ...) -> schedule_disable(None, ...)
+        """
+        from custom_components.autosnooze.services import async_pause_automations
+        from homeassistant.util import dt as dt_util
+
+        mock_hass = MagicMock()
+        mock_hass.states.get.return_value = MagicMock(attributes={"friendly_name": "Test"})
+        mock_store = MagicMock()
+        mock_store.async_save = AsyncMock()
+        data = AutomationPauseData(store=mock_store)
+
+        fixed_now = datetime(2025, 6, 15, 12, 0, 0, tzinfo=UTC)
+        disable_at = fixed_now + timedelta(hours=1)
+        resume_at = fixed_now + timedelta(hours=2)
+
+        with (
+            patch.object(dt_util, "utcnow", return_value=fixed_now),
+            patch("custom_components.autosnooze.services.schedule_disable") as mock_schedule,
+        ):
+            await async_pause_automations(
+                mock_hass,
+                data,
+                ["automation.test"],
+                disable_at=disable_at,
+                resume_at_dt=resume_at,
+            )
+
+            mock_schedule.assert_called_once()
+            call_args = mock_schedule.call_args
+            assert call_args[0][0] is mock_hass
+
+    @pytest.mark.asyncio
+    async def test_schedule_disable_receives_correct_data(self) -> None:
+        """Test that schedule_disable is called with correct data parameter.
+
+        Catches mutation: schedule_disable(hass, data, ...) -> schedule_disable(hass, None, ...)
+        """
+        from custom_components.autosnooze.services import async_pause_automations
+        from homeassistant.util import dt as dt_util
+
+        mock_hass = MagicMock()
+        mock_hass.states.get.return_value = MagicMock(attributes={"friendly_name": "Test"})
+        mock_store = MagicMock()
+        mock_store.async_save = AsyncMock()
+        data = AutomationPauseData(store=mock_store)
+
+        fixed_now = datetime(2025, 6, 15, 12, 0, 0, tzinfo=UTC)
+        disable_at = fixed_now + timedelta(hours=1)
+        resume_at = fixed_now + timedelta(hours=2)
+
+        with (
+            patch.object(dt_util, "utcnow", return_value=fixed_now),
+            patch("custom_components.autosnooze.services.schedule_disable") as mock_schedule,
+        ):
+            await async_pause_automations(
+                mock_hass,
+                data,
+                ["automation.test"],
+                disable_at=disable_at,
+                resume_at_dt=resume_at,
+            )
+
+            mock_schedule.assert_called_once()
+            call_args = mock_schedule.call_args
+            assert call_args[0][1] is data
+
+    @pytest.mark.asyncio
+    async def test_schedule_disable_receives_correct_entity_id(self) -> None:
+        """Test that schedule_disable is called with correct entity_id.
+
+        Catches mutation: schedule_disable(..., entity_id, ...) -> schedule_disable(..., None, ...)
+        """
+        from custom_components.autosnooze.services import async_pause_automations
+        from homeassistant.util import dt as dt_util
+
+        mock_hass = MagicMock()
+        mock_hass.states.get.return_value = MagicMock(attributes={"friendly_name": "Test"})
+        mock_store = MagicMock()
+        mock_store.async_save = AsyncMock()
+        data = AutomationPauseData(store=mock_store)
+
+        fixed_now = datetime(2025, 6, 15, 12, 0, 0, tzinfo=UTC)
+        disable_at = fixed_now + timedelta(hours=1)
+        resume_at = fixed_now + timedelta(hours=2)
+
+        with (
+            patch.object(dt_util, "utcnow", return_value=fixed_now),
+            patch("custom_components.autosnooze.services.schedule_disable") as mock_schedule,
+        ):
+            await async_pause_automations(
+                mock_hass,
+                data,
+                ["automation.specific_test"],
+                disable_at=disable_at,
+                resume_at_dt=resume_at,
+            )
+
+            mock_schedule.assert_called_once()
+            call_args = mock_schedule.call_args
+            assert call_args[0][2] == "automation.specific_test"
+
+    @pytest.mark.asyncio
+    async def test_schedule_disable_receives_correct_scheduled_snooze(self) -> None:
+        """Test that schedule_disable is called with correct ScheduledSnooze.
+
+        Catches mutation: schedule_disable(..., scheduled) -> schedule_disable(..., None)
+        """
+        from custom_components.autosnooze.services import async_pause_automations
+        from homeassistant.util import dt as dt_util
+
+        mock_hass = MagicMock()
+        mock_hass.states.get.return_value = MagicMock(attributes={"friendly_name": "Test"})
+        mock_store = MagicMock()
+        mock_store.async_save = AsyncMock()
+        data = AutomationPauseData(store=mock_store)
+
+        fixed_now = datetime(2025, 6, 15, 12, 0, 0, tzinfo=UTC)
+        disable_at = fixed_now + timedelta(hours=1)
+        resume_at = fixed_now + timedelta(hours=2)
+
+        with (
+            patch.object(dt_util, "utcnow", return_value=fixed_now),
+            patch("custom_components.autosnooze.services.schedule_disable") as mock_schedule,
+        ):
+            await async_pause_automations(
+                mock_hass,
+                data,
+                ["automation.test"],
+                disable_at=disable_at,
+                resume_at_dt=resume_at,
+            )
+
+            mock_schedule.assert_called_once()
+            call_args = mock_schedule.call_args
+            scheduled = call_args[0][3]
+            assert scheduled is not None
+            assert scheduled.entity_id == "automation.test"
+            assert scheduled.disable_at == disable_at
+            assert scheduled.resume_at == resume_at
+
 
 class TestAsyncSaveMutations:
     """Mutation-killing tests for async_save function."""
