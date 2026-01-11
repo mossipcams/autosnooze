@@ -262,12 +262,28 @@ class TestAsyncUnloadEntry:
 
     @pytest.mark.asyncio
     async def test_unload_entry_removes_services(self, hass: HomeAssistant, setup_integration: ConfigEntry) -> None:
-        """Test unload removes services."""
+        """Test unload removes all 6 services.
+
+        Kills mutants: __init__.py service name mutations (13, 15, 17-23)
+        Each service name must be exactly correct or async_remove fails silently.
+        """
+        # Verify all services exist before unload
+        assert hass.services.has_service(DOMAIN, "pause")
+        assert hass.services.has_service(DOMAIN, "cancel")
+        assert hass.services.has_service(DOMAIN, "cancel_all")
+        assert hass.services.has_service(DOMAIN, "pause_by_area")
+        assert hass.services.has_service(DOMAIN, "pause_by_label")
+        assert hass.services.has_service(DOMAIN, "cancel_scheduled")
+
         await hass.config_entries.async_unload(setup_integration.entry_id)
 
+        # Verify all 6 services are removed
         assert not hass.services.has_service(DOMAIN, "pause")
         assert not hass.services.has_service(DOMAIN, "cancel")
         assert not hass.services.has_service(DOMAIN, "cancel_all")
+        assert not hass.services.has_service(DOMAIN, "pause_by_area")
+        assert not hass.services.has_service(DOMAIN, "pause_by_label")
+        assert not hass.services.has_service(DOMAIN, "cancel_scheduled")
 
 
 # =============================================================================
@@ -624,6 +640,34 @@ class TestAsyncUnloadEntryMutations:
 
         mock_unsub.assert_called_once()
         assert data.startup_listener_unsub is None
+
+    @pytest.mark.asyncio
+    async def test_unload_count_check_uses_correct_operator(
+        self, hass: HomeAssistant, setup_integration: ConfigEntry
+    ) -> None:
+        """Test the <= 1 boundary check in unload.
+
+        Kills mutant: async_unload_entry__mutmut_10 (<= 1 → < 1)
+        With mutant, len() == 1 would not match < 1, so services wouldn't be removed.
+
+        We verify services ARE removed when the only entry is unloaded.
+        The existing test_unload_entry_removes_services covers this,
+        but this test explicitly documents the boundary condition.
+        """
+        # Verify only 1 entry is loaded
+        loaded_entries = hass.config_entries.async_loaded_entries(DOMAIN)
+        assert len(loaded_entries) == 1
+
+        # Verify services exist
+        assert hass.services.has_service(DOMAIN, "pause")
+
+        # Unload the only entry
+        await hass.config_entries.async_unload(setup_integration.entry_id)
+        await hass.async_block_till_done()
+
+        # With original code (<= 1): 1 <= 1 is True, services removed
+        # With mutant (< 1): 1 < 1 is False, services NOT removed
+        assert not hass.services.has_service(DOMAIN, "pause")
 
 
 # =============================================================================
