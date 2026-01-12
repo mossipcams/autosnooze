@@ -25,8 +25,8 @@
     "lit": "^3.3.2"
   },
   "devDependencies": {
-    "@babel/core": "^7.23.0",
-    "@babel/preset-env": "^7.23.0",
+    "@babel/core": "^7.28.6",
+    "@babel/preset-env": "^7.28.6",
     "@rollup/plugin-node-resolve": "^16.0.3",
     "@rollup/plugin-replace": "^6.0.3",
     "@rollup/plugin-terser": "^0.4.4",
@@ -35,8 +35,8 @@
     "@stryker-mutator/vitest-runner": "^9.4.0",
     "@typescript-eslint/eslint-plugin": "^6.21.0",
     "@typescript-eslint/parser": "^6.21.0",
-    "@vitest/coverage-istanbul": "^4.0.16",
-    "@vitest/coverage-v8": "^4.0.16",
+    "@vitest/coverage-istanbul": "^4.0.17",
+    "@vitest/coverage-v8": "^4.0.17",
     "eslint": "^8.57.0",
     "husky": "^9.0.0",
     "jsdom": "^25.0.1",
