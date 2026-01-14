@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.2.8](https://github.com/mossipcams/autosnooze/compare/v0.2.7...v0.2.8) (2026-01-14)
+
+
+### Features
+
+* auto-create autosnooze_include and autosnooze_exclude labels on setup ([c018b7e](https://github.com/mossipcams/autosnooze/commit/c018b7e584e10b7fae7a7727418e7d664d6222ff))
+* auto-create autosnooze_include and autosnooze_exclude labels on setup ([#229](https://github.com/mossipcams/autosnooze/issues/229)) ([88f2dfc](https://github.com/mossipcams/autosnooze/commit/88f2dfc96efc4d5a96f21b739d4b825c770e9d52))
+
+
+### Bug Fixes
+
+* resolve Vitest 4.0 CI hang and add label filtering tests ([3fd4e95](https://github.com/mossipcams/autosnooze/commit/3fd4e956c2077e1bfa92d59f717bb1f922ee9fd0))
+
+
+### Reverts
+
+* temporarily revert label auto-creation for squash ([26a6a79](https://github.com/mossipcams/autosnooze/commit/26a6a79f589da84f1134054d5d7a134d77864b82))
+
 ## [0.2.7](https://github.com/mossipcams/autosnooze/compare/v0.2.6...v0.2.7) (2026-01-07)
 
 
