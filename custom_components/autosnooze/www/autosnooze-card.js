@@ -1733,3 +1733,4 @@ function t(t,e,o,i){var r,s=arguments.length,a=s<3?e:null===i?i=Object.getOwnPro
         />
       </div>
     `:B``}}Vt.styles=Wt,t([ht({attribute:!1})],Vt.prototype,"hass",void 0),t([ut()],Vt.prototype,"_config",void 0),customElements.get("autosnooze-card-editor")||customElements.define("autosnooze-card-editor",Vt),customElements.get("autosnooze-card")||customElements.define("autosnooze-card",Gt),window.customCards=window.customCards||[],window.customCards.some(t=>"autosnooze-card"===t.type)||window.customCards.push({type:"autosnooze-card",name:"AutoSnooze Card",description:"Temporarily pause automations with area and label filtering (v0.2.7)",preview:!0});export{Gt as AutomationPauseCard,Vt as AutomationPauseCardEditor};
+//# sourceMappingURL=autosnooze-card.js.map

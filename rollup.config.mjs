@@ -11,14 +11,16 @@ export default {
   output: {
     file: 'custom_components/autosnooze/www/autosnooze-card.js',
     format: 'es',
-    sourcemap: false,
+    sourcemap: true,
   },
   plugins: [
     replace({
       preventAssignment: true,
       __VERSION__: JSON.stringify(pkg.version),
     }),
-    typescript(),
+    typescript({
+      outDir: 'custom_components/autosnooze/www',
+    }),
     nodeResolve(),
     terser({
       format: {
