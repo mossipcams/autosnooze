@@ -24,7 +24,6 @@ permissions: {}
 jobs:
   validate-hacs:
     name: HACS Validation
-    if: false # Disabled - not currently used
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
