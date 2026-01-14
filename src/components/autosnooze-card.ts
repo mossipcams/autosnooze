@@ -15,6 +15,8 @@ import {
   UI_TIMING,
   DEFAULT_DURATIONS,
   DEFAULT_SNOOZE_MINUTES,
+  EXCLUDE_LABEL,
+  INCLUDE_LABEL,
 } from '../constants/index.js';
 import {
   formatDateTime,
@@ -317,9 +319,16 @@ export class AutomationPauseCard extends LitElement {
 
   private _getGroupedByLabel(): [string, AutomationItem[]][] {
     const automations = this._getFilteredAutomations();
+    const hiddenLabels = [EXCLUDE_LABEL.toLowerCase(), INCLUDE_LABEL.toLowerCase()];
     return groupAutomationsBy(
       automations,
-      (auto) => auto.labels?.length > 0 ? auto.labels.map((id) => this._getLabelName(id)) : null,
+      (auto) => {
+        if (!auto.labels?.length) return null;
+        const visibleLabels = auto.labels
+          .map((id) => this._getLabelName(id))
+          .filter((name) => !hiddenLabels.includes(name.toLowerCase()));
+        return visibleLabels.length > 0 ? visibleLabels : null;
+      },
       'Unlabeled'
     );
   }
@@ -340,7 +349,14 @@ export class AutomationPauseCard extends LitElement {
 
   private _getLabelCount(): number {
     const automations = this._getAutomations();
-    return getUniqueCount(automations, (auto) => auto.labels?.length > 0 ? auto.labels : null);
+    const hiddenLabels = [EXCLUDE_LABEL.toLowerCase(), INCLUDE_LABEL.toLowerCase()];
+    return getUniqueCount(automations, (auto) => {
+      if (!auto.labels?.length) return null;
+      const visibleLabels = auto.labels.filter(
+        (id) => !hiddenLabels.includes(this._getLabelName(id).toLowerCase())
+      );
+      return visibleLabels.length > 0 ? visibleLabels : null;
+    });
   }
 
   private _getCategoryCount(): number {
