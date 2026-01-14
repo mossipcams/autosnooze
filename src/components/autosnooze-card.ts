@@ -864,11 +864,7 @@ export class AutomationPauseCard extends LitElement {
           />
         </button>
         ${expanded
-          ? items.map((a) => {
-              const showArea = this._filterTab === 'labels' && a.area_id;
-              const metaInfo = showArea ? this._getAreaName(a.area_id) : null;
-
-              return html`
+          ? items.map((a) => html`
                 <button
                   type="button"
                   class="list-item ${this._selected.includes(a.id) ? 'selected' : ''}"
@@ -886,15 +882,9 @@ export class AutomationPauseCard extends LitElement {
                   />
                   <div class="list-item-content">
                     <div class="list-item-name">${a.name}</div>
-                    ${metaInfo
-                      ? html`<div class="list-item-meta">
-                          <ha-icon icon="mdi:home-outline" aria-hidden="true"></ha-icon>${metaInfo}
-                        </div>`
-                      : ''}
                   </div>
                 </button>
-              `;
-            })
+              `)
           : ''}
       `;
     });

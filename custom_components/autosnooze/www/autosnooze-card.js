@@ -1408,7 +1408,7 @@ function t(t,e,o,i){var r,s=arguments.length,a=s<3?e:null===i?i=Object.getOwnPro
             tabindex="-1"
           />
         </button>
-        ${o?e.map(t=>{const e="labels"===this._filterTab&&t.area_id?this._getAreaName(t.area_id):null;return B`
+        ${o?e.map(t=>B`
                 <button
                   type="button"
                   class="list-item ${this._selected.includes(t.id)?"selected":""}"
@@ -1426,12 +1426,9 @@ function t(t,e,o,i){var r,s=arguments.length,a=s<3?e:null===i?i=Object.getOwnPro
                   />
                   <div class="list-item-content">
                     <div class="list-item-name">${t.name}</div>
-                    ${e?B`<div class="list-item-meta">
-                          <ha-icon icon="mdi:home-outline" aria-hidden="true"></ha-icon>${e}
-                        </div>`:""}
                   </div>
                 </button>
-              `}):""}
+              `):""}
       `})}_renderDurationSelector(t,e,o){return this._scheduleMode?B`
           <div class="schedule-inputs">
             <div class="datetime-field">
