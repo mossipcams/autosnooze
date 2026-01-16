@@ -10,6 +10,7 @@ __pycache__/
 CLAUDE.md
 .devcontainer/
 docs/ROADMAP.md
+docs/mermaid.md
 
 # Local development
 config/
