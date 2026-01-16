@@ -513,7 +513,7 @@ export class AutomationPauseCard extends LitElement {
   }
 
   private _hapticFeedback(type: string = 'light'): void {
-    hapticFeedback(type as 'light' | 'medium' | 'heavy' | 'success' | 'error' | 'selection');
+    hapticFeedback(type as 'light' | 'medium' | 'heavy' | 'success' | 'warning' | 'failure' | 'selection');
   }
 
   private _handleSearchInput(e: Event): void {
@@ -716,7 +716,7 @@ export class AutomationPauseCard extends LitElement {
       this._resumeAtTime = '';
     } catch (e) {
       console.error('Snooze failed:', e);
-      this._hapticFeedback('error');
+      this._hapticFeedback('failure');
       if (this.isConnected && this.shadowRoot) {
         this._showToast(getErrorMessage(e as Error, 'Failed to snooze automations'));
       }
@@ -734,7 +734,7 @@ export class AutomationPauseCard extends LitElement {
       }
     } catch (e) {
       console.error('Wake failed:', e);
-      this._hapticFeedback('error');
+      this._hapticFeedback('failure');
       if (this.isConnected && this.shadowRoot) {
         this._showToast(getErrorMessage(e as Error, 'Failed to resume automation'));
       }
@@ -757,7 +757,7 @@ export class AutomationPauseCard extends LitElement {
         }
       } catch (e) {
         console.error('Wake all failed:', e);
-        this._hapticFeedback('error');
+        this._hapticFeedback('failure');
         if (this.isConnected && this.shadowRoot) {
           this._showToast('Failed to resume automations. Check Home Assistant logs for details.');
         }
@@ -782,7 +782,7 @@ export class AutomationPauseCard extends LitElement {
       }
     } catch (e) {
       console.error('Cancel scheduled failed:', e);
-      this._hapticFeedback('error');
+      this._hapticFeedback('failure');
       if (this.isConnected && this.shadowRoot) {
         this._showToast(getErrorMessage(e as Error, 'Failed to cancel scheduled snooze'));
       }

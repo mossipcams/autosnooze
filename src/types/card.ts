@@ -46,5 +46,6 @@ export type HapticFeedbackType =
   | 'medium'
   | 'heavy'
   | 'success'
-  | 'error'
+  | 'warning'
+  | 'failure'
   | 'selection';
