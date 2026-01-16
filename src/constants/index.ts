@@ -77,14 +77,3 @@ export const EXCLUDE_LABEL = 'autosnooze_exclude';
  */
 export const INCLUDE_LABEL = 'autosnooze_include';
 
-/**
- * Haptic feedback patterns for different interactions.
- */
-export const HAPTIC_PATTERNS: Record<string, number | number[]> = {
-  light: 10,
-  medium: 20,
-  heavy: 30,
-  success: [10, 50, 10],
-  error: [20, 100, 20, 100, 20],
-  selection: 8,
-};

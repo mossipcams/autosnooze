@@ -1245,6 +1245,16 @@ describe('Snooze Operations', () => {
   });
 
   describe('_snooze - Schedule Mode', () => {
+    beforeEach(() => {
+      // Mock time to be before the test dates (2026-01-15) so they appear in the future
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date('2026-01-14T00:00:00'));
+    });
+
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
     test('calls pause service with schedule parameters including timezone', async () => {
       card._selected = ['automation.test'];
       card._scheduleMode = true;
@@ -1890,6 +1900,10 @@ describe('Undo Functionality in Snooze', () => {
   });
 
   test('undo after scheduled snooze calls cancel_scheduled service', async () => {
+    // Mock time to be before the test dates (2026-01-15) so they appear in the future
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-01-14T00:00:00'));
+
     card._selected = ['automation.test'];
     card._scheduleMode = true;
     card._disableAtDate = '2026-01-15';
@@ -1902,11 +1916,13 @@ describe('Undo Functionality in Snooze', () => {
     const undoBtn = card.shadowRoot.querySelector('.toast-undo-btn');
     undoBtn.click();
 
-    await new Promise((resolve) => setTimeout(resolve, 10));
+    await vi.advanceTimersByTimeAsync(10);
 
     expect(mockHass.callService).toHaveBeenCalledWith('autosnooze', 'cancel_scheduled', {
       entity_id: 'automation.test',
     });
+
+    vi.useRealTimers();
   });
 
   test('undo restores selection', async () => {
