@@ -15,6 +15,8 @@ import {
   UI_TIMING,
   DEFAULT_DURATIONS,
   DEFAULT_SNOOZE_MINUTES,
+  EXCLUDE_LABEL,
+  INCLUDE_LABEL,
 } from '../constants/index.js';
 import {
   formatDateTime,
@@ -317,9 +319,16 @@ export class AutomationPauseCard extends LitElement {
 
   private _getGroupedByLabel(): [string, AutomationItem[]][] {
     const automations = this._getFilteredAutomations();
+    const hiddenLabels = [EXCLUDE_LABEL.toLowerCase(), INCLUDE_LABEL.toLowerCase()];
     return groupAutomationsBy(
       automations,
-      (auto) => auto.labels?.length > 0 ? auto.labels.map((id) => this._getLabelName(id)) : null,
+      (auto) => {
+        if (!auto.labels?.length) return null;
+        const visibleLabels = auto.labels
+          .map((id) => this._getLabelName(id))
+          .filter((name) => !hiddenLabels.includes(name.toLowerCase()));
+        return visibleLabels.length > 0 ? visibleLabels : null;
+      },
       'Unlabeled'
     );
   }
@@ -340,7 +349,14 @@ export class AutomationPauseCard extends LitElement {
 
   private _getLabelCount(): number {
     const automations = this._getAutomations();
-    return getUniqueCount(automations, (auto) => auto.labels?.length > 0 ? auto.labels : null);
+    const hiddenLabels = [EXCLUDE_LABEL.toLowerCase(), INCLUDE_LABEL.toLowerCase()];
+    return getUniqueCount(automations, (auto) => {
+      if (!auto.labels?.length) return null;
+      const visibleLabels = auto.labels.filter(
+        (id) => !hiddenLabels.includes(this._getLabelName(id).toLowerCase())
+      );
+      return visibleLabels.length > 0 ? visibleLabels : null;
+    });
   }
 
   private _getCategoryCount(): number {
@@ -848,11 +864,7 @@ export class AutomationPauseCard extends LitElement {
           />
         </button>
         ${expanded
-          ? items.map((a) => {
-              const showArea = this._filterTab === 'labels' && a.area_id;
-              const metaInfo = showArea ? this._getAreaName(a.area_id) : null;
-
-              return html`
+          ? items.map((a) => html`
                 <button
                   type="button"
                   class="list-item ${this._selected.includes(a.id) ? 'selected' : ''}"
@@ -870,15 +882,9 @@ export class AutomationPauseCard extends LitElement {
                   />
                   <div class="list-item-content">
                     <div class="list-item-name">${a.name}</div>
-                    ${metaInfo
-                      ? html`<div class="list-item-meta">
-                          <ha-icon icon="mdi:home-outline" aria-hidden="true"></ha-icon>${metaInfo}
-                        </div>`
-                      : ''}
                   </div>
                 </button>
-              `;
-            })
+              `)
           : ''}
       `;
     });
