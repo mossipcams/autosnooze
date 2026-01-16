@@ -1,5 +1,4 @@
 import { test, expect } from '../fixtures/hass.fixture';
-import { getTomorrowDate } from '../helpers/time-utils';
 
 test.describe('Direct Service Calls', () => {
   test.beforeEach(async ({ resetAutomations }) => {
