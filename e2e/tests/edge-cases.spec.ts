@@ -36,14 +36,16 @@ test.describe('Edge Cases', () => {
     await autosnoozeCard.expectSnoozeButtonDisabled();
   });
 
-  test('waking non-snoozed automation is handled gracefully', async ({ callService }) => {
-    // This should not throw an error
+  test('waking non-snoozed automation is handled gracefully', async ({ callService, getState }) => {
+    // Calling cancel on a non-snoozed automation should not throw an error
+    // and the automation should remain in its current state (on)
     await callService('autosnooze', 'cancel', {
       entity_id: 'automation.living_room_motion_lights',
     });
 
-    // No error means success
-    expect(true).toBe(true);
+    // Verify the automation is still on (wasn't affected by the cancel call)
+    const state = await getState('automation.living_room_motion_lights');
+    expect(state).toBe('on');
   });
 
   test('snooze with only minutes works', async ({ autosnoozeCard }) => {
