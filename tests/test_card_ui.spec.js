@@ -7,6 +7,8 @@
  * - Selection, duration, and grouping logic
  * - Snooze operations and service calls
  * - Toast notifications and error handling
+ *
+ * Note: E2E tests are in e2e/ directory and run via Playwright
  */
 
 import { vi } from 'vitest';
