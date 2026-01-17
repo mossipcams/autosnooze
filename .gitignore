@@ -29,3 +29,7 @@ stryker-result.txt
 
 # Linter caches
 .eslintcache
+
+# Playwright e2e tests
+e2e/.auth/
+e2e/playwright-report/
