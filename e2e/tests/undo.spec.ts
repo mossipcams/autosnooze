@@ -2,8 +2,8 @@ import { test, expect } from '../fixtures/hass.fixture';
 import { findCardScript } from '../helpers/shadow-dom';
 
 test.describe('Undo Functionality', () => {
-  test.beforeEach(async ({ resetAutomations }) => {
-    // Ensure clean state
+  test.beforeEach(async ({ resetAutomations: _resetAutomations }) => {
+    // Fixture auto-executes: cancels all snoozes, clears labels, and resets automations
   });
 
   test('undo button appears after snooze', async ({ autosnoozeCard }) => {
@@ -109,13 +109,11 @@ test.describe('Undo Functionality', () => {
     await autosnoozeCard.snooze();
 
     await autosnoozeCard.waitForToast();
-    const firstToastMessage = await autosnoozeCard.getToastMessage();
 
     await autosnoozeCard.selectAutomation('Kitchen Motion Lights');
     await autosnoozeCard.snooze();
 
     await autosnoozeCard.waitForToast();
-    const secondToastMessage = await autosnoozeCard.getToastMessage();
 
     // There should only be one toast at a time
     const toastCount = await autosnoozeCard.page.evaluate(

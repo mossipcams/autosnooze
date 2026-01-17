@@ -57,7 +57,7 @@ test.describe('Card Rendering', () => {
     expect(pills).toContain('Custom');
   });
 
-  test('displays automation list', async ({ autosnoozeCard, resetAutomations }) => {
+  test('displays automation list', async ({ autosnoozeCard, resetAutomations: _resetAutomations }) => {
     const count = await autosnoozeCard.getAutomationCount();
     expect(count).toBeGreaterThan(0);
   });

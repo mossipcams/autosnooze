@@ -1,8 +1,9 @@
 import { test, expect } from '../fixtures/hass.fixture';
+import { findCardScript } from '../helpers/shadow-dom';
 
 test.describe('Duration-based Snooze', () => {
-  test.beforeEach(async ({ resetAutomations }) => {
-    // Ensure clean state
+  test.beforeEach(async ({ resetAutomations: _resetAutomations }) => {
+    // Fixture auto-executes: cancels all snoozes, clears labels, and resets automations
   });
 
   test('snooze with 15 minute preset', async ({ autosnoozeCard, getState }) => {
@@ -123,21 +124,7 @@ test.describe('Duration-based Snooze', () => {
     const inputExists = await autosnoozeCard.page.evaluate(
       `
       (() => {
-        const findAutosnoozeCard = () => {
-          const findCard = (root) => {
-            const card = root.querySelector('autosnooze-card');
-            if (card) return card;
-            const elements = root.querySelectorAll('*');
-            for (const el of elements) {
-              if (el.shadowRoot) {
-                const found = findCard(el.shadowRoot);
-                if (found) return found;
-              }
-            }
-            return null;
-          };
-          return findCard(document);
-        };
+        ${findCardScript}
         const card = findAutosnoozeCard();
         const input = card?.shadowRoot?.querySelector('.duration-input');
         return input !== null;

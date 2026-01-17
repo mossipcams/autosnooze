@@ -117,21 +117,7 @@ test.describe('Search Filtering', () => {
     const allMatch = await autosnoozeCard.page.evaluate(
       `
       (() => {
-        const findAutosnoozeCard = () => {
-          const findCard = (root) => {
-            const card = root.querySelector('autosnooze-card');
-            if (card) return card;
-            const elements = root.querySelectorAll('*');
-            for (const el of elements) {
-              if (el.shadowRoot) {
-                const found = findCard(el.shadowRoot);
-                if (found) return found;
-              }
-            }
-            return null;
-          };
-          return findCard(document);
-        };
+        ${findCardScript}
         const card = findAutosnoozeCard();
         const items = card?.shadowRoot?.querySelectorAll('.list-item');
         for (const item of items || []) {

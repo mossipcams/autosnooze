@@ -387,17 +387,18 @@ export class AutoSnoozeCard extends BasePage {
   async setCustomDuration(duration: string): Promise<void> {
     await this.selectDuration('Custom');
     await this.page.evaluate(
-      `
-      (() => {
-        ${findAutosnoozeCard}
-        const card = findAutosnoozeCard();
-        const input = card?.shadowRoot?.querySelector('.duration-input');
+      ({ duration, findCardScript }) => {
+        const findAutosnoozeCard = new Function(findCardScript + 'return findAutosnoozeCard();');
+        const card = findAutosnoozeCard() as Element | null;
+        const input = (card as Element & { shadowRoot?: ShadowRoot })?.shadowRoot?.querySelector(
+          '.duration-input'
+        ) as HTMLInputElement | null;
         if (input) {
-          input.value = '${duration}';
+          input.value = duration;
           input.dispatchEvent(new Event('input', { bubbles: true }));
         }
-      })()
-      `
+      },
+      { duration, findCardScript: findAutosnoozeCard }
     );
     await this.page.waitForTimeout(100);
   }
@@ -495,17 +496,6 @@ export class AutoSnoozeCard extends BasePage {
     const beforePaused = await this.getPausedCount();
     const beforeScheduled = await this.getScheduledCount();
 
-    // Check if schedule mode BEFORE clicking (button text changes in schedule mode)
-    const isScheduleMode = await this.page.evaluate(
-      `
-      (() => {
-        ${findAutosnoozeCard}
-        const card = findAutosnoozeCard();
-        return card?.shadowRoot?.querySelector('.schedule-inputs') !== null;
-      })()
-      `
-    );
-
     await this.page.evaluate(
       `
       (() => {
@@ -570,7 +560,6 @@ export class AutoSnoozeCard extends BasePage {
   }
 
   async wakeAutomation(name: string): Promise<void> {
-    const beforeCount = await this.getPausedCount();
     const escapedName = name.replace(/'/g, "\\'");
 
     await this.page.evaluate(

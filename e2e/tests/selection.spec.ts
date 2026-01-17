@@ -1,8 +1,9 @@
 import { test, expect } from '../fixtures/hass.fixture';
+import { findCardScript } from '../helpers/shadow-dom';
 
 test.describe('Selection', () => {
-  test.beforeEach(async ({ resetAutomations }) => {
-    // Ensure clean state
+  test.beforeEach(async ({ resetAutomations: _resetAutomations }) => {
+    // Fixture auto-executes: cancels all snoozes, clears labels, and resets automations
   });
 
   test('clicking automation item selects it', async ({ autosnoozeCard }) => {
@@ -65,21 +66,7 @@ test.describe('Selection', () => {
     const hasSelectionActions = await autosnoozeCard.page.evaluate(
       `
       (() => {
-        const findAutosnoozeCard = () => {
-          const findCard = (root) => {
-            const card = root.querySelector('autosnooze-card');
-            if (card) return card;
-            const elements = root.querySelectorAll('*');
-            for (const el of elements) {
-              if (el.shadowRoot) {
-                const found = findCard(el.shadowRoot);
-                if (found) return found;
-              }
-            }
-            return null;
-          };
-          return findCard(document);
-        };
+        ${findCardScript}
         const card = findAutosnoozeCard();
         // Check for selection-related UI elements
         return card?.shadowRoot?.querySelector('.selection-actions') !== null ||

@@ -2,8 +2,8 @@ import { test, expect } from '../fixtures/hass.fixture';
 import { findCardScript } from '../helpers/shadow-dom';
 
 test.describe('Edge Cases', () => {
-  test.beforeEach(async ({ resetAutomations }) => {
-    // Ensure clean state
+  test.beforeEach(async ({ resetAutomations: _resetAutomations }) => {
+    // Fixture auto-executes: cancels all snoozes, clears labels, and resets automations
   });
 
   test('zero duration prevents snooze', async ({ autosnoozeCard }) => {

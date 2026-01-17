@@ -1,8 +1,8 @@
 import { test, expect } from '../fixtures/hass.fixture';
 
 test.describe('Direct Service Calls', () => {
-  test.beforeEach(async ({ resetAutomations }) => {
-    // Ensure clean state
+  test.beforeEach(async ({ resetAutomations: _resetAutomations }) => {
+    // Fixture auto-executes: cancels all snoozes, clears labels, and resets automations
   });
 
   test('pause service with duration parameters', async ({ callService, autosnoozeCard }) => {
@@ -131,9 +131,12 @@ test.describe('Direct Service Calls', () => {
     await autosnoozeCard.expectScheduledCount(0);
   });
 
-  test('pause_by_area service', async ({ callService, autosnoozeCard }) => {
-    // This test depends on areas being set up in the test HA instance
-    // If no areas are configured, this may pause 0 automations
+  test('pause_by_area service completes without error', async ({ callService, autosnoozeCard }) => {
+    // This test validates that the pause_by_area service can be called successfully.
+    // The actual number of paused automations depends on the HA instance configuration.
+    // If the area exists and has automations assigned, they will be paused.
+    const initialPausedCount = await autosnoozeCard.getPausedCount();
+
     await callService('autosnooze', 'pause_by_area', {
       area_id: 'living_room',
       hours: 1,
@@ -141,13 +144,17 @@ test.describe('Direct Service Calls', () => {
 
     await autosnoozeCard.page.waitForTimeout(500);
 
-    // Verify the service was called (even if 0 automations matched)
-    // The test passes if no error was thrown
-    expect(true).toBe(true);
+    // Service completed without throwing - verify paused count is at least what it was
+    // (may increase if automations were matched, stays same if no matches)
+    const finalPausedCount = await autosnoozeCard.getPausedCount();
+    expect(finalPausedCount).toBeGreaterThanOrEqual(initialPausedCount);
   });
 
-  test('pause_by_label service', async ({ callService, autosnoozeCard }) => {
-    // This test depends on labels being set up
+  test('pause_by_label service completes without error', async ({ callService, autosnoozeCard }) => {
+    // This test validates that the pause_by_label service can be called successfully.
+    // The actual number of paused automations depends on label assignments in HA.
+    const initialPausedCount = await autosnoozeCard.getPausedCount();
+
     await callService('autosnooze', 'pause_by_label', {
       label_id: 'autosnooze_include',
       hours: 1,
@@ -155,8 +162,9 @@ test.describe('Direct Service Calls', () => {
 
     await autosnoozeCard.page.waitForTimeout(500);
 
-    // Verify the service was called (even if 0 automations matched)
-    expect(true).toBe(true);
+    // Service completed without throwing - verify paused count is at least what it was
+    const finalPausedCount = await autosnoozeCard.getPausedCount();
+    expect(finalPausedCount).toBeGreaterThanOrEqual(initialPausedCount);
   });
 
   test('service calls update UI in real-time', async ({

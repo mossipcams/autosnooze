@@ -1,8 +1,8 @@
 import { test, expect } from '../fixtures/hass.fixture';
 
 test.describe('State Persistence', () => {
-  test.beforeEach(async ({ resetAutomations }) => {
-    // Ensure clean state
+  test.beforeEach(async ({ resetAutomations: _resetAutomations }) => {
+    // Fixture auto-executes: cancels all snoozes, clears labels, and resets automations
   });
 
   test('snoozed state persists across page reload', async ({ autosnoozeCard, page }) => {

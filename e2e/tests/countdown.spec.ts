@@ -2,8 +2,8 @@ import { test, expect } from '../fixtures/hass.fixture';
 import { findCardScript } from '../helpers/shadow-dom';
 
 test.describe('Countdown Timer', () => {
-  test.beforeEach(async ({ resetAutomations }) => {
-    // Ensure clean state
+  test.beforeEach(async ({ resetAutomations: _resetAutomations }) => {
+    // Fixture auto-executes: cancels all snoozes, clears labels, and resets automations
   });
 
   test('countdown displays for snoozed automation', async ({ autosnoozeCard }) => {
@@ -30,14 +30,29 @@ test.describe('Countdown Timer', () => {
     const initialCountdown = await autosnoozeCard.getCountdown('Living Room Motion Lights');
     expect(initialCountdown).toBeTruthy();
 
-    // Wait a few seconds
+    // Parse the countdown to extract seconds (format: "29m 45s" or "29m")
+    const parseCountdownSeconds = (countdown: string): number => {
+      const minuteMatch = countdown.match(/(\d+)m/);
+      const secondMatch = countdown.match(/(\d+)s/);
+      const minutes = minuteMatch ? parseInt(minuteMatch[1], 10) : 0;
+      const seconds = secondMatch ? parseInt(secondMatch[1], 10) : 0;
+      return minutes * 60 + seconds;
+    };
+
+    const initialSeconds = parseCountdownSeconds(initialCountdown);
+
+    // Wait a few seconds for the countdown to decrease
     await autosnoozeCard.page.waitForTimeout(3000);
 
     // Get updated countdown
     const updatedCountdown = await autosnoozeCard.getCountdown('Living Room Motion Lights');
-
-    // They should be different (time has passed) - or at least one should have a value
     expect(updatedCountdown).toBeTruthy();
+
+    const updatedSeconds = parseCountdownSeconds(updatedCountdown);
+
+    // The countdown should have decreased (time has passed)
+    // Allow some tolerance since countdown updates may not be exactly in sync
+    expect(updatedSeconds).toBeLessThanOrEqual(initialSeconds);
   });
 
   test('multiple snoozed automations with same resume time are grouped', async ({

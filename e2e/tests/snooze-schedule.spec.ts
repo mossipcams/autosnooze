@@ -3,8 +3,8 @@ import { findCardScript } from '../helpers/shadow-dom';
 import { getScheduleDateTime } from '../helpers/time-utils';
 
 test.describe('Schedule Mode Snooze', () => {
-  test.beforeEach(async ({ resetAutomations }) => {
-    // Ensure clean state
+  test.beforeEach(async ({ resetAutomations: _resetAutomations }) => {
+    // Fixture auto-executes: cancels all snoozes, clears labels, and resets automations
   });
 
   test('switch to schedule mode shows datetime inputs', async ({ autosnoozeCard }) => {
@@ -80,21 +80,7 @@ test.describe('Schedule Mode Snooze', () => {
     const hasScheduleUI = await autosnoozeCard.page.evaluate(
       `
       (() => {
-        const findAutosnoozeCard = () => {
-          const findCard = (root) => {
-            const card = root.querySelector('autosnooze-card');
-            if (card) return card;
-            const elements = root.querySelectorAll('*');
-            for (const el of elements) {
-              if (el.shadowRoot) {
-                const found = findCard(el.shadowRoot);
-                if (found) return found;
-              }
-            }
-            return null;
-          };
-          return findCard(document);
-        };
+        ${findCardScript}
         const card = findAutosnoozeCard();
         const scheduleInputs = card?.shadowRoot?.querySelector('.schedule-inputs');
         const resumeDate = card?.shadowRoot?.querySelector('select[aria-label="Resume date"]');
@@ -141,21 +127,7 @@ test.describe('Schedule Mode Snooze', () => {
     const durationModeLink = await autosnoozeCard.page.evaluate(
       `
       (() => {
-        const findAutosnoozeCard = () => {
-          const findCard = (root) => {
-            const card = root.querySelector('autosnooze-card');
-            if (card) return card;
-            const elements = root.querySelectorAll('*');
-            for (const el of elements) {
-              if (el.shadowRoot) {
-                const found = findCard(el.shadowRoot);
-                if (found) return found;
-              }
-            }
-            return null;
-          };
-          return findCard(document);
-        };
+        ${findCardScript}
         const card = findAutosnoozeCard();
         const link = card?.shadowRoot?.querySelector('.schedule-link');
         return link?.textContent?.trim() ?? '';
@@ -171,21 +143,7 @@ test.describe('Schedule Mode Snooze', () => {
     const scheduleModeLink = await autosnoozeCard.page.evaluate(
       `
       (() => {
-        const findAutosnoozeCard = () => {
-          const findCard = (root) => {
-            const card = root.querySelector('autosnooze-card');
-            if (card) return card;
-            const elements = root.querySelectorAll('*');
-            for (const el of elements) {
-              if (el.shadowRoot) {
-                const found = findCard(el.shadowRoot);
-                if (found) return found;
-              }
-            }
-            return null;
-          };
-          return findCard(document);
-        };
+        ${findCardScript}
         const card = findAutosnoozeCard();
         const link = card?.shadowRoot?.querySelector('.schedule-link');
         return link?.textContent?.trim() ?? '';
