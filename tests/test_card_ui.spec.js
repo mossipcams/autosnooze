@@ -494,6 +494,74 @@ describe('AutoSnooze Card Main Component', () => {
     });
   });
 
+  describe('Last Duration Feature', () => {
+    beforeEach(() => {
+      localStorage.clear();
+    });
+
+    test('_lastDuration is null when no stored duration', () => {
+      expect(card._lastDuration).toBeNull();
+    });
+
+    test('_getDurationPills returns default pills when no last duration', () => {
+      card._lastDuration = null;
+      const pills = card._getDurationPills();
+      expect(pills.length).toBe(5); // 30m, 1h, 4h, 1 day, Custom
+      expect(pills[pills.length - 1].label).toBe('Custom');
+    });
+
+    test('_getDurationPills includes Last pill when last duration exists and differs from presets', () => {
+      card._lastDuration = {
+        minutes: 150, // 2h 30m - not a preset
+        duration: { days: 0, hours: 2, minutes: 30 },
+        timestamp: Date.now(),
+      };
+      const pills = card._getDurationPills();
+      expect(pills.length).toBe(6); // 30m, 1h, 4h, 1 day, Last, Custom
+      const lastPill = pills.find(p => p.label.startsWith('Last'));
+      expect(lastPill).toBeDefined();
+      expect(lastPill.minutes).toBe(150);
+      expect(lastPill.label).toContain('2h');
+      expect(lastPill.label).toContain('30m');
+    });
+
+    test('_getDurationPills does not include Last pill when last duration matches a preset', () => {
+      card._lastDuration = {
+        minutes: 60, // 1h - matches preset
+        duration: { days: 0, hours: 1, minutes: 0 },
+        timestamp: Date.now(),
+      };
+      const pills = card._getDurationPills();
+      expect(pills.length).toBe(5); // No extra Last pill
+      const lastPill = pills.find(p => p.label.startsWith('Last'));
+      expect(lastPill).toBeUndefined();
+    });
+
+    test('_getDurationPills places Last pill before Custom', () => {
+      card._lastDuration = {
+        minutes: 90, // 1h 30m
+        duration: { days: 0, hours: 1, minutes: 30 },
+        timestamp: Date.now(),
+      };
+      const pills = card._getDurationPills();
+      const lastIndex = pills.findIndex(p => p.label.startsWith('Last'));
+      const customIndex = pills.findIndex(p => p.label === 'Custom');
+      expect(lastIndex).toBeLessThan(customIndex);
+      expect(customIndex).toBe(pills.length - 1); // Custom is still last
+    });
+
+    test('clicking Last pill sets duration correctly', () => {
+      card._lastDuration = {
+        minutes: 150,
+        duration: { days: 0, hours: 2, minutes: 30 },
+        timestamp: Date.now(),
+      };
+      card._setDuration(150);
+      expect(card._customDuration).toEqual({ days: 0, hours: 2, minutes: 30 });
+      expect(card._duration).toBe(150 * 60 * 1000); // 150 minutes in ms
+    });
+  });
+
   describe('Formatting', () => {
     test('_formatDuration formats single unit', () => {
       expect(card._formatDuration(0, 2, 0)).toBe('2 hours');

@@ -41,6 +41,9 @@ import {
   wakeAutomation,
   wakeAll,
   cancelScheduled,
+  saveLastDuration,
+  loadLastDuration,
+  type LastDurationData,
 } from '../services/index.js';
 import {
   formatRegistryId,
@@ -88,6 +91,7 @@ export class AutomationPauseCard extends LitElement {
   @state() private _automationsCache: AutomationItem[] | null = null;
   @state() private _automationsCacheVersion: number = 0;
   @state() private _wakeAllPending: boolean = false;
+  @state() private _lastDuration: LastDurationData | null = null;
 
   private _interval: number | null = null;
   private _syncTimeout: number | null = null;
@@ -196,6 +200,7 @@ export class AutomationPauseCard extends LitElement {
     this._fetchLabelRegistry();
     this._fetchCategoryRegistry();
     this._fetchEntityRegistry();
+    this._lastDuration = loadLastDuration();
   }
 
   disconnectedCallback(): void {
@@ -680,6 +685,11 @@ export class AutomationPauseCard extends LitElement {
 
         const durationText = formatDuration(days, hours, minutes);
         toastMessage = `Snoozed ${count} automation${count !== 1 ? 's' : ''} for ${durationText}`;
+
+        // Save last used duration for quick re-use
+        const totalMinutes = durationToMinutes(this._customDuration);
+        saveLastDuration(this._customDuration, totalMinutes);
+        this._lastDuration = { minutes: totalMinutes, duration: this._customDuration, timestamp: Date.now() };
       }
 
       this._hapticFeedback('success');
@@ -794,6 +804,27 @@ export class AutomationPauseCard extends LitElement {
     return options.map(
       (opt) => html`<option value="${opt.value}">${opt.label}</option>`
     );
+  }
+
+  private _getDurationPills(): { label: string; minutes: number | null }[] {
+    const pills = [...DEFAULT_DURATIONS];
+
+    // Insert "Last" pill before "Custom" if we have a last duration that differs from presets
+    if (this._lastDuration) {
+      const lastMinutes = this._lastDuration.minutes;
+      const isUniqueFromPresets = !DEFAULT_DURATIONS.some(
+        (d) => d.minutes === lastMinutes
+      );
+
+      if (isUniqueFromPresets) {
+        const { days, hours, minutes } = this._lastDuration.duration;
+        const lastLabel = `Last (${formatDurationShort(days, hours, minutes)})`;
+        // Insert before "Custom" (the last item)
+        pills.splice(pills.length - 1, 0, { label: lastLabel, minutes: lastMinutes });
+      }
+    }
+
+    return pills;
   }
 
   private _renderSelectionList(): TemplateResult | TemplateResult[] {
@@ -955,11 +986,13 @@ export class AutomationPauseCard extends LitElement {
           <div class="duration-selector">
             <div class="duration-section-header" id="duration-header">Snooze Duration</div>
             <div class="duration-pills" role="radiogroup" aria-labelledby="duration-header">
-              ${DEFAULT_DURATIONS.map(
+              ${this._getDurationPills().map(
                 (d) => {
+                  const currentMinutes = durationToMinutes(this._customDuration);
                   const isActive = d.minutes === null
                     ? this._showCustomInput
-                    : !this._showCustomInput && selectedDuration === d;
+                    : !this._showCustomInput && d.minutes === currentMinutes;
+                  const isLastPill = d.label.startsWith('Last');
                   return html`
                     <button
                       type="button"
@@ -974,7 +1007,7 @@ export class AutomationPauseCard extends LitElement {
                       }}
                       role="radio"
                       aria-checked=${isActive}
-                      aria-label="${d.minutes === null ? 'Custom duration' : `Snooze for ${d.label}`}"
+                      aria-label="${d.minutes === null ? 'Custom duration' : isLastPill ? `Snooze for last used duration: ${d.label}` : `Snooze for ${d.label}`}"
                     >
                       ${d.label}
                     </button>
