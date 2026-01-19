@@ -1,10 +1,10 @@
 # AutoSnooze
 
-[![HACS Custom](https://img.shields.io/badge/HACS-Custom-41BDF5.svg)](https://github.com/hacs/integration)
-[![GitHub Release](https://img.shields.io/github/release/mossipcams/autosnooze.svg)](https://github.com/mossipcams/autosnooze/releases)
-![GitHub all releases](https://img.shields.io/github/downloads/mossipcams/autosnooze/total?style=for-the-badge)
-[![Build Status](https://img.shields.io/github/actions/workflow/status/mossipcams/autosnooze/build.yml?branch=main)](https://github.com/mossipcams/autosnooze/actions)
-[![Home Assistant](https://img.shields.io/badge/Home%20Assistant-2024.1+-blue.svg)](https://www.home-assistant.io/)
+[![HACS Custom](https://img.shields.io/badge/HACS-Custom-41BDF5.svg?style=flat-square)](https://github.com/hacs/integration)
+[![GitHub Release](https://img.shields.io/github/release/mossipcams/autosnooze.svg?style=flat-square)](https://github.com/mossipcams/autosnooze/releases)
+![GitHub all releases](https://img.shields.io/github/downloads/mossipcams/autosnooze/total.svg?style=flat-square)
+[![Build Status](https://img.shields.io/github/actions/workflow/status/mossipcams/autosnooze/build.yml?branch=main&style=flat-square)](https://github.com/mossipcams/autosnooze/actions)
+[![Home Assistant](https://img.shields.io/badge/Home%20Assistant-2024.1+-blue.svg?style=flat-square)](https://www.home-assistant.io/)
 
 
 **Temporarily pause Home Assistant automations with automatic re-enabling.**
