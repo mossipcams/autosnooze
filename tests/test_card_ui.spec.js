@@ -506,7 +506,7 @@ describe('AutoSnooze Card Main Component', () => {
     test('_getDurationPills returns default pills when no last duration', () => {
       card._lastDuration = null;
       const pills = card._getDurationPills();
-      expect(pills.length).toBe(5); // 30m, 1h, 4h, 1 day, Custom
+      expect(pills.length).toBe(4); // 30m, 1h, 1d, Custom
       expect(pills[pills.length - 1].label).toBe('Custom');
     });
 
@@ -517,7 +517,7 @@ describe('AutoSnooze Card Main Component', () => {
         timestamp: Date.now(),
       };
       const pills = card._getDurationPills();
-      expect(pills.length).toBe(6); // Last, 30m, 1h, 4h, 1 day, Custom
+      expect(pills.length).toBe(5); // Last 2h30m, 30m, 1h, 1d, Custom
       const lastPill = pills.find(p => p.isLast);
       expect(lastPill).toBeDefined();
       expect(lastPill.minutes).toBe(150);
@@ -531,7 +531,7 @@ describe('AutoSnooze Card Main Component', () => {
         timestamp: Date.now(),
       };
       const pills = card._getDurationPills();
-      expect(pills.length).toBe(5); // No extra Last pill
+      expect(pills.length).toBe(4); // No extra Last pill
       const lastPill = pills.find(p => p.isLast);
       expect(lastPill).toBeUndefined();
     });
