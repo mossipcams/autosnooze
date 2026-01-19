@@ -517,12 +517,11 @@ describe('AutoSnooze Card Main Component', () => {
         timestamp: Date.now(),
       };
       const pills = card._getDurationPills();
-      expect(pills.length).toBe(6); // 30m, 1h, 4h, 1 day, Last, Custom
-      const lastPill = pills.find(p => p.label.startsWith('Last'));
+      expect(pills.length).toBe(6); // Last, 30m, 1h, 4h, 1 day, Custom
+      const lastPill = pills.find(p => p.isLast);
       expect(lastPill).toBeDefined();
       expect(lastPill.minutes).toBe(150);
-      expect(lastPill.label).toContain('2h');
-      expect(lastPill.label).toContain('30m');
+      expect(lastPill.label).toBe('Last 2h30m');
     });
 
     test('_getDurationPills does not include Last pill when last duration matches a preset', () => {
@@ -533,21 +532,20 @@ describe('AutoSnooze Card Main Component', () => {
       };
       const pills = card._getDurationPills();
       expect(pills.length).toBe(5); // No extra Last pill
-      const lastPill = pills.find(p => p.label.startsWith('Last'));
+      const lastPill = pills.find(p => p.isLast);
       expect(lastPill).toBeUndefined();
     });
 
-    test('_getDurationPills places Last pill before Custom', () => {
+    test('_getDurationPills places Last pill first', () => {
       card._lastDuration = {
         minutes: 90, // 1h 30m
         duration: { days: 0, hours: 1, minutes: 30 },
         timestamp: Date.now(),
       };
       const pills = card._getDurationPills();
-      const lastIndex = pills.findIndex(p => p.label.startsWith('Last'));
-      const customIndex = pills.findIndex(p => p.label === 'Custom');
-      expect(lastIndex).toBeLessThan(customIndex);
-      expect(customIndex).toBe(pills.length - 1); // Custom is still last
+      expect(pills[0].isLast).toBe(true);
+      expect(pills[0].label).toBe('Last 1h30m');
+      expect(pills[pills.length - 1].label).toBe('Custom'); // Custom is still last
     });
 
     test('clicking Last pill sets duration correctly', () => {

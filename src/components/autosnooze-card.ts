@@ -806,10 +806,10 @@ export class AutomationPauseCard extends LitElement {
     );
   }
 
-  private _getDurationPills(): { label: string; minutes: number | null }[] {
-    const pills = [...DEFAULT_DURATIONS];
+  private _getDurationPills(): { label: string; minutes: number | null; isLast?: boolean }[] {
+    const pills: { label: string; minutes: number | null; isLast?: boolean }[] = [...DEFAULT_DURATIONS];
 
-    // Insert "Last" pill before "Custom" if we have a last duration that differs from presets
+    // Insert "Last" pill at the start if we have a last duration that differs from presets
     if (this._lastDuration) {
       const lastMinutes = this._lastDuration.minutes;
       const isUniqueFromPresets = !DEFAULT_DURATIONS.some(
@@ -818,9 +818,8 @@ export class AutomationPauseCard extends LitElement {
 
       if (isUniqueFromPresets) {
         const { days, hours, minutes } = this._lastDuration.duration;
-        const lastLabel = `Last (${formatDurationShort(days, hours, minutes)})`;
-        // Insert before "Custom" (the last item)
-        pills.splice(pills.length - 1, 0, { label: lastLabel, minutes: lastMinutes });
+        const durationStr = formatDurationShort(days, hours, minutes).replace(/ /g, '');
+        pills.unshift({ label: `Last ${durationStr}`, minutes: lastMinutes, isLast: true });
       }
     }
 
@@ -992,7 +991,6 @@ export class AutomationPauseCard extends LitElement {
                   const isActive = d.minutes === null
                     ? this._showCustomInput
                     : !this._showCustomInput && d.minutes === currentMinutes;
-                  const isLastPill = d.label.startsWith('Last');
                   return html`
                     <button
                       type="button"
@@ -1007,7 +1005,7 @@ export class AutomationPauseCard extends LitElement {
                       }}
                       role="radio"
                       aria-checked=${isActive}
-                      aria-label="${d.minutes === null ? 'Custom duration' : isLastPill ? `Snooze for last used duration: ${d.label}` : `Snooze for ${d.label}`}"
+                      aria-label="${d.minutes === null ? 'Custom duration' : d.isLast ? `Snooze for last used duration` : `Snooze for ${d.label}`}"
                     >
                       ${d.label}
                     </button>
