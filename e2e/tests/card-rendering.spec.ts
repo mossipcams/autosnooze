@@ -53,7 +53,7 @@ test.describe('Card Rendering', () => {
 
     expect(pills).toContain('30m');
     expect(pills).toContain('1h');
-    expect(pills).toContain('4h');
+    expect(pills).toContain('1d');
     expect(pills).toContain('Custom');
   });
 

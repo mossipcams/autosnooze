@@ -161,7 +161,7 @@ test.describe('Edge Cases', () => {
 
     // Re-select the paused automation and snooze again with longer duration
     await autosnoozeCard.selectAutomation('Living Room Motion Lights');
-    await autosnoozeCard.selectDuration('4h');
+    await autosnoozeCard.setCustomDuration('4h');
     await autosnoozeCard.snooze();
 
     // Wait for UI to update
