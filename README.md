@@ -43,6 +43,13 @@ Snooze automations for a set duration. They re-enable automatically when the tim
 ### HACS (Recommended)
 
 1. Open HACS in Home Assistant
+2. Search for AutoSnooze
+3. Click the download button
+4. Restart Home Assistant
+
+### HACS (Manual Install)
+
+1. Open HACS in Home Assistant
 1. Click the 3-dot menu → **Custom repositories**
 1. Add `https://github.com/mossipcams/autosnooze` as type **Integration**
 1. Search for “AutoSnooze” and click **Download**
@@ -50,12 +57,6 @@ Snooze automations for a set duration. They re-enable automatically when the tim
 1. Go to **Settings → Devices & Services → Add Integration → AutoSnooze**
 
 The dashboard card is automatically registered when the integration loads. Just add the card to your dashboard and you’re ready to go.
-
-### Manual Installation
-
-1. Copy `custom_components/autosnooze` to your `config/custom_components/` folder
-1. Restart Home Assistant
-1. Go to **Settings → Devices & Services → Add Integration → AutoSnooze**
 
 -----
 
@@ -225,19 +226,6 @@ entity: sensor.autosnooze_snoozed_automations
 name: Snoozed
 icon: mdi:sleep
 ```
-
------
-
-## Performance
-
-AutoSnooze is optimized for large Home Assistant installations:
-
-- **Efficient data loading**: Uses a single API request regardless of automation count
-- **Smart re-rendering**: Only updates the UI when countdowns are active
-- **Cached computations**: Automation lists are cached and only recomputed when state changes
-- **Debounced search**: Search input waits 300ms before filtering to prevent lag
-
-Tested with 40+ automations without performance degradation.
 
 -----
 
