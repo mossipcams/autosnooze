@@ -93,7 +93,7 @@ test.describe('Countdown Timer', () => {
 
     // Snooze second automation for 4h (different time)
     await autosnoozeCard.selectAutomation('Kitchen Motion Lights');
-    await autosnoozeCard.selectDuration('4h');
+    await autosnoozeCard.setCustomDuration('4h');
     await autosnoozeCard.snooze();
 
     // Wait for second automation to appear
@@ -116,7 +116,7 @@ test.describe('Countdown Timer', () => {
 
   test('countdown displays hours for longer durations', async ({ autosnoozeCard }) => {
     await autosnoozeCard.selectAutomation('Living Room Motion Lights');
-    await autosnoozeCard.selectDuration('4h');
+    await autosnoozeCard.setCustomDuration('4h');
     await autosnoozeCard.snooze();
 
     await autosnoozeCard.waitForPausedAutomation('Living Room Motion Lights');

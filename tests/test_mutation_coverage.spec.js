@@ -78,8 +78,7 @@ describe('Constant Values - Mutation Killing', () => {
 
       expect(labels).toContain('30m');
       expect(labels).toContain('1h');
-      expect(labels).toContain('4h');
-      expect(labels).toContain('1 day');
+      expect(labels).toContain('1d');
       expect(labels).toContain('Custom');
     });
   });

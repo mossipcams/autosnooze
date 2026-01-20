@@ -8,7 +8,7 @@ test.describe('State Persistence', () => {
   test('snoozed state persists across page reload', async ({ autosnoozeCard, page }) => {
     // Snooze an automation
     await autosnoozeCard.selectAutomation('Living Room Motion Lights');
-    await autosnoozeCard.selectDuration('4h');
+    await autosnoozeCard.setCustomDuration('4h');
     await autosnoozeCard.snooze();
 
     // Wait for paused item to appear

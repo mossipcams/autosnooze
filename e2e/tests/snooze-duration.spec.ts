@@ -45,9 +45,9 @@ test.describe('Duration-based Snooze', () => {
     await autosnoozeCard.expectPausedCount(1);
   });
 
-  test('snooze with 4h preset', async ({ autosnoozeCard }) => {
+  test('snooze with 1d preset', async ({ autosnoozeCard }) => {
     await autosnoozeCard.selectAutomation('Kitchen Motion Lights');
-    await autosnoozeCard.selectDuration('4h');
+    await autosnoozeCard.selectDuration('1d');
     await autosnoozeCard.snooze();
 
     await autosnoozeCard.waitForPausedAutomation('Kitchen Motion Lights');
