@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.2.9](https://github.com/mossipcams/autosnooze/compare/v0.2.8...v0.2.9) (2026-01-20)
+
+
+### Features
+
+* add "Last" duration pill to remember previous snooze duration ([#253](https://github.com/mossipcams/autosnooze/issues/253)) ([861f269](https://github.com/mossipcams/autosnooze/commit/861f269b18c6390b7b632eb809f060e508097c57))
+* hide autosnooze_include and autosnooze_exclude labels from labels view ([#249](https://github.com/mossipcams/autosnooze/issues/249)) ([e4668fe](https://github.com/mossipcams/autosnooze/commit/e4668fefbea10e7356f5a7caab80e5e39f6e0c05))
+
+
+### Bug Fixes
+
+* **mobile:** use Home Assistant native haptic events for iOS support ([#252](https://github.com/mossipcams/autosnooze/issues/252)) ([5e3b0ce](https://github.com/mossipcams/autosnooze/commit/5e3b0cef201623a51658563e31dc648b9ee8645b))
+
 ## [0.2.8](https://github.com/mossipcams/autosnooze/compare/v0.2.7...v0.2.8) (2026-01-14)
 
 
