@@ -59,14 +59,18 @@ export function getHomeAssistantLocale(hass: { language?: string }): SupportedLo
   }
 
   // Direct match
-  if (HA_LOCALE_MAP[hass.language]) {
-    return HA_LOCALE_MAP[hass.language];
+  const directMatch = HA_LOCALE_MAP[hass.language];
+  if (directMatch) {
+    return directMatch;
   }
 
   // Try base language (e.g., 'en' from 'en-AU')
   const baseLanguage = hass.language.split('-')[0];
-  if (HA_LOCALE_MAP[baseLanguage]) {
-    return HA_LOCALE_MAP[baseLanguage];
+  if (baseLanguage) {
+    const baseMatch = HA_LOCALE_MAP[baseLanguage];
+    if (baseMatch) {
+      return baseMatch;
+    }
   }
 
   // Fallback to source locale
