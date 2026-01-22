@@ -1,0 +1,129 @@
+{
+  "group": {
+    "unassigned": "Non assigné",
+    "unlabeled": "Sans étiquette",
+    "uncategorized": "Sans catégorie"
+  },
+  "button": {
+    "undo": "Annuler",
+    "resume": "Reprendre",
+    "confirm_resume_all": "Confirmer tout reprendre",
+    "resume_all": "Tout reprendre",
+    "cancel": "Annuler",
+    "deselect_all": "Tout désélectionner",
+    "select_all": "Tout sélectionner",
+    "clear": "Effacer",
+    "snoozing": "Mise en pause...",
+    "schedule_count": "Programmer ({count})",
+    "snooze_count": "Pause ({count})"
+  },
+  "a11y": {
+    "undo_action": "Annuler la dernière action",
+    "snooze_date": "Date de pause",
+    "snooze_time": "Heure de pause",
+    "resume_date": "Date de reprise",
+    "resume_time": "Heure de reprise",
+    "custom_duration": "Durée personnalisée",
+    "snoozed_region": "Automatisations en pause",
+    "automations_resuming": "Automatisations reprenant {time}",
+    "time_remaining": "Temps restant : {time}",
+    "resume_automation": "Reprendre {name}",
+    "confirm_resume_all": "Confirmer la reprise de toutes les automatisations",
+    "resume_all": "Reprendre toutes les automatisations en pause",
+    "scheduled_region": "Pauses programmées",
+    "scheduled_pause_for": "Pause programmée pour {name}",
+    "cancel_scheduled_for": "Annuler la pause programmée pour {name}",
+    "filter_tabs": "Filtrer les automatisations par",
+    "automation_count": "{count} automatisations",
+    "area_count": "{count} zones",
+    "category_count": "{count} catégories",
+    "label_count": "{count} étiquettes",
+    "search": "Rechercher des automatisations par nom",
+    "selection_actions": "Actions de sélection",
+    "deselect_all": "Désélectionner toutes les automatisations visibles",
+    "select_all": "Sélectionner toutes les automatisations visibles",
+    "clear_selection": "Effacer la sélection",
+    "automations_list": "Liste des automatisations",
+    "snoozing": "Mise en pause des automatisations",
+    "schedule_snooze": "Programmer la pause pour {count} automatisations",
+    "snooze_count": "Mettre en pause {count} automatisations",
+    "select_automation": "Sélectionner {name}",
+    "group_header": "Groupe {name}, {count} automatisations",
+    "group_count": "{count} automatisations",
+    "select_all_in_group": "Tout sélectionner dans {name}",
+    "snooze_last_duration": "Pause pour dernière durée",
+    "snooze_for_duration": "Pause pour {duration}"
+  },
+  "toast": {
+    "error": {
+      "resume_time_required": "Veuillez définir une date et heure de reprise complètes",
+      "invalid_datetime": "Date/heure de reprise invalide",
+      "resume_time_past": "L'heure de reprise doit être dans le futur",
+      "snooze_before_resume": "L'heure de pause doit être avant l'heure de reprise",
+      "undo_failed": "Échec de l'annulation. Les automatisations ont peut-être déjà été modifiées.",
+      "resume_failed": "Échec de la reprise de l'automatisation",
+      "resume_all_failed": "Échec de la reprise des automatisations. Consultez les journaux de Home Assistant.",
+      "cancel_failed": "Échec de l'annulation de la pause programmée"
+    },
+    "success": {
+      "scheduled_one": "1 automatisation programmée pour pause",
+      "scheduled_many": "{count} automatisations programmées pour pause",
+      "snoozed_until_one": "1 automatisation en pause jusqu'à {time}",
+      "snoozed_until_many": "{count} automatisations en pause jusqu'à {time}",
+      "snoozed_for_one": "1 automatisation en pause pendant {duration}",
+      "snoozed_for_many": "{count} automatisations en pause pendant {duration}",
+      "restored_one": "1 automatisation restaurée",
+      "restored_many": "{count} automatisations restaurées",
+      "resumed": "Automatisation reprise avec succès",
+      "resumed_all": "Toutes les automatisations ont été reprises avec succès",
+      "cancelled": "Pause programmée annulée avec succès"
+    }
+  },
+  "list": {
+    "empty": "Aucune automatisation trouvée"
+  },
+  "schedule": {
+    "snooze_at": "Pause à :",
+    "select_date": "Sélectionner la date",
+    "hint_immediate": "Laisser vide pour mettre en pause immédiatement",
+    "resume_at": "Reprendre à :",
+    "back_to_duration": "Retour à la sélection de durée",
+    "pick_datetime": "Choisir une date/heure spécifique"
+  },
+  "duration": {
+    "header": "Durée de la pause",
+    "placeholder": "ex. 2h30m, 1.5h, 1j, 45m",
+    "preview_label": "Durée :",
+    "help": "Entrer la durée : 30m, 2h, 1.5h, 4h30m, 1j, 1j2h"
+  },
+  "section": {
+    "snoozed_count": "Automatisations en pause ({count})",
+    "scheduled_count": "Pauses programmées ({count})"
+  },
+  "status": {
+    "resumes": "Reprend",
+    "disables": "Désactive :",
+    "resumes_at": "Reprend :",
+    "active_count": "{count} actives",
+    "scheduled_count": "{count} programmées"
+  },
+  "tab": {
+    "all": "Tout",
+    "areas": "Zones",
+    "categories": "Catégories",
+    "labels": "Étiquettes"
+  },
+  "search": {
+    "placeholder": "Rechercher des automatisations..."
+  },
+  "selection": {
+    "count": "{selected} sur {total} sélectionnées"
+  },
+  "card": {
+    "default_title": "AutoSnooze"
+  },
+  "editor": {
+    "title_label": "Titre",
+    "title_placeholder": "AutoSnooze"
+  }
+}
