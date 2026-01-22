@@ -3,10 +3,10 @@
  * Configuration editor for the AutoSnooze Lovelace card.
  */
 
-import { LitElement, html, TemplateResult } from 'lit';
+import { LitElement, html, PropertyValues, TemplateResult } from 'lit';
 import { property, state } from 'lit/decorators.js';
 import { localized } from '@lit/localize';
-import { msg } from '../localization/localize.js';
+import { msg, initializeLocaleFromHA } from '../localization/localize.js';
 import type { HomeAssistant } from '../types/hass.js';
 import type { AutoSnoozeCardConfig } from '../types/card.js';
 import { editorStyles } from '../styles/editor.styles.js';
@@ -23,6 +23,13 @@ export class AutomationPauseCardEditor extends LitElement {
 
   setConfig(config: AutoSnoozeCardConfig): void {
     this._config = config;
+  }
+
+  updated(changedProps: PropertyValues): void {
+    super.updated(changedProps);
+    if (changedProps.has('hass') && this.hass) {
+      initializeLocaleFromHA(this.hass);
+    }
   }
 
   private _valueChanged(key: string, value: string): void {

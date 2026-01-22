@@ -49,23 +49,28 @@ const { getLocale, setLocale } = configureLocalization({
 
 export { getLocale, setLocale };
 
+// Type for Home Assistant object with language info
+type HassWithLanguage = { language?: string; locale?: { language?: string } };
+
 /**
  * Get the supported locale from a Home Assistant language code.
  * Falls back to 'en' if the language is not supported.
  */
-export function getHomeAssistantLocale(hass: { language?: string }): SupportedLocale {
-  if (!hass?.language) {
+export function getHomeAssistantLocale(hass: HassWithLanguage): SupportedLocale {
+  // Support both hass.language and hass.locale.language
+  const language = hass?.language ?? hass?.locale?.language;
+  if (!language) {
     return sourceLocale;
   }
 
   // Direct match
-  const directMatch = HA_LOCALE_MAP[hass.language];
+  const directMatch = HA_LOCALE_MAP[language];
   if (directMatch) {
     return directMatch;
   }
 
   // Try base language (e.g., 'en' from 'en-AU')
-  const baseLanguage = hass.language.split('-')[0];
+  const baseLanguage = language.split('-')[0];
   if (baseLanguage) {
     const baseMatch = HA_LOCALE_MAP[baseLanguage];
     if (baseMatch) {
@@ -81,7 +86,7 @@ export function getHomeAssistantLocale(hass: { language?: string }): SupportedLo
  * Initialize the locale based on Home Assistant's language setting.
  * Call this when the component is first loaded or when hass.language changes.
  */
-export async function initializeLocaleFromHA(hass: { language?: string }): Promise<void> {
+export async function initializeLocaleFromHA(hass: HassWithLanguage): Promise<void> {
   const locale = getHomeAssistantLocale(hass);
   if (locale !== getLocale()) {
     await setLocale(locale);
