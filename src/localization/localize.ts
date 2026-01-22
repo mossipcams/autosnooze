@@ -89,7 +89,14 @@ export function getHomeAssistantLocale(hass: HassWithLanguage): SupportedLocale 
 export async function initializeLocaleFromHA(hass: HassWithLanguage): Promise<void> {
   const locale = getHomeAssistantLocale(hass);
   if (locale !== getLocale()) {
-    await setLocale(locale);
+    try {
+      await setLocale(locale);
+    } catch (error) {
+      console.warn(
+        `[AutoSnooze] Failed to load locale "${locale}", falling back to English:`,
+        error
+      );
+    }
   }
 }
 

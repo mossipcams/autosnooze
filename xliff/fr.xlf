@@ -280,7 +280,7 @@
 </trans-unit>
 <trans-unit id="a11y.label_count">
   <source><x id="0" equiv-text="${this._getLabelCount()}"/> labels</source>
-  <target><x id="0" equiv-text="${this._getLabelCount}"/> étiquettes</target>
+  <target><x id="0" equiv-text="${this._getLabelCount()}"/> étiquettes</target>
 </trans-unit>
 <trans-unit id="search.placeholder">
   <source>Search automations...</source>
@@ -357,6 +357,30 @@
 <trans-unit id="editor.title_placeholder">
   <source>AutoSnooze</source>
   <target>AutoSnooze</target>
+</trans-unit>
+<trans-unit id="a11y.select_automation">
+  <source>Select <x id="0" equiv-text="${a.name}"/></source>
+  <target>Sélectionner <x id="0" equiv-text="${a.name}"/></target>
+</trans-unit>
+<trans-unit id="a11y.group_header">
+  <source><x id="0" equiv-text="${groupName}"/> group, <x id="1" equiv-text="${items.length}"/> automations</source>
+  <target>Groupe <x id="0" equiv-text="${groupName}"/>, <x id="1" equiv-text="${items.length}"/> automatisations</target>
+</trans-unit>
+<trans-unit id="a11y.group_count">
+  <source><x id="0" equiv-text="${items.length}"/> automations</source>
+  <target><x id="0" equiv-text="${items.length}"/> automatisations</target>
+</trans-unit>
+<trans-unit id="a11y.select_all_in_group">
+  <source>Select all automations in <x id="0" equiv-text="${groupName}"/></source>
+  <target>Tout sélectionner dans <x id="0" equiv-text="${groupName}"/></target>
+</trans-unit>
+<trans-unit id="a11y.snooze_last_duration">
+  <source>Snooze for last used duration</source>
+  <target>Pause pour dernière durée</target>
+</trans-unit>
+<trans-unit id="a11y.snooze_for_duration">
+  <source>Snooze for <x id="0" equiv-text="${d.label}"/></source>
+  <target>Pause pour <x id="0" equiv-text="${d.label}"/></target>
 </trans-unit>
     </body>
   </file>

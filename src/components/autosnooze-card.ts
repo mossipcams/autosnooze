@@ -880,7 +880,7 @@ export class AutomationPauseCard extends LitElement {
             .checked=${this._selected.includes(a.id)}
             @click=${(e: Event) => e.stopPropagation()}
             @change=${() => this._toggleSelection(a.id)}
-            aria-label="Select ${a.name}"
+            aria-label="${msg(str`Select ${a.name}`, { id: 'a11y.select_automation' })}"
             tabindex="-1"
           />
           <div class="list-item-content">
@@ -912,18 +912,18 @@ export class AutomationPauseCard extends LitElement {
           class="group-header ${expanded ? 'expanded' : ''}"
           @click=${() => this._toggleGroupExpansion(groupName)}
           aria-expanded=${expanded}
-          aria-label="${groupName} group, ${items.length} automations"
+          aria-label="${msg(str`${groupName} group, ${items.length} automations`, { id: 'a11y.group_header' })}"
         >
           <ha-icon icon="mdi:chevron-right" aria-hidden="true"></ha-icon>
           <span>${groupName}</span>
-          <span class="group-badge" aria-label="${items.length} automations">${items.length}</span>
+          <span class="group-badge" aria-label="${msg(str`${items.length} automations`, { id: 'a11y.group_count' })}">${items.length}</span>
           <input
             type="checkbox"
             .checked=${groupSelected}
             .indeterminate=${someSelected}
             @click=${(e: Event) => e.stopPropagation()}
             @change=${() => this._selectGroup(items)}
-            aria-label="Select all automations in ${groupName}"
+            aria-label="${msg(str`Select all automations in ${groupName}`, { id: 'a11y.select_all_in_group' })}"
             tabindex="-1"
           />
         </button>
@@ -941,7 +941,7 @@ export class AutomationPauseCard extends LitElement {
                     .checked=${this._selected.includes(a.id)}
                     @click=${(e: Event) => e.stopPropagation()}
                     @change=${() => this._toggleSelection(a.id)}
-                    aria-label="Select ${a.name}"
+                    aria-label="${msg(str`Select ${a.name}`, { id: 'a11y.select_automation' })}"
                     tabindex="-1"
                   />
                   <div class="list-item-content">
@@ -1039,7 +1039,7 @@ export class AutomationPauseCard extends LitElement {
                       }}
                       role="radio"
                       aria-checked=${isActive}
-                      aria-label="${d.minutes === null ? 'Custom duration' : d.isLast ? `Snooze for last used duration` : `Snooze for ${d.label}`}"
+                      aria-label="${d.minutes === null ? msg('Custom duration', { id: 'a11y.custom_duration' }) : d.isLast ? msg('Snooze for last used duration', { id: 'a11y.snooze_last_duration' }) : msg(str`Snooze for ${d.label}`, { id: 'a11y.snooze_for_duration' })}"
                     >
                       ${d.label}
                     </button>

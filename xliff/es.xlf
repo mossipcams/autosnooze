@@ -358,6 +358,30 @@
   <source>AutoSnooze</source>
   <target>AutoSnooze</target>
 </trans-unit>
+<trans-unit id="a11y.select_automation">
+  <source>Select <x id="0" equiv-text="${a.name}"/></source>
+  <target>Seleccionar <x id="0" equiv-text="${a.name}"/></target>
+</trans-unit>
+<trans-unit id="a11y.group_header">
+  <source><x id="0" equiv-text="${groupName}"/> group, <x id="1" equiv-text="${items.length}"/> automations</source>
+  <target>Grupo <x id="0" equiv-text="${groupName}"/>, <x id="1" equiv-text="${items.length}"/> automatizaciones</target>
+</trans-unit>
+<trans-unit id="a11y.group_count">
+  <source><x id="0" equiv-text="${items.length}"/> automations</source>
+  <target><x id="0" equiv-text="${items.length}"/> automatizaciones</target>
+</trans-unit>
+<trans-unit id="a11y.select_all_in_group">
+  <source>Select all automations in <x id="0" equiv-text="${groupName}"/></source>
+  <target>Seleccionar todas en <x id="0" equiv-text="${groupName}"/></target>
+</trans-unit>
+<trans-unit id="a11y.snooze_last_duration">
+  <source>Snooze for last used duration</source>
+  <target>Pausar con última duración</target>
+</trans-unit>
+<trans-unit id="a11y.snooze_for_duration">
+  <source>Snooze for <x id="0" equiv-text="${d.label}"/></source>
+  <target>Pausar durante <x id="0" equiv-text="${d.label}"/></target>
+</trans-unit>
     </body>
   </file>
 </xliff>
