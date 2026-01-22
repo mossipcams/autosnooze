@@ -22,7 +22,8 @@
   "keywords": [
     "home-assistant",
     "lovelace",
-    "custom-card"
+    "custom-card",
+    "i18n"
   ],
   "author": "",
   "license": "MIT",
