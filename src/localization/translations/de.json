@@ -113,6 +113,9 @@
     "categories": "Kategorien",
     "labels": "Labels"
   },
+  "search": {
+    "placeholder": "Automatisierungen suchen..."
+  },
   "selection": {
     "count": "{selected} von {total} ausgewählt"
   },

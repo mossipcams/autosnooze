@@ -113,6 +113,9 @@
     "categories": "Categorías",
     "labels": "Etiquetas"
   },
+  "search": {
+    "placeholder": "Buscar automatizaciones..."
+  },
   "selection": {
     "count": "{selected} de {total} seleccionadas"
   },
