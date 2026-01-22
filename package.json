@@ -4,9 +4,7 @@
   "description": "AutoSnooze - Temporarily pause Home Assistant automations",
   "main": "custom_components/autosnooze/www/autosnooze-card.js",
   "scripts": {
-    "localize:extract": "lit-localize extract",
-    "localize:build": "lit-localize build",
-    "build": "npm run localize:build && rollup -c",
+    "build": "rollup -c",
     "watch": "rollup -c -w",
     "test": "vitest run",
     "test:watch": "vitest",
@@ -29,11 +27,10 @@
   "author": "",
   "license": "MIT",
   "dependencies": {
-    "@lit/localize": "^0.12.0",
     "lit": "^3.3.2"
   },
   "devDependencies": {
-    "@lit/localize-tools": "^0.7.0",
+    "@rollup/plugin-json": "^6.1.0",
     "@playwright/test": "^1.40.0",
     "@babel/core": "^7.28.6",
     "@babel/preset-env": "^7.28.6",

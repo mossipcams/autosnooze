@@ -5,39 +5,16 @@
 
 import { LitElement, html, TemplateResult } from 'lit';
 import { property, state } from 'lit/decorators.js';
-import { localized } from '@lit/localize';
-import { msg, initializeLocaleFromHA } from '../localization/localize.js';
+import { localize } from '../localization/localize.js';
 import type { HomeAssistant } from '../types/hass.js';
 import type { AutoSnoozeCardConfig } from '../types/card.js';
 import { editorStyles } from '../styles/editor.styles.js';
 
-@localized()
 export class AutomationPauseCardEditor extends LitElement {
   static styles = editorStyles;
 
-  private _hass?: HomeAssistant;
-  private _currentLanguage?: string;
-
   @property({ attribute: false })
-  set hass(value: HomeAssistant | undefined) {
-    const oldValue = this._hass;
-    this._hass = value;
-
-    // Auto-detect language changes and update locale
-    const newLanguage = value?.language ?? value?.locale?.language;
-    if (newLanguage !== this._currentLanguage) {
-      this._currentLanguage = newLanguage;
-      if (value) {
-        initializeLocaleFromHA(value);
-      }
-    }
-
-    this.requestUpdate('hass', oldValue);
-  }
-
-  get hass(): HomeAssistant | undefined {
-    return this._hass;
-  }
+  hass?: HomeAssistant;
 
   @state()
   private _config: AutoSnoozeCardConfig = {} as AutoSnoozeCardConfig;
@@ -68,14 +45,14 @@ export class AutomationPauseCardEditor extends LitElement {
 
     return html`
       <div class="row">
-        <label for="title-input">${msg('Title', { id: 'editor.title_label' })}</label>
+        <label for="title-input">${localize(this.hass, 'editor.title_label')}</label>
         <input
           id="title-input"
           type="text"
           .value=${this._config.title ?? ''}
           @input=${(e: Event) =>
             this._valueChanged('title', (e.target as HTMLInputElement).value)}
-          placeholder="${msg('AutoSnooze', { id: 'editor.title_placeholder' })}"
+          placeholder="${localize(this.hass, 'editor.title_placeholder')}"
         />
       </div>
     `;

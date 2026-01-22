@@ -1,0 +1,126 @@
+{
+  "group": {
+    "unassigned": "Non assegnato",
+    "unlabeled": "Senza etichetta",
+    "uncategorized": "Senza categoria"
+  },
+  "button": {
+    "undo": "Annulla",
+    "resume": "Riprendi",
+    "confirm_resume_all": "Conferma riprendi tutto",
+    "resume_all": "Riprendi tutto",
+    "cancel": "Annulla",
+    "deselect_all": "Deseleziona tutto",
+    "select_all": "Seleziona tutto",
+    "clear": "Cancella",
+    "snoozing": "Messa in pausa...",
+    "schedule_count": "Programma ({count})",
+    "snooze_count": "Pausa ({count})"
+  },
+  "a11y": {
+    "undo_action": "Annulla ultima azione",
+    "snooze_date": "Data pausa",
+    "snooze_time": "Ora pausa",
+    "resume_date": "Data ripresa",
+    "resume_time": "Ora ripresa",
+    "custom_duration": "Durata personalizzata",
+    "snoozed_region": "Automazioni in pausa",
+    "automations_resuming": "Automazioni che riprendono {time}",
+    "time_remaining": "Tempo rimanente: {time}",
+    "resume_automation": "Riprendi {name}",
+    "confirm_resume_all": "Conferma ripresa di tutte le automazioni",
+    "resume_all": "Riprendi tutte le automazioni in pausa",
+    "scheduled_region": "Pause programmate",
+    "scheduled_pause_for": "Pausa programmata per {name}",
+    "cancel_scheduled_for": "Annulla pausa programmata per {name}",
+    "filter_tabs": "Filtra automazioni per",
+    "automation_count": "{count} automazioni",
+    "area_count": "{count} aree",
+    "category_count": "{count} categorie",
+    "label_count": "{count} etichette",
+    "search": "Cerca automazioni per nome",
+    "selection_actions": "Azioni selezione",
+    "deselect_all": "Deseleziona tutte le automazioni visibili",
+    "select_all": "Seleziona tutte le automazioni visibili",
+    "clear_selection": "Cancella selezione",
+    "automations_list": "Lista automazioni",
+    "snoozing": "Messa in pausa delle automazioni",
+    "schedule_snooze": "Programma pausa per {count} automazioni",
+    "snooze_count": "Metti in pausa {count} automazioni",
+    "select_automation": "Seleziona {name}",
+    "group_header": "Gruppo {name}, {count} automazioni",
+    "group_count": "{count} automazioni",
+    "select_all_in_group": "Seleziona tutto in {name}",
+    "snooze_last_duration": "Pausa per ultima durata",
+    "snooze_for_duration": "Pausa per {duration}"
+  },
+  "toast": {
+    "error": {
+      "resume_time_required": "Imposta una data e ora di ripresa complete",
+      "invalid_datetime": "Data/ora di ripresa non valida",
+      "resume_time_past": "L'ora di ripresa deve essere nel futuro",
+      "snooze_before_resume": "L'ora di pausa deve essere prima dell'ora di ripresa",
+      "undo_failed": "Annullamento fallito. Le automazioni potrebbero essere già state modificate.",
+      "resume_failed": "Ripresa dell'automazione fallita",
+      "resume_all_failed": "Ripresa delle automazioni fallita. Controlla i log di Home Assistant.",
+      "cancel_failed": "Annullamento della pausa programmata fallito"
+    },
+    "success": {
+      "scheduled_one": "1 automazione programmata per la pausa",
+      "scheduled_many": "{count} automazioni programmate per la pausa",
+      "snoozed_until_one": "1 automazione in pausa fino a {time}",
+      "snoozed_until_many": "{count} automazioni in pausa fino a {time}",
+      "snoozed_for_one": "1 automazione in pausa per {duration}",
+      "snoozed_for_many": "{count} automazioni in pausa per {duration}",
+      "restored_one": "1 automazione ripristinata",
+      "restored_many": "{count} automazioni ripristinate",
+      "resumed": "Automazione ripresa con successo",
+      "resumed_all": "Tutte le automazioni riprese con successo",
+      "cancelled": "Pausa programmata annullata con successo"
+    }
+  },
+  "list": {
+    "empty": "Nessuna automazione trovata"
+  },
+  "schedule": {
+    "snooze_at": "Pausa alle:",
+    "select_date": "Seleziona data",
+    "hint_immediate": "Lascia vuoto per mettere in pausa immediatamente",
+    "resume_at": "Riprendi alle:",
+    "back_to_duration": "Torna alla selezione durata",
+    "pick_datetime": "Scegli data/ora specifica"
+  },
+  "duration": {
+    "header": "Durata pausa",
+    "placeholder": "es. 2h30m, 1.5h, 1g, 45m",
+    "preview_label": "Durata:",
+    "help": "Inserisci durata: 30m, 2h, 1.5h, 4h30m, 1g, 1g2h"
+  },
+  "section": {
+    "snoozed_count": "Automazioni in pausa ({count})",
+    "scheduled_count": "Pause programmate ({count})"
+  },
+  "status": {
+    "resumes": "Riprende",
+    "disables": "Disattiva:",
+    "resumes_at": "Riprende:",
+    "active_count": "{count} attive",
+    "scheduled_count": "{count} programmate"
+  },
+  "tab": {
+    "all": "Tutto",
+    "areas": "Aree",
+    "categories": "Categorie",
+    "labels": "Etichette"
+  },
+  "selection": {
+    "count": "{selected} di {total} selezionate"
+  },
+  "card": {
+    "default_title": "AutoSnooze"
+  },
+  "editor": {
+    "title_label": "Titolo",
+    "title_placeholder": "AutoSnooze"
+  }
+}

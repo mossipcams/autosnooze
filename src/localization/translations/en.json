@@ -1,0 +1,126 @@
+{
+  "group": {
+    "unassigned": "Unassigned",
+    "unlabeled": "Unlabeled",
+    "uncategorized": "Uncategorized"
+  },
+  "button": {
+    "undo": "Undo",
+    "resume": "Resume",
+    "confirm_resume_all": "Confirm Resume All",
+    "resume_all": "Resume All",
+    "cancel": "Cancel",
+    "deselect_all": "Deselect All",
+    "select_all": "Select All",
+    "clear": "Clear",
+    "snoozing": "Snoozing...",
+    "schedule_count": "Schedule ({count})",
+    "snooze_count": "Snooze ({count})"
+  },
+  "a11y": {
+    "undo_action": "Undo last action",
+    "snooze_date": "Snooze date",
+    "snooze_time": "Snooze time",
+    "resume_date": "Resume date",
+    "resume_time": "Resume time",
+    "custom_duration": "Custom duration",
+    "snoozed_region": "Snoozed automations",
+    "automations_resuming": "Automations resuming {time}",
+    "time_remaining": "Time remaining: {time}",
+    "resume_automation": "Resume {name}",
+    "confirm_resume_all": "Confirm resume all automations",
+    "resume_all": "Resume all paused automations",
+    "scheduled_region": "Scheduled snoozes",
+    "scheduled_pause_for": "Scheduled pause for {name}",
+    "cancel_scheduled_for": "Cancel scheduled pause for {name}",
+    "filter_tabs": "Filter automations by",
+    "automation_count": "{count} automations",
+    "area_count": "{count} areas",
+    "category_count": "{count} categories",
+    "label_count": "{count} labels",
+    "search": "Search automations by name",
+    "selection_actions": "Selection actions",
+    "deselect_all": "Deselect all visible automations",
+    "select_all": "Select all visible automations",
+    "clear_selection": "Clear selection",
+    "automations_list": "Automations list",
+    "snoozing": "Snoozing automations",
+    "schedule_snooze": "Schedule snooze for {count} automations",
+    "snooze_count": "Snooze {count} automations",
+    "select_automation": "Select {name}",
+    "group_header": "{name} group, {count} automations",
+    "group_count": "{count} automations",
+    "select_all_in_group": "Select all automations in {name}",
+    "snooze_last_duration": "Snooze for last used duration",
+    "snooze_for_duration": "Snooze for {duration}"
+  },
+  "toast": {
+    "error": {
+      "resume_time_required": "Please set a complete resume date and time",
+      "invalid_datetime": "Invalid resume date/time",
+      "resume_time_past": "Resume time must be in the future",
+      "snooze_before_resume": "Snooze time must be before resume time",
+      "undo_failed": "Failed to undo. The automations may have already been modified.",
+      "resume_failed": "Failed to resume automation",
+      "resume_all_failed": "Failed to resume automations. Check Home Assistant logs for details.",
+      "cancel_failed": "Failed to cancel scheduled snooze"
+    },
+    "success": {
+      "scheduled_one": "Scheduled 1 automation to snooze",
+      "scheduled_many": "Scheduled {count} automations to snooze",
+      "snoozed_until_one": "Snoozed 1 automation until {time}",
+      "snoozed_until_many": "Snoozed {count} automations until {time}",
+      "snoozed_for_one": "Snoozed 1 automation for {duration}",
+      "snoozed_for_many": "Snoozed {count} automations for {duration}",
+      "restored_one": "Restored 1 automation",
+      "restored_many": "Restored {count} automations",
+      "resumed": "Automation resumed successfully",
+      "resumed_all": "All automations resumed successfully",
+      "cancelled": "Scheduled snooze cancelled successfully"
+    }
+  },
+  "list": {
+    "empty": "No automations found"
+  },
+  "schedule": {
+    "snooze_at": "Snooze at:",
+    "select_date": "Select date",
+    "hint_immediate": "Leave empty to snooze immediately",
+    "resume_at": "Resume at:",
+    "back_to_duration": "Back to duration selection",
+    "pick_datetime": "Pick specific date/time instead"
+  },
+  "duration": {
+    "header": "Snooze Duration",
+    "placeholder": "e.g. 2h30m, 1.5h, 1d, 45m",
+    "preview_label": "Duration:",
+    "help": "Enter duration: 30m, 2h, 1.5h, 4h30m, 1d, 1d2h"
+  },
+  "section": {
+    "snoozed_count": "Snoozed Automations ({count})",
+    "scheduled_count": "Scheduled Snoozes ({count})"
+  },
+  "status": {
+    "resumes": "Resumes",
+    "disables": "Disables:",
+    "resumes_at": "Resumes:",
+    "active_count": "{count} active",
+    "scheduled_count": "{count} scheduled"
+  },
+  "tab": {
+    "all": "All",
+    "areas": "Areas",
+    "categories": "Categories",
+    "labels": "Labels"
+  },
+  "selection": {
+    "count": "{selected} of {total} selected"
+  },
+  "card": {
+    "default_title": "AutoSnooze"
+  },
+  "editor": {
+    "title_label": "Title",
+    "title_placeholder": "AutoSnooze"
+  }
+}
