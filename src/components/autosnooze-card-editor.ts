@@ -3,7 +3,7 @@
  * Configuration editor for the AutoSnooze Lovelace card.
  */
 
-import { LitElement, html, PropertyValues, TemplateResult } from 'lit';
+import { LitElement, html, TemplateResult } from 'lit';
 import { property, state } from 'lit/decorators.js';
 import { localized } from '@lit/localize';
 import { msg, initializeLocaleFromHA } from '../localization/localize.js';
@@ -15,21 +15,35 @@ import { editorStyles } from '../styles/editor.styles.js';
 export class AutomationPauseCardEditor extends LitElement {
   static styles = editorStyles;
 
+  private _hass?: HomeAssistant;
+  private _currentLanguage?: string;
+
   @property({ attribute: false })
-  hass?: HomeAssistant;
+  set hass(value: HomeAssistant | undefined) {
+    const oldValue = this._hass;
+    this._hass = value;
+
+    // Auto-detect language changes and update locale
+    const newLanguage = value?.language ?? value?.locale?.language;
+    if (newLanguage !== this._currentLanguage) {
+      this._currentLanguage = newLanguage;
+      if (value) {
+        initializeLocaleFromHA(value);
+      }
+    }
+
+    this.requestUpdate('hass', oldValue);
+  }
+
+  get hass(): HomeAssistant | undefined {
+    return this._hass;
+  }
 
   @state()
   private _config: AutoSnoozeCardConfig = {} as AutoSnoozeCardConfig;
 
   setConfig(config: AutoSnoozeCardConfig): void {
     this._config = config;
-  }
-
-  updated(changedProps: PropertyValues): void {
-    super.updated(changedProps);
-    if (changedProps.has('hass') && this.hass) {
-      initializeLocaleFromHA(this.hass);
-    }
   }
 
   private _valueChanged(key: string, value: string): void {

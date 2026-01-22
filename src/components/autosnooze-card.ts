@@ -68,8 +68,29 @@ import {
 export class AutomationPauseCard extends LitElement {
   static styles = cardStyles;
 
+  private _hass?: HomeAssistant;
+  private _currentLanguage?: string;
+
   @property({ attribute: false })
-  hass?: HomeAssistant;
+  set hass(value: HomeAssistant | undefined) {
+    const oldValue = this._hass;
+    this._hass = value;
+
+    // Auto-detect language changes and update locale
+    const newLanguage = value?.language ?? value?.locale?.language;
+    if (newLanguage !== this._currentLanguage) {
+      this._currentLanguage = newLanguage;
+      if (value) {
+        initializeLocaleFromHA(value);
+      }
+    }
+
+    this.requestUpdate('hass', oldValue);
+  }
+
+  get hass(): HomeAssistant | undefined {
+    return this._hass;
+  }
 
   @property({ attribute: false })
   config: AutoSnoozeCardConfig = {} as AutoSnoozeCardConfig;
@@ -169,30 +190,20 @@ export class AutomationPauseCard extends LitElement {
       }
     }
 
-    // Check for language changes
-    if (oldHass.language !== newHass.language) {
-      return true;
-    }
-
     return false;
   }
 
   updated(changedProps: PropertyValues): void {
     super.updated(changedProps);
-    if (changedProps.has('hass') && this.hass) {
-      // Initialize locale from Home Assistant language setting
-      initializeLocaleFromHA(this.hass);
-
-      if (this.hass.connection) {
-        if (!this._labelsFetched) {
-          this._fetchLabelRegistry();
-        }
-        if (!this._categoriesFetched) {
-          this._fetchCategoryRegistry();
-        }
-        if (!this._entityRegistryFetched) {
-          this._fetchEntityRegistry();
-        }
+    if (changedProps.has('hass') && this.hass?.connection) {
+      if (!this._labelsFetched) {
+        this._fetchLabelRegistry();
+      }
+      if (!this._categoriesFetched) {
+        this._fetchCategoryRegistry();
+      }
+      if (!this._entityRegistryFetched) {
+        this._fetchEntityRegistry();
       }
     }
   }
