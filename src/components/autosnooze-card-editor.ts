@@ -5,10 +5,13 @@
 
 import { LitElement, html, TemplateResult } from 'lit';
 import { property, state } from 'lit/decorators.js';
+import { localized } from '@lit/localize';
+import { msg } from '../localization/localize.js';
 import type { HomeAssistant } from '../types/hass.js';
 import type { AutoSnoozeCardConfig } from '../types/card.js';
 import { editorStyles } from '../styles/editor.styles.js';
 
+@localized()
 export class AutomationPauseCardEditor extends LitElement {
   static styles = editorStyles;
 
@@ -44,14 +47,14 @@ export class AutomationPauseCardEditor extends LitElement {
 
     return html`
       <div class="row">
-        <label for="title-input">Title</label>
+        <label for="title-input">${msg('Title', { id: 'editor.title_label' })}</label>
         <input
           id="title-input"
           type="text"
           .value=${this._config.title ?? ''}
           @input=${(e: Event) =>
             this._valueChanged('title', (e.target as HTMLInputElement).value)}
-          placeholder="AutoSnooze"
+          placeholder="${msg('AutoSnooze', { id: 'editor.title_placeholder' })}"
         />
       </div>
     `;

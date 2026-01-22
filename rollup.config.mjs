@@ -12,6 +12,7 @@ export default {
     file: 'custom_components/autosnooze/www/autosnooze-card.js',
     format: 'es',
     sourcemap: true,
+    inlineDynamicImports: true,
   },
   plugins: [
     replace({

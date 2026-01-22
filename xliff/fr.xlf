@@ -2,6 +2,362 @@
 <xliff version="1.2" xmlns="urn:oasis:names:tc:xliff:document:1.2">
   <file target-language="fr" source-language="en" original="lit-localize-inputs" datatype="plaintext">
     <body>
+<trans-unit id="group.unassigned">
+  <source>Unassigned</source>
+  <target>Non assigné</target>
+</trans-unit>
+<trans-unit id="group.unlabeled">
+  <source>Unlabeled</source>
+  <target>Sans étiquette</target>
+</trans-unit>
+<trans-unit id="group.uncategorized">
+  <source>Uncategorized</source>
+  <target>Sans catégorie</target>
+</trans-unit>
+<trans-unit id="button.undo">
+  <source>Undo</source>
+  <target>Annuler</target>
+</trans-unit>
+<trans-unit id="a11y.undo_action">
+  <source>Undo last action</source>
+  <target>Annuler la dernière action</target>
+</trans-unit>
+<trans-unit id="toast.error.resume_time_required">
+  <source>Please set a complete resume date and time</source>
+  <target>Veuillez définir une date et heure de reprise complètes</target>
+</trans-unit>
+<trans-unit id="toast.error.invalid_datetime">
+  <source>Invalid resume date/time</source>
+  <target>Date/heure de reprise invalide</target>
+</trans-unit>
+<trans-unit id="toast.error.resume_time_past">
+  <source>Resume time must be in the future</source>
+  <target>L'heure de reprise doit être dans le futur</target>
+</trans-unit>
+<trans-unit id="toast.error.snooze_before_resume">
+  <source>Snooze time must be before resume time</source>
+  <target>L'heure de pause doit être avant l'heure de reprise</target>
+</trans-unit>
+<trans-unit id="toast.success.scheduled_one">
+  <source>Scheduled 1 automation to snooze</source>
+  <target>1 automatisation programmée pour pause</target>
+</trans-unit>
+<trans-unit id="toast.success.scheduled_many">
+  <source>Scheduled <x id="0" equiv-text="${count}"/> automations to snooze</source>
+  <target><x id="0" equiv-text="${count}"/> automatisations programmées pour pause</target>
+</trans-unit>
+<trans-unit id="toast.success.snoozed_until_one">
+  <source>Snoozed 1 automation until <x id="0" equiv-text="${formattedTime}"/></source>
+  <target>1 automatisation en pause jusqu'à <x id="0" equiv-text="${formattedTime}"/></target>
+</trans-unit>
+<trans-unit id="toast.success.snoozed_until_many">
+  <source>Snoozed <x id="0" equiv-text="${count}"/> automations until <x id="1" equiv-text="${formattedTime}"/></source>
+  <target><x id="0" equiv-text="${count}"/> automatisations en pause jusqu'à <x id="1" equiv-text="${formattedTime}"/></target>
+</trans-unit>
+<trans-unit id="toast.success.snoozed_for_one">
+  <source>Snoozed 1 automation for <x id="0" equiv-text="${durationText}"/></source>
+  <target>1 automatisation en pause pendant <x id="0" equiv-text="${durationText}"/></target>
+</trans-unit>
+<trans-unit id="toast.success.snoozed_for_many">
+  <source>Snoozed <x id="0" equiv-text="${count}"/> automations for <x id="1" equiv-text="${durationText}"/></source>
+  <target><x id="0" equiv-text="${count}"/> automatisations en pause pendant <x id="1" equiv-text="${durationText}"/></target>
+</trans-unit>
+<trans-unit id="toast.success.restored_one">
+  <source>Restored 1 automation</source>
+  <target>1 automatisation restaurée</target>
+</trans-unit>
+<trans-unit id="toast.success.restored_many">
+  <source>Restored <x id="0" equiv-text="${count}"/> automations</source>
+  <target><x id="0" equiv-text="${count}"/> automatisations restaurées</target>
+</trans-unit>
+<trans-unit id="toast.error.undo_failed">
+  <source>Failed to undo. The automations may have already been modified.</source>
+  <target>Échec de l'annulation. Les automatisations ont peut-être déjà été modifiées.</target>
+</trans-unit>
+<trans-unit id="toast.success.resumed">
+  <source>Automation resumed successfully</source>
+  <target>Automatisation reprise avec succès</target>
+</trans-unit>
+<trans-unit id="toast.error.resume_failed">
+  <source>Failed to resume automation</source>
+  <target>Échec de la reprise de l'automatisation</target>
+</trans-unit>
+<trans-unit id="toast.success.resumed_all">
+  <source>All automations resumed successfully</source>
+  <target>Toutes les automatisations ont été reprises avec succès</target>
+</trans-unit>
+<trans-unit id="toast.error.resume_all_failed">
+  <source>Failed to resume automations. Check Home Assistant logs for details.</source>
+  <target>Échec de la reprise des automatisations. Consultez les journaux de Home Assistant.</target>
+</trans-unit>
+<trans-unit id="toast.success.cancelled">
+  <source>Scheduled snooze cancelled successfully</source>
+  <target>Pause programmée annulée avec succès</target>
+</trans-unit>
+<trans-unit id="toast.error.cancel_failed">
+  <source>Failed to cancel scheduled snooze</source>
+  <target>Échec de l'annulation de la pause programmée</target>
+</trans-unit>
+<trans-unit id="list.empty">
+  <source>No automations found</source>
+  <target>Aucune automatisation trouvée</target>
+</trans-unit>
+<trans-unit id="schedule.snooze_at">
+  <source>Snooze at:</source>
+  <target>Pause à :</target>
+</trans-unit>
+<trans-unit id="a11y.snooze_date">
+  <source>Snooze date</source>
+  <target>Date de pause</target>
+</trans-unit>
+<trans-unit id="schedule.select_date">
+  <source>Select date</source>
+  <target>Sélectionner la date</target>
+</trans-unit>
+<trans-unit id="a11y.snooze_time">
+  <source>Snooze time</source>
+  <target>Heure de pause</target>
+</trans-unit>
+<trans-unit id="schedule.hint_immediate">
+  <source>Leave empty to snooze immediately</source>
+  <target>Laisser vide pour mettre en pause immédiatement</target>
+</trans-unit>
+<trans-unit id="schedule.resume_at">
+  <source>Resume at:</source>
+  <target>Reprendre à :</target>
+</trans-unit>
+<trans-unit id="a11y.resume_date">
+  <source>Resume date</source>
+  <target>Date de reprise</target>
+</trans-unit>
+<trans-unit id="a11y.resume_time">
+  <source>Resume time</source>
+  <target>Heure de reprise</target>
+</trans-unit>
+<trans-unit id="schedule.back_to_duration">
+  <source>Back to duration selection</source>
+  <target>Retour à la sélection de durée</target>
+</trans-unit>
+<trans-unit id="duration.header">
+  <source>Snooze Duration</source>
+  <target>Durée de la pause</target>
+</trans-unit>
+<trans-unit id="duration.placeholder">
+  <source>e.g. 2h30m, 1.5h, 1d, 45m</source>
+  <target>ex. 2h30m, 1.5h, 1j, 45m</target>
+</trans-unit>
+<trans-unit id="a11y.custom_duration">
+  <source>Custom duration</source>
+  <target>Durée personnalisée</target>
+</trans-unit>
+<trans-unit id="duration.preview_label">
+  <source>Duration:</source>
+  <target>Durée :</target>
+</trans-unit>
+<trans-unit id="duration.help">
+  <source>Enter duration: 30m, 2h, 1.5h, 4h30m, 1d, 1d2h</source>
+  <target>Entrer la durée : 30m, 2h, 1.5h, 4h30m, 1j, 1j2h</target>
+</trans-unit>
+<trans-unit id="schedule.pick_datetime">
+  <source>Pick specific date/time instead</source>
+  <target>Choisir une date/heure spécifique</target>
+</trans-unit>
+<trans-unit id="a11y.snoozed_region">
+  <source>Snoozed automations</source>
+  <target>Automatisations en pause</target>
+</trans-unit>
+<trans-unit id="section.snoozed_count">
+  <source>Snoozed Automations (<x id="0" equiv-text="${pausedCount}"/>)</source>
+  <target>Automatisations en pause (<x id="0" equiv-text="${pausedCount}"/>)</target>
+</trans-unit>
+<trans-unit id="a11y.automations_resuming">
+  <source>Automations resuming <x id="0" equiv-text="${this._formatDateTime(group.resumeAt)}"/></source>
+  <target>Automatisations reprenant <x id="0" equiv-text="${this._formatDateTime(group.resumeAt)}"/></target>
+</trans-unit>
+<trans-unit id="status.resumes">
+  <source>Resumes</source>
+  <target>Reprend</target>
+</trans-unit>
+<trans-unit id="a11y.time_remaining">
+  <source>Time remaining: <x id="0" equiv-text="${this._formatCountdown(group.resumeAt)}"/></source>
+  <target>Temps restant : <x id="0" equiv-text="${this._formatCountdown(group.resumeAt)}"/></target>
+</trans-unit>
+<trans-unit id="a11y.resume_automation">
+  <source>Resume <x id="0" equiv-text="${auto.friendly_name || auto.entity_id}"/></source>
+  <target>Reprendre <x id="0" equiv-text="${auto.friendly_name || auto.entity_id}"/></target>
+</trans-unit>
+<trans-unit id="button.resume">
+  <source>Resume</source>
+  <target>Reprendre</target>
+</trans-unit>
+<trans-unit id="a11y.confirm_resume_all">
+  <source>Confirm resume all automations</source>
+  <target>Confirmer la reprise de toutes les automatisations</target>
+</trans-unit>
+<trans-unit id="a11y.resume_all">
+  <source>Resume all paused automations</source>
+  <target>Reprendre toutes les automatisations en pause</target>
+</trans-unit>
+<trans-unit id="button.confirm_resume_all">
+  <source>Confirm Resume All</source>
+  <target>Confirmer tout reprendre</target>
+</trans-unit>
+<trans-unit id="button.resume_all">
+  <source>Resume All</source>
+  <target>Tout reprendre</target>
+</trans-unit>
+<trans-unit id="a11y.scheduled_region">
+  <source>Scheduled snoozes</source>
+  <target>Pauses programmées</target>
+</trans-unit>
+<trans-unit id="section.scheduled_count">
+  <source>Scheduled Snoozes (<x id="0" equiv-text="${scheduledCount}"/>)</source>
+  <target>Pauses programmées (<x id="0" equiv-text="${scheduledCount}"/>)</target>
+</trans-unit>
+<trans-unit id="a11y.scheduled_pause_for">
+  <source>Scheduled pause for <x id="0" equiv-text="${data.friendly_name || id}"/></source>
+  <target>Pause programmée pour <x id="0" equiv-text="${data.friendly_name || id}"/></target>
+</trans-unit>
+<trans-unit id="status.disables">
+  <source>Disables:</source>
+  <target>Désactive :</target>
+</trans-unit>
+<trans-unit id="status.resumes_at">
+  <source>Resumes:</source>
+  <target>Reprend :</target>
+</trans-unit>
+<trans-unit id="a11y.cancel_scheduled_for">
+  <source>Cancel scheduled pause for <x id="0" equiv-text="${data.friendly_name || id}"/></source>
+  <target>Annuler la pause programmée pour <x id="0" equiv-text="${data.friendly_name || id}"/></target>
+</trans-unit>
+<trans-unit id="button.cancel">
+  <source>Cancel</source>
+  <target>Annuler</target>
+</trans-unit>
+<trans-unit id="card.default_title">
+  <source>AutoSnooze</source>
+  <target>AutoSnooze</target>
+</trans-unit>
+<trans-unit id="status.active_count">
+  <source><x id="0" equiv-text="${pausedCount}"/> active</source>
+  <target><x id="0" equiv-text="${pausedCount}"/> actives</target>
+</trans-unit>
+<trans-unit id="status.scheduled_count">
+  <source><x id="0" equiv-text="${scheduledCount}"/> scheduled</source>
+  <target><x id="0" equiv-text="${scheduledCount}"/> programmées</target>
+</trans-unit>
+<trans-unit id="a11y.filter_tabs">
+  <source>Filter automations by</source>
+  <target>Filtrer les automatisations par</target>
+</trans-unit>
+<trans-unit id="tab.all">
+  <source>All</source>
+  <target>Tout</target>
+</trans-unit>
+<trans-unit id="a11y.automation_count">
+  <source><x id="0" equiv-text="${this._getAutomations().length}"/> automations</source>
+  <target><x id="0" equiv-text="${this._getAutomations().length}"/> automatisations</target>
+</trans-unit>
+<trans-unit id="tab.areas">
+  <source>Areas</source>
+  <target>Zones</target>
+</trans-unit>
+<trans-unit id="a11y.area_count">
+  <source><x id="0" equiv-text="${this._getAreaCount()}"/> areas</source>
+  <target><x id="0" equiv-text="${this._getAreaCount()}"/> zones</target>
+</trans-unit>
+<trans-unit id="tab.categories">
+  <source>Categories</source>
+  <target>Catégories</target>
+</trans-unit>
+<trans-unit id="a11y.category_count">
+  <source><x id="0" equiv-text="${this._getCategoryCount()}"/> categories</source>
+  <target><x id="0" equiv-text="${this._getCategoryCount()}"/> catégories</target>
+</trans-unit>
+<trans-unit id="tab.labels">
+  <source>Labels</source>
+  <target>Étiquettes</target>
+</trans-unit>
+<trans-unit id="a11y.label_count">
+  <source><x id="0" equiv-text="${this._getLabelCount()}"/> labels</source>
+  <target><x id="0" equiv-text="${this._getLabelCount}"/> étiquettes</target>
+</trans-unit>
+<trans-unit id="search.placeholder">
+  <source>Search automations...</source>
+  <target>Rechercher des automatisations...</target>
+</trans-unit>
+<trans-unit id="a11y.search">
+  <source>Search automations by name</source>
+  <target>Rechercher des automatisations par nom</target>
+</trans-unit>
+<trans-unit id="a11y.selection_actions">
+  <source>Selection actions</source>
+  <target>Actions de sélection</target>
+</trans-unit>
+<trans-unit id="selection.count">
+  <source><x id="0" equiv-text="${this._selected.length}"/> of <x id="1" equiv-text="${this._getFilteredAutomations().length}"/> selected</source>
+  <target><x id="0" equiv-text="${this._selected.length}"/> sur <x id="1" equiv-text="${this._getFilteredAutomations().length}"/> sélectionnées</target>
+</trans-unit>
+<trans-unit id="a11y.deselect_all">
+  <source>Deselect all visible automations</source>
+  <target>Désélectionner toutes les automatisations visibles</target>
+</trans-unit>
+<trans-unit id="a11y.select_all">
+  <source>Select all visible automations</source>
+  <target>Sélectionner toutes les automatisations visibles</target>
+</trans-unit>
+<trans-unit id="button.deselect_all">
+  <source>Deselect All</source>
+  <target>Tout désélectionner</target>
+</trans-unit>
+<trans-unit id="button.select_all">
+  <source>Select All</source>
+  <target>Tout sélectionner</target>
+</trans-unit>
+<trans-unit id="a11y.clear_selection">
+  <source>Clear selection</source>
+  <target>Effacer la sélection</target>
+</trans-unit>
+<trans-unit id="button.clear">
+  <source>Clear</source>
+  <target>Effacer</target>
+</trans-unit>
+<trans-unit id="a11y.automations_list">
+  <source>Automations list</source>
+  <target>Liste des automatisations</target>
+</trans-unit>
+<trans-unit id="a11y.snoozing">
+  <source>Snoozing automations</source>
+  <target>Mise en pause des automatisations</target>
+</trans-unit>
+<trans-unit id="a11y.schedule_snooze">
+  <source>Schedule snooze for <x id="0" equiv-text="${this._selected.length}"/> automations</source>
+  <target>Programmer la pause pour <x id="0" equiv-text="${this._selected.length}"/> automatisations</target>
+</trans-unit>
+<trans-unit id="a11y.snooze_count">
+  <source>Snooze <x id="0" equiv-text="${this._selected.length}"/> automations</source>
+  <target>Mettre en pause <x id="0" equiv-text="${this._selected.length}"/> automatisations</target>
+</trans-unit>
+<trans-unit id="button.snoozing">
+  <source>Snoozing...</source>
+  <target>Mise en pause...</target>
+</trans-unit>
+<trans-unit id="button.schedule_count">
+  <source>Schedule (<x id="0" equiv-text="${this._selected.length}"/>)</source>
+  <target>Programmer (<x id="0" equiv-text="${this._selected.length}"/>)</target>
+</trans-unit>
+<trans-unit id="button.snooze_count">
+  <source>Snooze (<x id="0" equiv-text="${this._selected.length}"/>)</source>
+  <target>Pause (<x id="0" equiv-text="${this._selected.length}"/>)</target>
+</trans-unit>
+<trans-unit id="editor.title_label">
+  <source>Title</source>
+  <target>Titre</target>
+</trans-unit>
+<trans-unit id="editor.title_placeholder">
+  <source>AutoSnooze</source>
+  <target>AutoSnooze</target>
+</trans-unit>
     </body>
   </file>
 </xliff>

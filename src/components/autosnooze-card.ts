@@ -5,6 +5,8 @@
 
 import { LitElement, html, PropertyValues, TemplateResult } from 'lit';
 import { property, state } from 'lit/decorators.js';
+import { localized } from '@lit/localize';
+import { msg, str } from '../localization/localize.js';
 import type { HomeAssistant, HassLabel, HassCategory, HassEntityRegistryEntry, HassEntities, ScheduledSnoozeAttribute } from '../types/hass.js';
 import type { AutoSnoozeCardConfig, FilterTab } from '../types/card.js';
 import type { AutomationItem, ParsedDuration, PauseGroup } from '../types/automation.js';
@@ -62,6 +64,7 @@ import {
 } from '../state/paused.js';
 
 
+@localized()
 export class AutomationPauseCard extends LitElement {
   static styles = cardStyles;
 
@@ -301,7 +304,7 @@ export class AutomationPauseCard extends LitElement {
   }
 
   private _getAreaName(areaId: string | null): string {
-    if (!this.hass) return 'Unassigned';
+    if (!this.hass) return msg('Unassigned', { id: 'group.unassigned' });
     return getAreaName(areaId, this.hass);
   }
 
@@ -318,7 +321,7 @@ export class AutomationPauseCard extends LitElement {
     return groupAutomationsBy(
       automations,
       (auto) => auto.area_id ? [this._getAreaName(auto.area_id)] : null,
-      'Unassigned'
+      msg('Unassigned', { id: 'group.unassigned' })
     );
   }
 
@@ -334,7 +337,7 @@ export class AutomationPauseCard extends LitElement {
           .filter((name) => !hiddenLabels.includes(name.toLowerCase()));
         return visibleLabels.length > 0 ? visibleLabels : null;
       },
-      'Unlabeled'
+      msg('Unlabeled', { id: 'group.unlabeled' })
     );
   }
 
@@ -343,7 +346,7 @@ export class AutomationPauseCard extends LitElement {
     return groupAutomationsBy(
       automations,
       (auto) => auto.category_id ? [this._getCategoryName(auto.category_id)] : null,
-      'Uncategorized'
+      msg('Uncategorized', { id: 'group.uncategorized' })
     );
   }
 
@@ -558,8 +561,8 @@ export class AutomationPauseCard extends LitElement {
 
       const undoBtn = document.createElement('button');
       undoBtn.className = 'toast-undo-btn';
-      undoBtn.textContent = 'Undo';
-      undoBtn.setAttribute('aria-label', 'Undo last action');
+      undoBtn.textContent = msg('Undo', { id: 'button.undo' });
+      undoBtn.setAttribute('aria-label', msg('Undo last action', { id: 'a11y.undo_action' }));
       undoBtn.addEventListener('click', (e) => {
         e.stopPropagation();
         onUndo();
@@ -595,7 +598,7 @@ export class AutomationPauseCard extends LitElement {
 
     if (this._scheduleMode) {
       if (!this._hasResumeAt()) {
-        this._showToast('Please set a complete resume date and time');
+        this._showToast(msg('Please set a complete resume date and time', { id: 'toast.error.resume_time_required' }));
         return;
       }
 
@@ -605,7 +608,7 @@ export class AutomationPauseCard extends LitElement {
       const resumeAt = combineDateTime(this._resumeAtDate, this._resumeAtTime);
 
       if (!resumeAt) {
-        this._showToast('Invalid resume date/time');
+        this._showToast(msg('Invalid resume date/time', { id: 'toast.error.invalid_datetime' }));
         return;
       }
 
@@ -613,14 +616,14 @@ export class AutomationPauseCard extends LitElement {
       const resumeTime = new Date(resumeAt).getTime();
 
       if (resumeTime <= nowWithBuffer) {
-        this._showToast('Resume time must be in the future');
+        this._showToast(msg('Resume time must be in the future', { id: 'toast.error.resume_time_past' }));
         return;
       }
 
       if (disableAt) {
         const disableTime = new Date(disableAt).getTime();
         if (disableTime >= resumeTime) {
-          this._showToast('Snooze time must be before resume time');
+          this._showToast(msg('Snooze time must be before resume time', { id: 'toast.error.snooze_before_resume' }));
           return;
         }
       }
@@ -664,9 +667,14 @@ export class AutomationPauseCard extends LitElement {
         }
 
         if (disableAt) {
-          toastMessage = `Scheduled ${count} automation${count !== 1 ? 's' : ''} to snooze`;
+          toastMessage = count === 1
+            ? msg('Scheduled 1 automation to snooze', { id: 'toast.success.scheduled_one' })
+            : msg(str`Scheduled ${count} automations to snooze`, { id: 'toast.success.scheduled_many' });
         } else {
-          toastMessage = `Snoozed ${count} automation${count !== 1 ? 's' : ''} until ${this._formatDateTime(resumeAt)}`;
+          const formattedTime = this._formatDateTime(resumeAt);
+          toastMessage = count === 1
+            ? msg(str`Snoozed 1 automation until ${formattedTime}`, { id: 'toast.success.snoozed_until_one' })
+            : msg(str`Snoozed ${count} automations until ${formattedTime}`, { id: 'toast.success.snoozed_until_many' });
         }
       } else {
         const { days, hours, minutes } = this._customDuration;
@@ -684,7 +692,9 @@ export class AutomationPauseCard extends LitElement {
         }
 
         const durationText = formatDuration(days, hours, minutes);
-        toastMessage = `Snoozed ${count} automation${count !== 1 ? 's' : ''} for ${durationText}`;
+        toastMessage = count === 1
+          ? msg(str`Snoozed 1 automation for ${durationText}`, { id: 'toast.success.snoozed_for_one' })
+          : msg(str`Snoozed ${count} automations for ${durationText}`, { id: 'toast.success.snoozed_for_many' });
 
         // Save last used duration for quick re-use
         const totalMinutes = durationToMinutes(this._customDuration);
@@ -708,12 +718,15 @@ export class AutomationPauseCard extends LitElement {
             }
             if (this.isConnected) {
               this._selected = snoozedEntities;
-              this._showToast(`Restored ${count} automation${count !== 1 ? 's' : ''}`);
+              const restoredMsg = count === 1
+                ? msg('Restored 1 automation', { id: 'toast.success.restored_one' })
+                : msg(str`Restored ${count} automations`, { id: 'toast.success.restored_many' });
+              this._showToast(restoredMsg);
             }
           } catch (e) {
             console.error('Undo failed:', e);
             if (this.isConnected && this.shadowRoot) {
-              this._showToast('Failed to undo. The automations may have already been modified.');
+              this._showToast(msg('Failed to undo. The automations may have already been modified.', { id: 'toast.error.undo_failed' }));
             }
           }
         },
@@ -740,13 +753,13 @@ export class AutomationPauseCard extends LitElement {
       await wakeAutomation(this.hass, entityId);
       this._hapticFeedback('success');
       if (this.isConnected && this.shadowRoot) {
-        this._showToast('Automation resumed successfully');
+        this._showToast(msg('Automation resumed successfully', { id: 'toast.success.resumed' }));
       }
     } catch (e) {
       console.error('Wake failed:', e);
       this._hapticFeedback('failure');
       if (this.isConnected && this.shadowRoot) {
-        this._showToast(getErrorMessage(e as Error, 'Failed to resume automation'));
+        this._showToast(getErrorMessage(e as Error, msg('Failed to resume automation', { id: 'toast.error.resume_failed' })));
       }
     }
   }
@@ -763,13 +776,13 @@ export class AutomationPauseCard extends LitElement {
         await wakeAll(this.hass);
         this._hapticFeedback('success');
         if (this.isConnected && this.shadowRoot) {
-          this._showToast('All automations resumed successfully');
+          this._showToast(msg('All automations resumed successfully', { id: 'toast.success.resumed_all' }));
         }
       } catch (e) {
         console.error('Wake all failed:', e);
         this._hapticFeedback('failure');
         if (this.isConnected && this.shadowRoot) {
-          this._showToast('Failed to resume automations. Check Home Assistant logs for details.');
+          this._showToast(msg('Failed to resume automations. Check Home Assistant logs for details.', { id: 'toast.error.resume_all_failed' }));
         }
       }
     } else {
@@ -788,13 +801,13 @@ export class AutomationPauseCard extends LitElement {
       await cancelScheduled(this.hass, entityId);
       this._hapticFeedback('success');
       if (this.isConnected && this.shadowRoot) {
-        this._showToast('Scheduled snooze cancelled successfully');
+        this._showToast(msg('Scheduled snooze cancelled successfully', { id: 'toast.success.cancelled' }));
       }
     } catch (e) {
       console.error('Cancel scheduled failed:', e);
       this._hapticFeedback('failure');
       if (this.isConnected && this.shadowRoot) {
-        this._showToast(getErrorMessage(e as Error, 'Failed to cancel scheduled snooze'));
+        this._showToast(getErrorMessage(e as Error, msg('Failed to cancel scheduled snooze', { id: 'toast.error.cancel_failed' })));
       }
     }
   }
@@ -831,7 +844,7 @@ export class AutomationPauseCard extends LitElement {
 
     if (this._filterTab === 'all') {
       if (filtered.length === 0) {
-        return html`<div class="list-empty" role="status">No automations found</div>`;
+        return html`<div class="list-empty" role="status">${msg('No automations found', { id: 'list.empty' })}</div>`;
       }
       return filtered.map((a) => html`
         <button
@@ -864,7 +877,7 @@ export class AutomationPauseCard extends LitElement {
           : this._getGroupedByLabel();
 
     if (grouped.length === 0) {
-      return html`<div class="list-empty" role="status">No automations found</div>`;
+      return html`<div class="list-empty" role="status">${msg('No automations found', { id: 'list.empty' })}</div>`;
     }
 
     return grouped.map(([groupName, items]) => {
@@ -929,15 +942,15 @@ export class AutomationPauseCard extends LitElement {
       ? html`
           <div class="schedule-inputs">
             <div class="datetime-field">
-              <label id="snooze-at-label">Snooze at:</label>
+              <label id="snooze-at-label">${msg('Snooze at:', { id: 'schedule.snooze_at' })}</label>
               <div class="datetime-row">
                 <select
                   .value=${this._disableAtDate}
                   @change=${(e: Event) => (this._disableAtDate = (e.target as HTMLSelectElement).value)}
                   aria-labelledby="snooze-at-label"
-                  aria-label="Snooze date"
+                  aria-label="${msg('Snooze date', { id: 'a11y.snooze_date' })}"
                 >
-                  <option value="">Select date</option>
+                  <option value="">${msg('Select date', { id: 'schedule.select_date' })}</option>
                   ${this._renderDateOptions()}
                 </select>
                 <input
@@ -945,21 +958,21 @@ export class AutomationPauseCard extends LitElement {
                   .value=${this._disableAtTime}
                   @input=${(e: Event) => (this._disableAtTime = (e.target as HTMLInputElement).value)}
                   aria-labelledby="snooze-at-label"
-                  aria-label="Snooze time"
+                  aria-label="${msg('Snooze time', { id: 'a11y.snooze_time' })}"
                 />
               </div>
-              <span class="field-hint">Leave empty to snooze immediately</span>
+              <span class="field-hint">${msg('Leave empty to snooze immediately', { id: 'schedule.hint_immediate' })}</span>
             </div>
             <div class="datetime-field">
-              <label id="resume-at-label">Resume at:</label>
+              <label id="resume-at-label">${msg('Resume at:', { id: 'schedule.resume_at' })}</label>
               <div class="datetime-row">
                 <select
                   .value=${this._resumeAtDate}
                   @change=${(e: Event) => (this._resumeAtDate = (e.target as HTMLSelectElement).value)}
                   aria-labelledby="resume-at-label"
-                  aria-label="Resume date"
+                  aria-label="${msg('Resume date', { id: 'a11y.resume_date' })}"
                 >
-                  <option value="">Select date</option>
+                  <option value="">${msg('Select date', { id: 'schedule.select_date' })}</option>
                   ${this._renderDateOptions()}
                 </select>
                 <input
@@ -967,7 +980,7 @@ export class AutomationPauseCard extends LitElement {
                   .value=${this._resumeAtTime}
                   @input=${(e: Event) => (this._resumeAtTime = (e.target as HTMLInputElement).value)}
                   aria-labelledby="resume-at-label"
-                  aria-label="Resume time"
+                  aria-label="${msg('Resume time', { id: 'a11y.resume_time' })}"
                 />
               </div>
             </div>
@@ -977,13 +990,13 @@ export class AutomationPauseCard extends LitElement {
               @click=${() => (this._scheduleMode = false)}
             >
               <ha-icon icon="mdi:timer-outline" aria-hidden="true"></ha-icon>
-              Back to duration selection
+              ${msg('Back to duration selection', { id: 'schedule.back_to_duration' })}
             </button>
           </div>
         `
       : html`
           <div class="duration-selector">
-            <div class="duration-section-header" id="duration-header">Snooze Duration</div>
+            <div class="duration-section-header" id="duration-header">${msg('Snooze Duration', { id: 'duration.header' })}</div>
             <div class="duration-pills" role="radiogroup" aria-labelledby="duration-header">
               ${this._getDurationPills().map(
                 (d) => {
@@ -1019,16 +1032,16 @@ export class AutomationPauseCard extends LitElement {
                 <input
                   type="text"
                   class="duration-input ${!durationValid ? 'invalid' : ''}"
-                  placeholder="e.g. 2h30m, 1.5h, 1d, 45m"
+                  placeholder="${msg('e.g. 2h30m, 1.5h, 1d, 45m', { id: 'duration.placeholder' })}"
                   .value=${this._customDurationInput}
                   @input=${(e: Event) => this._handleDurationInput((e.target as HTMLInputElement).value)}
-                  aria-label="Custom duration"
+                  aria-label="${msg('Custom duration', { id: 'a11y.custom_duration' })}"
                   aria-invalid=${!durationValid}
                   aria-describedby="duration-help"
                 />
                 ${durationPreview && durationValid
-                  ? html`<div class="duration-preview" role="status" aria-live="polite">Duration: ${durationPreview}</div>`
-                  : html`<div class="duration-help" id="duration-help">Enter duration: 30m, 2h, 1.5h, 4h30m, 1d, 1d2h</div>`}
+                  ? html`<div class="duration-preview" role="status" aria-live="polite">${msg('Duration:', { id: 'duration.preview_label' })} ${durationPreview}</div>`
+                  : html`<div class="duration-help" id="duration-help">${msg('Enter duration: 30m, 2h, 1.5h, 4h30m, 1d, 1d2h', { id: 'duration.help' })}</div>`}
               </div>
             ` : ''}
 
@@ -1038,7 +1051,7 @@ export class AutomationPauseCard extends LitElement {
               @click=${() => this._enterScheduleMode()}
             >
               <ha-icon icon="mdi:calendar-clock" aria-hidden="true"></ha-icon>
-              Pick specific date/time instead
+              ${msg('Pick specific date/time instead', { id: 'schedule.pick_datetime' })}
             </button>
           </div>
         `;
@@ -1048,20 +1061,20 @@ export class AutomationPauseCard extends LitElement {
     if (pausedCount === 0) return '';
 
     return html`
-      <div class="snooze-list" role="region" aria-label="Snoozed automations">
+      <div class="snooze-list" role="region" aria-label="${msg('Snoozed automations', { id: 'a11y.snoozed_region' })}">
         <div class="list-header">
           <ha-icon icon="mdi:bell-sleep" aria-hidden="true"></ha-icon>
-          Snoozed Automations (${pausedCount})
+          ${msg(str`Snoozed Automations (${pausedCount})`, { id: 'section.snoozed_count' })}
         </div>
 
         ${this._getPausedGroupedByResumeTime().map(
           (group) => html`
-            <div class="pause-group" role="group" aria-label="Automations resuming ${this._formatDateTime(group.resumeAt)}">
+            <div class="pause-group" role="group" aria-label="${msg(str`Automations resuming ${this._formatDateTime(group.resumeAt)}`, { id: 'a11y.automations_resuming' })}">
               <div class="pause-group-header">
                 <ha-icon icon="mdi:timer-outline" aria-hidden="true"></ha-icon>
                 ${group.disableAt
-                  ? html`Resumes ${this._formatDateTime(group.resumeAt)}`
-                  : html`<span class="countdown" data-resume-at="${group.resumeAt}" aria-label="Time remaining: ${this._formatCountdown(group.resumeAt)}">${this._formatCountdown(group.resumeAt)}</span>`}
+                  ? html`${msg('Resumes', { id: 'status.resumes' })} ${this._formatDateTime(group.resumeAt)}`
+                  : html`<span class="countdown" data-resume-at="${group.resumeAt}" aria-label="${msg(str`Time remaining: ${this._formatCountdown(group.resumeAt)}`, { id: 'a11y.time_remaining' })}">${this._formatCountdown(group.resumeAt)}</span>`}
               </div>
               ${group.automations.map(
                 (auto) => html`
@@ -1070,8 +1083,8 @@ export class AutomationPauseCard extends LitElement {
                     <div class="paused-info">
                       <div class="paused-name">${auto.friendly_name || auto.entity_id}</div>
                     </div>
-                    <button type="button" class="wake-btn" @click=${() => this._wake(auto.entity_id)} aria-label="Resume ${auto.friendly_name || auto.entity_id}">
-                      Resume
+                    <button type="button" class="wake-btn" @click=${() => this._wake(auto.entity_id)} aria-label="${msg(str`Resume ${auto.friendly_name || auto.entity_id}`, { id: 'a11y.resume_automation' })}">
+                      ${msg('Resume', { id: 'button.resume' })}
                     </button>
                   </div>
                 `
@@ -1086,9 +1099,9 @@ export class AutomationPauseCard extends LitElement {
                 type="button"
                 class="wake-all ${this._wakeAllPending ? 'pending' : ''}"
                 @click=${() => this._handleWakeAll()}
-                aria-label="${this._wakeAllPending ? 'Confirm resume all automations' : 'Resume all paused automations'}"
+                aria-label="${this._wakeAllPending ? msg('Confirm resume all automations', { id: 'a11y.confirm_resume_all' }) : msg('Resume all paused automations', { id: 'a11y.resume_all' })}"
               >
-                ${this._wakeAllPending ? 'Confirm Resume All' : 'Resume All'}
+                ${this._wakeAllPending ? msg('Confirm Resume All', { id: 'button.confirm_resume_all' }) : msg('Resume All', { id: 'button.resume_all' })}
               </button>
             `
           : ''}
@@ -1100,29 +1113,29 @@ export class AutomationPauseCard extends LitElement {
     if (scheduledCount === 0) return '';
 
     return html`
-      <div class="scheduled-list" role="region" aria-label="Scheduled snoozes">
+      <div class="scheduled-list" role="region" aria-label="${msg('Scheduled snoozes', { id: 'a11y.scheduled_region' })}">
         <div class="list-header">
           <ha-icon icon="mdi:calendar-clock" aria-hidden="true"></ha-icon>
-          Scheduled Snoozes (${scheduledCount})
+          ${msg(str`Scheduled Snoozes (${scheduledCount})`, { id: 'section.scheduled_count' })}
         </div>
 
         ${Object.entries(scheduled).map(
           ([id, data]) => html`
-            <div class="scheduled-item" role="article" aria-label="Scheduled pause for ${data.friendly_name || id}">
+            <div class="scheduled-item" role="article" aria-label="${msg(str`Scheduled pause for ${data.friendly_name || id}`, { id: 'a11y.scheduled_pause_for' })}">
               <ha-icon class="scheduled-icon" icon="mdi:clock-outline" aria-hidden="true"></ha-icon>
               <div class="paused-info">
                 <div class="paused-name">
                   ${data.friendly_name || id}
                 </div>
                 <div class="scheduled-time">
-                  Disables: ${this._formatDateTime(data.disable_at || 'now')}
+                  ${msg('Disables:', { id: 'status.disables' })} ${this._formatDateTime(data.disable_at || 'now')}
                 </div>
                 <div class="paused-time">
-                  Resumes: ${this._formatDateTime(data.resume_at)}
+                  ${msg('Resumes:', { id: 'status.resumes_at' })} ${this._formatDateTime(data.resume_at)}
                 </div>
               </div>
-              <button type="button" class="cancel-scheduled-btn" @click=${() => this._cancelScheduled(id)} aria-label="Cancel scheduled pause for ${data.friendly_name || id}">
-                Cancel
+              <button type="button" class="cancel-scheduled-btn" @click=${() => this._cancelScheduled(id)} aria-label="${msg(str`Cancel scheduled pause for ${data.friendly_name || id}`, { id: 'a11y.cancel_scheduled_for' })}">
+                ${msg('Cancel', { id: 'button.cancel' })}
               </button>
             </div>
           `
@@ -1154,16 +1167,16 @@ export class AutomationPauseCard extends LitElement {
       <ha-card>
         <div class="header">
           <ha-icon icon="mdi:sleep"></ha-icon>
-          ${this.config?.title || 'AutoSnooze'}
+          ${this.config?.title || msg('AutoSnooze', { id: 'card.default_title' })}
           ${pausedCount > 0 || scheduledCount > 0
             ? html`<span class="status-summary"
-                >${pausedCount > 0 ? `${pausedCount} active` : ''}${pausedCount > 0 && scheduledCount > 0 ? ', ' : ''}${scheduledCount > 0 ? `${scheduledCount} scheduled` : ''}</span
+                >${pausedCount > 0 ? msg(str`${pausedCount} active`, { id: 'status.active_count' }) : ''}${pausedCount > 0 && scheduledCount > 0 ? ', ' : ''}${scheduledCount > 0 ? msg(str`${scheduledCount} scheduled`, { id: 'status.scheduled_count' }) : ''}</span
               >`
             : ''}
         </div>
 
         <div class="snooze-setup">
-          <div class="filter-tabs" role="tablist" aria-label="Filter automations by">
+          <div class="filter-tabs" role="tablist" aria-label="${msg('Filter automations by', { id: 'a11y.filter_tabs' })}">
             <button
               type="button"
               class="tab ${this._filterTab === 'all' ? 'active' : ''}"
@@ -1172,8 +1185,8 @@ export class AutomationPauseCard extends LitElement {
               aria-selected=${this._filterTab === 'all'}
               aria-controls="selection-list"
             >
-              All
-              <span class="tab-count" aria-label="${this._getAutomations().length} automations">${this._getAutomations().length}</span>
+              ${msg('All', { id: 'tab.all' })}
+              <span class="tab-count" aria-label="${msg(str`${this._getAutomations().length} automations`, { id: 'a11y.automation_count' })}">${this._getAutomations().length}</span>
             </button>
             <button
               type="button"
@@ -1183,8 +1196,8 @@ export class AutomationPauseCard extends LitElement {
               aria-selected=${this._filterTab === 'areas'}
               aria-controls="selection-list"
             >
-              Areas
-              <span class="tab-count" aria-label="${this._getAreaCount()} areas">${this._getAreaCount()}</span>
+              ${msg('Areas', { id: 'tab.areas' })}
+              <span class="tab-count" aria-label="${msg(str`${this._getAreaCount()} areas`, { id: 'a11y.area_count' })}">${this._getAreaCount()}</span>
             </button>
             <button
               type="button"
@@ -1194,8 +1207,8 @@ export class AutomationPauseCard extends LitElement {
               aria-selected=${this._filterTab === 'categories'}
               aria-controls="selection-list"
             >
-              Categories
-              <span class="tab-count" aria-label="${this._getCategoryCount()} categories">${this._getCategoryCount()}</span>
+              ${msg('Categories', { id: 'tab.categories' })}
+              <span class="tab-count" aria-label="${msg(str`${this._getCategoryCount()} categories`, { id: 'a11y.category_count' })}">${this._getCategoryCount()}</span>
             </button>
             <button
               type="button"
@@ -1205,45 +1218,45 @@ export class AutomationPauseCard extends LitElement {
               aria-selected=${this._filterTab === 'labels'}
               aria-controls="selection-list"
             >
-              Labels
-              <span class="tab-count" aria-label="${this._getLabelCount()} labels">${this._getLabelCount()}</span>
+              ${msg('Labels', { id: 'tab.labels' })}
+              <span class="tab-count" aria-label="${msg(str`${this._getLabelCount()} labels`, { id: 'a11y.label_count' })}">${this._getLabelCount()}</span>
             </button>
           </div>
 
           <div class="search-box">
             <input
               type="search"
-              placeholder="Search automations..."
+              placeholder="${msg('Search automations...', { id: 'search.placeholder' })}"
               .value=${this._search}
               @input=${(e: Event) => this._handleSearchInput(e)}
-              aria-label="Search automations by name"
+              aria-label="${msg('Search automations by name', { id: 'a11y.search' })}"
             />
           </div>
 
           ${this._getFilteredAutomations().length > 0
             ? html`
-                <div class="selection-actions" role="toolbar" aria-label="Selection actions">
-                  <span role="status" aria-live="polite">${this._selected.length} of ${this._getFilteredAutomations().length} selected</span>
+                <div class="selection-actions" role="toolbar" aria-label="${msg('Selection actions', { id: 'a11y.selection_actions' })}">
+                  <span role="status" aria-live="polite">${msg(str`${this._selected.length} of ${this._getFilteredAutomations().length} selected`, { id: 'selection.count' })}</span>
                   <button
                     type="button"
                     class="select-all-btn"
                     @click=${() => this._selectAllVisible()}
                     aria-label="${this._getFilteredAutomations().every((a) => this._selected.includes(a.id))
-                      ? 'Deselect all visible automations'
-                      : 'Select all visible automations'}"
+                      ? msg('Deselect all visible automations', { id: 'a11y.deselect_all' })
+                      : msg('Select all visible automations', { id: 'a11y.select_all' })}"
                   >
                     ${this._getFilteredAutomations().every((a) => this._selected.includes(a.id))
-                      ? 'Deselect All'
-                      : 'Select All'}
+                      ? msg('Deselect All', { id: 'button.deselect_all' })
+                      : msg('Select All', { id: 'button.select_all' })}
                   </button>
                   ${this._selected.length > 0
-                    ? html`<button type="button" class="select-all-btn" @click=${() => this._clearSelection()} aria-label="Clear selection">Clear</button>`
+                    ? html`<button type="button" class="select-all-btn" @click=${() => this._clearSelection()} aria-label="${msg('Clear selection', { id: 'a11y.clear_selection' })}">${msg('Clear', { id: 'button.clear' })}</button>`
                     : ''}
                 </div>
               `
             : ''}
 
-          <div class="selection-list" id="selection-list" role="listbox" aria-label="Automations list" aria-multiselectable="true">
+          <div class="selection-list" id="selection-list" role="listbox" aria-label="${msg('Automations list', { id: 'a11y.automations_list' })}" aria-multiselectable="true">
             ${this._renderSelectionList()}
           </div>
 
@@ -1258,17 +1271,17 @@ export class AutomationPauseCard extends LitElement {
             this._loading}
             @click=${() => this._snooze()}
             aria-label="${this._loading
-              ? 'Snoozing automations'
+              ? msg('Snoozing automations', { id: 'a11y.snoozing' })
               : this._scheduleMode
-                ? `Schedule snooze for ${this._selected.length} automation${this._selected.length !== 1 ? 's' : ''}`
-                : `Snooze ${this._selected.length} automation${this._selected.length !== 1 ? 's' : ''}`}"
+                ? msg(str`Schedule snooze for ${this._selected.length} automations`, { id: 'a11y.schedule_snooze' })
+                : msg(str`Snooze ${this._selected.length} automations`, { id: 'a11y.snooze_count' })}"
             aria-busy=${this._loading}
           >
             ${this._loading
-              ? 'Snoozing...'
+              ? msg('Snoozing...', { id: 'button.snoozing' })
               : this._scheduleMode
-                ? `Schedule${this._selected.length > 0 ? ` (${this._selected.length})` : ''}`
-                : `Snooze${this._selected.length > 0 ? ` (${this._selected.length})` : ''}`}
+                ? msg(str`Schedule (${this._selected.length})`, { id: 'button.schedule_count' })
+                : msg(str`Snooze (${this._selected.length})`, { id: 'button.snooze_count' })}
           </button>
         </div>
 
