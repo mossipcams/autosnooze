@@ -26,6 +26,7 @@ class MockConfigEntry:
     def __init__(self, runtime_data: AutomationPauseData, entry_id: str = "test_entry_id"):
         self.entry_id = entry_id
         self.runtime_data = runtime_data
+        self.options: dict = {}
 
 
 class TestAutoSnoozeCountSensor:
