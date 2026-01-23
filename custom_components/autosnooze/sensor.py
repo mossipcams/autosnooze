@@ -8,7 +8,7 @@ from homeassistant.components.sensor import SensorEntity
 from homeassistant.core import callback
 from homeassistant.helpers.device_registry import DeviceEntryType, DeviceInfo
 
-from .const import DOMAIN, VERSION
+from .const import DEFAULT_DURATION_PRESETS, DOMAIN, VERSION
 from .models import AutomationPauseConfigEntry
 
 
@@ -63,8 +63,14 @@ class AutoSnoozeCountSensor(SensorEntity):
 
     @property
     def extra_state_attributes(self) -> dict:
-        """Return snoozed automations details."""
+        """Return snoozed automations details and configuration."""
+        # Get configured presets from options, fall back to defaults if empty
+        presets = self._entry.options.get("duration_presets", [])
+        if not presets:
+            presets = DEFAULT_DURATION_PRESETS
+
         return {
             "paused_automations": self._entry.runtime_data.get_paused_dict(),
             "scheduled_snoozes": self._entry.runtime_data.get_scheduled_dict(),
+            "duration_presets": presets,
         }

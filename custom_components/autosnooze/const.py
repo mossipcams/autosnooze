@@ -84,6 +84,14 @@ PAUSE_BY_LABEL_SCHEMA = vol.Schema(
     }
 )
 
+# Default duration presets for the card's quick-select buttons
+# Each preset has a label (displayed on button) and minutes (duration value)
+DEFAULT_DURATION_PRESETS: list[dict[str, str | int]] = [
+    {"label": "30m", "minutes": 30},
+    {"label": "1h", "minutes": 60},
+    {"label": "1d", "minutes": 1440},
+]
+
 # Label-based filtering constants
 # These labels control which automations appear in the AutoSnooze card
 LABEL_INCLUDE_NAME = "autosnooze_include"

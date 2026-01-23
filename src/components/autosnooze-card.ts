@@ -825,14 +825,27 @@ export class AutomationPauseCard extends LitElement {
   }
 
   private _getDurationPills(): { label: string; minutes: number | null; isLast?: boolean }[] {
-    const pills: { label: string; minutes: number | null; isLast?: boolean }[] = [...DEFAULT_DURATIONS];
+    // Read configured presets from sensor attributes, fall back to defaults
+    const sensor = this.hass?.states?.['sensor.autosnooze_snoozed_automations'];
+    const configuredPresets = sensor?.attributes?.duration_presets as
+      | { label: string; minutes: number }[]
+      | undefined;
+
+    // Use configured presets or default (excluding the Custom pill from defaults)
+    const basePresets: { label: string; minutes: number }[] =
+      configuredPresets?.length
+        ? configuredPresets
+        : DEFAULT_DURATIONS.filter((d): d is { label: string; minutes: number } => d.minutes !== null);
+
+    const pills: { label: string; minutes: number | null; isLast?: boolean }[] = [
+      ...basePresets,
+      { label: 'Custom', minutes: null }, // Always add Custom at end
+    ];
 
     // Insert "Last" pill at the start if we have a last duration that differs from presets
     if (this._lastDuration) {
       const lastMinutes = this._lastDuration.minutes;
-      const isUniqueFromPresets = !DEFAULT_DURATIONS.some(
-        (d) => d.minutes === lastMinutes
-      );
+      const isUniqueFromPresets = !basePresets.some((d) => d.minutes === lastMinutes);
 
       if (isUniqueFromPresets) {
         const { days, hours, minutes } = this._lastDuration.duration;
