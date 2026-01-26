@@ -417,8 +417,8 @@ describe('Arithmetic Operations - Mutation Killing', () => {
     });
 
     test('_formatCountdown just under 1 hour', () => {
-      // 59 minutes
-      const time = new Date(Date.now() + 3540000).toISOString();
+      // 59 minutes + 500ms buffer to avoid timing flakiness
+      const time = new Date(Date.now() + 3540500).toISOString();
       const result = card._formatCountdown(time);
       expect(result).toContain('59m');
       expect(result).not.toContain('h');

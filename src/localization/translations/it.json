@@ -94,7 +94,8 @@
     "header": "Durata pausa",
     "placeholder": "es. 2h30m, 1.5h, 1g, 45m",
     "preview_label": "Durata:",
-    "help": "Inserisci durata: 30m, 2h, 1.5h, 4h30m, 1g, 1g2h"
+    "help": "Inserisci durata: 30m, 2h, 1.5h, 4h30m, 1g, 1g2h",
+    "last_used_tooltip": "Usa ultima durata: {duration}"
   },
   "section": {
     "snoozed_count": "Automazioni in pausa ({count})",

@@ -15,6 +15,9 @@ setup('authenticate', async ({ page }) => {
   const username = process.env.HA_USERNAME || 'test';
   const password = process.env.HA_PASSWORD || 'test';
 
+  // Set longer timeout for auth setup (navigation can take up to 60s)
+  setup.setTimeout(90000);
+
   await page.goto(baseURL);
 
   // Wait for page to load
@@ -26,26 +29,41 @@ setup('authenticate', async ({ page }) => {
   const isLoginPage = await welcomeText.isVisible().catch(() => false);
 
   if (isLoginPage) {
-    // Fill username using the input directly
+    // Fill username
     const usernameInput = page.locator('input[name="username"]');
+    await usernameInput.waitFor({ state: 'visible' });
     await usernameInput.fill(username);
 
     // Fill password
     const passwordInput = page.locator('input[name="password"]');
+    await passwordInput.waitFor({ state: 'visible' });
     await passwordInput.fill(password);
 
     // Submit form by pressing Enter on password field
     await passwordInput.press('Enter');
 
-    // Wait for redirect to dashboard (could be lovelace or any dashboard)
-    await page.waitForURL('**/*lovelace*/**', { timeout: 60000 }).catch(async () => {
-      // Might redirect to default dashboard instead
-      await page.waitForLoadState('networkidle');
-    });
-  }
+    // Wait for navigation away from login page - check URL changes
+    await page.waitForFunction(
+      () => !window.location.pathname.includes('/auth/authorize'),
+      { timeout: 60000 }
+    );
 
-  // Wait for dashboard to be ready
-  await page.waitForLoadState('networkidle');
+    // Wait for home-assistant element to appear (indicates successful login)
+    await page.waitForSelector('home-assistant', { timeout: 30000 });
+
+    // Wait for HA to fully initialize
+    await page.waitForFunction(
+      () => {
+        const ha = document.querySelector('home-assistant') as any;
+        return ha?.hass?.connection != null;
+      },
+      { timeout: 30000 }
+    );
+
+    // Additional wait for everything to settle
+    await page.waitForLoadState('networkidle');
+    await page.waitForTimeout(3000);
+  }
 
   // Store authentication state
   await page.context().storageState({ path: authFile });

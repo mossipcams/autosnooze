@@ -47,6 +47,7 @@ export const UI_TIMING = {
 export const DEFAULT_DURATIONS: DurationPreset[] = [
   { label: '30m', minutes: 30 },
   { label: '1h', minutes: 60 },
+  { label: '12h', minutes: 720 },
   { label: '1d', minutes: 1440 },
   { label: 'Custom', minutes: null },
 ];

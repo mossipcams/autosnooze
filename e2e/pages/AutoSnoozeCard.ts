@@ -44,6 +44,11 @@ export class AutoSnoozeCard extends BasePage {
   readonly durationPills: Locator;
   readonly customDurationInput: Locator;
 
+  // Last duration badge
+  get shadowRoot() {
+    return this.card;
+  }
+
   // Schedule mode
   readonly scheduleLink: Locator;
   readonly disableAtDate: Locator;
@@ -867,5 +872,108 @@ export class AutoSnoozeCard extends BasePage {
   async expectSnoozeButtonEnabled(): Promise<void> {
     const enabled = await this.isSnoozeButtonEnabled();
     expect(enabled).toBe(true);
+  }
+
+  // Last Duration Badge methods
+  /**
+   * Check if the "Last Duration" badge is visible
+   */
+  async isLastDurationBadgeVisible(): Promise<boolean> {
+    return await this.page.evaluate(
+      `
+      (() => {
+        ${findAutosnoozeCard}
+        const card = findAutosnoozeCard();
+        const badge = card?.shadowRoot?.querySelector('.last-duration-badge');
+        return badge !== null && getComputedStyle(badge).display !== 'none';
+      })()
+      `
+    );
+  }
+
+  /**
+   * Get the last duration badge text (e.g., "2h30m")
+   */
+  async getLastDurationBadgeText(): Promise<string> {
+    return await this.page.evaluate(
+      `
+      (() => {
+        ${findAutosnoozeCard}
+        const card = findAutosnoozeCard();
+        const badge = card?.shadowRoot?.querySelector('.last-duration-badge');
+        return badge?.textContent?.trim() ?? '';
+      })()
+      `
+    );
+  }
+
+  /**
+   * Click the last duration badge
+   */
+  async clickLastDurationBadge(): Promise<void> {
+    await this.page.evaluate(
+      `
+      (() => {
+        ${findAutosnoozeCard}
+        const card = findAutosnoozeCard();
+        const badge = card?.shadowRoot?.querySelector('.last-duration-badge');
+        badge?.click();
+      })()
+      `
+    );
+    await this.page.waitForTimeout(100);
+  }
+
+  /**
+   * Wait for the last duration badge to appear
+   */
+  async waitForLastDurationBadge(timeout: number = DEFAULT_WAIT_TIMEOUT): Promise<void> {
+    await this.page.waitForFunction(
+      `
+      (() => {
+        ${findAutosnoozeCard}
+        const card = findAutosnoozeCard();
+        const badge = card?.shadowRoot?.querySelector('.last-duration-badge');
+        return badge !== null && getComputedStyle(badge).display !== 'none';
+      })()
+      `,
+      { timeout }
+    );
+  }
+
+  /**
+   * Wait for the last duration badge to disappear
+   */
+  async waitForLastDurationBadgeGone(timeout: number = DEFAULT_WAIT_TIMEOUT): Promise<void> {
+    await this.page.waitForFunction(
+      `
+      (() => {
+        ${findAutosnoozeCard}
+        const card = findAutosnoozeCard();
+        const badge = card?.shadowRoot?.querySelector('.last-duration-badge');
+        return badge === null || getComputedStyle(badge).display === 'none';
+      })()
+      `,
+      { timeout }
+    );
+  }
+
+  /**
+   * Get the duration pills (for verification)
+   */
+  async getDurationPills(): Promise<Array<{ textContent: string; active: boolean }>> {
+    return await this.page.evaluate(
+      `
+      (() => {
+        ${findAutosnoozeCard}
+        const card = findAutosnoozeCard();
+        const pills = card?.shadowRoot?.querySelectorAll('.pill');
+        return Array.from(pills || []).map(pill => ({
+          textContent: pill.textContent?.trim() ?? '',
+          active: pill.classList.contains('active')
+        }));
+      })()
+      `
+    );
   }
 }
