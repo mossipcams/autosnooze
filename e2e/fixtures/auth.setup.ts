@@ -44,6 +44,17 @@ setup('authenticate', async ({ page }) => {
     await loginButton.waitFor({ state: 'visible', timeout: 30000 });
     await loginButton.click();
 
+    // Wait a bit for the form to submit
+    await page.waitForTimeout(2000);
+
+    // Check if we're still on the login page (login failed)
+    const stillOnLoginPage = await welcomeText.isVisible().catch(() => false);
+    if (stillOnLoginPage) {
+      // Check for error message
+      const errorMsg = await page.locator('[role="alert"], .error, [class*="error"]').textContent().catch(() => '');
+      throw new Error(`Login failed. Still on login page. Error: ${errorMsg || 'No error message found'}`);
+    }
+
     // Wait for navigation away from login page - check URL changes
     await page.waitForFunction(
       () => !window.location.pathname.includes('/auth/authorize'),
