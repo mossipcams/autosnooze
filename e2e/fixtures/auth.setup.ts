@@ -40,8 +40,8 @@ setup('authenticate', async ({ page }) => {
     await passwordInput.fill(password);
 
     // Submit form by clicking the Log in button
-    const loginButton = page.locator('button', { hasText: 'Log in' });
-    await loginButton.waitFor({ state: 'visible' });
+    const loginButton = page.getByRole('button', { name: 'Log in' });
+    await loginButton.waitFor({ state: 'visible', timeout: 30000 });
     await loginButton.click();
 
     // Wait for navigation away from login page - check URL changes
