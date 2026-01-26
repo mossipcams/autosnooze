@@ -13,7 +13,7 @@ if (!fs.existsSync(authDir)) {
 setup('authenticate', async ({ page }) => {
   const baseURL = process.env.HA_URL || 'http://localhost:8124';
   const username = process.env.HA_USERNAME || 'test';
-  const password = process.env.HA_PASSWORD || 'test';
+  const password = process.env.HA_PASSWORD || '12345';
 
   // Set longer timeout for auth setup (navigation can take up to 60s)
   setup.setTimeout(90000);
@@ -39,8 +39,10 @@ setup('authenticate', async ({ page }) => {
     await passwordInput.waitFor({ state: 'visible' });
     await passwordInput.fill(password);
 
-    // Submit form by pressing Enter on password field
-    await passwordInput.press('Enter');
+    // Submit form by clicking the Log in button
+    const loginButton = page.locator('button', { hasText: 'Log in' });
+    await loginButton.waitFor({ state: 'visible' });
+    await loginButton.click();
 
     // Wait for navigation away from login page - check URL changes
     await page.waitForFunction(
