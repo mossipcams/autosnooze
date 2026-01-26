@@ -57,28 +57,34 @@ test.describe('Duration-based Snooze', () => {
   test('snooze with custom duration - hours and minutes', async ({ autosnoozeCard }) => {
     await autosnoozeCard.selectAutomation('Kitchen Motion Lights');
     await autosnoozeCard.setCustomDuration('2h30m');
+    // Wait for input to be processed
+    await autosnoozeCard.page.waitForTimeout(300);
     await autosnoozeCard.snooze();
 
     await autosnoozeCard.waitForPausedAutomation('Kitchen Motion Lights');
-    await autosnoozeCard.expectPausedCount(1);
+    await autosnoozeCard.waitForPausedCount(1, 15000);
   });
 
   test('snooze with custom duration - decimal hours', async ({ autosnoozeCard }) => {
     await autosnoozeCard.selectAutomation('Bedroom Motion Lights');
     await autosnoozeCard.setCustomDuration('1.5h');
+    // Wait for input to be processed
+    await autosnoozeCard.page.waitForTimeout(300);
     await autosnoozeCard.snooze();
 
     await autosnoozeCard.waitForPausedAutomation('Bedroom Motion Lights');
-    await autosnoozeCard.expectPausedCount(1);
+    await autosnoozeCard.waitForPausedCount(1, 15000);
   });
 
   test('snooze with custom duration - days', async ({ autosnoozeCard }) => {
     await autosnoozeCard.selectAutomation('Bathroom Motion Lights');
     await autosnoozeCard.setCustomDuration('1d');
+    // Wait for input to be processed
+    await autosnoozeCard.page.waitForTimeout(300);
     await autosnoozeCard.snooze();
 
     await autosnoozeCard.waitForPausedAutomation('Bathroom Motion Lights');
-    await autosnoozeCard.expectPausedCount(1);
+    await autosnoozeCard.waitForPausedCount(1, 15000);
   });
 
   test('snooze with custom duration - days and hours', async ({ autosnoozeCard }) => {
@@ -97,7 +103,8 @@ test.describe('Duration-based Snooze', () => {
     await autosnoozeCard.selectDuration('1h');
     await autosnoozeCard.snooze();
 
-    await autosnoozeCard.expectPausedCount(3);
+    // Wait for all three to be paused with longer timeout
+    await autosnoozeCard.waitForPausedCount(3, 15000);
   });
 
   test('invalid custom duration shows error state', async ({ autosnoozeCard }) => {

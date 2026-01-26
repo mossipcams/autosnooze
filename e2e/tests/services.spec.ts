@@ -17,7 +17,7 @@ test.describe('Direct Service Calls', () => {
     await autosnoozeCard.expectPausedCount(1);
   });
 
-  test('pause service with resume_at', async ({ callService, autosnoozeCard }) => {
+  test('pause service with resume_at', async ({ callService, autosnoozeCard, page }) => {
     const tomorrow = new Date();
     tomorrow.setDate(tomorrow.getDate() + 1);
 
@@ -26,8 +26,11 @@ test.describe('Direct Service Calls', () => {
       resume_at: tomorrow.toISOString(),
     });
 
-    await autosnoozeCard.waitForPausedAutomation('Living Room Motion Lights');
-    await autosnoozeCard.expectPausedCount(1);
+    // Wait for service call to complete
+    await page.waitForTimeout(1000);
+
+    await autosnoozeCard.waitForPausedAutomation('Living Room Motion Lights', 15000);
+    await autosnoozeCard.waitForPausedCount(1, 15000);
   });
 
   test('pause service with disable_at creates scheduled snooze', async ({
@@ -170,6 +173,7 @@ test.describe('Direct Service Calls', () => {
   test('service calls update UI in real-time', async ({
     callService,
     autosnoozeCard,
+    page,
   }) => {
     // Get initial paused count
     const initialCount = await autosnoozeCard.getPausedCount();
@@ -181,8 +185,11 @@ test.describe('Direct Service Calls', () => {
       hours: 1,
     });
 
-    // Wait for UI to update using proper wait method
-    await autosnoozeCard.waitForPausedAutomation('Living Room Motion Lights');
+    // Wait for service call to complete
+    await page.waitForTimeout(1000);
+
+    // Wait for UI to update using proper wait method with longer timeout
+    await autosnoozeCard.waitForPausedAutomation('Living Room Motion Lights', 15000);
 
     // UI should reflect the change
     const updatedCount = await autosnoozeCard.getPausedCount();

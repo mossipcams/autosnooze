@@ -99,6 +99,7 @@ test.describe('Wake Operations', () => {
     await autosnoozeCard.snooze();
 
     await autosnoozeCard.waitForPausedAutomation('Living Room Motion Lights');
+    await autosnoozeCard.expectPausedCount(1);
 
     // First click
     await autosnoozeCard.page.evaluate(
@@ -111,21 +112,28 @@ test.describe('Wake Operations', () => {
       })()
       `
     );
-    await autosnoozeCard.page.waitForTimeout(200);
+    await autosnoozeCard.page.waitForTimeout(500);
 
-    // Wait for timeout (3 seconds + buffer)
-    await autosnoozeCard.page.waitForTimeout(3500);
+    // Wait for timeout (3 seconds + buffer) - use longer timeout for reliability
+    await autosnoozeCard.page.waitForTimeout(4000);
 
-    // Button text should reset
-    const buttonText = await autosnoozeCard.page.evaluate(
-      `
-      (() => {
-        ${findCardScript}
-        const card = findAutosnoozeCard();
-        return card?.shadowRoot?.querySelector('.wake-all')?.textContent?.trim() ?? '';
-      })()
-      `
-    );
+    // Button text should reset - retry to handle rendering delays
+    let buttonText = '';
+    let retries = 0;
+    while (retries < 5) {
+      buttonText = await autosnoozeCard.page.evaluate(
+        `
+        (() => {
+          ${findCardScript}
+          const card = findAutosnoozeCard();
+          return card?.shadowRoot?.querySelector('.wake-all')?.textContent?.trim() ?? '';
+        })()
+        `
+      );
+      if (!buttonText.toLowerCase().includes('confirm')) break;
+      await autosnoozeCard.page.waitForTimeout(500);
+      retries++;
+    }
     expect(buttonText.toLowerCase()).not.toContain('confirm');
   });
 

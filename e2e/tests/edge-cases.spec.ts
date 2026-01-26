@@ -36,15 +36,30 @@ test.describe('Edge Cases', () => {
     await autosnoozeCard.expectSnoozeButtonDisabled();
   });
 
-  test('waking non-snoozed automation is handled gracefully', async ({ callService, getState }) => {
+  test('waking non-snoozed automation is handled gracefully', async ({ callService, getState, page }) => {
+    // Wait for automation to be loaded and in expected state
+    await page.waitForTimeout(1000);
+
+    // Verify automation starts in 'on' state
+    let state = await getState('automation.living_room_motion_lights');
+    // Handle case where state might still be loading
+    if (state !== 'on') {
+      await page.waitForTimeout(1000);
+      state = await getState('automation.living_room_motion_lights');
+    }
+    expect(state).toBe('on');
+
     // Calling cancel on a non-snoozed automation should not throw an error
     // and the automation should remain in its current state (on)
     await callService('autosnooze', 'cancel', {
       entity_id: 'automation.living_room_motion_lights',
     });
 
+    // Wait for service call to complete
+    await page.waitForTimeout(500);
+
     // Verify the automation is still on (wasn't affected by the cancel call)
-    const state = await getState('automation.living_room_motion_lights');
+    state = await getState('automation.living_room_motion_lights');
     expect(state).toBe('on');
   });
 
@@ -60,10 +75,13 @@ test.describe('Edge Cases', () => {
   test('snooze with fractional hours works', async ({ autosnoozeCard }) => {
     await autosnoozeCard.selectAutomation('Living Room Motion Lights');
     await autosnoozeCard.setCustomDuration('1.5h');
+    // Wait for input to be processed
+    await autosnoozeCard.page.waitForTimeout(300);
     await autosnoozeCard.snooze();
 
     await autosnoozeCard.waitForPausedAutomation('Living Room Motion Lights');
-    await autosnoozeCard.expectPausedCount(1);
+    // Use longer timeout for paused count check
+    await autosnoozeCard.waitForPausedCount(1, 15000);
   });
 
   test('very long duration works', async ({ autosnoozeCard }) => {
@@ -158,20 +176,29 @@ test.describe('Edge Cases', () => {
     await autosnoozeCard.snooze();
 
     await autosnoozeCard.waitForPausedAutomation('Living Room Motion Lights');
+    await autosnoozeCard.expectPausedCount(1);
 
     // Re-select the paused automation and snooze again with longer duration
     await autosnoozeCard.selectAutomation('Living Room Motion Lights');
     await autosnoozeCard.setCustomDuration('4h');
+    // Wait for input to be processed
+    await autosnoozeCard.page.waitForTimeout(300);
     await autosnoozeCard.snooze();
 
-    // Wait for UI to update
-    await autosnoozeCard.page.waitForTimeout(500);
+    // Wait for UI to update - re-snooze needs more time to process
+    await autosnoozeCard.page.waitForTimeout(2000);
 
     // Verify automation is still paused (re-snooze should keep it paused)
     await autosnoozeCard.expectPausedCount(1);
 
-    // Get the countdown - should now show hours
-    const countdown = await autosnoozeCard.getCountdown('Living Room Motion Lights');
+    // Get the countdown - should now show hours (retry to handle rendering delays)
+    let countdown = '';
+    let retries = 0;
+    while (retries < 5 && !countdown.match(/\d+h/)) {
+      await autosnoozeCard.page.waitForTimeout(500);
+      countdown = await autosnoozeCard.getCountdown('Living Room Motion Lights');
+      retries++;
+    }
     expect(countdown).toMatch(/\d+h/);
   });
 

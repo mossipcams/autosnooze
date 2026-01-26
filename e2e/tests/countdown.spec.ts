@@ -26,10 +26,6 @@ test.describe('Countdown Timer', () => {
     // Wait for the paused item to appear
     await autosnoozeCard.waitForPausedAutomation('Living Room Motion Lights');
 
-    // Get initial countdown
-    const initialCountdown = await autosnoozeCard.getCountdown('Living Room Motion Lights');
-    expect(initialCountdown).toBeTruthy();
-
     // Parse the countdown to extract seconds (format: "29m 45s" or "29m")
     const parseCountdownSeconds = (countdown: string): number => {
       const minuteMatch = countdown.match(/(\d+)m/);
@@ -39,20 +35,35 @@ test.describe('Countdown Timer', () => {
       return minutes * 60 + seconds;
     };
 
+    // Get initial countdown (retry to handle rendering delays)
+    let initialCountdown = '';
+    let retries = 0;
+    while (retries < 5 && !initialCountdown) {
+      await autosnoozeCard.page.waitForTimeout(500);
+      initialCountdown = await autosnoozeCard.getCountdown('Living Room Motion Lights');
+      retries++;
+    }
+    expect(initialCountdown).toBeTruthy();
     const initialSeconds = parseCountdownSeconds(initialCountdown);
 
-    // Wait a few seconds for the countdown to decrease
-    await autosnoozeCard.page.waitForTimeout(3000);
+    // Wait for countdown to update (countdown updates every second)
+    await autosnoozeCard.page.waitForTimeout(4000);
 
-    // Get updated countdown
-    const updatedCountdown = await autosnoozeCard.getCountdown('Living Room Motion Lights');
+    // Get updated countdown (retry to handle rendering delays)
+    let updatedCountdown = '';
+    retries = 0;
+    while (retries < 5 && !updatedCountdown) {
+      await autosnoozeCard.page.waitForTimeout(500);
+      updatedCountdown = await autosnoozeCard.getCountdown('Living Room Motion Lights');
+      retries++;
+    }
     expect(updatedCountdown).toBeTruthy();
 
     const updatedSeconds = parseCountdownSeconds(updatedCountdown);
 
-    // The countdown should have decreased (time has passed)
-    // Allow some tolerance since countdown updates may not be exactly in sync
-    expect(updatedSeconds).toBeLessThanOrEqual(initialSeconds);
+    // The countdown should have decreased by at least 2 seconds
+    expect(updatedSeconds).toBeLessThan(initialSeconds);
+    expect(initialSeconds - updatedSeconds).toBeGreaterThanOrEqual(2);
   });
 
   test('multiple snoozed automations with same resume time are grouped', async ({
@@ -99,16 +110,27 @@ test.describe('Countdown Timer', () => {
     // Wait for second automation to appear
     await autosnoozeCard.waitForPausedAutomation('Kitchen Motion Lights');
 
-    // Count pause groups
-    const groupCount = await autosnoozeCard.page.evaluate(
-      `
-      (() => {
-        ${findCardScript}
-        const card = findAutosnoozeCard();
-        return card?.shadowRoot?.querySelectorAll('.pause-group').length ?? 0;
-      })()
-      `
-    );
+    // Wait for both automations to be in paused list
+    await autosnoozeCard.expectPausedCount(2);
+
+    // Wait for UI to fully render groups (groups are re-calculated on render)
+    await autosnoozeCard.page.waitForTimeout(1000);
+
+    // Count pause groups - retry a few times to handle rendering delays
+    let groupCount = 0;
+    for (let i = 0; i < 5; i++) {
+      groupCount = await autosnoozeCard.page.evaluate(
+        `
+        (() => {
+          ${findCardScript}
+          const card = findAutosnoozeCard();
+          return card?.shadowRoot?.querySelectorAll('.pause-group').length ?? 0;
+        })()
+        `
+      );
+      if (groupCount === 2) break;
+      await autosnoozeCard.page.waitForTimeout(500);
+    }
 
     // Should be two groups since they have different resume times
     expect(groupCount).toBe(2);
@@ -121,7 +143,14 @@ test.describe('Countdown Timer', () => {
 
     await autosnoozeCard.waitForPausedAutomation('Living Room Motion Lights');
 
-    const countdown = await autosnoozeCard.getCountdown('Living Room Motion Lights');
+    // Wait for countdown to render (retry to handle delays)
+    let countdown = '';
+    let retries = 0;
+    while (retries < 5 && !countdown.match(/\d+h/)) {
+      await autosnoozeCard.page.waitForTimeout(500);
+      countdown = await autosnoozeCard.getCountdown('Living Room Motion Lights');
+      retries++;
+    }
     expect(countdown).toMatch(/\d+h/);
   });
 
@@ -132,7 +161,14 @@ test.describe('Countdown Timer', () => {
 
     await autosnoozeCard.waitForPausedAutomation('Living Room Motion Lights');
 
-    const countdown = await autosnoozeCard.getCountdown('Living Room Motion Lights');
+    // Wait for countdown to render (retry to handle delays)
+    let countdown = '';
+    let retries = 0;
+    while (retries < 5 && !countdown.match(/\d+d/)) {
+      await autosnoozeCard.page.waitForTimeout(500);
+      countdown = await autosnoozeCard.getCountdown('Living Room Motion Lights');
+      retries++;
+    }
     expect(countdown).toMatch(/\d+d/);
   });
 
