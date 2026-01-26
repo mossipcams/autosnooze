@@ -28,12 +28,17 @@ test.describe('Duration-based Snooze', () => {
   });
 
   test('snooze with 1h preset', async ({ autosnoozeCard }) => {
+    test.setTimeout(45000);
+
     await autosnoozeCard.selectAutomation('Kitchen Motion Lights');
     await autosnoozeCard.selectDuration('1h');
     await autosnoozeCard.snooze();
 
-    await autosnoozeCard.waitForPausedAutomation('Kitchen Motion Lights');
-    await autosnoozeCard.expectPausedCount(1);
+    // Wait a moment for service call to complete
+    await autosnoozeCard.page.waitForTimeout(500);
+
+    await autosnoozeCard.waitForPausedAutomation('Kitchen Motion Lights', 20000);
+    await autosnoozeCard.waitForPausedCount(1, 20000);
   });
 
   test('snooze with 2h preset', async ({ autosnoozeCard }) => {

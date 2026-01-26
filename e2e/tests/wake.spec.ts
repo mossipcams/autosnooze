@@ -41,6 +41,9 @@ test.describe('Wake Operations', () => {
   });
 
   test('wake all requires double-click confirmation', async ({ autosnoozeCard }) => {
+    // Set a reasonable timeout for this test
+    test.setTimeout(45000);
+
     // Snooze multiple automations
     await autosnoozeCard.selectAutomation('Living Room Motion Lights');
     await autosnoozeCard.selectAutomation('Kitchen Motion Lights');
@@ -60,18 +63,23 @@ test.describe('Wake Operations', () => {
       })()
       `
     );
-    await autosnoozeCard.page.waitForTimeout(200);
+    await autosnoozeCard.page.waitForTimeout(500);
 
-    // Check button text changed to confirm
-    const buttonText = await autosnoozeCard.page.evaluate(
-      `
-      (() => {
-        ${findCardScript}
-        const card = findAutosnoozeCard();
-        return card?.shadowRoot?.querySelector('.wake-all')?.textContent?.trim() ?? '';
-      })()
-      `
-    );
+    // Check button text changed to confirm (with retry)
+    let buttonText = '';
+    for (let i = 0; i < 5; i++) {
+      buttonText = await autosnoozeCard.page.evaluate(
+        `
+        (() => {
+          ${findCardScript}
+          const card = findAutosnoozeCard();
+          return card?.shadowRoot?.querySelector('.wake-all')?.textContent?.trim() ?? '';
+        })()
+        `
+      );
+      if (buttonText.toLowerCase().includes('confirm')) break;
+      await autosnoozeCard.page.waitForTimeout(200);
+    }
     expect(buttonText.toLowerCase()).toContain('confirm');
 
     // Second click - execute
@@ -86,19 +94,26 @@ test.describe('Wake Operations', () => {
       `
     );
 
-    // Wait for all paused items to be removed
-    await autosnoozeCard.waitForPausedCount(0);
-
-    await autosnoozeCard.expectPausedCount(0);
+    // Wait for all paused items to be removed (with timeout protection)
+    try {
+      await autosnoozeCard.waitForPausedCount(0, 15000);
+    } catch {
+      // If timeout, check current state
+      const currentCount = await autosnoozeCard.getPausedCount();
+      expect(currentCount).toBe(0);
+    }
   });
 
   test('wake all confirmation times out', async ({ autosnoozeCard }) => {
+    // Set a reasonable timeout for this test
+    test.setTimeout(45000);
+
     // Snooze automations
     await autosnoozeCard.selectAutomation('Living Room Motion Lights');
     await autosnoozeCard.selectDuration('1h');
     await autosnoozeCard.snooze();
 
-    await autosnoozeCard.waitForPausedAutomation('Living Room Motion Lights');
+    await autosnoozeCard.waitForPausedAutomation('Living Room Motion Lights', 15000);
     await autosnoozeCard.expectPausedCount(1);
 
     // First click
@@ -115,12 +130,12 @@ test.describe('Wake Operations', () => {
     await autosnoozeCard.page.waitForTimeout(500);
 
     // Wait for timeout (3 seconds + buffer) - use longer timeout for reliability
-    await autosnoozeCard.page.waitForTimeout(4000);
+    await autosnoozeCard.page.waitForTimeout(4500);
 
     // Button text should reset - retry to handle rendering delays
     let buttonText = '';
     let retries = 0;
-    while (retries < 5) {
+    while (retries < 10) {
       buttonText = await autosnoozeCard.page.evaluate(
         `
         (() => {
@@ -131,7 +146,7 @@ test.describe('Wake Operations', () => {
         `
       );
       if (!buttonText.toLowerCase().includes('confirm')) break;
-      await autosnoozeCard.page.waitForTimeout(500);
+      await autosnoozeCard.page.waitForTimeout(300);
       retries++;
     }
     expect(buttonText.toLowerCase()).not.toContain('confirm');

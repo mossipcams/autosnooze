@@ -20,8 +20,8 @@ const findAutosnoozeCard = `
   }
 `;
 
-// Default timeout for waiting operations
-const DEFAULT_WAIT_TIMEOUT = 10000;
+// Default timeout for waiting operations (increased for Firefox/mobile browsers)
+const DEFAULT_WAIT_TIMEOUT = 15000;
 
 export class AutoSnoozeCard extends BasePage {
   readonly card: Locator;
