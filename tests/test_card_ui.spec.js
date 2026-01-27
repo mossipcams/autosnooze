@@ -506,22 +506,20 @@ describe('AutoSnooze Card Main Component', () => {
     test('_getDurationPills returns default pills when no last duration', () => {
       card._lastDuration = null;
       const pills = card._getDurationPills();
-      expect(pills.length).toBe(4); // 30m, 1h, 1d, Custom
+      expect(pills.length).toBe(5); // 30m, 1h, 12h, 1d, Custom
       expect(pills[pills.length - 1].label).toBe('Custom');
     });
 
-    test('_getDurationPills includes Last pill when last duration exists and differs from presets', () => {
+    test('_getDurationPills does not include Last pill - replaced by badge', () => {
       card._lastDuration = {
         minutes: 150, // 2h 30m - not a preset
         duration: { days: 0, hours: 2, minutes: 30 },
         timestamp: Date.now(),
       };
       const pills = card._getDurationPills();
-      expect(pills.length).toBe(5); // Last 2h30m, 30m, 1h, 1d, Custom
+      expect(pills.length).toBe(5); // 30m, 1h, 12h, 1d, Custom (no Last pill)
       const lastPill = pills.find(p => p.isLast);
-      expect(lastPill).toBeDefined();
-      expect(lastPill.minutes).toBe(150);
-      expect(lastPill.label).toBe('Last 2h30m');
+      expect(lastPill).toBeUndefined(); // No Last pill in array anymore
     });
 
     test('_getDurationPills does not include Last pill when last duration matches a preset', () => {
@@ -531,29 +529,39 @@ describe('AutoSnooze Card Main Component', () => {
         timestamp: Date.now(),
       };
       const pills = card._getDurationPills();
-      expect(pills.length).toBe(4); // No extra Last pill
+      expect(pills.length).toBe(5); // 30m, 1h, 12h, 1d, Custom (no extra Last pill)
       const lastPill = pills.find(p => p.isLast);
       expect(lastPill).toBeUndefined();
     });
 
-    test('_getDurationPills places Last pill first', () => {
+    test('_renderLastDurationBadge returns empty string when last duration matches preset', () => {
       card._lastDuration = {
-        minutes: 90, // 1h 30m
+        minutes: 60, // 1h - matches preset
+        duration: { days: 0, hours: 1, minutes: 0 },
+        timestamp: Date.now(),
+      };
+      const badge = card._renderLastDurationBadge();
+      expect(badge).toBe(''); // Badge should not render
+    });
+
+    test('_renderLastDurationBadge renders badge for unique duration', () => {
+      card._lastDuration = {
+        minutes: 90, // 1h 30m - not a preset
         duration: { days: 0, hours: 1, minutes: 30 },
         timestamp: Date.now(),
       };
-      const pills = card._getDurationPills();
-      expect(pills[0].isLast).toBe(true);
-      expect(pills[0].label).toBe('Last 1h30m');
-      expect(pills[pills.length - 1].label).toBe('Custom'); // Custom is still last
+      const badge = card._renderLastDurationBadge();
+      expect(badge).not.toBe(''); // Badge should render
+      expect(badge.strings).toBeDefined(); // Should be a TemplateResult
     });
 
-    test('clicking Last pill sets duration correctly', () => {
+    test('clicking badge sets duration correctly', () => {
       card._lastDuration = {
         minutes: 150,
         duration: { days: 0, hours: 2, minutes: 30 },
         timestamp: Date.now(),
       };
+      // Badge click calls _setDuration internally
       card._setDuration(150);
       expect(card._customDuration).toEqual({ days: 0, hours: 2, minutes: 30 });
       expect(card._duration).toBe(150 * 60 * 1000); // 150 minutes in ms

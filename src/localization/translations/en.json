@@ -94,7 +94,8 @@
     "header": "Snooze Duration",
     "placeholder": "e.g. 2h30m, 1.5h, 1d, 45m",
     "preview_label": "Duration:",
-    "help": "Enter duration: 30m, 2h, 1.5h, 4h30m, 1d, 1d2h"
+    "help": "Enter duration: 30m, 2h, 1.5h, 4h30m, 1d, 1d2h",
+    "last_used_tooltip": "Use last duration: {duration}"
   },
   "section": {
     "snoozed_count": "Snoozed Automations ({count})",

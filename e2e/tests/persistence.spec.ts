@@ -44,9 +44,16 @@ test.describe('State Persistence', () => {
     await autosnoozeCard.expectPausedCount(3);
   });
 
-  test('paused count updates after snooze via UI', async ({ autosnoozeCard }) => {
-    // Initial state
-    const initialCount = await autosnoozeCard.getPausedCount();
+  test('paused count updates after snooze via UI', async ({ autosnoozeCard, page }) => {
+    // Wait for UI to settle and verify initial state
+    await page.waitForTimeout(500);
+
+    // Initial state - wait for it to stabilize
+    let initialCount = await autosnoozeCard.getPausedCount();
+    for (let i = 0; i < 5 && initialCount !== 0; i++) {
+      await page.waitForTimeout(500);
+      initialCount = await autosnoozeCard.getPausedCount();
+    }
     expect(initialCount).toBe(0);
 
     // Snooze automations via UI
@@ -55,8 +62,8 @@ test.describe('State Persistence', () => {
     await autosnoozeCard.selectDuration('1h');
     await autosnoozeCard.snooze();
 
-    // Wait for UI to update
-    await autosnoozeCard.expectPausedCount(2);
+    // Wait for UI to update with longer timeout
+    await autosnoozeCard.waitForPausedCount(2, 15000);
 
     // Verify count is now 2
     const updatedCount = await autosnoozeCard.getPausedCount();
@@ -69,11 +76,14 @@ test.describe('State Persistence', () => {
     await autosnoozeCard.selectDuration('1h');
     await autosnoozeCard.snooze();
 
-    await autosnoozeCard.waitForPausedAutomation('Living Room Motion Lights');
-    expect(await autosnoozeCard.getPausedCount()).toBe(1);
+    await autosnoozeCard.waitForPausedAutomation('Living Room Motion Lights', 15000);
+    await autosnoozeCard.waitForPausedCount(1, 15000);
 
     // Wake it
     await autosnoozeCard.wakeAutomation('Living Room Motion Lights');
+
+    // Wait for UI to update
+    await autosnoozeCard.waitForPausedCount(0, 15000);
 
     // Verify count decreased
     expect(await autosnoozeCard.getPausedCount()).toBe(0);

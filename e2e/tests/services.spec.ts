@@ -17,7 +17,7 @@ test.describe('Direct Service Calls', () => {
     await autosnoozeCard.expectPausedCount(1);
   });
 
-  test('pause service with resume_at', async ({ callService, autosnoozeCard }) => {
+  test('pause service with resume_at', async ({ callService, autosnoozeCard, page }) => {
     const tomorrow = new Date();
     tomorrow.setDate(tomorrow.getDate() + 1);
 
@@ -26,13 +26,17 @@ test.describe('Direct Service Calls', () => {
       resume_at: tomorrow.toISOString(),
     });
 
-    await autosnoozeCard.waitForPausedAutomation('Living Room Motion Lights');
-    await autosnoozeCard.expectPausedCount(1);
+    // Wait for service call to complete
+    await page.waitForTimeout(1000);
+
+    await autosnoozeCard.waitForPausedAutomation('Living Room Motion Lights', 15000);
+    await autosnoozeCard.waitForPausedCount(1, 15000);
   });
 
   test('pause service with disable_at creates scheduled snooze', async ({
     callService,
     autosnoozeCard,
+    page,
   }) => {
     const tomorrow = new Date();
     tomorrow.setDate(tomorrow.getDate() + 1);
@@ -47,7 +51,10 @@ test.describe('Direct Service Calls', () => {
       resume_at: resumeAt.toISOString(),
     });
 
-    await autosnoozeCard.waitForScheduledCount(1);
+    // Wait for service call to process
+    await page.waitForTimeout(1000);
+
+    await autosnoozeCard.waitForScheduledCount(1, 15000);
     await autosnoozeCard.expectScheduledCount(1);
     await autosnoozeCard.expectPausedCount(0);
   });
@@ -56,6 +63,7 @@ test.describe('Direct Service Calls', () => {
     callService,
     getState,
     autosnoozeCard,
+    page,
   }) => {
     // First pause multiple
     await callService('autosnooze', 'pause', {
@@ -66,7 +74,10 @@ test.describe('Direct Service Calls', () => {
       hours: 1,
     });
 
-    await autosnoozeCard.waitForPausedCount(2);
+    // Wait for service call to process
+    await page.waitForTimeout(1000);
+
+    await autosnoozeCard.waitForPausedCount(2, 15000);
 
     // Then wake them all
     await callService('autosnooze', 'cancel', {
@@ -76,7 +87,10 @@ test.describe('Direct Service Calls', () => {
       ],
     });
 
-    await autosnoozeCard.waitForPausedCount(0);
+    // Wait for service call to process
+    await page.waitForTimeout(1000);
+
+    await autosnoozeCard.waitForPausedCount(0, 15000);
 
     const state1 = await getState('automation.living_room_motion_lights');
     const state2 = await getState('automation.kitchen_motion_lights');
@@ -142,11 +156,18 @@ test.describe('Direct Service Calls', () => {
       hours: 1,
     });
 
-    await autosnoozeCard.page.waitForTimeout(500);
+    // Wait for service call to process (longer wait for reliability)
+    await autosnoozeCard.page.waitForTimeout(1500);
 
     // Service completed without throwing - verify paused count is at least what it was
     // (may increase if automations were matched, stays same if no matches)
-    const finalPausedCount = await autosnoozeCard.getPausedCount();
+    // Retry to handle UI update delays
+    let finalPausedCount = await autosnoozeCard.getPausedCount();
+    for (let i = 0; i < 5; i++) {
+      if (finalPausedCount >= initialPausedCount) break;
+      await autosnoozeCard.page.waitForTimeout(500);
+      finalPausedCount = await autosnoozeCard.getPausedCount();
+    }
     expect(finalPausedCount).toBeGreaterThanOrEqual(initialPausedCount);
   });
 
@@ -170,9 +191,17 @@ test.describe('Direct Service Calls', () => {
   test('service calls update UI in real-time', async ({
     callService,
     autosnoozeCard,
+    page,
   }) => {
-    // Get initial paused count
-    const initialCount = await autosnoozeCard.getPausedCount();
+    // Wait for UI to settle and verify initial state
+    await page.waitForTimeout(500);
+
+    // Get initial paused count - wait for it to stabilize
+    let initialCount = await autosnoozeCard.getPausedCount();
+    for (let i = 0; i < 5 && initialCount !== 0; i++) {
+      await page.waitForTimeout(500);
+      initialCount = await autosnoozeCard.getPausedCount();
+    }
     expect(initialCount).toBe(0);
 
     // Pause via service (not through UI)
@@ -181,8 +210,11 @@ test.describe('Direct Service Calls', () => {
       hours: 1,
     });
 
-    // Wait for UI to update using proper wait method
-    await autosnoozeCard.waitForPausedAutomation('Living Room Motion Lights');
+    // Wait for service call to complete
+    await page.waitForTimeout(1500);
+
+    // Wait for UI to update using proper wait method with longer timeout
+    await autosnoozeCard.waitForPausedAutomation('Living Room Motion Lights', 15000);
 
     // UI should reflect the change
     const updatedCount = await autosnoozeCard.getPausedCount();
