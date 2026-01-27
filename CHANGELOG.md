@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.2.10](https://github.com/mossipcams/autosnooze/compare/v0.2.9...v0.2.10) (2026-01-27)
+
+
+### Features
+
+* add configurable duration pill presets via integration settings ([#265](https://github.com/mossipcams/autosnooze/issues/265)) ([22887a3](https://github.com/mossipcams/autosnooze/commit/22887a3414b1c679773228c838f16267457c59b4))
+* add frontend internationalization support ([#263](https://github.com/mossipcams/autosnooze/issues/263)) ([056b783](https://github.com/mossipcams/autosnooze/commit/056b7835bd6b370f287429634500c1bb6e3603b7))
+* improve duration preset UX with individual configuration fields ([#266](https://github.com/mossipcams/autosnooze/issues/266)) ([8aa3efa](https://github.com/mossipcams/autosnooze/commit/8aa3efab35728b87fcca9bf85b3dd6654037805e))
+
 ## [0.2.9](https://github.com/mossipcams/autosnooze/compare/v0.2.8...v0.2.9) (2026-01-20)
 
 
