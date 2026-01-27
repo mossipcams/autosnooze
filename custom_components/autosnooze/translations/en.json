@@ -11,16 +11,18 @@
     "step": {
       "init": {
         "title": "Duration Buttons",
-        "description": "Set up to 3 quick-select duration buttons for the card. Leave empty to skip.",
+        "description": "Set up to 4 quick-select duration buttons for the card. Leave empty to skip.",
         "data": {
           "preset_1": "Button 1",
           "preset_2": "Button 2",
-          "preset_3": "Button 3"
+          "preset_3": "Button 3",
+          "preset_4": "Button 4"
         },
         "data_description": {
           "preset_1": "e.g., 30m, 1h, 2h30m, or 1d",
           "preset_2": "e.g., 30m, 1h, 2h30m, or 1d",
-          "preset_3": "e.g., 30m, 1h, 2h30m, or 1d"
+          "preset_3": "e.g., 30m, 1h, 2h30m, or 1d",
+          "preset_4": "e.g., 30m, 1h, 2h30m, or 1d"
         }
       }
     },
