@@ -76,4 +76,9 @@ test.describe('Card Rendering', () => {
     const activePill = await autosnoozeCard.getActiveDurationPill();
     expect(activePill).toBe('30m');
   });
+
+  test('last duration badge is hidden initially', async ({ autosnoozeCard }) => {
+    const badgeVisible = await autosnoozeCard.isLastDurationBadgeVisible();
+    expect(badgeVisible).toBe(false);
+  });
 });

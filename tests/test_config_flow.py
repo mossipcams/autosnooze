@@ -177,9 +177,9 @@ class TestAutoSnoozeOptionsFlow:
         """Create an options flow instance."""
         return AutoSnoozeOptionsFlow(mock_config_entry)
 
-    def test_init_stores_config_entry(self, options_flow, mock_config_entry):
-        """Test that init stores the config entry."""
-        assert options_flow.config_entry == mock_config_entry
+    def test_config_entry_stored(self, options_flow, mock_config_entry):
+        """Test that config entry is stored."""
+        assert options_flow._entry == mock_config_entry
 
     @pytest.mark.asyncio
     async def test_step_init_shows_form_on_first_call(self, options_flow):
@@ -190,8 +190,14 @@ class TestAutoSnoozeOptionsFlow:
 
     @pytest.mark.asyncio
     async def test_step_init_saves_valid_presets(self, options_flow):
-        """Test that valid presets are saved."""
-        result = await options_flow.async_step_init({"duration_presets": "15m, 1h, 4h"})
+        """Test that valid presets from individual fields are saved."""
+        result = await options_flow.async_step_init(
+            {
+                "preset_1": "15m",
+                "preset_2": "1h",
+                "preset_3": "4h",
+            }
+        )
         assert result["type"] == "create_entry"
         assert result["data"]["duration_presets"] == [
             {"label": "15m", "minutes": 15},
@@ -200,36 +206,63 @@ class TestAutoSnoozeOptionsFlow:
         ]
 
     @pytest.mark.asyncio
-    async def test_step_init_returns_empty_list_for_empty_input(self, options_flow):
-        """Test that empty input returns empty list (use defaults)."""
-        result = await options_flow.async_step_init({"duration_presets": ""})
+    async def test_step_init_returns_empty_list_for_all_empty_fields(self, options_flow):
+        """Test that all empty fields returns empty list (use defaults)."""
+        result = await options_flow.async_step_init(
+            {
+                "preset_1": "",
+                "preset_2": "",
+                "preset_3": "",
+            }
+        )
         assert result["type"] == "create_entry"
         assert result["data"]["duration_presets"] == []
 
     @pytest.mark.asyncio
-    async def test_step_init_returns_empty_list_for_whitespace_input(self, options_flow):
-        """Test that whitespace-only input returns empty list."""
-        result = await options_flow.async_step_init({"duration_presets": "   "})
+    async def test_step_init_returns_empty_list_for_whitespace_fields(self, options_flow):
+        """Test that whitespace-only fields are treated as empty."""
+        result = await options_flow.async_step_init(
+            {
+                "preset_1": "   ",
+                "preset_2": "",
+                "preset_3": "",
+            }
+        )
         assert result["type"] == "create_entry"
         assert result["data"]["duration_presets"] == []
 
     @pytest.mark.asyncio
     async def test_step_init_shows_error_for_invalid_preset(self, options_flow):
-        """Test that invalid preset shows error."""
-        result = await options_flow.async_step_init({"duration_presets": "1h, invalid"})
+        """Test that invalid preset shows error on specific field."""
+        result = await options_flow.async_step_init(
+            {
+                "preset_1": "1h",
+                "preset_2": "invalid",
+                "preset_3": "",
+            }
+        )
         assert result["type"] == "form"
-        assert result["errors"]["duration_presets"] == "invalid_duration_format"
+        assert result["errors"]["preset_2"] == "invalid_duration_format"
 
     @pytest.mark.asyncio
-    async def test_step_init_returns_empty_for_only_commas(self, options_flow):
-        """Test that input with only commas returns empty list."""
-        result = await options_flow.async_step_init({"duration_presets": ", , ,"})
+    async def test_step_init_skips_empty_fields_in_middle(self, options_flow):
+        """Test that empty fields in the middle are skipped."""
+        result = await options_flow.async_step_init(
+            {
+                "preset_1": "30m",
+                "preset_2": "",
+                "preset_3": "2h",
+            }
+        )
         assert result["type"] == "create_entry"
-        assert result["data"]["duration_presets"] == []
+        assert result["data"]["duration_presets"] == [
+            {"label": "30m", "minutes": 30},
+            {"label": "2h", "minutes": 120},
+        ]
 
     @pytest.mark.asyncio
     async def test_step_init_shows_current_presets_in_form(self, mock_config_entry):
-        """Test that form shows current presets."""
+        """Test that form shows current presets in individual fields."""
         mock_config_entry.options = {
             "duration_presets": [
                 {"label": "30m", "minutes": 30},
@@ -239,6 +272,6 @@ class TestAutoSnoozeOptionsFlow:
         flow = AutoSnoozeOptionsFlow(mock_config_entry)
         result = await flow.async_step_init(None)
         assert result["type"] == "form"
-        # The default value should be formatted from current presets
+        # The schema should have individual preset fields
         schema = result["data_schema"]
         assert schema is not None

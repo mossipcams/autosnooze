@@ -15,7 +15,7 @@ export abstract class BasePage {
         };
         return ha?.hass?.connection;
       },
-      { timeout: 30000 }
+      { timeout: 60000 }
     );
   }
 

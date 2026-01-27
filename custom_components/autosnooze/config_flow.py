@@ -13,6 +13,9 @@ from homeassistant.core import callback
 from . import DOMAIN
 from .const import DEFAULT_DURATION_PRESETS
 
+# Number of individual preset fields to show (Last and Custom are added automatically)
+NUM_PRESET_FIELDS = 4
+
 
 class AutomationPauseConfigFlow(ConfigFlow, domain=DOMAIN):  # pyright: ignore[reportCallIssue,reportGeneralTypeIssues]
     """Handle config flow for AutoSnooze."""
@@ -107,38 +110,45 @@ class AutoSnoozeOptionsFlow(OptionsFlow):
 
     def __init__(self, config_entry):
         """Initialize options flow."""
-        self.config_entry = config_entry
+        self._entry = config_entry
 
     async def async_step_init(self, user_input: dict[str, Any] | None = None):
         """Handle the initial step of options flow."""
         errors: dict[str, str] = {}
 
         if user_input is not None:
-            presets_input = user_input.get("duration_presets", "").strip()
-            if presets_input:
-                presets = parse_duration_presets(presets_input)
-                if presets is None:
-                    # Validation error - invalid entry found
-                    errors["duration_presets"] = "invalid_duration_format"
-                elif not presets:
-                    # All entries were empty (e.g., ",,,") - treat as default
-                    return self.async_create_entry(title="", data={"duration_presets": []})
-                else:
-                    return self.async_create_entry(title="", data={"duration_presets": presets})
-            else:
-                # Empty input means use defaults
-                return self.async_create_entry(title="", data={"duration_presets": []})
+            # Collect presets from individual fields
+            presets: list[dict[str, str | int]] = []
+            for i in range(1, NUM_PRESET_FIELDS + 1):
+                field_key = f"preset_{i}"
+                value = user_input.get(field_key, "").strip()
+                if value:
+                    parsed = parse_duration_string(value)
+                    if parsed is None:
+                        errors[field_key] = "invalid_duration_format"
+                    else:
+                        presets.append(parsed)
 
-        # Get current values
-        current_presets = self.config_entry.options.get("duration_presets", [])
-        default_value = format_presets(current_presets) if current_presets else format_presets(DEFAULT_DURATION_PRESETS)
+            if not errors:
+                return self.async_create_entry(title="", data={"duration_presets": presets})
+
+        # Get current values or defaults
+        current_presets = self._entry.options.get("duration_presets", [])
+        if not current_presets:
+            current_presets = DEFAULT_DURATION_PRESETS
+
+        # Build schema with individual fields
+        schema_dict: dict[vol.Optional, Any] = {}
+        for i in range(1, NUM_PRESET_FIELDS + 1):
+            field_key = f"preset_{i}"
+            # Get default value from current presets if available
+            default_value = ""
+            if i <= len(current_presets):
+                default_value = str(current_presets[i - 1].get("label", ""))
+            schema_dict[vol.Optional(field_key, default=default_value)] = str
 
         return self.async_show_form(
             step_id="init",
-            data_schema=vol.Schema(
-                {
-                    vol.Optional("duration_presets", default=default_value): str,
-                }
-            ),
+            data_schema=vol.Schema(schema_dict),
             errors=errors,
         )

@@ -824,7 +824,7 @@ export class AutomationPauseCard extends LitElement {
     );
   }
 
-  private _getDurationPills(): { label: string; minutes: number | null; isLast?: boolean }[] {
+  private _getDurationPills(): { label: string; minutes: number | null }[] {
     // Read configured presets from sensor attributes, fall back to defaults
     const sensor = this.hass?.states?.['sensor.autosnooze_snoozed_automations'];
     const configuredPresets = sensor?.attributes?.duration_presets as
@@ -837,24 +837,48 @@ export class AutomationPauseCard extends LitElement {
         ? configuredPresets
         : DEFAULT_DURATIONS.filter((d): d is { label: string; minutes: number } => d.minutes !== null);
 
-    const pills: { label: string; minutes: number | null; isLast?: boolean }[] = [
+    // Simply return presets + Custom, no "Last" pill logic
+    return [
       ...basePresets,
-      { label: 'Custom', minutes: null }, // Always add Custom at end
+      { label: 'Custom', minutes: null },
     ];
+  }
 
-    // Insert "Last" pill at the start if we have a last duration that differs from presets
-    if (this._lastDuration) {
-      const lastMinutes = this._lastDuration.minutes;
-      const isUniqueFromPresets = !basePresets.some((d) => d.minutes === lastMinutes);
+  private _renderLastDurationBadge(): TemplateResult | string {
+    // Only show if last duration exists and differs from presets
+    if (!this._lastDuration) return '';
 
-      if (isUniqueFromPresets) {
-        const { days, hours, minutes } = this._lastDuration.duration;
-        const durationStr = formatDurationShort(days, hours, minutes).replace(/ /g, '');
-        pills.unshift({ label: `Last ${durationStr}`, minutes: lastMinutes, isLast: true });
-      }
-    }
+    const sensor = this.hass?.states?.['sensor.autosnooze_snoozed_automations'];
+    const configuredPresets = sensor?.attributes?.duration_presets as
+      | { label: string; minutes: number }[]
+      | undefined;
+    const basePresets: { label: string; minutes: number }[] =
+      configuredPresets?.length
+        ? configuredPresets
+        : DEFAULT_DURATIONS.filter((d): d is { label: string; minutes: number } => d.minutes !== null);
 
-    return pills;
+    const lastMinutes = this._lastDuration.minutes;
+    const isUniqueFromPresets = !basePresets.some((d) => d.minutes === lastMinutes);
+
+    if (!isUniqueFromPresets) return '';
+
+    const { days, hours, minutes } = this._lastDuration.duration;
+    const durationStr = formatDurationShort(days, hours, minutes).replace(/ /g, '');
+    const currentMinutes = durationToMinutes(this._customDuration);
+    const isActive = !this._showCustomInput && lastMinutes === currentMinutes;
+
+    return html`
+      <button
+        type="button"
+        class="last-duration-badge ${isActive ? 'active' : ''}"
+        @click=${() => this._setDuration(lastMinutes)}
+        aria-label="${localize(this.hass, 'a11y.snooze_last_duration', { duration: durationStr })}"
+        title="${localize(this.hass, 'duration.last_used_tooltip', { duration: durationStr })}"
+      >
+        <ha-icon icon="mdi:history" aria-hidden="true"></ha-icon>
+        ${durationStr}
+      </button>
+    `;
   }
 
   private _renderSelectionList(): TemplateResult | TemplateResult[] {
@@ -1014,7 +1038,10 @@ export class AutomationPauseCard extends LitElement {
         `
       : html`
           <div class="duration-selector">
-            <div class="duration-section-header" id="duration-header">${localize(this.hass, 'duration.header')}</div>
+            <div class="duration-header-row">
+              <div class="duration-section-header" id="duration-header">${localize(this.hass, 'duration.header')}</div>
+              ${this._renderLastDurationBadge()}
+            </div>
             <div class="duration-pills" role="radiogroup" aria-labelledby="duration-header">
               ${this._getDurationPills().map(
                 (d) => {
@@ -1036,7 +1063,7 @@ export class AutomationPauseCard extends LitElement {
                       }}
                       role="radio"
                       aria-checked=${isActive}
-                      aria-label="${d.minutes === null ? localize(this.hass, 'a11y.custom_duration') : d.isLast ? localize(this.hass, 'a11y.snooze_last_duration') : localize(this.hass, 'a11y.snooze_for_duration', { duration: d.label })}"
+                      aria-label="${d.minutes === null ? localize(this.hass, 'a11y.custom_duration') : localize(this.hass, 'a11y.snooze_for_duration', { duration: d.label })}"
                     >
                       ${d.label}
                     </button>

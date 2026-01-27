@@ -5,6 +5,7 @@
 import type { ParsedDuration } from '../types/automation.js';
 
 const STORAGE_KEY = 'autosnooze_last_duration';
+const EXPIRATION_MS = 7 * 24 * 60 * 60 * 1000; // 7 days in milliseconds
 
 /**
  * Data structure for storing the last used duration.
@@ -50,8 +51,17 @@ export function loadLastDuration(): LastDurationData | null {
       typeof data.minutes !== 'number' ||
       typeof data.duration?.days !== 'number' ||
       typeof data.duration?.hours !== 'number' ||
-      typeof data.duration?.minutes !== 'number'
+      typeof data.duration?.minutes !== 'number' ||
+      typeof data.timestamp !== 'number'
     ) {
+      return null;
+    }
+
+    // Check if data has expired (older than 7 days)
+    const age = Date.now() - data.timestamp;
+    if (age > EXPIRATION_MS) {
+      // Clear expired data
+      localStorage.removeItem(STORAGE_KEY);
       return null;
     }
 

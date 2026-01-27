@@ -311,6 +311,92 @@ export const cardStyles = css`
       border-color: var(--primary-color);
     }
 
+    /* Duration Header Row */
+    .duration-header-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+      gap: 12px;
+    }
+
+    /* Last Duration Floating Badge - Prominent Style */
+    .last-duration-badge {
+      flex-shrink: 0;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 12px;
+      border-radius: 20px;
+      border: 1px solid var(--divider-color);
+      background: var(--card-background-color);
+      color: var(--primary-text-color);
+      font-size: 0.85em;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s cubic-bezier(0.4, 0.0, 0.2, 1);
+      line-height: 1;
+      box-sizing: border-box;
+      animation: badge-fade-in 0.3s cubic-bezier(0.4, 0.0, 0.2, 1);
+    }
+
+    .last-duration-badge ha-icon {
+      --mdc-icon-size: 16px;
+      color: var(--primary-color);
+      flex-shrink: 0;
+    }
+
+    .last-duration-badge:hover:not(.active) {
+      border-color: var(--primary-color);
+    }
+
+    .last-duration-badge.active {
+      background: var(--primary-color);
+      color: var(--text-primary-color);
+      border-color: var(--primary-color);
+    }
+
+    .last-duration-badge.active ha-icon {
+      color: var(--text-primary-color);
+    }
+
+    .last-duration-badge:focus-visible {
+      outline: 2px solid var(--primary-color);
+      outline-offset: 2px;
+    }
+
+    .last-duration-badge:active:not(.active) {
+      transform: scale(0.98);
+      background: rgba(var(--rgb-primary-color), 0.08);
+      border-color: var(--primary-color);
+      transition-duration: 0.1s;
+    }
+
+    /* Entry animation */
+    @keyframes badge-fade-in {
+      from {
+        opacity: 0;
+        transform: translateY(-4px) scale(0.95);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+      }
+    }
+
+    /* Mobile adjustments */
+    @media (max-width: 400px) {
+      .last-duration-badge {
+        font-size: 0.8em;
+        padding: 8px 10px;
+        gap: 5px;
+      }
+
+      .last-duration-badge ha-icon {
+        --mdc-icon-size: 14px;
+      }
+    }
+
     /* Duration Input */
     .custom-duration-input {
       margin-top: 8px;
@@ -983,6 +1069,34 @@ export const cardStyles = css`
         border-color: var(--primary-color);
         box-shadow: 0 2px 8px color-mix(in srgb, var(--primary-color) 30%, transparent);
         transform: translateY(-1px);
+      }
+
+      /* Last duration badge mobile hover - match pill behavior */
+      .last-duration-badge:hover:not(.active) {
+        border-color: var(--primary-color);
+        transform: translateY(-1px);
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      }
+
+      .last-duration-badge.active {
+        background: linear-gradient(
+          135deg,
+          var(--primary-color) 0%,
+          color-mix(in srgb, var(--primary-color) 85%, #000) 100%
+        );
+        border-color: var(--primary-color);
+        box-shadow: 0 2px 8px color-mix(in srgb, var(--primary-color) 30%, transparent);
+        transform: translateY(-1px);
+      }
+
+      .last-duration-badge.active ha-icon {
+        color: var(--text-primary-color);
+      }
+
+      .last-duration-badge:active:not(.active) {
+        transform: scale(0.95);
+        background: color-mix(in srgb, var(--primary-color) 10%, transparent);
+        border-color: var(--primary-color);
       }
 
       .duration-input {

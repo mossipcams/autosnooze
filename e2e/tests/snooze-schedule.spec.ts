@@ -32,10 +32,13 @@ test.describe('Schedule Mode Snooze', () => {
     const resumeAt = getScheduleDateTime(1, 14, 0);
     await autosnoozeCard.setSchedule({ resumeAt });
 
+    // Wait for schedule inputs to be processed
+    await autosnoozeCard.page.waitForTimeout(500);
+
     await autosnoozeCard.snooze();
 
-    await autosnoozeCard.waitForPausedAutomation('Living Room Motion Lights');
-    await autosnoozeCard.expectPausedCount(1);
+    await autosnoozeCard.waitForPausedAutomation('Living Room Motion Lights', 15000);
+    await autosnoozeCard.waitForPausedCount(1, 15000);
 
     const state = await getState('automation.living_room_motion_lights');
     expect(state).toBe('off');

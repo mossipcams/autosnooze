@@ -94,7 +94,8 @@
     "header": "Durée de la pause",
     "placeholder": "ex. 2h30m, 1.5h, 1j, 45m",
     "preview_label": "Durée :",
-    "help": "Entrer la durée : 30m, 2h, 1.5h, 4h30m, 1j, 1j2h"
+    "help": "Entrer la durée : 30m, 2h, 1.5h, 4h30m, 1j, 1j2h",
+    "last_used_tooltip": "Utiliser la dernière durée : {duration}"
   },
   "section": {
     "snoozed_count": "Automatisations en pause ({count})",

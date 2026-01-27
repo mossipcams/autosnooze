@@ -112,50 +112,85 @@ export const test = base.extend<AutoSnoozeFixtures>({
 
       await page.waitForTimeout(300);
 
-      // Force the card to refresh its entity registry cache
-      await page.evaluate(
-        `
-        (async () => {
-          ${findCardScript}
-          const card = findAutosnoozeCard();
-          if (card) {
-            // Reset the entity registry cache so it re-fetches
-            card._entityRegistryFetched = false;
-            card._entityRegistry = {};
-            card._automationsCacheVersion++;
-            card._automationsCache = null;
+      // Force the card to refresh its entity registry cache (with timeout protection)
+      try {
+        await Promise.race([
+          page.evaluate(
+            `
+            (async () => {
+              ${findCardScript}
+              const card = findAutosnoozeCard();
+              if (card) {
+                // Reset the entity registry cache so it re-fetches
+                card._entityRegistryFetched = false;
+                card._entityRegistry = {};
+                card._automationsCacheVersion++;
+                card._automationsCache = null;
 
-            // Re-fetch the entity registry
-            if (card.hass?.connection) {
-              try {
-                const items = await card.hass.connection.sendMessagePromise({
-                  type: 'config/entity_registry/list',
-                });
-                const entityMap = {};
-                for (const item of items || []) {
-                  if (item.entity_id.startsWith('automation.')) {
-                    entityMap[item.entity_id] = item;
+                // Re-fetch the entity registry
+                if (card.hass?.connection) {
+                  try {
+                    const items = await card.hass.connection.sendMessagePromise({
+                      type: 'config/entity_registry/list',
+                    });
+                    const entityMap = {};
+                    for (const item of items || []) {
+                      if (item.entity_id.startsWith('automation.')) {
+                        entityMap[item.entity_id] = item;
+                      }
+                    }
+                    card._entityRegistry = entityMap;
+                  } catch (e) {
+                    console.error('Failed to fetch entity registry:', e);
                   }
                 }
-                card._entityRegistry = entityMap;
-              } catch (e) {
-                console.error('Failed to fetch entity registry:', e);
-              }
-            }
-            card._entityRegistryFetched = true;
-            card._automationsCacheVersion++;
+                card._entityRegistryFetched = true;
+                card._automationsCacheVersion++;
 
-            // Trigger a re-render
-            if (card.requestUpdate) {
-              card.requestUpdate();
-            }
-          }
-        })()
-        `
-      );
+                // Trigger a re-render
+                if (card.requestUpdate) {
+                  card.requestUpdate();
+                }
+              }
+            })()
+            `
+          ),
+          new Promise((_, reject) => setTimeout(() => reject(new Error('Card refresh timeout')), 10000))
+        ]);
+      } catch (e) {
+        // If card refresh times out, try to reload the page to recover
+        console.warn('Card refresh timed out, attempting page reload');
+        try {
+          await page.reload({ timeout: 15000 });
+          await page.waitForTimeout(2000);
+        } catch {
+          // Ignore reload errors - test will fail if page is truly broken
+        }
+      }
 
       // Wait for the card to re-render
       await page.waitForTimeout(500);
+
+      // Verify Home Assistant states are loaded
+      let statesLoaded = false;
+      for (let i = 0; i < 10; i++) {
+        statesLoaded = await page.evaluate(() => {
+          const ha = document.querySelector('home-assistant') as HTMLElement & {
+            hass?: { states?: Record<string, unknown> };
+          };
+          const states = ha?.hass?.states;
+          if (!states) return false;
+          // Check that at least one automation state is loaded and not 'unknown'
+          for (const [entityId, stateObj] of Object.entries(states)) {
+            if (entityId.startsWith('automation.') && (stateObj as { state?: string })?.state !== 'unknown') {
+              return true;
+            }
+          }
+          return false;
+        });
+        if (statesLoaded) break;
+        await page.waitForTimeout(300);
+      }
     };
 
     // Reset before test

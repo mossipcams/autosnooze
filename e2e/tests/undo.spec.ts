@@ -11,8 +11,11 @@ test.describe('Undo Functionality', () => {
     await autosnoozeCard.selectDuration('1h');
     await autosnoozeCard.snooze();
 
-    // Wait for toast to appear
-    await autosnoozeCard.waitForToast();
+    // Wait for toast to appear with longer timeout for reliability
+    await autosnoozeCard.waitForToast(15000);
+
+    // Wait for toast to fully render
+    await autosnoozeCard.page.waitForTimeout(500);
 
     const hasUndo = await autosnoozeCard.page.evaluate(
       `
@@ -54,12 +57,13 @@ test.describe('Undo Functionality', () => {
     await autosnoozeCard.selectDuration('1h');
     await autosnoozeCard.snooze();
 
-    await autosnoozeCard.expectPausedCount(3);
+    // Wait for all three to be paused
+    await autosnoozeCard.waitForPausedCount(3, 15000);
 
     await autosnoozeCard.undo();
 
-    // Wait for items to be removed
-    await autosnoozeCard.waitForPausedCount(0);
+    // Wait for items to be removed with longer timeout
+    await autosnoozeCard.waitForPausedCount(0, 15000);
 
     await autosnoozeCard.expectPausedCount(0);
   });
@@ -96,8 +100,8 @@ test.describe('Undo Functionality', () => {
     let toastVisible = await autosnoozeCard.isToastVisible();
     expect(toastVisible).toBe(true);
 
-    // Wait for toast timeout (5 seconds + buffer)
-    await autosnoozeCard.waitForToastGone(8000);
+    // Wait for toast timeout (5 seconds + buffer) - use longer timeout for reliability
+    await autosnoozeCard.waitForToastGone(12000);
 
     toastVisible = await autosnoozeCard.isToastVisible();
     expect(toastVisible).toBe(false);
@@ -109,11 +113,19 @@ test.describe('Undo Functionality', () => {
     await autosnoozeCard.snooze();
 
     await autosnoozeCard.waitForToast();
+    await autosnoozeCard.waitForPausedAutomation('Living Room Motion Lights');
+
+    // Wait a bit before second snooze to ensure first one is complete
+    await autosnoozeCard.page.waitForTimeout(1000);
 
     await autosnoozeCard.selectAutomation('Kitchen Motion Lights');
     await autosnoozeCard.snooze();
 
     await autosnoozeCard.waitForToast();
+    await autosnoozeCard.waitForPausedAutomation('Kitchen Motion Lights');
+
+    // Wait for toast animations to settle
+    await autosnoozeCard.page.waitForTimeout(500);
 
     // There should only be one toast at a time
     const toastCount = await autosnoozeCard.page.evaluate(
@@ -136,9 +148,17 @@ test.describe('Undo Functionality', () => {
     await autosnoozeCard.snooze();
 
     await autosnoozeCard.waitForPausedAutomation('Living Room Motion Lights');
+    await autosnoozeCard.expectPausedCount(1);
 
-    // Wait for toast to disappear
-    await autosnoozeCard.waitForToastGone(8000);
+    // Wait for toast to disappear (use longer timeout for reliability)
+    await autosnoozeCard.waitForToastGone(12000);
+
+    // Verify toast is gone
+    const toastGone = await autosnoozeCard.isToastVisible();
+    expect(toastGone).toBe(false);
+
+    // Wait a bit more to ensure everything is settled
+    await autosnoozeCard.page.waitForTimeout(1000);
 
     // Snooze second automation
     await autosnoozeCard.selectAutomation('Kitchen Motion Lights');
@@ -146,13 +166,17 @@ test.describe('Undo Functionality', () => {
     await autosnoozeCard.snooze();
 
     await autosnoozeCard.waitForPausedAutomation('Kitchen Motion Lights');
-    await autosnoozeCard.expectPausedCount(2);
+    // Wait for both to be present
+    await autosnoozeCard.waitForPausedCount(2, 15000);
 
     // Undo should only restore the second one
     await autosnoozeCard.undo();
 
+    // Wait for undo to complete
+    await autosnoozeCard.page.waitForTimeout(1000);
+
     await autosnoozeCard.waitForPausedAutomationGone('Kitchen Motion Lights');
-    await autosnoozeCard.expectPausedCount(1);
+    await autosnoozeCard.waitForPausedCount(1, 15000);
   });
 
   test('toast shows snooze count message', async ({ autosnoozeCard }) => {

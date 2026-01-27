@@ -94,7 +94,8 @@
     "header": "Pausendauer",
     "placeholder": "z.B. 2h30m, 1.5h, 1d, 45m",
     "preview_label": "Dauer:",
-    "help": "Dauer eingeben: 30m, 2h, 1.5h, 4h30m, 1d, 1d2h"
+    "help": "Dauer eingeben: 30m, 2h, 1.5h, 4h30m, 1d, 1d2h",
+    "last_used_tooltip": "Letzte Dauer verwenden: {duration}"
   },
   "section": {
     "snoozed_count": "Pausierte Automatisierungen ({count})",

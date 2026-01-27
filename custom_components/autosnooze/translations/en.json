@@ -10,18 +10,22 @@
   "options": {
     "step": {
       "init": {
-        "title": "AutoSnooze Options",
-        "description": "Configure quick-select duration buttons shown on the card.",
+        "title": "Duration Buttons",
+        "description": "Set up to 3 quick-select duration buttons for the card. Leave empty to skip.",
         "data": {
-          "duration_presets": "Duration Presets"
+          "preset_1": "Button 1",
+          "preset_2": "Button 2",
+          "preset_3": "Button 3"
         },
         "data_description": {
-          "duration_presets": "Comma-separated list (e.g., 15m, 1h, 4h, 1d). Leave empty for defaults (30m, 1h, 1d)."
+          "preset_1": "e.g., 30m, 1h, 2h30m, or 1d",
+          "preset_2": "e.g., 30m, 1h, 2h30m, or 1d",
+          "preset_3": "e.g., 30m, 1h, 2h30m, or 1d"
         }
       }
     },
     "error": {
-      "invalid_duration_format": "Invalid duration format. Use formats like: 30m, 1h, 2h30m, 1d"
+      "invalid_duration_format": "Invalid format. Use: 30m, 1h, 2h30m, or 1d"
     }
   },
   "entity": {
