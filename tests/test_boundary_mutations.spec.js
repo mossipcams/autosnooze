@@ -13,6 +13,7 @@
 
 import { vi } from 'vitest';
 import '../custom_components/autosnooze/www/autosnooze-card.js';
+import { formatCountdown } from '../src/utils/index.js';
 
 // =============================================================================
 // HELPER: Create Card Instance
@@ -301,7 +302,7 @@ describe('_formatCountdown', () => {
     [45 * 1000, 's', 'includes seconds'],
   ])('offset %dms contains "%s" (%s)', (offset, expected) => {
     const future = new Date(Date.now() + offset).toISOString();
-    const result = card._formatCountdown(future);
+    const result = formatCountdown(future);
     if (expected === 'Resuming...') {
       expect(result).toBe(expected);
     } else {

@@ -3,7 +3,7 @@
  * Registers custom elements and exports components.
  */
 
-import { AutomationPauseCard, AutomationPauseCardEditor } from './components/index.js';
+import { AutomationPauseCard, AutomationPauseCardEditor, AutoSnoozeActivePauses, AutoSnoozeDurationSelector } from './components/index.js';
 import { CARD_VERSION } from './constants/index.js';
 // Import types for global Window augmentation
 import './types/card.js';
@@ -11,6 +11,12 @@ import './types/card.js';
 // Register custom elements
 if (!customElements.get('autosnooze-card-editor')) {
   customElements.define('autosnooze-card-editor', AutomationPauseCardEditor);
+}
+if (!customElements.get('autosnooze-active-pauses')) {
+  customElements.define('autosnooze-active-pauses', AutoSnoozeActivePauses);
+}
+if (!customElements.get('autosnooze-duration-selector')) {
+  customElements.define('autosnooze-duration-selector', AutoSnoozeDurationSelector);
 }
 if (!customElements.get('autosnooze-card')) {
   customElements.define('autosnooze-card', AutomationPauseCard);
@@ -28,4 +34,4 @@ if (!window.customCards.some((card) => card.type === 'autosnooze-card')) {
 }
 
 // Export components
-export { AutomationPauseCard, AutomationPauseCardEditor };
+export { AutomationPauseCard, AutomationPauseCardEditor, AutoSnoozeActivePauses, AutoSnoozeDurationSelector };

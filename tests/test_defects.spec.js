@@ -13,6 +13,19 @@
 import { vi } from 'vitest';
 import '../custom_components/autosnooze/www/autosnooze-card.js';
 
+// Helper to query inside the duration-selector child component's shadow DOM
+function queryDurationSelector(card) {
+  return card.shadowRoot?.querySelector('autosnooze-duration-selector');
+}
+function queryInDurationSelector(card, selector) {
+  const ds = queryDurationSelector(card);
+  return ds?.shadowRoot?.querySelector(selector);
+}
+function queryAllInDurationSelector(card, selector) {
+  const ds = queryDurationSelector(card);
+  return ds?.shadowRoot?.querySelectorAll(selector) || [];
+}
+
 describe('Defect Fixes - Regression Tests', () => {
   let card;
   let mockHass;
@@ -80,9 +93,10 @@ describe('Defect Fixes - Regression Tests', () => {
     test('clicking Custom toggles _showCustomInput', async () => {
       expect(card._showCustomInput).toBe(false);
 
-      const pills = card.shadowRoot.querySelectorAll('.pill');
-      const customPill = Array.from(pills).find((p) => p.textContent.includes('Custom'));
-      customPill.click();
+      // Simulate custom-input-toggle event (Lit @event bindings don't propagate in jsdom)
+      card._handleCustomInputToggle(new CustomEvent('custom-input-toggle', {
+        detail: { show: true },
+      }));
       await card.updateComplete;
 
       expect(card._showCustomInput).toBe(true);
@@ -91,26 +105,32 @@ describe('Defect Fixes - Regression Tests', () => {
     test('custom input renders when _showCustomInput is true', async () => {
       card._showCustomInput = true;
       await card.updateComplete;
+      const ds = queryDurationSelector(card);
+      ds.showCustomInput = true;
+      await ds.updateComplete;
 
-      const customInput = card.shadowRoot.querySelector('.custom-duration-input');
+      const customInput = queryInDurationSelector(card, '.custom-duration-input');
       expect(customInput).not.toBeNull();
     });
 
     test('custom input hidden when _showCustomInput is false', async () => {
       card._showCustomInput = false;
       await card.updateComplete;
+      const ds = queryDurationSelector(card);
+      ds.showCustomInput = false;
+      await ds.updateComplete;
 
-      const customInput = card.shadowRoot.querySelector('.custom-duration-input');
+      const customInput = queryInDurationSelector(card, '.custom-duration-input');
       expect(customInput).toBeNull();
     });
 
     test('clicking preset duration hides custom input', async () => {
       card._showCustomInput = true;
       await card.updateComplete;
-
-      const pills = card.shadowRoot.querySelectorAll('.pill');
-      const presetPill = pills[0]; // First pill is a preset (30m)
-      presetPill.click();
+      // Simulate duration-change from a preset pill click (Lit @event bindings don't propagate in jsdom)
+      card._handleDurationChange(new CustomEvent('duration-change', {
+        detail: { minutes: 30, duration: { days: 0, hours: 0, minutes: 30 }, input: '30m', showCustomInput: false },
+      }));
       await card.updateComplete;
 
       expect(card._showCustomInput).toBe(false);
@@ -119,8 +139,11 @@ describe('Defect Fixes - Regression Tests', () => {
     test('preset pill is not active when custom input is shown', async () => {
       card._showCustomInput = true;
       await card.updateComplete;
+      const ds = queryDurationSelector(card);
+      ds.showCustomInput = true;
+      await ds.updateComplete;
 
-      const pills = card.shadowRoot.querySelectorAll('.pill');
+      const pills = ds.shadowRoot.querySelectorAll('.pill');
       const presetPill = pills[0];
 
       expect(presetPill.classList.contains('active')).toBe(false);

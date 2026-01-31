@@ -11,6 +11,16 @@
 
 import { vi } from 'vitest';
 import '../custom_components/autosnooze/www/autosnooze-card.js';
+import { formatCountdown } from '../src/utils/index.js';
+
+// Helper to query inside the duration-selector child component's shadow DOM
+function queryDurationSelector(card) {
+  return card.shadowRoot?.querySelector('autosnooze-duration-selector');
+}
+function queryInDurationSelector(card, selector) {
+  const ds = queryDurationSelector(card);
+  return ds?.shadowRoot?.querySelector(selector);
+}
 
 // =============================================================================
 // CONSTANT VALUE TESTS
@@ -73,7 +83,9 @@ describe('Constant Values - Mutation Killing', () => {
   describe('Duration Pill Labels', () => {
     test('duration pills have correct labels', async () => {
       await card.updateComplete;
-      const pills = card.shadowRoot.querySelectorAll('.pill');
+      const ds = queryDurationSelector(card);
+      await ds.updateComplete;
+      const pills = ds.shadowRoot.querySelectorAll('.pill');
       const labels = Array.from(pills).map((p) => p.textContent.trim());
 
       expect(labels).toContain('30m');
@@ -84,30 +96,45 @@ describe('Constant Values - Mutation Killing', () => {
   });
 
   describe('Time Constants in Duration Calculations', () => {
-    test('_setDuration uses 60000ms per minute', () => {
-      card._setDuration(1);
+    test('duration-change event uses 60000ms per minute', async () => {
+      card._handleDurationChange(new CustomEvent('duration-change', {
+        detail: { minutes: 1, duration: { days: 0, hours: 0, minutes: 1 }, input: '1m' },
+      }));
+      await card.updateComplete;
       expect(card._duration).toBe(60000);
     });
 
-    test('_setDuration uses 3600000ms per hour', () => {
-      card._setDuration(60);
+    test('duration-change event uses 3600000ms per hour', async () => {
+      card._handleDurationChange(new CustomEvent('duration-change', {
+        detail: { minutes: 60, duration: { days: 0, hours: 1, minutes: 0 }, input: '1h' },
+      }));
+      await card.updateComplete;
       expect(card._duration).toBe(3600000);
     });
 
-    test('_setDuration uses 86400000ms per day', () => {
-      card._setDuration(1440);
+    test('duration-change event uses 86400000ms per day', async () => {
+      card._handleDurationChange(new CustomEvent('duration-change', {
+        detail: { minutes: 1440, duration: { days: 1, hours: 0, minutes: 0 }, input: '1d' },
+      }));
+      await card.updateComplete;
       expect(card._duration).toBe(86400000);
     });
 
-    test('_setDuration calculates days from 1440 minutes', () => {
-      card._setDuration(1440);
+    test('duration-change event calculates days from 1440 minutes', async () => {
+      card._handleDurationChange(new CustomEvent('duration-change', {
+        detail: { minutes: 1440, duration: { days: 1, hours: 0, minutes: 0 }, input: '1d' },
+      }));
+      await card.updateComplete;
       expect(card._customDuration.days).toBe(1);
       expect(card._customDuration.hours).toBe(0);
       expect(card._customDuration.minutes).toBe(0);
     });
 
-    test('_setDuration calculates hours from 60 minutes', () => {
-      card._setDuration(60);
+    test('duration-change event calculates hours from 60 minutes', async () => {
+      card._handleDurationChange(new CustomEvent('duration-change', {
+        detail: { minutes: 60, duration: { days: 0, hours: 1, minutes: 0 }, input: '1h' },
+      }));
+      await card.updateComplete;
       expect(card._customDuration.days).toBe(0);
       expect(card._customDuration.hours).toBe(1);
       expect(card._customDuration.minutes).toBe(0);
@@ -118,28 +145,28 @@ describe('Constant Values - Mutation Killing', () => {
     test('_formatCountdown uses 86400000ms for day calculation', () => {
       // Add extra buffer to avoid timing edge cases
       const oneDayFromNow = new Date(Date.now() + 86400000 + 2000).toISOString();
-      const result = card._formatCountdown(oneDayFromNow);
+      const result = formatCountdown(oneDayFromNow);
       expect(result).toMatch(/1d/);
     });
 
     test('_formatCountdown uses 3600000ms for hour calculation', () => {
       // Add buffer for timing
       const oneHourFromNow = new Date(Date.now() + 3600000 + 2000).toISOString();
-      const result = card._formatCountdown(oneHourFromNow);
+      const result = formatCountdown(oneHourFromNow);
       expect(result).toMatch(/1h/);
     });
 
     test('_formatCountdown uses 60000ms for minute calculation', () => {
       // Add buffer for timing
       const twoMinutesFromNow = new Date(Date.now() + 120000 + 2000).toISOString();
-      const result = card._formatCountdown(twoMinutesFromNow);
+      const result = formatCountdown(twoMinutesFromNow);
       expect(result).toMatch(/2m/);
     });
 
     test('_formatCountdown uses 1000ms for second calculation', () => {
       // Add buffer for timing
       const thirtySecondsFromNow = new Date(Date.now() + 30000 + 2000).toISOString();
-      const result = card._formatCountdown(thirtySecondsFromNow);
+      const result = formatCountdown(thirtySecondsFromNow);
       expect(result).toMatch(/0m/);
     });
   });
@@ -189,12 +216,12 @@ describe('String Literal Values - Mutation Killing', () => {
   describe('Countdown String Literals', () => {
     test('_formatCountdown returns exactly "Resuming..." for past time', () => {
       const pastTime = new Date(Date.now() - 1000).toISOString();
-      expect(card._formatCountdown(pastTime)).toBe('Resuming...');
+      expect(formatCountdown(pastTime)).toBe('Resuming...');
     });
 
     test('_formatCountdown returns "Resuming..." for zero diff', () => {
       const now = new Date(Date.now()).toISOString();
-      expect(card._formatCountdown(now)).toBe('Resuming...');
+      expect(formatCountdown(now)).toBe('Resuming...');
     });
   });
 
@@ -398,28 +425,28 @@ describe('Arithmetic Operations - Mutation Killing', () => {
     test('_formatCountdown at exactly 1 day boundary', () => {
       // 1 day = 86400000ms + buffer
       const time = new Date(Date.now() + 86400000 + 5000).toISOString();
-      const result = card._formatCountdown(time);
+      const result = formatCountdown(time);
       expect(result).toContain('1d');
     });
 
     test('_formatCountdown just under 1 day', () => {
       // Just under 24 hours (23h 59m)
       const time = new Date(Date.now() + 86340000).toISOString(); // 23h 59m
-      const result = card._formatCountdown(time);
+      const result = formatCountdown(time);
       expect(result).toContain('23h');
       expect(result).not.toContain('d');
     });
 
     test('_formatCountdown at exactly 1 hour boundary', () => {
       const time = new Date(Date.now() + 3600000 + 5000).toISOString();
-      const result = card._formatCountdown(time);
+      const result = formatCountdown(time);
       expect(result).toContain('1h');
     });
 
     test('_formatCountdown just under 1 hour', () => {
       // 59 minutes + 500ms buffer to avoid timing flakiness
       const time = new Date(Date.now() + 3540500).toISOString();
-      const result = card._formatCountdown(time);
+      const result = formatCountdown(time);
       expect(result).toContain('59m');
       expect(result).not.toContain('h');
     });
@@ -1370,35 +1397,45 @@ describe('Wake All Confirmation - Mutation Killing', () => {
     }
   });
 
-  test('first click sets pending flag', () => {
-    expect(card._wakeAllPending).toBe(false);
-    card._handleWakeAll();
-    expect(card._wakeAllPending).toBe(true);
+  test('first click sets pending flag on child', () => {
+    const ChildClass = customElements.get('autosnooze-active-pauses');
+    const child = new ChildClass();
+    expect(child._wakeAllPending).toBe(false);
+    child._handleWakeAll();
+    expect(child._wakeAllPending).toBe(true);
   });
 
-  test('pending resets after 3000ms', () => {
-    card._handleWakeAll();
-    expect(card._wakeAllPending).toBe(true);
+  test('pending resets after 3000ms on child', () => {
+    const ChildClass = customElements.get('autosnooze-active-pauses');
+    const child = new ChildClass();
+    child._handleWakeAll();
+    expect(child._wakeAllPending).toBe(true);
 
     vi.advanceTimersByTime(2999);
-    expect(card._wakeAllPending).toBe(true);
+    expect(child._wakeAllPending).toBe(true);
 
     vi.advanceTimersByTime(1);
-    expect(card._wakeAllPending).toBe(false);
+    expect(child._wakeAllPending).toBe(false);
   });
 
-  test('second click within timeout calls service', async () => {
-    card._handleWakeAll();
+  test('second click within timeout fires wake-all event', async () => {
+    const ChildClass = customElements.get('autosnooze-active-pauses');
+    const child = new ChildClass();
+    const events = [];
+    child.addEventListener('wake-all', (e) => events.push(e));
+    child._handleWakeAll();
     vi.advanceTimersByTime(1000);
-    await card._handleWakeAll();
+    child._handleWakeAll();
 
-    expect(mockHass.callService).toHaveBeenCalledWith('autosnooze', 'cancel_all', {});
+    expect(events.length).toBe(1);
   });
 
-  test('second click resets pending flag', async () => {
-    card._handleWakeAll();
-    await card._handleWakeAll();
-    expect(card._wakeAllPending).toBe(false);
+  test('second click resets pending flag on child', async () => {
+    const ChildClass = customElements.get('autosnooze-active-pauses');
+    const child = new ChildClass();
+    child._handleWakeAll();
+    child._handleWakeAll();
+    expect(child._wakeAllPending).toBe(false);
   });
 });
 

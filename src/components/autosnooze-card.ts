@@ -12,25 +12,19 @@ import type { AutomationItem, ParsedDuration, PauseGroup } from '../types/automa
 import { cardStyles } from '../styles/card.styles.js';
 import {
   TIME_MS,
-  MINUTES_PER,
   UI_TIMING,
-  DEFAULT_DURATIONS,
   DEFAULT_SNOOZE_MINUTES,
   EXCLUDE_LABEL,
   INCLUDE_LABEL,
 } from '../constants/index.js';
 import {
   formatDateTime,
-  formatCountdown,
   formatDuration,
-  formatDurationShort,
   parseDurationInput,
   isDurationValid,
   durationToMinutes,
-  minutesToDuration,
   getCurrentDateTime,
   combineDateTime,
-  generateDateOptions,
   hapticFeedback,
   getErrorMessage,
 } from '../utils/index.js';
@@ -91,18 +85,14 @@ export class AutomationPauseCard extends LitElement {
   @state() private _showCustomInput: boolean = false;
   @state() private _automationsCache: AutomationItem[] | null = null;
   @state() private _automationsCacheVersion: number = 0;
-  @state() private _wakeAllPending: boolean = false;
   @state() private _lastDuration: LastDurationData | null = null;
 
-  private _interval: number | null = null;
-  private _syncTimeout: number | null = null;
   private _labelsFetched: boolean = false;
   private _categoriesFetched: boolean = false;
   private _entityRegistryFetched: boolean = false;
   private _lastHassStates: HassEntities | null = null;
   private _lastCacheVersion: number = 0;
   private _searchTimeout: number | null = null;
-  private _wakeAllTimeout: number | null = null;
   private _toastTimeout: number | null = null;
   private _toastFadeTimeout: number | null = null;
 
@@ -195,16 +185,6 @@ export class AutomationPauseCard extends LitElement {
   connectedCallback(): void {
     super.connectedCallback();
 
-    if (this._interval) {
-      window.clearInterval(this._interval);
-      this._interval = null;
-    }
-    if (this._syncTimeout) {
-      window.clearTimeout(this._syncTimeout);
-      this._syncTimeout = null;
-    }
-
-    this._startSynchronizedCountdown();
     this._fetchLabelRegistry();
     this._fetchCategoryRegistry();
     this._fetchEntityRegistry();
@@ -213,21 +193,9 @@ export class AutomationPauseCard extends LitElement {
 
   disconnectedCallback(): void {
     super.disconnectedCallback();
-    if (this._interval !== null) {
-      clearInterval(this._interval);
-      this._interval = null;
-    }
-    if (this._syncTimeout !== null) {
-      clearTimeout(this._syncTimeout);
-      this._syncTimeout = null;
-    }
     if (this._searchTimeout !== null) {
       clearTimeout(this._searchTimeout);
       this._searchTimeout = null;
-    }
-    if (this._wakeAllTimeout !== null) {
-      clearTimeout(this._wakeAllTimeout);
-      this._wakeAllTimeout = null;
     }
     if (this._toastTimeout !== null) {
       clearTimeout(this._toastTimeout);
@@ -236,28 +204,6 @@ export class AutomationPauseCard extends LitElement {
     if (this._toastFadeTimeout !== null) {
       clearTimeout(this._toastFadeTimeout);
       this._toastFadeTimeout = null;
-    }
-  }
-
-  private _startSynchronizedCountdown(): void {
-    const now = Date.now();
-    const msUntilNextSecond = 1000 - (now % 1000);
-
-    this._syncTimeout = window.setTimeout(() => {
-      this._syncTimeout = null;
-      this._updateCountdownIfNeeded();
-
-      this._interval = window.setInterval(() => {
-        this._updateCountdownIfNeeded();
-      }, UI_TIMING.COUNTDOWN_INTERVAL_MS);
-    }, msUntilNextSecond);
-  }
-
-  private _updateCountdownIfNeeded(): void {
-    if (!this.hass) return;
-    const paused = getPaused(this.hass);
-    if (Object.keys(paused).length > 0) {
-      this.requestUpdate();
     }
   }
 
@@ -396,10 +342,6 @@ export class AutomationPauseCard extends LitElement {
     return formatDateTime(isoString, this._getLocale());
   }
 
-  private _formatCountdown(resumeAt: string): string {
-    return formatCountdown(resumeAt);
-  }
-
   private _getLocale(): string | undefined {
     return this.hass?.locale?.language;
   }
@@ -446,46 +388,6 @@ export class AutomationPauseCard extends LitElement {
 
   private _clearSelection(): void {
     this._selected = [];
-  }
-
-  private _setDuration(minutes: number): void {
-    this._duration = minutes * TIME_MS.MINUTE;
-    const duration = minutesToDuration(minutes);
-    this._customDuration = duration;
-    this._customDurationInput = formatDurationShort(duration.days, duration.hours, duration.minutes) || '30m';
-  }
-
-  private _updateCustomDuration(): void {
-    const totalMinutes = durationToMinutes(this._customDuration);
-    this._duration = totalMinutes * TIME_MS.MINUTE;
-  }
-
-  private _handleDurationInput(value: string): void {
-    this._customDurationInput = value;
-    const parsed = parseDurationInput(value);
-    if (parsed) {
-      this._customDuration = parsed;
-      this._updateCustomDuration();
-    }
-  }
-
-  private _getDurationPreview(): string {
-    const parsed = parseDurationInput(this._customDurationInput);
-    if (!parsed) return '';
-    return formatDuration(parsed.days, parsed.hours, parsed.minutes);
-  }
-
-  private _isDurationValid(): boolean {
-    return isDurationValid(this._customDurationInput);
-  }
-
-  private _enterScheduleMode(): void {
-    const { date, time } = getCurrentDateTime();
-    this._scheduleMode = true;
-    this._disableAtDate = date;
-    this._disableAtTime = time;
-    this._resumeAtDate = date;
-    this._resumeAtTime = time;
   }
 
   private _hasResumeAt(): boolean {
@@ -769,34 +671,24 @@ export class AutomationPauseCard extends LitElement {
     }
   }
 
-  private async _handleWakeAll(): Promise<void> {
-    if (this._wakeAllPending) {
-      if (this._wakeAllTimeout !== null) {
-        clearTimeout(this._wakeAllTimeout);
-        this._wakeAllTimeout = null;
+  private async _handleWakeEvent(e: CustomEvent<{ entityId: string }>): Promise<void> {
+    await this._wake(e.detail.entityId);
+  }
+
+  private async _handleWakeAllEvent(): Promise<void> {
+    if (!this.hass) return;
+    try {
+      await wakeAll(this.hass);
+      this._hapticFeedback('success');
+      if (this.isConnected && this.shadowRoot) {
+        this._showToast(localize(this.hass, 'toast.success.resumed_all'));
       }
-      this._wakeAllPending = false;
-      if (!this.hass) return;
-      try {
-        await wakeAll(this.hass);
-        this._hapticFeedback('success');
-        if (this.isConnected && this.shadowRoot) {
-          this._showToast(localize(this.hass, 'toast.success.resumed_all'));
-        }
-      } catch (e) {
-        console.error('Wake all failed:', e);
-        this._hapticFeedback('failure');
-        if (this.isConnected && this.shadowRoot) {
-          this._showToast(localize(this.hass, 'toast.error.resume_all_failed'));
-        }
+    } catch (e) {
+      console.error('Wake all failed:', e);
+      this._hapticFeedback('failure');
+      if (this.isConnected && this.shadowRoot) {
+        this._showToast(getErrorMessage(e as Error, localize(this.hass, 'toast.error.resume_all_failed')));
       }
-    } else {
-      this._hapticFeedback('medium');
-      this._wakeAllPending = true;
-      this._wakeAllTimeout = window.setTimeout(() => {
-        this._wakeAllPending = false;
-        this._wakeAllTimeout = null;
-      }, UI_TIMING.WAKE_ALL_CONFIRM_MS);
     }
   }
 
@@ -817,68 +709,47 @@ export class AutomationPauseCard extends LitElement {
     }
   }
 
-  private _renderDateOptions(): TemplateResult[] {
-    const options = generateDateOptions(365, this._getLocale());
-    return options.map(
-      (opt) => html`<option value="${opt.value}">${opt.label}</option>`
-    );
+  private _handleDurationChange(e: CustomEvent<{ minutes: number; duration: ParsedDuration; input: string; showCustomInput?: boolean }>): void {
+    const { minutes, duration, input, showCustomInput } = e.detail;
+    this._duration = minutes * TIME_MS.MINUTE;
+    this._customDuration = duration;
+    this._customDurationInput = input;
+    if (showCustomInput !== undefined) {
+      this._showCustomInput = showCustomInput;
+    }
   }
 
-  private _getDurationPills(): { label: string; minutes: number | null }[] {
-    // Read configured presets from sensor attributes, fall back to defaults
-    const sensor = this.hass?.states?.['sensor.autosnooze_snoozed_automations'];
-    const configuredPresets = sensor?.attributes?.duration_presets as
-      | { label: string; minutes: number }[]
-      | undefined;
-
-    // Use configured presets or default (excluding the Custom pill from defaults)
-    const basePresets: { label: string; minutes: number }[] =
-      configuredPresets?.length
-        ? configuredPresets
-        : DEFAULT_DURATIONS.filter((d): d is { label: string; minutes: number } => d.minutes !== null);
-
-    // Simply return presets + Custom, no "Last" pill logic
-    return [
-      ...basePresets,
-      { label: 'Custom', minutes: null },
-    ];
+  private _handleScheduleModeChange(e: CustomEvent<{ enabled: boolean }>): void {
+    this._scheduleMode = e.detail.enabled;
+    if (e.detail.enabled) {
+      const { date, time } = getCurrentDateTime();
+      this._disableAtDate = date;
+      this._disableAtTime = time;
+      this._resumeAtDate = date;
+      this._resumeAtTime = time;
+    }
   }
 
-  private _renderLastDurationBadge(): TemplateResult | string {
-    // Only show if last duration exists and differs from presets
-    if (!this._lastDuration) return '';
+  private _handleScheduleFieldChange(e: CustomEvent<{ field: string; value: string }>): void {
+    const { field, value } = e.detail;
+    switch (field) {
+      case 'disableAtDate':
+        this._disableAtDate = value;
+        break;
+      case 'disableAtTime':
+        this._disableAtTime = value;
+        break;
+      case 'resumeAtDate':
+        this._resumeAtDate = value;
+        break;
+      case 'resumeAtTime':
+        this._resumeAtTime = value;
+        break;
+    }
+  }
 
-    const sensor = this.hass?.states?.['sensor.autosnooze_snoozed_automations'];
-    const configuredPresets = sensor?.attributes?.duration_presets as
-      | { label: string; minutes: number }[]
-      | undefined;
-    const basePresets: { label: string; minutes: number }[] =
-      configuredPresets?.length
-        ? configuredPresets
-        : DEFAULT_DURATIONS.filter((d): d is { label: string; minutes: number } => d.minutes !== null);
-
-    const lastMinutes = this._lastDuration.minutes;
-    const isUniqueFromPresets = !basePresets.some((d) => d.minutes === lastMinutes);
-
-    if (!isUniqueFromPresets) return '';
-
-    const { days, hours, minutes } = this._lastDuration.duration;
-    const durationStr = formatDurationShort(days, hours, minutes).replace(/ /g, '');
-    const currentMinutes = durationToMinutes(this._customDuration);
-    const isActive = !this._showCustomInput && lastMinutes === currentMinutes;
-
-    return html`
-      <button
-        type="button"
-        class="last-duration-badge ${isActive ? 'active' : ''}"
-        @click=${() => this._setDuration(lastMinutes)}
-        aria-label="${localize(this.hass, 'a11y.snooze_last_duration', { duration: durationStr })}"
-        title="${localize(this.hass, 'duration.last_used_tooltip', { duration: durationStr })}"
-      >
-        <ha-icon icon="mdi:history" aria-hidden="true"></ha-icon>
-        ${durationStr}
-      </button>
-    `;
+  private _handleCustomInputToggle(e: CustomEvent<{ show: boolean }>): void {
+    this._showCustomInput = e.detail.show;
   }
 
   private _renderSelectionList(): TemplateResult | TemplateResult[] {
@@ -975,185 +846,6 @@ export class AutomationPauseCard extends LitElement {
     });
   }
 
-  private _renderDurationSelector(
-    selectedDuration: { label: string; minutes: number | null } | undefined,
-    durationPreview: string,
-    durationValid: boolean
-  ): TemplateResult {
-    return this._scheduleMode
-      ? html`
-          <div class="schedule-inputs">
-            <div class="datetime-field">
-              <label id="snooze-at-label">${localize(this.hass, 'schedule.snooze_at')}</label>
-              <div class="datetime-row">
-                <select
-                  .value=${this._disableAtDate}
-                  @change=${(e: Event) => (this._disableAtDate = (e.target as HTMLSelectElement).value)}
-                  aria-labelledby="snooze-at-label"
-                  aria-label="${localize(this.hass, 'a11y.snooze_date')}"
-                >
-                  <option value="">${localize(this.hass, 'schedule.select_date')}</option>
-                  ${this._renderDateOptions()}
-                </select>
-                <input
-                  type="time"
-                  .value=${this._disableAtTime}
-                  @input=${(e: Event) => (this._disableAtTime = (e.target as HTMLInputElement).value)}
-                  aria-labelledby="snooze-at-label"
-                  aria-label="${localize(this.hass, 'a11y.snooze_time')}"
-                />
-              </div>
-              <span class="field-hint">${localize(this.hass, 'schedule.hint_immediate')}</span>
-            </div>
-            <div class="datetime-field">
-              <label id="resume-at-label">${localize(this.hass, 'schedule.resume_at')}</label>
-              <div class="datetime-row">
-                <select
-                  .value=${this._resumeAtDate}
-                  @change=${(e: Event) => (this._resumeAtDate = (e.target as HTMLSelectElement).value)}
-                  aria-labelledby="resume-at-label"
-                  aria-label="${localize(this.hass, 'a11y.resume_date')}"
-                >
-                  <option value="">${localize(this.hass, 'schedule.select_date')}</option>
-                  ${this._renderDateOptions()}
-                </select>
-                <input
-                  type="time"
-                  .value=${this._resumeAtTime}
-                  @input=${(e: Event) => (this._resumeAtTime = (e.target as HTMLInputElement).value)}
-                  aria-labelledby="resume-at-label"
-                  aria-label="${localize(this.hass, 'a11y.resume_time')}"
-                />
-              </div>
-            </div>
-            <button
-              type="button"
-              class="schedule-link"
-              @click=${() => (this._scheduleMode = false)}
-            >
-              <ha-icon icon="mdi:timer-outline" aria-hidden="true"></ha-icon>
-              ${localize(this.hass, 'schedule.back_to_duration')}
-            </button>
-          </div>
-        `
-      : html`
-          <div class="duration-selector">
-            <div class="duration-header-row">
-              <div class="duration-section-header" id="duration-header">${localize(this.hass, 'duration.header')}</div>
-              ${this._renderLastDurationBadge()}
-            </div>
-            <div class="duration-pills" role="radiogroup" aria-labelledby="duration-header">
-              ${this._getDurationPills().map(
-                (d) => {
-                  const currentMinutes = durationToMinutes(this._customDuration);
-                  const isActive = d.minutes === null
-                    ? this._showCustomInput
-                    : !this._showCustomInput && d.minutes === currentMinutes;
-                  return html`
-                    <button
-                      type="button"
-                      class="pill ${isActive ? 'active' : ''}"
-                      @click=${() => {
-                        if (d.minutes === null) {
-                          this._showCustomInput = !this._showCustomInput;
-                        } else {
-                          this._showCustomInput = false;
-                          this._setDuration(d.minutes);
-                        }
-                      }}
-                      role="radio"
-                      aria-checked=${isActive}
-                      aria-label="${d.minutes === null ? localize(this.hass, 'a11y.custom_duration') : localize(this.hass, 'a11y.snooze_for_duration', { duration: d.label })}"
-                    >
-                      ${d.label}
-                    </button>
-                  `;
-                }
-              )}
-            </div>
-
-            ${this._showCustomInput ? html`
-              <div class="custom-duration-input">
-                <input
-                  type="text"
-                  class="duration-input ${!durationValid ? 'invalid' : ''}"
-                  placeholder="${localize(this.hass, 'duration.placeholder')}"
-                  .value=${this._customDurationInput}
-                  @input=${(e: Event) => this._handleDurationInput((e.target as HTMLInputElement).value)}
-                  aria-label="${localize(this.hass, 'a11y.custom_duration')}"
-                  aria-invalid=${!durationValid}
-                  aria-describedby="duration-help"
-                />
-                ${durationPreview && durationValid
-                  ? html`<div class="duration-preview" role="status" aria-live="polite">${localize(this.hass, 'duration.preview_label')} ${durationPreview}</div>`
-                  : html`<div class="duration-help" id="duration-help">${localize(this.hass, 'duration.help')}</div>`}
-              </div>
-            ` : ''}
-
-            <button
-              type="button"
-              class="schedule-link"
-              @click=${() => this._enterScheduleMode()}
-            >
-              <ha-icon icon="mdi:calendar-clock" aria-hidden="true"></ha-icon>
-              ${localize(this.hass, 'schedule.pick_datetime')}
-            </button>
-          </div>
-        `;
-  }
-
-  private _renderActivePauses(pausedCount: number): TemplateResult | string {
-    if (pausedCount === 0) return '';
-
-    return html`
-      <div class="snooze-list" role="region" aria-label="${localize(this.hass, 'a11y.snoozed_region')}">
-        <div class="list-header">
-          <ha-icon icon="mdi:bell-sleep" aria-hidden="true"></ha-icon>
-          ${localize(this.hass, 'section.snoozed_count', { count: pausedCount })}
-        </div>
-
-        ${this._getPausedGroupedByResumeTime().map(
-          (group) => html`
-            <div class="pause-group" role="group" aria-label="${localize(this.hass, 'a11y.automations_resuming', { time: this._formatDateTime(group.resumeAt) })}">
-              <div class="pause-group-header">
-                <ha-icon icon="mdi:timer-outline" aria-hidden="true"></ha-icon>
-                ${group.disableAt
-                  ? html`${localize(this.hass, 'status.resumes')} ${this._formatDateTime(group.resumeAt)}`
-                  : html`<span class="countdown" data-resume-at="${group.resumeAt}" aria-label="${localize(this.hass, 'a11y.time_remaining', { time: this._formatCountdown(group.resumeAt) })}">${this._formatCountdown(group.resumeAt)}</span>`}
-              </div>
-              ${group.automations.map(
-                (auto) => html`
-                  <div class="paused-item">
-                    <ha-icon class="paused-icon" icon="mdi:sleep" aria-hidden="true"></ha-icon>
-                    <div class="paused-info">
-                      <div class="paused-name">${auto.friendly_name || auto.entity_id}</div>
-                    </div>
-                    <button type="button" class="wake-btn" @click=${() => this._wake(auto.entity_id)} aria-label="${localize(this.hass, 'a11y.resume_automation', { name: auto.friendly_name || auto.entity_id })}">
-                      ${localize(this.hass, 'button.resume')}
-                    </button>
-                  </div>
-                `
-              )}
-            </div>
-          `
-        )}
-
-        ${pausedCount > 1
-          ? html`
-              <button
-                type="button"
-                class="wake-all ${this._wakeAllPending ? 'pending' : ''}"
-                @click=${() => this._handleWakeAll()}
-                aria-label="${this._wakeAllPending ? localize(this.hass, 'a11y.confirm_resume_all') : localize(this.hass, 'a11y.resume_all')}"
-              >
-                ${this._wakeAllPending ? localize(this.hass, 'button.confirm_resume_all') : localize(this.hass, 'button.resume_all')}
-              </button>
-            `
-          : ''}
-      </div>
-    `;
-  }
-
   private _renderScheduledPauses(scheduledCount: number, scheduled: Record<string, { friendly_name?: string; disable_at?: string; resume_at: string }>): TemplateResult | string {
     if (scheduledCount === 0) return '';
 
@@ -1198,15 +890,6 @@ export class AutomationPauseCard extends LitElement {
     const pausedCount = Object.keys(paused).length;
     const scheduled = this._getScheduled();
     const scheduledCount = Object.keys(scheduled).length;
-
-    const currentDuration =
-      this._customDuration.days * MINUTES_PER.DAY +
-      this._customDuration.hours * MINUTES_PER.HOUR +
-      this._customDuration.minutes;
-
-    const selectedDuration = DEFAULT_DURATIONS.find((d) => d.minutes === currentDuration);
-    const durationPreview = this._getDurationPreview();
-    const durationValid = this._isDurationValid();
 
     return html`
       <ha-card>
@@ -1305,13 +988,28 @@ export class AutomationPauseCard extends LitElement {
             ${this._renderSelectionList()}
           </div>
 
-          ${this._renderDurationSelector(selectedDuration, durationPreview, durationValid)}
+          <autosnooze-duration-selector
+            .hass=\${this.hass}
+            .scheduleMode=\${this._scheduleMode}
+            .customDuration=\${this._customDuration}
+            .customDurationInput=\${this._customDurationInput}
+            .showCustomInput=\${this._showCustomInput}
+            .lastDuration=\${this._lastDuration}
+            .disableAtDate=\${this._disableAtDate}
+            .disableAtTime=\${this._disableAtTime}
+            .resumeAtDate=\${this._resumeAtDate}
+            .resumeAtTime=\${this._resumeAtTime}
+            @duration-change=\${this._handleDurationChange}
+            @schedule-mode-change=\${this._handleScheduleModeChange}
+            @schedule-field-change=\${this._handleScheduleFieldChange}
+            @custom-input-toggle=\${this._handleCustomInputToggle}
+          ></autosnooze-duration-selector>
 
           <button
             type="button"
             class="snooze-btn"
             ?disabled=${this._selected.length === 0 ||
-            (!this._scheduleMode && !this._isDurationValid()) ||
+            (!this._scheduleMode && !isDurationValid(this._customDurationInput)) ||
             (this._scheduleMode && !this._hasResumeAt()) ||
             this._loading}
             @click=${() => this._snooze()}
@@ -1330,7 +1028,15 @@ export class AutomationPauseCard extends LitElement {
           </button>
         </div>
 
-        ${this._renderActivePauses(pausedCount)}
+        ${pausedCount > 0
+          ? html`<autosnooze-active-pauses
+              .hass=${this.hass}
+              .pauseGroups=${this._getPausedGroupedByResumeTime()}
+              .pausedCount=${pausedCount}
+              @wake-automation=${this._handleWakeEvent}
+              @wake-all=${this._handleWakeAllEvent}
+            ></autosnooze-active-pauses>`
+          : ''}
         ${this._renderScheduledPauses(scheduledCount, scheduled)}
       </ha-card>
     `;

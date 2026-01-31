@@ -208,7 +208,10 @@ describe('Card Compatibility', () => {
 
       expect(document.querySelector('.pill')).toBeNull();
       expect(document.querySelector('.list-item')).toBeNull();
-      expect(autosnoozeCard.shadowRoot.querySelectorAll('.pill').length).toBeGreaterThan(0);
+      // Pills are now in the duration-selector child component's shadow DOM
+      const ds = autosnoozeCard.shadowRoot.querySelector('autosnooze-duration-selector');
+      await ds.updateComplete;
+      expect(ds.shadowRoot.querySelectorAll('.pill').length).toBeGreaterThan(0);
     });
   });
 
