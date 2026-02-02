@@ -3,19 +3,21 @@
 from __future__ import annotations
 
 from collections.abc import Callable
+from typing import Any
 
 from homeassistant.components.sensor import SensorEntity
-from homeassistant.core import callback
+from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.device_registry import DeviceEntryType, DeviceInfo
+from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .const import DEFAULT_DURATION_PRESETS, DOMAIN, VERSION
 from .models import AutomationPauseConfigEntry
 
 
 async def async_setup_entry(
-    hass,
+    hass: HomeAssistant,
     entry: AutomationPauseConfigEntry,
-    async_add_entities,
+    async_add_entities: AddEntitiesCallback,
 ) -> None:
     """Set up sensor platform."""
     async_add_entities([AutoSnoozeCountSensor(entry)])
@@ -62,7 +64,7 @@ class AutoSnoozeCountSensor(SensorEntity):
         return len(self._entry.runtime_data.paused)
 
     @property
-    def extra_state_attributes(self) -> dict:
+    def extra_state_attributes(self) -> dict[str, Any]:
         """Return snoozed automations details and configuration."""
         # Get configured presets from options, fall back to defaults if empty
         presets = self._entry.options.get("duration_presets", [])
