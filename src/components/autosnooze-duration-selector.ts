@@ -19,6 +19,7 @@ import { DEFAULT_DURATIONS } from '../constants/index.js';
 import type { ParsedDuration } from '../types/automation.js';
 import type { LastDurationData } from '../services/storage.js';
 import type { HomeAssistant } from '../types/hass.js';
+import { SENSOR_ENTITY_ID } from '../state/paused.js';
 
 export class AutoSnoozeDurationSelector extends LitElement {
   static styles = durationSelectorStyles;
@@ -54,7 +55,7 @@ export class AutoSnoozeDurationSelector extends LitElement {
   resumeAtTime: string = '';
 
   _getDurationPills(): { label: string; minutes: number | null }[] {
-    const sensor = this.hass?.states?.['sensor.autosnooze_snoozed_automations'];
+    const sensor = this.hass?.states?.[SENSOR_ENTITY_ID];
     const configuredPresets = sensor?.attributes?.duration_presets as
       | { label: string; minutes: number }[]
       | undefined;
@@ -90,7 +91,7 @@ export class AutoSnoozeDurationSelector extends LitElement {
   _renderLastDurationBadge(): TemplateResult | string {
     if (!this.lastDuration) return '';
 
-    const sensor = this.hass?.states?.['sensor.autosnooze_snoozed_automations'];
+    const sensor = this.hass?.states?.[SENSOR_ENTITY_ID];
     const configuredPresets = sensor?.attributes?.duration_presets as
       | { label: string; minutes: number }[]
       | undefined;

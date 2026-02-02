@@ -5,7 +5,7 @@
 import type { HomeAssistant, PausedAutomationAttribute, ScheduledSnoozeAttribute } from '../types/hass.js';
 import type { PauseGroup } from '../types/automation.js';
 
-const SENSOR_ENTITY_ID = 'sensor.autosnooze_snoozed_automations';
+export const SENSOR_ENTITY_ID = 'sensor.autosnooze_snoozed_automations';
 
 /**
  * Get paused automations from the sensor entity.

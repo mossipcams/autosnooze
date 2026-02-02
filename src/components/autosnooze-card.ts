@@ -60,6 +60,7 @@ import {
   getPaused,
   getScheduled,
   getPausedGroupedByResumeTime,
+  SENSOR_ENTITY_ID,
 } from '../state/paused.js';
 
 
@@ -136,8 +137,8 @@ export class AutomationPauseCard extends LitElement {
       return true;
     }
 
-    const oldSensor = oldHass.states?.['sensor.autosnooze_snoozed_automations'];
-    const newSensor = newHass.states?.['sensor.autosnooze_snoozed_automations'];
+    const oldSensor = oldHass.states?.[SENSOR_ENTITY_ID];
+    const newSensor = newHass.states?.[SENSOR_ENTITY_ID];
     if (oldSensor !== newSensor) {
       return true;
     }
