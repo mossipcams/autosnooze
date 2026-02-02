@@ -1,8 +1,9 @@
+// @ts-nocheck -- migrated from JS, type annotations deferred
 /**
  * Tests for AutoSnoozeAdjustModal component.
  * Verifies the extracted adjust modal renders and fires events correctly.
  */
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { AutoSnoozeAdjustModal } from '../src/components/index.js';
 
 // Register custom element for jsdom instantiation

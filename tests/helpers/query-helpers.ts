@@ -53,7 +53,7 @@ export function queryAutomationList(card: any): any {
   // For tests that access child methods without rendering:
   // Create a standalone automation list with synced data
   if (!card.__automationList) {
-    const list = document.createElement('autosnooze-automation-list');
+    const list: any = document.createElement('autosnooze-automation-list');
     // Listen for selection-change events on the element itself
     list.addEventListener('selection-change', (e: any) => {
       list.selected = e.detail.selected;
