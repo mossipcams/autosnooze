@@ -18,8 +18,8 @@ export function formatRegistryId(id: string): string {
 /**
  * Get area name from ID.
  */
-export function getAreaName(areaId: string | null, hass: HomeAssistant): string {
-  if (!areaId) return 'Unassigned';
+export function getAreaName(areaId: string | null, hass: HomeAssistant, fallback: string = 'Unassigned'): string {
+  if (!areaId) return fallback;
   return hass.areas?.[areaId]?.name ?? formatRegistryId(areaId);
 }
 
@@ -38,9 +38,10 @@ export function getLabelName(
  */
 export function getCategoryName(
   categoryId: string | null,
-  categoryRegistry: Record<string, HassCategory>
+  categoryRegistry: Record<string, HassCategory>,
+  fallback: string = 'Uncategorized'
 ): string {
-  if (!categoryId) return 'Uncategorized';
+  if (!categoryId) return fallback;
   return categoryRegistry[categoryId]?.name ?? formatRegistryId(categoryId);
 }
 

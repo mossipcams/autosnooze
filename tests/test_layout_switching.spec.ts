@@ -1,3 +1,4 @@
+// @ts-nocheck -- migrated from JS, type annotations deferred
 /**
  * Layout Switching Tests
  *
@@ -5,6 +6,7 @@
  */
 
 import '../custom_components/autosnooze/www/autosnooze-card.js';
+import { queryAutomationList } from './helpers/query-helpers.js';
 
 describe('Layout Switching', () => {
   let card;
@@ -77,7 +79,7 @@ describe('Layout Switching', () => {
       const tabs = ['all', 'areas', 'categories', 'labels'];
 
       for (let i = 0; i < 10; i++) {
-        card._filterTab = tabs[i % tabs.length];
+        queryAutomationList(card)._filterTab = tabs[i % tabs.length];
         await card.updateComplete;
       }
 
@@ -86,7 +88,7 @@ describe('Layout Switching', () => {
 
     test('all layouts render with multiple automations', async () => {
       for (const tab of ['all', 'areas', 'categories', 'labels']) {
-        card._filterTab = tab;
+        queryAutomationList(card)._filterTab = tab;
         await card.updateComplete;
         expect(card.shadowRoot.querySelector('ha-card')).not.toBeNull();
       }
@@ -98,39 +100,40 @@ describe('Layout Switching', () => {
       card._selected = ['automation.living_room_lights'];
       await card.updateComplete;
 
-      card._filterTab = 'areas';
+      queryAutomationList(card)._filterTab = 'areas';
       await card.updateComplete;
       expect(card._selected).toContain('automation.living_room_lights');
 
-      card._filterTab = 'all';
+      queryAutomationList(card)._filterTab = 'all';
       await card.updateComplete;
       expect(card._selected).toContain('automation.living_room_lights');
     });
 
     test('search preserved across tab changes', async () => {
-      card._search = 'living';
+      queryAutomationList(card)._search = 'living';
       await card.updateComplete;
 
-      card._filterTab = 'areas';
+      queryAutomationList(card)._filterTab = 'areas';
       await card.updateComplete;
 
-      expect(card._search).toBe('living');
+      expect(queryAutomationList(card)._search).toBe('living');
     });
 
     test('expanded groups state is maintained', async () => {
-      card._filterTab = 'areas';
+      queryAutomationList(card)._filterTab = 'areas';
       await card.updateComplete;
 
-      if (card._expandedGroups instanceof Set) {
-        card._expandedGroups.add('living_room');
-      } else if (typeof card._expandedGroups === 'object') {
-        card._expandedGroups = { ...card._expandedGroups, living_room: true };
+      const list = queryAutomationList(card);
+      if (list._expandedGroups instanceof Set) {
+        list._expandedGroups.add('living_room');
+      } else if (typeof list._expandedGroups === 'object') {
+        list._expandedGroups = { ...list._expandedGroups, living_room: true };
       }
       await card.updateComplete;
 
-      card._filterTab = 'all';
+      queryAutomationList(card)._filterTab = 'all';
       await card.updateComplete;
-      card._filterTab = 'areas';
+      queryAutomationList(card)._filterTab = 'areas';
       await card.updateComplete;
 
       expect(card.shadowRoot.querySelector('ha-card')).not.toBeNull();
@@ -151,7 +154,7 @@ describe('Layout Switching', () => {
           },
         },
       });
-      card._filterTab = 'all';
+      queryAutomationList(card)._filterTab = 'all';
       await card.updateComplete;
 
       expect(card.shadowRoot.querySelector('ha-card')).not.toBeNull();
@@ -159,7 +162,7 @@ describe('Layout Switching', () => {
 
     test('areas tab handles no areas defined', async () => {
       card.hass = { ...mockHass, areas: {} };
-      card._filterTab = 'areas';
+      queryAutomationList(card)._filterTab = 'areas';
       await card.updateComplete;
 
       expect(card.shadowRoot.querySelector('ha-card')).not.toBeNull();
@@ -167,7 +170,7 @@ describe('Layout Switching', () => {
 
     test('categories tab handles no categories', async () => {
       card._categoryRegistry = {};
-      card._filterTab = 'categories';
+      queryAutomationList(card)._filterTab = 'categories';
       await card.updateComplete;
 
       expect(card.shadowRoot.querySelector('ha-card')).not.toBeNull();
@@ -176,7 +179,7 @@ describe('Layout Switching', () => {
     test('labels tab handles no labels', async () => {
       card._labelRegistry = {};
       card._entityRegistry = {};
-      card._filterTab = 'labels';
+      queryAutomationList(card)._filterTab = 'labels';
       await card.updateComplete;
 
       expect(card.shadowRoot.querySelector('ha-card')).not.toBeNull();

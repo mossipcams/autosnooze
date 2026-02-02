@@ -6,10 +6,10 @@
 import { vi, afterEach } from 'vitest';
 import type { HomeAssistant } from '../src/types/hass.js';
 
-// Extend Window interface for test globals
+// Extend Window interface for test globals - uses CustomCardEntry from src/types/card.ts
 declare global {
   interface Window {
-    customCards: Array<{ type: string; name: string; description: string; preview?: boolean }>;
+    customCards?: import('../src/types/card.js').CustomCardEntry[];
   }
   function createMockHass(overrides?: Partial<HomeAssistant>): HomeAssistant;
   function waitForLitUpdate(element: { updateComplete: Promise<boolean> }): Promise<void>;

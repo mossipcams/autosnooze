@@ -22,8 +22,7 @@ const translations: Record<string, TranslationData> = {
 };
 
 // Supported locales
-export const supportedLocales = ['en', 'es', 'fr', 'de', 'it'] as const;
-export type SupportedLocale = (typeof supportedLocales)[number];
+type SupportedLocale = 'en' | 'es' | 'fr' | 'de' | 'it';
 
 // Map of Home Assistant language codes to our supported locales
 const HA_LOCALE_MAP: Record<string, SupportedLocale> = {
@@ -51,7 +50,7 @@ type HassWithLanguage = { language?: string; locale?: { language?: string } };
  * Get the supported locale from a Home Assistant language code.
  * Falls back to 'en' if the language is not supported.
  */
-export function getLocaleFromHass(hass?: HassWithLanguage): SupportedLocale {
+function getLocaleFromHass(hass?: HassWithLanguage): SupportedLocale {
   if (!hass) return 'en';
 
   // Support both hass.language and hass.locale.language
@@ -149,9 +148,3 @@ export function localize(
   return replacePlaceholders(value, args);
 }
 
-/**
- * Check if a locale is supported
- */
-export function isLocaleSupported(locale: string): locale is SupportedLocale {
-  return (supportedLocales as readonly string[]).includes(locale);
-}

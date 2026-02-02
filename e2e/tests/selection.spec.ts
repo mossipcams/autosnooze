@@ -69,8 +69,8 @@ test.describe('Selection', () => {
         ${findCardScript}
         const card = findAutosnoozeCard();
         // Check for selection-related UI elements
-        return card?.shadowRoot?.querySelector('.selection-actions') !== null ||
-               card?.shadowRoot?.querySelector('[role="status"]') !== null;
+        return deepQuery(card, '.selection-actions') !== null ||
+               deepQuery(card, '[role="status"]') !== null;
       })()
       `
     );

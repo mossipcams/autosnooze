@@ -13,7 +13,9 @@
     "ecmaVersion": "latest",
     "sourceType": "module"
   },
-  "plugins": ["@typescript-eslint"],
+  "plugins": [
+    "@typescript-eslint"
+  ],
   "globals": {
     "__VERSION__": "readonly",
     "customElements": "readonly",
@@ -29,34 +31,71 @@
     "afterEach": "readonly"
   },
   "rules": {
-    "@typescript-eslint/no-unused-vars": ["error", { "argsIgnorePattern": "^_" }],
+    "@typescript-eslint/no-unused-vars": [
+      "error",
+      {
+        "argsIgnorePattern": "^_"
+      }
+    ],
     "no-unused-vars": "off",
     "no-console": "off",
     "prefer-const": "error",
     "no-var": "error",
-    "eqeqeq": ["error", "always"],
-    "no-multiple-empty-lines": ["error", { "max": 2 }],
+    "eqeqeq": [
+      "error",
+      "always"
+    ],
+    "no-multiple-empty-lines": [
+      "error",
+      {
+        "max": 2
+      }
+    ],
     "no-regex-spaces": "off"
   },
   "overrides": [
     {
-      "files": ["src/**/*.ts"],
+      "files": [
+        "src/**/*.ts"
+      ],
       "parserOptions": {
-        "project": ["./tsconfig.json"]
+        "project": [
+          "./tsconfig.json"
+        ]
       }
     },
     {
-      "files": ["tests/**/*.ts"],
+      "files": [
+        "tests/**/*.ts"
+      ],
       "parserOptions": {
-        "project": ["./tsconfig.test.json"]
-      }
-    },
-    {
-      "files": ["tests/**/*.js"],
+        "project": [
+          "./tsconfig.test.json"
+        ]
+      },
       "rules": {
-        "@typescript-eslint/no-unused-vars": "off"
+        "@typescript-eslint/no-explicit-any": "off",
+        "@typescript-eslint/ban-ts-comment": [
+          "error",
+          {
+            "ts-nocheck": "allow-with-description",
+            "minimumDescriptionLength": 3
+          }
+        ]
+      }
+    },
+    {
+      "files": [
+        "tests/**/*.js"
+      ],
+      "rules": {
+        "@typescript-eslint/no-unused-vars": "off",
+        "@typescript-eslint/no-explicit-any": "off"
       }
     }
   ],
-  "ignorePatterns": ["*.mjs", "custom_components/**/*.js"]
+  "ignorePatterns": [
+    "*.mjs",
+    "custom_components/**/*.js"
+  ]
 }

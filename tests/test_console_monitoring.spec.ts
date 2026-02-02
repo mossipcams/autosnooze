@@ -1,3 +1,4 @@
+// @ts-nocheck -- migrated from JS, type annotations deferred
 /**
  * Console Error Monitoring Tests
  *
@@ -6,6 +7,7 @@
 
 import { vi } from 'vitest';
 import '../custom_components/autosnooze/www/autosnooze-card.js';
+import { queryAutomationList } from './helpers/query-helpers.js';
 
 describe('Console Error Monitoring', () => {
   let card;
@@ -73,9 +75,9 @@ describe('Console Error Monitoring', () => {
       consoleErrorSpy.mockClear();
 
       for (const tab of ['all', 'areas', 'categories', 'labels']) {
-        card._filterTab = tab;
+        queryAutomationList(card)._filterTab = tab;
         await card.updateComplete;
-        expect(card._filterTab).toBe(tab);
+        expect(queryAutomationList(card)._filterTab).toBe(tab);
         expect(card.shadowRoot.querySelector('ha-card')).toBeTruthy();
       }
 
@@ -85,11 +87,11 @@ describe('Console Error Monitoring', () => {
     test('search input produces no console errors', async () => {
       consoleErrorSpy.mockClear();
 
-      card._search = 'test';
+      queryAutomationList(card)._search = 'test';
       await card.updateComplete;
-      expect(card._search).toBe('test');
+      expect(queryAutomationList(card)._search).toBe('test');
 
-      card._search = '';
+      queryAutomationList(card)._search = '';
       await card.updateComplete;
 
       expect(consoleErrorSpy).not.toHaveBeenCalled();

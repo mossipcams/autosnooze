@@ -132,6 +132,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: AutomationPauseConfigEnt
     register_services(hass, data)
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
+
+    entry.async_on_unload(entry.add_update_listener(_async_options_update_listener))
     return True
 
 
@@ -248,6 +250,11 @@ async def _async_register_lovelace_resource(
         _LOGGER.warning("Failed to register Lovelace resource: %s", err)
 
 
+async def _async_options_update_listener(hass: HomeAssistant, entry: AutomationPauseConfigEntry) -> None:
+    """Reload integration when options change."""
+    await hass.config_entries.async_reload(entry.entry_id)
+
+
 async def async_unload_entry(hass: HomeAssistant, entry: AutomationPauseConfigEntry) -> bool:
     """Unload config entry."""
     if unload_ok := await hass.config_entries.async_unload_platforms(entry, PLATFORMS):
@@ -285,6 +292,7 @@ async def async_unload_entry(hass: HomeAssistant, entry: AutomationPauseConfigEn
                 "pause_by_area",
                 "pause_by_label",
                 "cancel_scheduled",
+                "adjust",
             ):
                 hass.services.async_remove(DOMAIN, service)
 

@@ -1,3 +1,4 @@
+// @ts-nocheck -- migrated from JS, type annotations deferred
 /**
  * Stress Testing
  *
@@ -5,6 +6,7 @@
  */
 
 import '../custom_components/autosnooze/www/autosnooze-card.js';
+import { queryAutomationList } from './helpers/query-helpers.js';
 
 describe('Stress Testing', () => {
   let mockHass;
@@ -58,7 +60,7 @@ describe('Stress Testing', () => {
     document.body.appendChild(card);
     await card.updateComplete;
 
-    card._search = '50';
+    queryAutomationList(card)._search = '50';
     await card.updateComplete;
 
     expect(card.shadowRoot.querySelector('ha-card')).not.toBeNull();

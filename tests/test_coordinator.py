@@ -12,7 +12,10 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from homeassistant.const import ATTR_ENTITY_ID, ATTR_FRIENDLY_NAME
 
+from homeassistant.exceptions import ServiceValidationError
+
 from custom_components.autosnooze.coordinator import (
+    async_adjust_snooze,
     async_cancel_scheduled,
     async_cancel_scheduled_batch,
     async_execute_scheduled_disable,
@@ -1097,3 +1100,210 @@ class TestAsyncCancelScheduledBatch:
         await async_cancel_scheduled_batch(mock_hass, data, ["automation.test"])
 
         mock_store.async_save.assert_not_called()
+
+
+# =============================================================================
+# Adjust Snooze Operations
+# =============================================================================
+
+
+class TestAsyncAdjustSnooze:
+    """Tests for async_adjust_snooze function."""
+
+    @pytest.mark.asyncio
+    async def test_skips_when_unloaded(self) -> None:
+        """Verify early return when data.unloaded is True."""
+        mock_hass = MagicMock()
+        mock_store = MagicMock()
+        mock_store.async_save = AsyncMock()
+        data = AutomationPauseData(store=mock_store)
+        data.unloaded = True
+
+        now = datetime.now(UTC)
+        data.paused["automation.test"] = PausedAutomation(
+            entity_id="automation.test",
+            friendly_name="Test",
+            resume_at=now + timedelta(hours=2),
+            paused_at=now,
+        )
+
+        original_resume_at = data.paused["automation.test"].resume_at
+
+        await async_adjust_snooze(mock_hass, data, "automation.test", timedelta(hours=1))
+
+        assert data.paused["automation.test"].resume_at == original_resume_at
+        mock_store.async_save.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_warns_when_not_paused(self) -> None:
+        """Verify no crash when adjusting an entity that is not paused."""
+        mock_hass = MagicMock()
+        mock_store = MagicMock()
+        mock_store.async_save = AsyncMock()
+        data = AutomationPauseData(store=mock_store)
+
+        await async_adjust_snooze(mock_hass, data, "automation.not_paused", timedelta(hours=1))
+
+        mock_store.async_save.assert_not_called()
+        assert "automation.not_paused" not in data.paused
+
+    @pytest.mark.asyncio
+    async def test_adjusts_resume_at_forward(self) -> None:
+        """Verify resume_at is moved forward by the delta."""
+        mock_hass = MagicMock()
+        mock_store = MagicMock()
+        mock_store.async_save = AsyncMock()
+        data = AutomationPauseData(store=mock_store)
+
+        now = datetime.now(UTC)
+        original_resume_at = now + timedelta(hours=2)
+        data.paused["automation.test"] = PausedAutomation(
+            entity_id="automation.test",
+            friendly_name="Test",
+            resume_at=original_resume_at,
+            paused_at=now,
+        )
+
+        with patch("custom_components.autosnooze.coordinator.schedule_resume"):
+            await async_adjust_snooze(mock_hass, data, "automation.test", timedelta(hours=1))
+
+        assert data.paused["automation.test"].resume_at == original_resume_at + timedelta(hours=1)
+
+    @pytest.mark.asyncio
+    async def test_adjusts_resume_at_backward(self) -> None:
+        """Verify resume_at is moved backward by the delta."""
+        mock_hass = MagicMock()
+        mock_store = MagicMock()
+        mock_store.async_save = AsyncMock()
+        data = AutomationPauseData(store=mock_store)
+
+        now = datetime.now(UTC)
+        original_resume_at = now + timedelta(hours=2)
+        data.paused["automation.test"] = PausedAutomation(
+            entity_id="automation.test",
+            friendly_name="Test",
+            resume_at=original_resume_at,
+            paused_at=now,
+        )
+
+        with patch("custom_components.autosnooze.coordinator.schedule_resume"):
+            await async_adjust_snooze(mock_hass, data, "automation.test", timedelta(minutes=-30))
+
+        assert data.paused["automation.test"].resume_at == original_resume_at - timedelta(minutes=30)
+
+    @pytest.mark.asyncio
+    async def test_clears_stale_duration_fields(self) -> None:
+        """Verify days, hours, minutes are cleared to 0 after adjust."""
+        mock_hass = MagicMock()
+        mock_store = MagicMock()
+        mock_store.async_save = AsyncMock()
+        data = AutomationPauseData(store=mock_store)
+
+        now = datetime.now(UTC)
+        data.paused["automation.test"] = PausedAutomation(
+            entity_id="automation.test",
+            friendly_name="Test",
+            resume_at=now + timedelta(hours=2),
+            paused_at=now,
+            days=1,
+            hours=2,
+            minutes=30,
+        )
+
+        with patch("custom_components.autosnooze.coordinator.schedule_resume"):
+            await async_adjust_snooze(mock_hass, data, "automation.test", timedelta(hours=1))
+
+        paused = data.paused["automation.test"]
+        assert paused.days == 0
+        assert paused.hours == 0
+        assert paused.minutes == 0
+
+    @pytest.mark.asyncio
+    async def test_raises_when_adjusted_time_too_short(self) -> None:
+        """Verify ServiceValidationError when adjusted time is <= now + 1min."""
+        mock_hass = MagicMock()
+        mock_store = MagicMock()
+        mock_store.async_save = AsyncMock()
+        data = AutomationPauseData(store=mock_store)
+
+        now = datetime.now(UTC)
+        data.paused["automation.test"] = PausedAutomation(
+            entity_id="automation.test",
+            friendly_name="Test",
+            resume_at=now + timedelta(minutes=5),
+            paused_at=now,
+        )
+
+        with (
+            patch("custom_components.autosnooze.coordinator.dt_util.utcnow", return_value=now),
+            pytest.raises(ServiceValidationError),
+        ):
+            await async_adjust_snooze(mock_hass, data, "automation.test", timedelta(minutes=-5))
+
+    @pytest.mark.asyncio
+    async def test_calls_schedule_resume(self) -> None:
+        """Verify schedule_resume is called with updated resume_at."""
+        mock_hass = MagicMock()
+        mock_store = MagicMock()
+        mock_store.async_save = AsyncMock()
+        data = AutomationPauseData(store=mock_store)
+
+        now = datetime.now(UTC)
+        original_resume_at = now + timedelta(hours=2)
+        data.paused["automation.test"] = PausedAutomation(
+            entity_id="automation.test",
+            friendly_name="Test",
+            resume_at=original_resume_at,
+            paused_at=now,
+        )
+
+        with patch("custom_components.autosnooze.coordinator.schedule_resume") as mock_schedule:
+            await async_adjust_snooze(mock_hass, data, "automation.test", timedelta(hours=1))
+
+        expected_resume_at = original_resume_at + timedelta(hours=1)
+        mock_schedule.assert_called_once_with(mock_hass, data, "automation.test", expected_resume_at)
+
+    @pytest.mark.asyncio
+    async def test_saves_after_adjust(self) -> None:
+        """Verify data is saved after adjustment."""
+        mock_hass = MagicMock()
+        mock_store = MagicMock()
+        mock_store.async_save = AsyncMock()
+        data = AutomationPauseData(store=mock_store)
+
+        now = datetime.now(UTC)
+        data.paused["automation.test"] = PausedAutomation(
+            entity_id="automation.test",
+            friendly_name="Test",
+            resume_at=now + timedelta(hours=2),
+            paused_at=now,
+        )
+
+        with patch("custom_components.autosnooze.coordinator.schedule_resume"):
+            await async_adjust_snooze(mock_hass, data, "automation.test", timedelta(hours=1))
+
+        mock_store.async_save.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_notifies_listeners(self) -> None:
+        """Verify listeners are notified after adjustment."""
+        mock_hass = MagicMock()
+        mock_store = MagicMock()
+        mock_store.async_save = AsyncMock()
+        data = AutomationPauseData(store=mock_store)
+
+        now = datetime.now(UTC)
+        data.paused["automation.test"] = PausedAutomation(
+            entity_id="automation.test",
+            friendly_name="Test",
+            resume_at=now + timedelta(hours=2),
+            paused_at=now,
+        )
+
+        listener = MagicMock()
+        data.add_listener(listener)
+
+        with patch("custom_components.autosnooze.coordinator.schedule_resume"):
+            await async_adjust_snooze(mock_hass, data, "automation.test", timedelta(hours=1))
+
+        listener.assert_called_once()

@@ -486,6 +486,154 @@ class TestCancelScheduledService:
         assert hass.services.has_service(DOMAIN, "cancel_scheduled")
 
 
+class TestAdjustService:
+    """Test the adjust service."""
+
+    async def test_adjust_service_is_registered(self, hass: HomeAssistant, setup_integration: ConfigEntry) -> None:
+        """Test that the adjust service is registered."""
+        assert hass.services.has_service(DOMAIN, "adjust")
+
+    async def test_adjust_extends_snooze(
+        self, hass: HomeAssistant, setup_integration_with_automations: ConfigEntry
+    ) -> None:
+        """Test adjusting extends snooze duration."""
+        entry = setup_integration_with_automations
+        data = entry.runtime_data
+
+        # First pause
+        await hass.services.async_call(
+            DOMAIN,
+            "pause",
+            {ATTR_ENTITY_ID: ["automation.test_automation_1"], "hours": 1},
+            blocking=True,
+        )
+        original = data.paused["automation.test_automation_1"].resume_at
+
+        # Adjust forward
+        await hass.services.async_call(
+            DOMAIN,
+            "adjust",
+            {ATTR_ENTITY_ID: ["automation.test_automation_1"], "minutes": 30},
+            blocking=True,
+        )
+        new = data.paused["automation.test_automation_1"].resume_at
+        diff = (new - original).total_seconds()
+        assert abs(diff - 1800) < 5  # 30 minutes = 1800 seconds, 5s tolerance
+
+    async def test_adjust_shortens_snooze(
+        self, hass: HomeAssistant, setup_integration_with_automations: ConfigEntry
+    ) -> None:
+        """Test adjusting shortens snooze duration."""
+        entry = setup_integration_with_automations
+        data = entry.runtime_data
+
+        # First pause for 2 hours
+        await hass.services.async_call(
+            DOMAIN,
+            "pause",
+            {ATTR_ENTITY_ID: ["automation.test_automation_1"], "hours": 2},
+            blocking=True,
+        )
+        original = data.paused["automation.test_automation_1"].resume_at
+
+        # Adjust backward
+        await hass.services.async_call(
+            DOMAIN,
+            "adjust",
+            {ATTR_ENTITY_ID: ["automation.test_automation_1"], "minutes": -30},
+            blocking=True,
+        )
+        new = data.paused["automation.test_automation_1"].resume_at
+        diff = (original - new).total_seconds()
+        assert abs(diff - 1800) < 5  # 30 minutes = 1800 seconds, 5s tolerance
+
+    async def test_adjust_rejects_zero_delta(
+        self, hass: HomeAssistant, setup_integration_with_automations: ConfigEntry
+    ) -> None:
+        """Test that zero delta adjustment raises ServiceValidationError."""
+        # First pause
+        await hass.services.async_call(
+            DOMAIN,
+            "pause",
+            {ATTR_ENTITY_ID: ["automation.test_automation_1"], "hours": 1},
+            blocking=True,
+        )
+
+        # Adjust with zero delta
+        with pytest.raises(ServiceValidationError):
+            await hass.services.async_call(
+                DOMAIN,
+                "adjust",
+                {ATTR_ENTITY_ID: ["automation.test_automation_1"], "days": 0, "hours": 0, "minutes": 0},
+                blocking=True,
+            )
+
+    async def test_adjust_skips_non_paused_automation(
+        self, hass: HomeAssistant, setup_integration_with_automations: ConfigEntry
+    ) -> None:
+        """Test that adjusting a non-paused automation does not crash."""
+        entry = setup_integration_with_automations
+        data = entry.runtime_data
+
+        # Do NOT pause -- call adjust directly on non-paused entity
+        await hass.services.async_call(
+            DOMAIN,
+            "adjust",
+            {ATTR_ENTITY_ID: ["automation.test_automation_1"], "minutes": 30},
+            blocking=True,
+        )
+
+        # Should not be in paused
+        assert "automation.test_automation_1" not in data.paused
+
+    async def test_adjust_multiple_entities(
+        self, hass: HomeAssistant, setup_integration_with_automations: ConfigEntry
+    ) -> None:
+        """Test adjusting multiple paused automations at once."""
+        entry = setup_integration_with_automations
+        data = entry.runtime_data
+
+        # Pause two automations
+        await hass.services.async_call(
+            DOMAIN,
+            "pause",
+            {
+                ATTR_ENTITY_ID: ["automation.test_automation_1", "automation.test_automation_2"],
+                "hours": 1,
+            },
+            blocking=True,
+        )
+        original_1 = data.paused["automation.test_automation_1"].resume_at
+        original_2 = data.paused["automation.test_automation_2"].resume_at
+
+        # Adjust both
+        await hass.services.async_call(
+            DOMAIN,
+            "adjust",
+            {
+                ATTR_ENTITY_ID: ["automation.test_automation_1", "automation.test_automation_2"],
+                "minutes": 15,
+            },
+            blocking=True,
+        )
+
+        new_1 = data.paused["automation.test_automation_1"].resume_at
+        new_2 = data.paused["automation.test_automation_2"].resume_at
+        assert abs((new_1 - original_1).total_seconds() - 900) < 5  # 15 min = 900s
+        assert abs((new_2 - original_2).total_seconds() - 900) < 5
+
+    async def test_adjust_service_removed_on_unload(self, hass: HomeAssistant, setup_integration: ConfigEntry) -> None:
+        """Test that adjust service is removed on unload."""
+        entry = setup_integration
+        assert hass.services.has_service(DOMAIN, "adjust")
+
+        # Unload
+        await hass.config_entries.async_unload(entry.entry_id)
+        await hass.async_block_till_done()
+
+        assert not hass.services.has_service(DOMAIN, "adjust")
+
+
 # =============================================================================
 # Setup/Unload Tests
 # =============================================================================
@@ -508,6 +656,7 @@ class TestSetupEntry:
             "pause_by_area",
             "pause_by_label",
             "cancel_scheduled",
+            "adjust",
         ]
         for service in services:
             assert hass.services.has_service(DOMAIN, service), f"Service {service} not registered"
