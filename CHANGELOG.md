@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.2.11](https://github.com/mossipcams/autosnooze/compare/v0.2.10...v0.2.11) (2026-02-02)
+
+
+### Features
+
+* add adjust snooze, card refactoring, and tech debt cleanup ([#273](https://github.com/mossipcams/autosnooze/issues/273)) ([8706755](https://github.com/mossipcams/autosnooze/commit/870675513f4f0b478c5188844cc954126bcfeb96))
+
+
+### Bug Fixes
+
+* **i18n:** add missing Button 4 translation for preset_4 ([#271](https://github.com/mossipcams/autosnooze/issues/271)) ([c1c6b61](https://github.com/mossipcams/autosnooze/commit/c1c6b615d386c8472b1019fcade6a1c47b162acf))
+
 ## [0.2.10](https://github.com/mossipcams/autosnooze/compare/v0.2.9...v0.2.10) (2026-01-27)
 
 
