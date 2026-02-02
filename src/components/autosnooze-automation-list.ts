@@ -195,13 +195,6 @@ export class AutoSnoozeAutomationList extends LitElement {
     }, UI_TIMING.SEARCH_DEBOUNCE_MS);
   }
 
-  _handleKeyDown(e: KeyboardEvent, callback: () => void): void {
-    if (e.key === 'Enter' || e.key === ' ') {
-      e.preventDefault();
-      callback();
-    }
-  }
-
   private _renderSelectionList(): TemplateResult | TemplateResult[] {
     const filtered = this._getFilteredAutomations();
 
@@ -297,6 +290,7 @@ export class AutoSnoozeAutomationList extends LitElement {
   }
 
   render(): TemplateResult {
+    const filtered = this._getFilteredAutomations();
     return html`
       <div class="filter-tabs" role="tablist" aria-label="${localize(this.hass, 'a11y.filter_tabs')}">
         <button
@@ -355,19 +349,19 @@ export class AutoSnoozeAutomationList extends LitElement {
         />
       </div>
 
-      ${this._getFilteredAutomations().length > 0
+      ${filtered.length > 0
         ? html`
             <div class="selection-actions" role="toolbar" aria-label="${localize(this.hass, 'a11y.selection_actions')}">
-              <span role="status" aria-live="polite">${localize(this.hass, 'selection.count', { selected: this.selected.length, total: this._getFilteredAutomations().length })}</span>
+              <span role="status" aria-live="polite">${localize(this.hass, 'selection.count', { selected: this.selected.length, total: filtered.length })}</span>
               <button
                 type="button"
                 class="select-all-btn"
                 @click=${() => this._selectAllVisible()}
-                aria-label="${this._getFilteredAutomations().every((a) => this.selected.includes(a.id))
+                aria-label="${filtered.every((a) => this.selected.includes(a.id))
                   ? localize(this.hass, 'a11y.deselect_all')
                   : localize(this.hass, 'a11y.select_all')}"
               >
-                ${this._getFilteredAutomations().every((a) => this.selected.includes(a.id))
+                ${filtered.every((a) => this.selected.includes(a.id))
                   ? localize(this.hass, 'button.deselect_all')
                   : localize(this.hass, 'button.select_all')}
               </button>
