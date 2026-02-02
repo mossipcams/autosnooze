@@ -801,6 +801,66 @@ export class AutomationPauseCard extends LitElement {
     }
   }
 
+
+  private _handleAdjustAutomationEvent(e: CustomEvent<{ entityId: string; friendlyName: string; resumeAt: string }>): void {
+    this._adjustModalOpen = true;
+    this._adjustModalEntityId = e.detail.entityId;
+    this._adjustModalFriendlyName = e.detail.friendlyName;
+    this._adjustModalResumeAt = e.detail.resumeAt;
+    this._adjustModalEntityIds = [];
+    this._adjustModalFriendlyNames = [];
+  }
+
+  private _handleAdjustGroupEvent(
+    e: CustomEvent<{ entityIds: string[]; friendlyNames: string[]; resumeAt: string }>
+  ): void {
+    this._adjustModalOpen = true;
+    this._adjustModalEntityIds = e.detail.entityIds;
+    this._adjustModalFriendlyNames = e.detail.friendlyNames;
+    this._adjustModalEntityId = '';
+    this._adjustModalFriendlyName = '';
+    this._adjustModalResumeAt = e.detail.resumeAt;
+  }
+
+  private async _handleAdjustTimeEvent(
+    e: CustomEvent<{ entityId?: string; entityIds?: string[]; days?: number; hours?: number; minutes?: number }>
+  ): Promise<void> {
+    if (!this.hass) return;
+    const { entityId, entityIds, ...params } = e.detail;
+    const target = entityIds || entityId || '';
+    try {
+      await adjustSnooze(this.hass, target, params);
+      this._hapticFeedback('success');
+
+      // Optimistic UI update: compute new resumeAt locally
+      const deltaMs =
+        ((params.days || 0) * TIME_MS.DAY) +
+        ((params.hours || 0) * TIME_MS.HOUR) +
+        ((params.minutes || 0) * TIME_MS.MINUTE);
+      const currentResumeAt = new Date(this._adjustModalResumeAt).getTime();
+      this._adjustModalResumeAt = new Date(currentResumeAt + deltaMs).toISOString();
+
+      if (this.isConnected && this.shadowRoot) {
+        this._showToast(localize(this.hass, 'toast.success.adjusted'));
+      }
+    } catch (e) {
+      console.error('Adjust failed:', e);
+      this._hapticFeedback('failure');
+      if (this.isConnected && this.shadowRoot) {
+        this._showToast(getErrorMessage(e as Error, localize(this.hass, 'toast.error.adjust_failed')));
+      }
+    }
+  }
+
+  private _handleCloseModalEvent(): void {
+    this._adjustModalOpen = false;
+    this._adjustModalEntityId = '';
+    this._adjustModalFriendlyName = '';
+    this._adjustModalResumeAt = '';
+    this._adjustModalEntityIds = [];
+    this._adjustModalFriendlyNames = [];
+  }
+
   private async _cancelScheduled(entityId: string): Promise<void> {
     if (!this.hass) return;
     try {

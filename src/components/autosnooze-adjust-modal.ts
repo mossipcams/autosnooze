@@ -8,7 +8,7 @@ import { LitElement, html } from 'lit';
 import { property } from 'lit/decorators.js';
 import { localize } from '../localization/localize.js';
 import { formatCountdown } from '../utils/index.js';
-import { UI_TIMING } from '../constants/index.js';
+import { TIME_MS, UI_TIMING } from '../constants/index.js';
 import { adjustModalStyles } from '../styles/adjust-modal.styles.js';
 import type { HomeAssistant } from '../types/hass.js';
 import type { PropertyValues } from 'lit';
@@ -33,11 +33,11 @@ const ADJUST_INCREMENTS: AdjustIncrement[] = [
 ];
 
 const ADJUST_DECREMENTS: AdjustDecrement[] = [
-  { label: '-15m', minutes: -15, thresholdMs: 15 * 60 * 1000 },
-  { label: '-30m', minutes: -30, thresholdMs: 30 * 60 * 1000 },
+  { label: '-15m', minutes: -15, thresholdMs: 15 * TIME_MS.MINUTE },
+  { label: '-30m', minutes: -30, thresholdMs: 30 * TIME_MS.MINUTE },
 ];
 
-const MIN_REMAINING_MS = 60 * 1000; // 1 minute minimum
+const MIN_REMAINING_MS = TIME_MS.MINUTE; // 1 minute minimum
 
 export class AutoSnoozeAdjustModal extends LitElement {
   static styles = adjustModalStyles;
