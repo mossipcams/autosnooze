@@ -138,7 +138,7 @@ test.describe('Duration-based Snooze', () => {
       (() => {
         ${findCardScript}
         const card = findAutosnoozeCard();
-        const input = card?.shadowRoot?.querySelector('.duration-input');
+        const input = deepQuery(card, '.duration-input');
         return input !== null;
       })()
       `
@@ -285,7 +285,7 @@ test.describe('Last Duration Badge', () => {
       (() => {
         ${findCardScript}
         const card = findAutosnoozeCard();
-        const badge = card?.shadowRoot?.querySelector('.last-duration-badge');
+        const badge = deepQuery(card, '.last-duration-badge');
         const icon = badge?.querySelector('ha-icon[icon="mdi:history"]');
         return icon !== null;
       })()

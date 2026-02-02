@@ -1,4 +1,5 @@
 import { defineConfig } from 'vitest/config';
+import { VitestReporter } from 'tdd-guard-vitest';
 
 export default defineConfig({
   define: {
@@ -11,10 +12,14 @@ export default defineConfig({
     exclude: ['**/node_modules/**', '**/e2e/**'],
     setupFiles: ['./tests/vitest.setup.ts'],
     globals: true,
+    reporters: [
+      'default',
+      new VitestReporter(process.cwd()),
+    ],
     coverage: {
       provider: 'istanbul',
       include: ['src/**/*.ts'],
-      exclude: ['src/**/*.test.ts', 'src/legacy/**'],
+      exclude: ['src/**/*.test.ts'],
       thresholds: {
         global: {
           branches: 85,
@@ -25,8 +30,8 @@ export default defineConfig({
       },
       reporter: ['text', 'text-summary', 'html', 'lcov'],
     },
-    alias: {
-      lit: '/node_modules/lit/index.js',
-    },
+    alias: [
+      { find: /^lit$/, replacement: '/node_modules/lit/index.js' },
+    ],
   },
 });

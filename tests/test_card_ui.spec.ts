@@ -1,3 +1,4 @@
+// @ts-nocheck -- migrated from JS, type annotations deferred
 /**
  * Tests for AutoSnooze Card UI Components
  *
@@ -13,6 +14,8 @@
 
 import { vi } from 'vitest';
 import '../custom_components/autosnooze/www/autosnooze-card.js';
+import { formatCountdown, parseDurationInput, formatDuration, combineDateTime, getErrorMessage } from '../src/utils/index.js';
+import { queryActivePauses, queryAllInActivePauses, queryAutomationList, queryDurationSelector, queryInActivePauses, queryInDurationSelector } from './helpers/query-helpers.js';
 
 // =============================================================================
 // CARD REGISTRATION
@@ -25,6 +28,10 @@ describe('AutoSnooze Card Registration', () => {
 
   test('registers autosnooze-card-editor custom element', () => {
     expect(customElements.get('autosnooze-card-editor')).toBeDefined();
+  });
+
+  test('registers autosnooze-duration-selector custom element', () => {
+    expect(customElements.get('autosnooze-duration-selector')).toBeDefined();
   });
 
   test('card has static getStubConfig method', () => {
@@ -264,8 +271,8 @@ describe('AutoSnooze Card Main Component', () => {
       expect(card._selected).toEqual([]);
       expect(card._duration).toBe(1800000); // 30 minutes
       expect(card._loading).toBe(false);
-      expect(card._search).toBe('');
-      expect(card._filterTab).toBe('all');
+      expect(queryAutomationList(card)._search).toBe('');
+      expect(queryAutomationList(card)._filterTab).toBe('all');
     });
 
     test('setConfig sets config property', () => {
@@ -301,15 +308,15 @@ describe('AutoSnooze Card Main Component', () => {
     });
 
     test('_getFilteredAutomations filters by search', () => {
-      card._search = 'living';
-      const filtered = card._getFilteredAutomations();
+      queryAutomationList(card)._search = 'living';
+      const filtered = queryAutomationList(card)._getFilteredAutomations();
       expect(filtered.length).toBe(1);
       expect(filtered[0].id).toBe('automation.living_room');
     });
 
     test('_getFilteredAutomations returns all when no search', () => {
-      card._search = '';
-      const filtered = card._getFilteredAutomations();
+      queryAutomationList(card)._search = '';
+      const filtered = queryAutomationList(card)._getFilteredAutomations();
       expect(filtered.length).toBe(2);
     });
 
@@ -330,9 +337,9 @@ describe('AutoSnooze Card Main Component', () => {
         },
       };
       card._automationsCache = null; // Clear cache to force recalculation
-      card._search = '';
+      queryAutomationList(card)._search = '';
 
-      const filtered = card._getFilteredAutomations();
+      const filtered = queryAutomationList(card)._getFilteredAutomations();
       expect(filtered.length).toBe(1);
       expect(filtered[0].id).toBe('automation.living_room');
     });
@@ -354,9 +361,9 @@ describe('AutoSnooze Card Main Component', () => {
         },
       };
       card._automationsCache = null;
-      card._search = '';
+      queryAutomationList(card)._search = '';
 
-      const filtered = card._getFilteredAutomations();
+      const filtered = queryAutomationList(card)._getFilteredAutomations();
       expect(filtered.length).toBe(1);
       expect(filtered[0].id).toBe('automation.living_room');
     });
@@ -379,9 +386,9 @@ describe('AutoSnooze Card Main Component', () => {
         },
       };
       card._automationsCache = null;
-      card._search = '';
+      queryAutomationList(card)._search = '';
 
-      const filtered = card._getFilteredAutomations();
+      const filtered = queryAutomationList(card)._getFilteredAutomations();
       // Only the one with include label should show (whitelist mode)
       expect(filtered.length).toBe(1);
       expect(filtered[0].id).toBe('automation.living_room');
@@ -403,9 +410,9 @@ describe('AutoSnooze Card Main Component', () => {
         },
       };
       card._automationsCache = null;
-      card._search = 'living';
+      queryAutomationList(card)._search = 'living';
 
-      const filtered = card._getFilteredAutomations();
+      const filtered = queryAutomationList(card)._getFilteredAutomations();
       expect(filtered.length).toBe(1);
       expect(filtered[0].id).toBe('automation.living_room');
     });
@@ -413,84 +420,96 @@ describe('AutoSnooze Card Main Component', () => {
 
   describe('Selection', () => {
     test('_toggleSelection adds automation to selected', () => {
-      card._toggleSelection('automation.test_automation');
+      queryAutomationList(card)._toggleSelection('automation.test_automation');
       expect(card._selected).toContain('automation.test_automation');
     });
 
     test('_toggleSelection removes automation if already selected', () => {
       card._selected = ['automation.test_automation'];
-      card._toggleSelection('automation.test_automation');
+      const list = queryAutomationList(card);
+      list._toggleSelection('automation.test_automation');
       expect(card._selected).not.toContain('automation.test_automation');
     });
 
     test('_selectAllVisible selects all filtered automations', () => {
-      card._selectAllVisible();
+      queryAutomationList(card)._selectAllVisible();
       expect(card._selected.length).toBe(2);
     });
 
     test('_selectAllVisible deselects all if all already selected', () => {
       card._selected = ['automation.test_automation', 'automation.living_room'];
-      card._selectAllVisible();
+      queryAutomationList(card)._selectAllVisible();
       expect(card._selected.length).toBe(0);
     });
 
     test('_clearSelection clears all selections', () => {
       card._selected = ['automation.test_automation', 'automation.living_room'];
-      card._clearSelection();
+      queryAutomationList(card)._clearSelection();
       expect(card._selected.length).toBe(0);
     });
   });
 
   describe('Duration', () => {
-    test('_setDuration updates duration in milliseconds', () => {
-      card._setDuration(60); // 60 minutes
+    test('duration-change event updates duration in milliseconds', async () => {
+      // Simulate event handler (Lit @event bindings don't propagate in jsdom)
+      card._handleDurationChange(new CustomEvent('duration-change', {
+        detail: { minutes: 60, duration: { days: 0, hours: 1, minutes: 0 }, input: '1h', showCustomInput: false },
+      }));
+      await card.updateComplete;
       expect(card._duration).toBe(3600000);
     });
 
-    test('_setDuration updates custom duration fields', () => {
-      card._setDuration(90); // 90 minutes = 1h 30m
+    test('duration-change event updates custom duration fields', async () => {
+      card._handleDurationChange(new CustomEvent('duration-change', {
+        detail: { minutes: 90, duration: { days: 0, hours: 1, minutes: 30 }, input: '1h30m', showCustomInput: false },
+      }));
+      await card.updateComplete;
       expect(card._customDuration.hours).toBe(1);
       expect(card._customDuration.minutes).toBe(30);
     });
 
     test('_parseDurationInput parses "30m"', () => {
-      const result = card._parseDurationInput('30m');
+      const result = parseDurationInput('30m');
       expect(result).toEqual({ days: 0, hours: 0, minutes: 30 });
     });
 
     test('_parseDurationInput parses "2h30m"', () => {
-      const result = card._parseDurationInput('2h30m');
+      const result = parseDurationInput('2h30m');
       expect(result).toEqual({ days: 0, hours: 2, minutes: 30 });
     });
 
     test('_parseDurationInput parses "1d2h30m"', () => {
-      const result = card._parseDurationInput('1d2h30m');
+      const result = parseDurationInput('1d2h30m');
       expect(result).toEqual({ days: 1, hours: 2, minutes: 30 });
     });
 
     test('_parseDurationInput parses plain number as minutes', () => {
-      const result = card._parseDurationInput('45');
+      const result = parseDurationInput('45');
       expect(result).toEqual({ days: 0, hours: 0, minutes: 45 });
     });
 
     test('_parseDurationInput returns null for invalid input', () => {
-      const result = card._parseDurationInput('invalid');
+      const result = parseDurationInput('invalid');
       expect(result).toBeNull();
     });
 
     test('_parseDurationInput returns null for empty string', () => {
-      const result = card._parseDurationInput('');
+      const result = parseDurationInput('');
       expect(result).toBeNull();
     });
 
-    test('_isDurationValid returns true for valid duration', () => {
-      card._customDurationInput = '30m';
-      expect(card._isDurationValid()).toBe(true);
+    test('isDurationValid returns true for valid duration via child', async () => {
+      const ds = queryDurationSelector(card);
+      await ds.updateComplete;
+      ds.customDurationInput = '30m';
+      expect(ds._isDurationValid()).toBe(true);
     });
 
-    test('_isDurationValid returns false for invalid duration', () => {
-      card._customDurationInput = 'invalid';
-      expect(card._isDurationValid()).toBe(false);
+    test('isDurationValid returns false for invalid duration via child', async () => {
+      const ds = queryDurationSelector(card);
+      await ds.updateComplete;
+      ds.customDurationInput = 'invalid';
+      expect(ds._isDurationValid()).toBe(false);
     });
   });
 
@@ -503,66 +522,73 @@ describe('AutoSnooze Card Main Component', () => {
       expect(card._lastDuration).toBeNull();
     });
 
-    test('_getDurationPills returns default pills when no last duration', () => {
-      card._lastDuration = null;
-      const pills = card._getDurationPills();
+    test('child _getDurationPills returns default pills when no last duration', async () => {
+      const ds = queryDurationSelector(card);
+      await ds.updateComplete;
+      const pills = ds._getDurationPills();
       expect(pills.length).toBe(5); // 30m, 1h, 12h, 1d, Custom
       expect(pills[pills.length - 1].label).toBe('Custom');
     });
 
-    test('_getDurationPills does not include Last pill - replaced by badge', () => {
-      card._lastDuration = {
+    test('child _getDurationPills does not include Last pill - replaced by badge', async () => {
+      const ds = queryDurationSelector(card);
+      await ds.updateComplete;
+      ds.lastDuration = {
         minutes: 150, // 2h 30m - not a preset
         duration: { days: 0, hours: 2, minutes: 30 },
         timestamp: Date.now(),
       };
-      const pills = card._getDurationPills();
+      const pills = ds._getDurationPills();
       expect(pills.length).toBe(5); // 30m, 1h, 12h, 1d, Custom (no Last pill)
       const lastPill = pills.find(p => p.isLast);
       expect(lastPill).toBeUndefined(); // No Last pill in array anymore
     });
 
-    test('_getDurationPills does not include Last pill when last duration matches a preset', () => {
-      card._lastDuration = {
+    test('child _getDurationPills does not include Last pill when last duration matches a preset', async () => {
+      const ds = queryDurationSelector(card);
+      await ds.updateComplete;
+      ds.lastDuration = {
         minutes: 60, // 1h - matches preset
         duration: { days: 0, hours: 1, minutes: 0 },
         timestamp: Date.now(),
       };
-      const pills = card._getDurationPills();
+      const pills = ds._getDurationPills();
       expect(pills.length).toBe(5); // 30m, 1h, 12h, 1d, Custom (no extra Last pill)
       const lastPill = pills.find(p => p.isLast);
       expect(lastPill).toBeUndefined();
     });
 
-    test('_renderLastDurationBadge returns empty string when last duration matches preset', () => {
-      card._lastDuration = {
+    test('child _renderLastDurationBadge returns empty string when last duration matches preset', async () => {
+      const ds = queryDurationSelector(card);
+      await ds.updateComplete;
+      ds.lastDuration = {
         minutes: 60, // 1h - matches preset
         duration: { days: 0, hours: 1, minutes: 0 },
         timestamp: Date.now(),
       };
-      const badge = card._renderLastDurationBadge();
+      const badge = ds._renderLastDurationBadge();
       expect(badge).toBe(''); // Badge should not render
     });
 
-    test('_renderLastDurationBadge renders badge for unique duration', () => {
-      card._lastDuration = {
+    test('child _renderLastDurationBadge renders badge for unique duration', async () => {
+      const ds = queryDurationSelector(card);
+      await ds.updateComplete;
+      ds.lastDuration = {
         minutes: 90, // 1h 30m - not a preset
         duration: { days: 0, hours: 1, minutes: 30 },
         timestamp: Date.now(),
       };
-      const badge = card._renderLastDurationBadge();
+      const badge = ds._renderLastDurationBadge();
       expect(badge).not.toBe(''); // Badge should render
       expect(badge.strings).toBeDefined(); // Should be a TemplateResult
     });
 
-    test('clicking badge sets duration correctly', () => {
-      card._lastDuration = {
-        minutes: 150,
-        duration: { days: 0, hours: 2, minutes: 30 },
-        timestamp: Date.now(),
-      };
-      // Badge click calls _setDuration internally
-      card._setDuration(150);
+    test('clicking badge fires duration-change and sets duration correctly', async () => {
+      // Simulate the event handler (Lit @event bindings don't propagate in jsdom)
+      card._handleDurationChange(new CustomEvent('duration-change', {
+        detail: { minutes: 150, duration: { days: 0, hours: 2, minutes: 30 }, input: '2h30m', showCustomInput: false },
+      }));
+      await card.updateComplete;
       expect(card._customDuration).toEqual({ days: 0, hours: 2, minutes: 30 });
       expect(card._duration).toBe(150 * 60 * 1000); // 150 minutes in ms
     });
@@ -570,40 +596,40 @@ describe('AutoSnooze Card Main Component', () => {
 
   describe('Formatting', () => {
     test('_formatDuration formats single unit', () => {
-      expect(card._formatDuration(0, 2, 0)).toBe('2 hours');
-      expect(card._formatDuration(1, 0, 0)).toBe('1 day');
-      expect(card._formatDuration(0, 0, 30)).toBe('30 minutes');
+      expect(formatDuration(0, 2, 0)).toBe('2 hours');
+      expect(formatDuration(1, 0, 0)).toBe('1 day');
+      expect(formatDuration(0, 0, 30)).toBe('30 minutes');
     });
 
     test('_formatDuration formats multiple units', () => {
-      expect(card._formatDuration(1, 2, 30)).toBe('1 day, 2 hours, 30 minutes');
+      expect(formatDuration(1, 2, 30)).toBe('1 day, 2 hours, 30 minutes');
     });
 
     test('_formatDuration handles singular/plural', () => {
-      expect(card._formatDuration(1, 1, 1)).toBe('1 day, 1 hour, 1 minute');
-      expect(card._formatDuration(2, 2, 2)).toBe('2 days, 2 hours, 2 minutes');
+      expect(formatDuration(1, 1, 1)).toBe('1 day, 1 hour, 1 minute');
+      expect(formatDuration(2, 2, 2)).toBe('2 days, 2 hours, 2 minutes');
     });
 
     test('_formatCountdown returns "Resuming..." for past time', () => {
       const pastTime = new Date(Date.now() - 10000).toISOString();
-      expect(card._formatCountdown(pastTime)).toBe('Resuming...');
+      expect(formatCountdown(pastTime)).toBe('Resuming...');
     });
 
     test('_formatCountdown formats future time correctly', () => {
       const futureTime = new Date(Date.now() + 65000).toISOString(); // ~1 min
-      const result = card._formatCountdown(futureTime);
+      const result = formatCountdown(futureTime);
       expect(result).toMatch(/\d+m \d+s/);
     });
 
     test('_formatCountdown handles hours correctly', () => {
       const futureTime = new Date(Date.now() + 3700000).toISOString(); // ~1 hour
-      const result = card._formatCountdown(futureTime);
+      const result = formatCountdown(futureTime);
       expect(result).toMatch(/\d+h/);
     });
 
     test('_formatCountdown handles days correctly', () => {
       const futureTime = new Date(Date.now() + 90000000).toISOString(); // ~1 day
-      const result = card._formatCountdown(futureTime);
+      const result = formatCountdown(futureTime);
       expect(result).toMatch(/\d+d/);
     });
 
@@ -616,7 +642,7 @@ describe('AutoSnooze Card Main Component', () => {
 
   describe('Area/Label Helpers', () => {
     test('_getAreaName returns "Unassigned" for null area', () => {
-      expect(card._getAreaName(null)).toBe('Unassigned');
+      expect(queryAutomationList(card)._getAreaName(null)).toBe('Unassigned');
     });
 
     test('_getAreaName returns area name from hass', () => {
@@ -624,24 +650,24 @@ describe('AutoSnooze Card Main Component', () => {
         ...mockHass,
         areas: { living_room: { name: 'Living Room' } },
       };
-      expect(card._getAreaName('living_room')).toBe('Living Room');
+      expect(queryAutomationList(card)._getAreaName('living_room')).toBe('Living Room');
     });
 
     test('_getAreaName formats area_id if no name', () => {
-      expect(card._getAreaName('living_room')).toBe('Living Room');
+      expect(queryAutomationList(card)._getAreaName('living_room')).toBe('Living Room');
     });
 
     test('_getCategoryName returns "Uncategorized" for null', () => {
-      expect(card._getCategoryName(null)).toBe('Uncategorized');
+      expect(queryAutomationList(card)._getCategoryName(null)).toBe('Uncategorized');
     });
 
     test('_getLabelName returns label name from registry', () => {
       card._labelRegistry = { lighting: { name: 'Lighting' } };
-      expect(card._getLabelName('lighting')).toBe('Lighting');
+      expect(queryAutomationList(card)._getLabelName('lighting')).toBe('Lighting');
     });
 
     test('_getLabelName formats label_id if not in registry', () => {
-      expect(card._getLabelName('my_custom_label')).toBe('My Custom Label');
+      expect(queryAutomationList(card)._getLabelName('my_custom_label')).toBe('My Custom Label');
     });
   });
 
@@ -707,19 +733,21 @@ describe('AutoSnooze Card Main Component', () => {
 
     test('renders filter tabs', async () => {
       await card.updateComplete;
-      const tabs = card.shadowRoot.querySelectorAll('.tab');
+      const tabs = queryAutomationList(card).shadowRoot.querySelectorAll('.tab');
       expect(tabs.length).toBeGreaterThanOrEqual(4); // All, Areas, Categories, Labels
     });
 
     test('renders search box', async () => {
       await card.updateComplete;
-      const searchInput = card.shadowRoot.querySelector('.search-box input');
+      const searchInput = queryAutomationList(card).shadowRoot.querySelector('.search-box input');
       expect(searchInput).toBeDefined();
     });
 
-    test('renders duration pills', async () => {
+    test('renders duration pills in child component', async () => {
       await card.updateComplete;
-      const pills = card.shadowRoot.querySelectorAll('.pill');
+      const ds = queryDurationSelector(card);
+      await ds.updateComplete;
+      const pills = ds.shadowRoot.querySelectorAll('.pill');
       expect(pills.length).toBeGreaterThanOrEqual(4);
     });
 
@@ -737,46 +765,47 @@ describe('AutoSnooze Card Main Component', () => {
     });
 
     test('renders flat list in "all" tab', async () => {
-      card._filterTab = 'all';
+      queryAutomationList(card)._filterTab = 'all';
       await card.updateComplete;
-      const listItems = card.shadowRoot.querySelectorAll('.list-item');
+      const listItems = queryAutomationList(card).shadowRoot.querySelectorAll('.list-item');
       expect(listItems.length).toBe(2);
     });
 
     test('renders grouped list in "areas" tab', async () => {
-      card._filterTab = 'areas';
+      queryAutomationList(card)._filterTab = 'areas';
       await card.updateComplete;
-      const groupHeaders = card.shadowRoot.querySelectorAll('.group-header');
+      const groupHeaders = queryAutomationList(card).shadowRoot.querySelectorAll('.group-header');
       expect(groupHeaders.length).toBeGreaterThan(0);
     });
 
     test('renders empty message when no automations match filter', async () => {
-      card._search = 'nonexistent';
+      queryAutomationList(card)._search = 'nonexistent';
       await card.updateComplete;
-      const emptyMsg = card.shadowRoot.querySelector('.list-empty');
+      const emptyMsg = queryAutomationList(card).shadowRoot.querySelector('.list-empty');
       expect(emptyMsg).not.toBeNull();
     });
 
     test('renders selection actions bar', async () => {
       await card.updateComplete;
-      const selectionActions = card.shadowRoot.querySelector('.selection-actions');
+      const selectionActions = queryAutomationList(card).shadowRoot.querySelector('.selection-actions');
       expect(selectionActions).not.toBeNull();
     });
   });
 
   describe('Group Expansion', () => {
     test('_toggleGroupExpansion toggles group state', () => {
-      expect(card._expandedGroups['Test']).toBeUndefined();
-      card._toggleGroupExpansion('Test');
-      expect(card._expandedGroups['Test']).toBeDefined();
-      const firstState = card._expandedGroups['Test'];
-      card._toggleGroupExpansion('Test');
-      expect(card._expandedGroups['Test']).toBe(!firstState);
+      const list = queryAutomationList(card);
+      expect(list._expandedGroups['Test']).toBeUndefined();
+      list._toggleGroupExpansion('Test');
+      expect(list._expandedGroups['Test']).toBeDefined();
+      const firstState = list._expandedGroups['Test'];
+      list._toggleGroupExpansion('Test');
+      expect(list._expandedGroups['Test']).toBe(!firstState);
     });
 
     test('_selectGroup selects all items in group', () => {
       const items = [{ id: 'automation.a' }, { id: 'automation.b' }];
-      card._selectGroup(items);
+      queryAutomationList(card)._selectGroup(items);
       expect(card._selected).toContain('automation.a');
       expect(card._selected).toContain('automation.b');
     });
@@ -784,39 +813,45 @@ describe('AutoSnooze Card Main Component', () => {
     test('_selectGroup deselects all if all selected', () => {
       const items = [{ id: 'automation.a' }, { id: 'automation.b' }];
       card._selected = ['automation.a', 'automation.b'];
-      card._selectGroup(items);
+      queryAutomationList(card)._selectGroup(items);
       expect(card._selected).not.toContain('automation.a');
       expect(card._selected).not.toContain('automation.b');
     });
   });
 
-  describe('Wake All Confirmation', () => {
-    test('first click sets pending flag', () => {
-      card._handleWakeAll();
-      expect(card._wakeAllPending).toBe(true);
+  describe('Wake All Confirmation (via child component)', () => {
+    test('first click sets pending flag on child', () => {
+      const ChildClass = customElements.get('autosnooze-active-pauses');
+      const child = new ChildClass();
+      child._handleWakeAll();
+      expect(child._wakeAllPending).toBe(true);
     });
 
-    test('second click resets pending flag and calls service', async () => {
-      card._wakeAllPending = true;
-      await card._handleWakeAll();
-      expect(card._wakeAllPending).toBe(false);
-      expect(card.hass.callService).toHaveBeenCalledWith('autosnooze', 'cancel_all', {});
+    test('second click resets pending and fires event on child', async () => {
+      const ChildClass = customElements.get('autosnooze-active-pauses');
+      const child = new ChildClass();
+      const events = [];
+      child.addEventListener('wake-all', (e) => events.push(e));
+      child._wakeAllPending = true;
+      child._handleWakeAll();
+      expect(child._wakeAllPending).toBe(false);
+      expect(events.length).toBe(1);
     });
 
-    test('pending state auto-resets after timeout', () => {
+    test('pending state auto-resets after timeout on child', () => {
       vi.useFakeTimers();
-      card._handleWakeAll();
-      expect(card._wakeAllPending).toBe(true);
+      const ChildClass = customElements.get('autosnooze-active-pauses');
+      const child = new ChildClass();
+      child._handleWakeAll();
+      expect(child._wakeAllPending).toBe(true);
       vi.advanceTimersByTime(3000);
-      expect(card._wakeAllPending).toBe(false);
+      expect(child._wakeAllPending).toBe(false);
       vi.useRealTimers();
     });
 
-    test('handles service error on second click', async () => {
-      card._wakeAllPending = true;
-      mockHass.callService.mockRejectedValueOnce(new Error('Service failed'));
-      await card._handleWakeAll();
-      expect(card._wakeAllPending).toBe(false);
+    test('parent _handleWakeAllEvent calls wakeAll service', async () => {
+      await card._handleWakeAllEvent();
+      expect(card.hass.callService).toHaveBeenCalledWith('autosnooze', 'cancel_all', {});
     });
   });
 
@@ -825,11 +860,11 @@ describe('AutoSnooze Card Main Component', () => {
       vi.useFakeTimers();
 
       const event = { target: { value: 'test' } };
-      card._handleSearchInput(event);
+      queryAutomationList(card)._handleSearchInput(event);
 
-      expect(card._search).toBe('');
+      expect(queryAutomationList(card)._search).toBe('');
       vi.advanceTimersByTime(350);
-      expect(card._search).toBe('test');
+      expect(queryAutomationList(card)._search).toBe('test');
 
       vi.useRealTimers();
     });
@@ -838,10 +873,10 @@ describe('AutoSnooze Card Main Component', () => {
   describe('Custom Duration Input', () => {
     test('clicking custom pill toggles custom input visibility', async () => {
       await card.updateComplete;
-      const pills = card.shadowRoot.querySelectorAll('.pill');
-      const customPill = pills[pills.length - 1];
-
-      customPill.click();
+      // Simulate the custom-input-toggle event (Lit @event bindings don't propagate in jsdom)
+      card._handleCustomInputToggle(new CustomEvent('custom-input-toggle', {
+        detail: { show: true },
+      }));
       await card.updateComplete;
 
       expect(card._showCustomInput).toBe(true);
@@ -850,37 +885,52 @@ describe('AutoSnooze Card Main Component', () => {
     test('custom duration input renders when visible', async () => {
       card._showCustomInput = true;
       await card.updateComplete;
+      const ds = queryDurationSelector(card);
+      ds.showCustomInput = true;
+      await ds.updateComplete;
 
-      const customInput = card.shadowRoot.querySelector('.custom-duration-input');
+      const customInput = queryInDurationSelector(card, '.custom-duration-input');
       expect(customInput).not.toBeNull();
     });
 
     test('custom input hidden when _showCustomInput is false', async () => {
       card._showCustomInput = false;
       await card.updateComplete;
+      const ds = queryDurationSelector(card);
+      ds.showCustomInput = false;
+      await ds.updateComplete;
 
-      const customInput = card.shadowRoot.querySelector('.custom-duration-input');
+      const customInput = queryInDurationSelector(card, '.custom-duration-input');
       expect(customInput).toBeNull();
     });
 
-    test('_handleDurationInput updates custom duration state', () => {
-      card._handleDurationInput('2h30m');
-      expect(card._customDurationInput).toBe('2h30m');
+    test('duration-change event from child updates custom duration state', async () => {
+      // Simulate event handler (Lit @event bindings don't propagate in jsdom)
+      card._handleDurationChange(new CustomEvent('duration-change', {
+        detail: { minutes: 150, duration: { days: 0, hours: 2, minutes: 30 }, input: '2h30m' },
+      }));
+      await card.updateComplete;
       expect(card._customDuration).toEqual({ days: 0, hours: 2, minutes: 30 });
     });
 
-    test('_handleDurationInput handles invalid input gracefully', () => {
-      card._handleDurationInput('invalid');
+    test('duration-change event with invalid input sends zero duration', async () => {
+      const ds = queryDurationSelector(card);
+      await ds.updateComplete;
+      // _fireCustomDurationChange with invalid input fires event with zero duration
+      ds._fireCustomDurationChange('invalid');
+      await card.updateComplete;
+      // Invalid input fires event so parent can track raw input for validation
+      expect(card._customDuration).toEqual({ days: 0, hours: 0, minutes: 0 });
       expect(card._customDurationInput).toBe('invalid');
     });
 
     test('clicking preset pill hides custom input', async () => {
       card._showCustomInput = true;
       await card.updateComplete;
-
-      const pills = card.shadowRoot.querySelectorAll('.pill');
-      const presetPill = pills[0];
-      presetPill.click();
+      // Simulate duration-change from a preset pill click (Lit @event bindings don't propagate in jsdom)
+      card._handleDurationChange(new CustomEvent('duration-change', {
+        detail: { minutes: 30, duration: { days: 0, hours: 0, minutes: 30 }, input: '30m', showCustomInput: false },
+      }));
       await card.updateComplete;
 
       expect(card._showCustomInput).toBe(false);
@@ -889,52 +939,52 @@ describe('AutoSnooze Card Main Component', () => {
 
   describe('Filter Tab Interactions', () => {
     test('clicking Areas tab changes filter to areas', async () => {
-      const tabs = card.shadowRoot.querySelectorAll('.tab');
+      const tabs = queryAutomationList(card).shadowRoot.querySelectorAll('.tab');
       const areasTab = Array.from(tabs).find((t) => t.textContent.includes('Areas'));
 
       areasTab.click();
       await card.updateComplete;
 
-      expect(card._filterTab).toBe('areas');
+      expect(queryAutomationList(card)._filterTab).toBe('areas');
     });
 
     test('clicking Categories tab changes filter to categories', async () => {
-      const tabs = card.shadowRoot.querySelectorAll('.tab');
+      const tabs = queryAutomationList(card).shadowRoot.querySelectorAll('.tab');
       const categoriesTab = Array.from(tabs).find((t) => t.textContent.includes('Categories'));
 
       categoriesTab.click();
       await card.updateComplete;
 
-      expect(card._filterTab).toBe('categories');
+      expect(queryAutomationList(card)._filterTab).toBe('categories');
     });
 
     test('clicking Labels tab changes filter to labels', async () => {
-      const tabs = card.shadowRoot.querySelectorAll('.tab');
+      const tabs = queryAutomationList(card).shadowRoot.querySelectorAll('.tab');
       const labelsTab = Array.from(tabs).find((t) => t.textContent.includes('Labels'));
 
       labelsTab.click();
       await card.updateComplete;
 
-      expect(card._filterTab).toBe('labels');
+      expect(queryAutomationList(card)._filterTab).toBe('labels');
     });
 
     test('clicking All tab changes filter to all', async () => {
-      card._filterTab = 'areas';
+      queryAutomationList(card)._filterTab = 'areas';
       await card.updateComplete;
 
-      const tabs = card.shadowRoot.querySelectorAll('.tab');
+      const tabs = queryAutomationList(card).shadowRoot.querySelectorAll('.tab');
       const allTab = Array.from(tabs).find((t) => t.textContent.includes('All'));
 
       allTab.click();
       await card.updateComplete;
 
-      expect(card._filterTab).toBe('all');
+      expect(queryAutomationList(card)._filterTab).toBe('all');
     });
   });
 
   describe('List Item Interactions', () => {
     test('clicking list item selects automation', async () => {
-      const listItem = card.shadowRoot.querySelector('.list-item');
+      const listItem = queryAutomationList(card).shadowRoot.querySelector('.list-item');
       listItem.click();
       await card.updateComplete;
 
@@ -942,7 +992,7 @@ describe('AutoSnooze Card Main Component', () => {
     });
 
     test('checkbox change toggles selection', async () => {
-      const checkbox = card.shadowRoot.querySelector('.list-item input[type="checkbox"]');
+      const checkbox = queryAutomationList(card).shadowRoot.querySelector('.list-item input[type="checkbox"]');
       checkbox.click();
       await card.updateComplete;
 
@@ -950,7 +1000,7 @@ describe('AutoSnooze Card Main Component', () => {
     });
 
     test('checkbox click stops propagation', async () => {
-      const checkbox = card.shadowRoot.querySelector('.list-item input[type="checkbox"]');
+      const checkbox = queryAutomationList(card).shadowRoot.querySelector('.list-item input[type="checkbox"]');
       const clickEvent = new MouseEvent('click', { bubbles: true });
       const stopPropSpy = vi.spyOn(clickEvent, 'stopPropagation');
 
@@ -995,66 +1045,50 @@ describe('Lifecycle Methods', () => {
     }
   });
 
-  test('connectedCallback starts countdown interval', async () => {
+  test('child component starts countdown on connectedCallback', async () => {
     vi.useFakeTimers();
 
-    document.body.appendChild(card);
-    await card.updateComplete;
+    const ChildClass = customElements.get('autosnooze-active-pauses');
+    const child = new ChildClass();
+    child.connectedCallback();
 
-    expect(card._syncTimeout).not.toBeNull();
+    expect(child._countdownState.syncTimeout).not.toBeNull();
 
+    child.disconnectedCallback();
     vi.useRealTimers();
   });
 
-  test('disconnectedCallback clears intervals', async () => {
+  test('disconnectedCallback clears search timeout on parent', async () => {
     vi.useFakeTimers();
 
     document.body.appendChild(card);
     await card.updateComplete;
 
-    card._interval = setInterval(() => {}, 1000);
-    card._syncTimeout = setTimeout(() => {}, 1000);
-    card._searchTimeout = setTimeout(() => {}, 1000);
+    queryAutomationList(card)._searchTimeout = setTimeout(() => {}, 1000);
 
     card.remove();
 
-    expect(card._interval).toBeNull();
-    expect(card._syncTimeout).toBeNull();
-    expect(card._searchTimeout).toBeNull();
+    expect(queryAutomationList(card)._searchTimeout).toBeNull();
 
     vi.useRealTimers();
   });
 
-  test('_updateCountdownIfNeeded triggers update when paused automations exist', async () => {
-    // Set up card with paused automations
-    card.hass = createMockHass({
-      states: {
-        'sensor.autosnooze_snoozed_automations': {
-          state: '1',
-          attributes: {
-            paused_automations: {
-              'automation.test': {
-                entity_id: 'automation.test',
-                resume_at: new Date(Date.now() + 3600000).toISOString(),
-              },
-            },
-            scheduled_snoozes: {},
-          },
-        },
-      },
-    });
+  test('child component clears timers on disconnectedCallback', async () => {
+    vi.useFakeTimers();
 
-    document.body.appendChild(card);
-    await card.updateComplete;
+    const ChildClass = customElements.get('autosnooze-active-pauses');
+    const child = new ChildClass();
+    child._countdownState.interval = setInterval(() => {}, 1000);
+    child._countdownState.syncTimeout = setTimeout(() => {}, 1000);
+    child._wakeAllTimeout = setTimeout(() => {}, 3000);
 
-    const requestUpdateSpy = vi.spyOn(card, 'requestUpdate');
-    card._updateCountdownIfNeeded();
+    child.disconnectedCallback();
 
-    expect(requestUpdateSpy).toHaveBeenCalled();
-  });
+    expect(child._countdownState.interval).toBeNull();
+    expect(child._countdownState.syncTimeout).toBeNull();
+    expect(child._wakeAllTimeout).toBeNull();
 
-  test('_updateCountdownIfNeeded handles no countdown elements', () => {
-    expect(() => card._updateCountdownIfNeeded()).not.toThrow();
+    vi.useRealTimers();
   });
 });
 
@@ -1126,7 +1160,7 @@ describe('Label and Area Grouping', () => {
 
   describe('_getGroupedByArea', () => {
     test('groups automations by area', () => {
-      const grouped = card._getGroupedByArea();
+      const grouped = queryAutomationList(card)._getGroupedByArea();
       expect(grouped.length).toBeGreaterThan(0);
 
       const groupNames = grouped.map((g) => g[0]);
@@ -1135,14 +1169,14 @@ describe('Label and Area Grouping', () => {
     });
 
     test('puts unassigned automations in "Unassigned" group', () => {
-      const grouped = card._getGroupedByArea();
+      const grouped = queryAutomationList(card)._getGroupedByArea();
       const unassigned = grouped.find((g) => g[0] === 'Unassigned');
       expect(unassigned).toBeDefined();
       expect(unassigned[1].length).toBe(1);
     });
 
     test('sorts groups alphabetically with Unassigned last', () => {
-      const grouped = card._getGroupedByArea();
+      const grouped = queryAutomationList(card)._getGroupedByArea();
       const groupNames = grouped.map((g) => g[0]);
 
       expect(groupNames[groupNames.length - 1]).toBe('Unassigned');
@@ -1155,7 +1189,7 @@ describe('Label and Area Grouping', () => {
 
   describe('_getGroupedByLabel', () => {
     test('groups automations by label', () => {
-      const grouped = card._getGroupedByLabel();
+      const grouped = queryAutomationList(card)._getGroupedByLabel();
       expect(grouped.length).toBeGreaterThan(0);
 
       const groupNames = grouped.map((g) => g[0]);
@@ -1164,13 +1198,13 @@ describe('Label and Area Grouping', () => {
     });
 
     test('puts unlabeled automations in "Unlabeled" group', () => {
-      const grouped = card._getGroupedByLabel();
+      const grouped = queryAutomationList(card)._getGroupedByLabel();
       const unlabeled = grouped.find((g) => g[0] === 'Unlabeled');
       expect(unlabeled).toBeDefined();
     });
 
     test('automation with multiple labels appears in multiple groups', () => {
-      const grouped = card._getGroupedByLabel();
+      const grouped = queryAutomationList(card)._getGroupedByLabel();
       const groupsWithBedroomFan = grouped.filter((g) =>
         g[1].some((a) => a.id === 'automation.bedroom_fan')
       );
@@ -1179,7 +1213,7 @@ describe('Label and Area Grouping', () => {
     });
 
     test('sorts groups alphabetically with Unlabeled last', () => {
-      const grouped = card._getGroupedByLabel();
+      const grouped = queryAutomationList(card)._getGroupedByLabel();
       const groupNames = grouped.map((g) => g[0]);
 
       expect(groupNames[groupNames.length - 1]).toBe('Unlabeled');
@@ -1188,7 +1222,7 @@ describe('Label and Area Grouping', () => {
 
   describe('_getLabelCount', () => {
     test('returns count of unique labels', () => {
-      const count = card._getLabelCount();
+      const count = queryAutomationList(card)._getLabelCount();
       expect(count).toBe(3);
     });
   });
@@ -1207,10 +1241,10 @@ describe('Label and Area Grouping', () => {
       },
       entities: {},
     });
-    card._filterTab = 'areas';
+    queryAutomationList(card)._filterTab = 'areas';
     await card.updateComplete;
 
-    const emptyMessage = card.shadowRoot.querySelector('.list-empty');
+    const emptyMessage = queryAutomationList(card).shadowRoot.querySelector('.list-empty');
     expect(emptyMessage).not.toBeNull();
     expect(emptyMessage.textContent).toContain('No automations found');
   });
@@ -1584,8 +1618,11 @@ describe('Schedule Mode UI', () => {
   test('renders schedule inputs when schedule mode is enabled', async () => {
     card._scheduleMode = true;
     await card.updateComplete;
+    const ds = queryDurationSelector(card);
+    ds.scheduleMode = true;
+    await ds.updateComplete;
 
-    const scheduleInputs = card.shadowRoot.querySelector('.schedule-inputs');
+    const scheduleInputs = queryInDurationSelector(card, '.schedule-inputs');
     expect(scheduleInputs).not.toBeNull();
 
     const selects = scheduleInputs.querySelectorAll('select');
@@ -1597,51 +1634,59 @@ describe('Schedule Mode UI', () => {
   test('renders duration selector when schedule mode is disabled', async () => {
     card._scheduleMode = false;
     await card.updateComplete;
+    const ds = queryDurationSelector(card);
+    ds.scheduleMode = false;
+    await ds.updateComplete;
 
-    const durationSelector = card.shadowRoot.querySelector('.duration-selector');
+    const durationSelector = queryInDurationSelector(card, '.duration-selector');
     expect(durationSelector).not.toBeNull();
   });
 
-  test('schedule link changes mode', async () => {
+  test('schedule link changes mode via event', async () => {
     card._scheduleMode = false;
     await card.updateComplete;
-
-    const scheduleLink = card.shadowRoot.querySelector('.schedule-link');
-    scheduleLink.click();
+    // Simulate schedule-mode-change event (Lit @event bindings don't propagate in jsdom)
+    card._handleScheduleModeChange(new CustomEvent('schedule-mode-change', {
+      detail: { enabled: true },
+    }));
+    await card.updateComplete;
 
     expect(card._scheduleMode).toBe(true);
   });
 
-  test('clicking back link switches to duration mode', async () => {
+  test('clicking back link switches to duration mode via event', async () => {
     card._scheduleMode = true;
     await card.updateComplete;
-
-    const backLink = card.shadowRoot.querySelector('.schedule-link');
-    backLink.click();
+    // Simulate schedule-mode-change event
+    card._handleScheduleModeChange(new CustomEvent('schedule-mode-change', {
+      detail: { enabled: false },
+    }));
     await card.updateComplete;
 
     expect(card._scheduleMode).toBe(false);
   });
 
-  test('schedule time input updates state', async () => {
+  test('schedule time input updates state via event', async () => {
     card._scheduleMode = true;
     await card.updateComplete;
 
-    const timeInput = card.shadowRoot.querySelector('input[type="time"][aria-label="Snooze time"]');
-    timeInput.value = '14:30';
-    timeInput.dispatchEvent(new Event('input', { bubbles: true }));
+    // Simulate schedule-field-change event (Lit @event bindings don't propagate in jsdom)
+    card._handleScheduleFieldChange(new CustomEvent('schedule-field-change', {
+      detail: { field: 'disableAtTime', value: '14:30' },
+    }));
     await card.updateComplete;
 
     expect(card._disableAtTime).toBe('14:30');
   });
 
-  test('resume time input updates state', async () => {
+  test('resume time input updates state via event', async () => {
     card._scheduleMode = true;
     await card.updateComplete;
 
-    const timeInput = card.shadowRoot.querySelector('input[type="time"][aria-label="Resume time"]');
-    timeInput.value = '16:00';
-    timeInput.dispatchEvent(new Event('input', { bubbles: true }));
+    // Simulate schedule-field-change event
+    card._handleScheduleFieldChange(new CustomEvent('schedule-field-change', {
+      detail: { field: 'resumeAtTime', value: '16:00' },
+    }));
     await card.updateComplete;
 
     expect(card._resumeAtTime).toBe('16:00');
@@ -1766,7 +1811,7 @@ describe('Schedule Mode Validation', () => {
   test('_combineDateTime correctly calculates timezone offset for fractional timezones', () => {
     // Test that the datetime string round-trips correctly
     // This verifies the fix for Math.floor bug with negative offset minutes
-    const result = card._combineDateTime('2024-12-25', '14:00');
+    const result = combineDateTime('2024-12-25', '14:00');
 
     // Parse the result back and compare to the original local time
     const originalLocal = new Date('2024-12-25T14:00');
@@ -1781,10 +1826,10 @@ describe('Schedule Mode Validation', () => {
   });
 
   test('_combineDateTime returns null for missing date or time', () => {
-    expect(card._combineDateTime('', '14:00')).toBeNull();
-    expect(card._combineDateTime('2024-12-25', '')).toBeNull();
-    expect(card._combineDateTime(null, '14:00')).toBeNull();
-    expect(card._combineDateTime('2024-12-25', null)).toBeNull();
+    expect(combineDateTime('', '14:00')).toBeNull();
+    expect(combineDateTime('2024-12-25', '')).toBeNull();
+    expect(combineDateTime(null, '14:00')).toBeNull();
+    expect(combineDateTime('2024-12-25', null)).toBeNull();
   });
 });
 
@@ -1849,22 +1894,31 @@ describe('Rendering with Paused/Scheduled Automations', () => {
   });
 
   test('renders snooze-list section when automations are paused', async () => {
-    const snoozeList = card.shadowRoot.querySelector('.snooze-list');
+    const activePauses = queryActivePauses(card);
+    expect(activePauses).not.toBeNull();
+    await activePauses.updateComplete;
+    const snoozeList = queryInActivePauses(card, '.snooze-list');
     expect(snoozeList).not.toBeNull();
   });
 
   test('renders paused automation items', async () => {
-    const pausedItems = card.shadowRoot.querySelectorAll('.paused-item');
+    const activePauses = queryActivePauses(card);
+    if (activePauses) await activePauses.updateComplete;
+    const pausedItems = queryAllInActivePauses(card, '.paused-item');
     expect(pausedItems.length).toBe(2);
   });
 
   test('renders wake buttons for paused items', async () => {
-    const wakeButtons = card.shadowRoot.querySelectorAll('.wake-btn');
+    const activePauses = queryActivePauses(card);
+    if (activePauses) await activePauses.updateComplete;
+    const wakeButtons = queryAllInActivePauses(card, '.wake-btn');
     expect(wakeButtons.length).toBe(2);
   });
 
   test('renders Wake All button when multiple paused', async () => {
-    const wakeAllBtn = card.shadowRoot.querySelector('.wake-all');
+    const activePauses = queryActivePauses(card);
+    if (activePauses) await activePauses.updateComplete;
+    const wakeAllBtn = queryInActivePauses(card, '.wake-all');
     expect(wakeAllBtn).not.toBeNull();
   });
 
@@ -1889,9 +1943,11 @@ describe('Rendering with Paused/Scheduled Automations', () => {
     expect(summary.textContent).toContain('active');
   });
 
-  test('clicking wake button calls _wake', async () => {
+  test('clicking wake button calls _wake via event', async () => {
     const wakeSpy = vi.spyOn(card, '_wake');
-    const wakeBtn = card.shadowRoot.querySelector('.wake-btn');
+    const activePauses = queryActivePauses(card);
+    if (activePauses) await activePauses.updateComplete;
+    const wakeBtn = queryInActivePauses(card, '.wake-btn');
     wakeBtn.click();
 
     expect(wakeSpy).toHaveBeenCalled();
@@ -2073,31 +2129,31 @@ describe('Error Message Handling', () => {
 
   test('_getErrorMessage returns message for known translation_key', () => {
     const error = { translation_key: 'not_automation' };
-    const result = card._getErrorMessage(error, 'Default');
+    const result = getErrorMessage(error, 'Default');
     expect(result).toBe('Failed to snooze: One or more selected items are not automations');
   });
 
   test('_getErrorMessage returns message for translation_key in data', () => {
     const error = { data: { translation_key: 'invalid_duration' } };
-    const result = card._getErrorMessage(error, 'Default');
+    const result = getErrorMessage(error, 'Default');
     expect(result).toBe('Failed to snooze: Please specify a valid duration (days, hours, or minutes)');
   });
 
   test('_getErrorMessage matches error message patterns', () => {
     const error = { message: 'Something with resume_time_past in it' };
-    const result = card._getErrorMessage(error, 'Default');
+    const result = getErrorMessage(error, 'Default');
     expect(result).toBe('Failed to snooze: Resume time must be in the future');
   });
 
   test('_getErrorMessage matches lowercase patterns with spaces', () => {
     const error = { message: 'Something about disable after resume' };
-    const result = card._getErrorMessage(error, 'Default');
+    const result = getErrorMessage(error, 'Default');
     expect(result).toBe('Failed to snooze: Snooze time must be before resume time');
   });
 
   test('_getErrorMessage returns default for unknown errors', () => {
     const error = { message: 'Unknown error xyz' };
-    const result = card._getErrorMessage(error, 'My Default');
+    const result = getErrorMessage(error, 'My Default');
     expect(result).toBe('My Default. Check Home Assistant logs for details.');
   });
 });
@@ -2400,60 +2456,3 @@ describe('shouldUpdate optimization', () => {
   });
 });
 
-// =============================================================================
-// KEYBOARD ACCESSIBILITY
-// =============================================================================
-
-describe('Keyboard accessibility', () => {
-  let card;
-
-  beforeEach(async () => {
-    const CardClass = customElements.get('autosnooze-card');
-    card = new CardClass();
-    card.setConfig({ title: 'AutoSnooze' });
-    card.hass = {
-      states: {
-        'automation.test1': { state: 'on', attributes: { friendly_name: 'Test 1' } },
-        'sensor.autosnooze_snoozed_automations': {
-          state: '0',
-          attributes: { paused_automations: {}, scheduled_snoozes: {} },
-        },
-      },
-      entities: {},
-      areas: {},
-      callService: vi.fn().mockResolvedValue({}),
-    };
-    document.body.appendChild(card);
-    await card.updateComplete;
-  });
-
-  afterEach(() => {
-    if (card && card.parentNode) {
-      card.parentNode.removeChild(card);
-    }
-  });
-
-  test('_handleKeyDown triggers callback on Enter key', () => {
-    const callback = vi.fn();
-    const event = { key: 'Enter', preventDefault: vi.fn() };
-    card._handleKeyDown(event, callback);
-    expect(event.preventDefault).toHaveBeenCalled();
-    expect(callback).toHaveBeenCalled();
-  });
-
-  test('_handleKeyDown triggers callback on Space key', () => {
-    const callback = vi.fn();
-    const event = { key: ' ', preventDefault: vi.fn() };
-    card._handleKeyDown(event, callback);
-    expect(event.preventDefault).toHaveBeenCalled();
-    expect(callback).toHaveBeenCalled();
-  });
-
-  test('_handleKeyDown does not trigger callback on other keys', () => {
-    const callback = vi.fn();
-    const event = { key: 'Tab', preventDefault: vi.fn() };
-    card._handleKeyDown(event, callback);
-    expect(event.preventDefault).not.toHaveBeenCalled();
-    expect(callback).not.toHaveBeenCalled();
-  });
-});

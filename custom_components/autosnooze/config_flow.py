@@ -7,14 +7,11 @@ from typing import Any
 
 import voluptuous as vol
 
-from homeassistant.config_entries import ConfigFlow, ConfigFlowResult, OptionsFlow
+from homeassistant.config_entries import ConfigEntry, ConfigFlow, ConfigFlowResult, OptionsFlow
 from homeassistant.core import callback
 
 from . import DOMAIN
-from .const import DEFAULT_DURATION_PRESETS
-
-# Number of individual preset fields to show (Last and Custom are added automatically)
-NUM_PRESET_FIELDS = 4
+from .const import DEFAULT_DURATION_PRESETS, MINUTES_PER_DAY, MINUTES_PER_YEAR, NUM_PRESET_FIELDS
 
 
 class AutomationPauseConfigFlow(ConfigFlow, domain=DOMAIN):  # pyright: ignore[reportCallIssue,reportGeneralTypeIssues]
@@ -24,7 +21,7 @@ class AutomationPauseConfigFlow(ConfigFlow, domain=DOMAIN):  # pyright: ignore[r
 
     @staticmethod
     @callback
-    def async_get_options_flow(config_entry):
+    def async_get_options_flow(config_entry: ConfigEntry):
         """Get the options flow for this handler."""
         return AutoSnoozeOptionsFlow(config_entry)
 
@@ -58,8 +55,8 @@ def parse_duration_string(duration_str: str) -> dict[str, str | int] | None:
     hours = int(match.group(2)) if match.group(2) else 0
     minutes = int(match.group(3)) if match.group(3) else 0
 
-    total_minutes = days * 1440 + hours * 60 + minutes
-    if total_minutes <= 0 or total_minutes > 525600:  # Max 1 year
+    total_minutes = days * MINUTES_PER_DAY + hours * 60 + minutes
+    if total_minutes <= 0 or total_minutes > MINUTES_PER_YEAR:  # Max 1 year
         return None
 
     # Generate a clean label
@@ -74,45 +71,14 @@ def parse_duration_string(duration_str: str) -> dict[str, str | int] | None:
     return {"label": "".join(label_parts), "minutes": total_minutes}
 
 
-def parse_duration_presets(presets_str: str) -> list[dict[str, str | int]] | None:
-    """Parse comma-separated duration strings into a list of preset dicts.
-
-    Returns empty list if input is empty.
-    Returns None if any non-empty entry is invalid (validation error).
-    """
-    if not presets_str.strip():
-        return []
-
-    presets = []
-    for part in presets_str.split(","):
-        trimmed = part.strip()
-        if not trimmed:
-            continue
-        parsed = parse_duration_string(trimmed)
-        if parsed:
-            presets.append(parsed)
-        else:
-            # Invalid non-empty entry - return None to signal validation error
-            return None
-
-    return presets
-
-
-def format_presets(presets: list[dict[str, str | int]]) -> str:
-    """Format a list of preset dicts back to a comma-separated string."""
-    if not presets:
-        return ""
-    return ", ".join(str(preset.get("label", "")) for preset in presets)
-
-
 class AutoSnoozeOptionsFlow(OptionsFlow):
     """Handle options flow for AutoSnooze."""
 
-    def __init__(self, config_entry):
+    def __init__(self, config_entry: ConfigEntry) -> None:
         """Initialize options flow."""
         self._entry = config_entry
 
-    async def async_step_init(self, user_input: dict[str, Any] | None = None):
+    async def async_step_init(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
         """Handle the initial step of options flow."""
         errors: dict[str, str] = {}
 

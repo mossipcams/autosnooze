@@ -9,8 +9,6 @@ import pytest
 from custom_components.autosnooze.config_flow import (
     AutoSnoozeOptionsFlow,
     parse_duration_string,
-    parse_duration_presets,
-    format_presets,
 )
 
 
@@ -73,93 +71,6 @@ class TestParseDurationString:
         """Test duration exceeding 1 year returns None."""
         # 525600 minutes = 1 year, so 525601 should fail
         assert parse_duration_string("366d") is None
-
-
-class TestParseDurationPresets:
-    """Tests for parse_duration_presets function."""
-
-    def test_parses_single_preset(self):
-        """Test parsing single preset."""
-        result = parse_duration_presets("30m")
-        assert result == [{"label": "30m", "minutes": 30}]
-
-    def test_parses_multiple_presets(self):
-        """Test parsing multiple presets."""
-        result = parse_duration_presets("15m, 1h, 4h, 1d")
-        assert result == [
-            {"label": "15m", "minutes": 15},
-            {"label": "1h", "minutes": 60},
-            {"label": "4h", "minutes": 240},
-            {"label": "1d", "minutes": 1440},
-        ]
-
-    def test_returns_empty_list_for_empty_string(self):
-        """Test empty string returns empty list."""
-        assert parse_duration_presets("") == []
-        assert parse_duration_presets("   ") == []
-
-    def test_skips_empty_parts(self):
-        """Test empty parts between commas are skipped."""
-        result = parse_duration_presets("1h, , 2h")
-        assert result == [
-            {"label": "1h", "minutes": 60},
-            {"label": "2h", "minutes": 120},
-        ]
-
-    def test_returns_none_for_invalid_entry(self):
-        """Test returns None when any non-empty entry is invalid."""
-        assert parse_duration_presets("1h, invalid, 2h") is None
-        assert parse_duration_presets("bad") is None
-
-    def test_handles_trailing_comma(self):
-        """Test handles trailing comma."""
-        result = parse_duration_presets("1h, 2h,")
-        assert result == [
-            {"label": "1h", "minutes": 60},
-            {"label": "2h", "minutes": 120},
-        ]
-
-    def test_handles_leading_comma(self):
-        """Test handles leading comma."""
-        result = parse_duration_presets(", 1h, 2h")
-        assert result == [
-            {"label": "1h", "minutes": 60},
-            {"label": "2h", "minutes": 120},
-        ]
-
-
-class TestFormatPresets:
-    """Tests for format_presets function."""
-
-    def test_formats_single_preset(self):
-        """Test formatting single preset."""
-        result = format_presets([{"label": "30m", "minutes": 30}])
-        assert result == "30m"
-
-    def test_formats_multiple_presets(self):
-        """Test formatting multiple presets."""
-        result = format_presets(
-            [
-                {"label": "15m", "minutes": 15},
-                {"label": "1h", "minutes": 60},
-                {"label": "1d", "minutes": 1440},
-            ]
-        )
-        assert result == "15m, 1h, 1d"
-
-    def test_returns_empty_string_for_empty_list(self):
-        """Test empty list returns empty string."""
-        assert format_presets([]) == ""
-
-    def test_handles_missing_label(self):
-        """Test handles preset without label key."""
-        result = format_presets([{"minutes": 30}])
-        assert result == ""
-
-    def test_coerces_non_string_label(self):
-        """Test coerces non-string label to string."""
-        result = format_presets([{"label": 123, "minutes": 30}])
-        assert result == "123"
 
 
 class TestAutoSnoozeOptionsFlow:

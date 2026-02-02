@@ -175,3 +175,43 @@ cancel_scheduled:
         entity:
           domain: automation
           multiple: true
+
+adjust:
+  name: Adjust Snooze
+  description: Add or subtract time from an active snooze. Positive values extend the snooze, negative values shorten it.
+  fields:
+    entity_id:
+      name: Automation
+      description: Automation(s) to adjust.
+      required: true
+      selector:
+        entity:
+          domain: automation
+          multiple: true
+    days:
+      name: Days
+      description: Number of days to add (negative to subtract).
+      default: 0
+      selector:
+        number:
+          min: -365
+          max: 365
+          mode: box
+    hours:
+      name: Hours
+      description: Number of hours to add (negative to subtract).
+      default: 0
+      selector:
+        number:
+          min: -23
+          max: 23
+          mode: box
+    minutes:
+      name: Minutes
+      description: Number of minutes to add (negative to subtract).
+      default: 0
+      selector:
+        number:
+          min: -59
+          max: 59
+          mode: box

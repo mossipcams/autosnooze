@@ -34,7 +34,7 @@ test.describe('Countdown Timer', () => {
       (() => {
         ${findCardScript}
         const card = findAutosnoozeCard();
-        const countdown = card?.shadowRoot?.querySelector('.pause-group .countdown');
+        const countdown = deepQuery(card, '.pause-group .countdown');
         // Ensure countdown has actual time content (contains 'm' for minutes)
         return countdown && countdown.textContent?.trim().length > 0 && /\\d+m/.test(countdown.textContent);
       })()
@@ -100,7 +100,7 @@ test.describe('Countdown Timer', () => {
       (() => {
         ${findCardScript}
         const card = findAutosnoozeCard();
-        return card?.shadowRoot?.querySelectorAll('.pause-group').length ?? 0;
+        return deepQueryAll(card, '.pause-group').length ?? 0;
       })()
       `
     );
@@ -140,7 +140,7 @@ test.describe('Countdown Timer', () => {
         (() => {
           ${findCardScript}
           const card = findAutosnoozeCard();
-          return card?.shadowRoot?.querySelectorAll('.pause-group').length ?? 0;
+          return deepQueryAll(card, '.pause-group').length ?? 0;
         })()
         `
       );
@@ -165,7 +165,7 @@ test.describe('Countdown Timer', () => {
       (() => {
         ${findCardScript}
         const card = findAutosnoozeCard();
-        const countdown = card?.shadowRoot?.querySelector('.pause-group .countdown');
+        const countdown = deepQuery(card, '.pause-group .countdown');
         return countdown && countdown.textContent?.trim().length > 0;
       })()
       `,
@@ -196,7 +196,7 @@ test.describe('Countdown Timer', () => {
       (() => {
         ${findCardScript}
         const card = findAutosnoozeCard();
-        const countdown = card?.shadowRoot?.querySelector('.pause-group .countdown');
+        const countdown = deepQuery(card, '.pause-group .countdown');
         return countdown && countdown.textContent?.trim().length > 0;
       })()
       `,
@@ -227,7 +227,7 @@ test.describe('Countdown Timer', () => {
       (() => {
         ${findCardScript}
         const card = findAutosnoozeCard();
-        const header = card?.shadowRoot?.querySelector('.pause-group-header');
+        const header = deepQuery(card, '.pause-group-header');
         return header && header.textContent?.trim().length > 0;
       })()
       `,
@@ -242,7 +242,7 @@ test.describe('Countdown Timer', () => {
         (() => {
           ${findCardScript}
           const card = findAutosnoozeCard();
-          const header = card?.shadowRoot?.querySelector('.pause-group-header');
+          const header = deepQuery(card, '.pause-group-header');
           return header?.textContent ?? '';
         })()
         `

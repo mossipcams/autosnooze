@@ -3,9 +3,9 @@
  */
 
 import type { HomeAssistant, PausedAutomationAttribute, ScheduledSnoozeAttribute } from '../types/hass.js';
-import type { PausedAutomation, ScheduledSnooze, PauseGroup } from '../types/automation.js';
+import type { PauseGroup } from '../types/automation.js';
 
-const SENSOR_ENTITY_ID = 'sensor.autosnooze_snoozed_automations';
+export const SENSOR_ENTITY_ID = 'sensor.autosnooze_snoozed_automations';
 
 /**
  * Get paused automations from the sensor entity.
@@ -57,46 +57,3 @@ export function getPausedGroupedByResumeTime(hass: HomeAssistant): PauseGroup[] 
   );
 }
 
-/**
- * Convert raw paused data to typed PausedAutomation array.
- */
-export function getPausedList(hass: HomeAssistant): PausedAutomation[] {
-  const paused = getPaused(hass);
-  return Object.entries(paused).map(([id, data]) => ({
-    entity_id: id,
-    friendly_name: data.friendly_name,
-    resume_at: data.resume_at,
-    paused_at: data.paused_at,
-    days: data.days,
-    hours: data.hours,
-    minutes: data.minutes,
-    disable_at: data.disable_at,
-  }));
-}
-
-/**
- * Convert raw scheduled data to typed ScheduledSnooze array.
- */
-export function getScheduledList(hass: HomeAssistant): ScheduledSnooze[] {
-  const scheduled = getScheduled(hass);
-  return Object.entries(scheduled).map(([id, data]) => ({
-    entity_id: id,
-    friendly_name: data.friendly_name,
-    disable_at: data.disable_at,
-    resume_at: data.resume_at,
-  }));
-}
-
-/**
- * Get the count of currently paused automations.
- */
-export function getPausedCount(hass: HomeAssistant): number {
-  return Object.keys(getPaused(hass)).length;
-}
-
-/**
- * Get the count of scheduled snoozes.
- */
-export function getScheduledCount(hass: HomeAssistant): number {
-  return Object.keys(getScheduled(hass)).length;
-}

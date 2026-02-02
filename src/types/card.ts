@@ -2,22 +2,9 @@
  * Lovelace card type definitions for AutoSnooze.
  */
 
-import type { HomeAssistant } from './hass.js';
-
 export interface AutoSnoozeCardConfig {
   type: string;
   title?: string;
-}
-
-export interface LovelaceCard extends HTMLElement {
-  hass?: HomeAssistant;
-  setConfig(config: AutoSnoozeCardConfig): void;
-  getCardSize(): number;
-}
-
-export interface LovelaceCardEditor extends HTMLElement {
-  hass?: HomeAssistant;
-  setConfig(config: AutoSnoozeCardConfig): void;
 }
 
 export interface CustomCardEntry {
@@ -25,12 +12,6 @@ export interface CustomCardEntry {
   name: string;
   description: string;
   preview: boolean;
-}
-
-export interface ConfigChangedEvent extends CustomEvent {
-  detail: {
-    config: AutoSnoozeCardConfig;
-  };
 }
 
 declare global {

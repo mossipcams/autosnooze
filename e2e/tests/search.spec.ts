@@ -17,7 +17,7 @@ test.describe('Search Filtering', () => {
       (() => {
         ${findCardScript}
         const card = findAutosnoozeCard();
-        const items = card?.shadowRoot?.querySelectorAll('.list-item');
+        const items = deepQueryAll(card, '.list-item');
         for (const item of items || []) {
           if (!item.textContent?.toLowerCase().includes('motion')) {
             return false;
@@ -42,7 +42,7 @@ test.describe('Search Filtering', () => {
       (() => {
         ${findCardScript}
         const card = findAutosnoozeCard();
-        const items = card?.shadowRoot?.querySelectorAll('.list-item');
+        const items = deepQueryAll(card, '.list-item');
         for (const item of items || []) {
           if (item.textContent?.toLowerCase().includes('living')) {
             return true;
@@ -64,7 +64,7 @@ test.describe('Search Filtering', () => {
       (() => {
         ${findCardScript}
         const card = findAutosnoozeCard();
-        return card?.shadowRoot?.querySelector('.list-empty') !== null;
+        return deepQuery(card, '.list-empty') !== null;
       })()
       `
     );
@@ -119,7 +119,7 @@ test.describe('Search Filtering', () => {
       (() => {
         ${findCardScript}
         const card = findAutosnoozeCard();
-        const items = card?.shadowRoot?.querySelectorAll('.list-item');
+        const items = deepQueryAll(card, '.list-item');
         for (const item of items || []) {
           if (!item.textContent?.toLowerCase().includes('bed')) {
             return false;

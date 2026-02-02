@@ -15,8 +15,8 @@ test.describe('Schedule Mode Snooze', () => {
       (() => {
         ${findCardScript}
         const card = findAutosnoozeCard();
-        const disableDate = card?.shadowRoot?.querySelector('select[aria-label="Snooze date"]');
-        const resumeDate = card?.shadowRoot?.querySelector('select[aria-label="Resume date"]');
+        const disableDate = deepQuery(card, 'select[aria-labelledby="snooze-at-label"]');
+        const resumeDate = deepQuery(card, 'select[aria-labelledby="resume-at-label"]');
         return disableDate !== null && resumeDate !== null;
       })()
       `
@@ -53,7 +53,7 @@ test.describe('Schedule Mode Snooze', () => {
       (() => {
         ${findCardScript}
         const card = findAutosnoozeCard();
-        return card?.shadowRoot?.querySelector('.duration-pills') !== null;
+        return deepQuery(card, '.duration-pills') !== null;
       })()
       `
     );
@@ -85,9 +85,9 @@ test.describe('Schedule Mode Snooze', () => {
       (() => {
         ${findCardScript}
         const card = findAutosnoozeCard();
-        const scheduleInputs = card?.shadowRoot?.querySelector('.schedule-inputs');
-        const resumeDate = card?.shadowRoot?.querySelector('select[aria-label="Resume date"]');
-        const resumeTime = card?.shadowRoot?.querySelector('input[aria-label="Resume time"]');
+        const scheduleInputs = deepQuery(card, '.schedule-inputs');
+        const resumeDate = deepQuery(card, 'select[aria-labelledby="resume-at-label"]');
+        const resumeTime = deepQuery(card, 'input[type="time"][aria-labelledby="resume-at-label"]');
         return {
           hasScheduleInputs: scheduleInputs !== null,
           hasResumeDate: resumeDate !== null,
@@ -132,7 +132,7 @@ test.describe('Schedule Mode Snooze', () => {
       (() => {
         ${findCardScript}
         const card = findAutosnoozeCard();
-        const link = card?.shadowRoot?.querySelector('.schedule-link');
+        const link = deepQuery(card, '.schedule-link');
         return link?.textContent?.trim() ?? '';
       })()
       `
@@ -148,7 +148,7 @@ test.describe('Schedule Mode Snooze', () => {
       (() => {
         ${findCardScript}
         const card = findAutosnoozeCard();
-        const link = card?.shadowRoot?.querySelector('.schedule-link');
+        const link = deepQuery(card, '.schedule-link');
         return link?.textContent?.trim() ?? '';
       })()
       `

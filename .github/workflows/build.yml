@@ -128,6 +128,9 @@ jobs:
       - name: Run TypeScript type checking
         run: npm run typecheck
 
+      - name: Run TypeScript type checking (tests)
+        run: npm run typecheck:test
+
       # === Validation ===
       - name: Validate version consistency
         run: |

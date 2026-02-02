@@ -1,7 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "description": "Captured backend responses for frontend testing - mirrors actual Home Assistant error structures. NOTE: Dates in this file are examples only. Tests should generate dynamic dates using getFutureISODateTime() helpers.",
-
   "success_responses": {
     "pause": {
       "description": "Successful pause service call returns undefined/null"
@@ -14,23 +13,36 @@
     },
     "cancel_scheduled": {
       "description": "Successful cancel_scheduled service call returns undefined/null"
+    },
+    "adjust": {
+      "description": "Successful adjust service call returns undefined/null"
     }
   },
-
   "error_responses": {
     "not_automation": {
       "description": "Error when entity_id is not an automation entity",
       "example_triggers": [
-        { "entity_id": "light.living_room" },
-        { "entity_id": "sensor.temperature" },
-        { "entity_id": ["automation.valid", "light.invalid"] }
+        {
+          "entity_id": "light.living_room"
+        },
+        {
+          "entity_id": "sensor.temperature"
+        },
+        {
+          "entity_id": [
+            "automation.valid",
+            "light.invalid"
+          ]
+        }
       ],
       "response": {
         "code": "service_validation_error",
         "message": "light.living_room is not an automation",
         "translation_domain": "autosnooze",
         "translation_key": "not_automation",
-        "translation_placeholders": { "entity_id": "light.living_room" }
+        "translation_placeholders": {
+          "entity_id": "light.living_room"
+        }
       },
       "response_variants": [
         {
@@ -47,12 +59,14 @@
         }
       ]
     },
-
     "resume_time_past": {
       "description": "Error when resume_at datetime is in the past",
       "example_triggers_note": "Use getPastDate() helper in tests instead of hardcoded dates",
       "example_triggers": [
-        { "entity_id": "automation.test", "resume_at": "<past_datetime>" }
+        {
+          "entity_id": "automation.test",
+          "resume_at": "<past_datetime>"
+        }
       ],
       "response": {
         "code": "service_validation_error",
@@ -74,7 +88,6 @@
         }
       ]
     },
-
     "disable_after_resume": {
       "description": "Error when disable_at is >= resume_at",
       "example_triggers_note": "Use getFutureDate() helpers in tests to generate valid test cases",
@@ -98,12 +111,18 @@
         }
       ]
     },
-
     "invalid_duration": {
       "description": "Error when duration (days/hours/minutes) are all zero",
       "example_triggers": [
-        { "entity_id": "automation.test", "days": 0, "hours": 0, "minutes": 0 },
-        { "entity_id": "automation.test" }
+        {
+          "entity_id": "automation.test",
+          "days": 0,
+          "hours": 0,
+          "minutes": 0
+        },
+        {
+          "entity_id": "automation.test"
+        }
       ],
       "response": {
         "code": "service_validation_error",
@@ -121,9 +140,52 @@
           "message": "invalid duration: must specify at least one time value"
         }
       ]
+    },
+    "invalid_adjustment": {
+      "description": "Error when adjustment days/hours/minutes are all zero",
+      "example_triggers": [
+        {
+          "entity_id": "automation.test",
+          "days": 0,
+          "hours": 0,
+          "minutes": 0
+        }
+      ],
+      "response": {
+        "code": "service_validation_error",
+        "message": "Adjustment must be non-zero",
+        "translation_domain": "autosnooze",
+        "translation_key": "invalid_adjustment"
+      },
+      "response_variants": [
+        {
+          "note": "Response with translation key in error object",
+          "translation_key": "invalid_adjustment"
+        }
+      ]
+    },
+    "adjust_time_too_short": {
+      "description": "Error when adjusted resume time would be less than 1 minute in the future",
+      "example_triggers": [
+        {
+          "entity_id": "automation.test",
+          "minutes": -30
+        }
+      ],
+      "response": {
+        "code": "service_validation_error",
+        "message": "Adjusted resume time must be at least 1 minute in the future",
+        "translation_domain": "autosnooze",
+        "translation_key": "adjust_time_too_short"
+      },
+      "response_variants": [
+        {
+          "note": "Response with translation key in error object",
+          "translation_key": "adjust_time_too_short"
+        }
+      ]
     }
   },
-
   "sensor_state_schema": {
     "description": "Schema for autosnooze sensor state - tests should generate dynamic data",
     "entity_id": "sensor.autosnooze_snoozed_automations",
@@ -151,7 +213,6 @@
       }
     }
   },
-
   "paused_automation_required_fields": [
     "entity_id",
     "friendly_name",
@@ -161,7 +222,6 @@
     "hours",
     "minutes"
   ],
-
   "scheduled_snooze_required_fields": [
     "entity_id",
     "friendly_name",

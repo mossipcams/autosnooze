@@ -1,7 +1,8 @@
 import { Page, Locator, expect } from '@playwright/test';
 import { BasePage } from './BasePage';
 
-// Helper function to find autosnooze-card through nested shadow DOMs
+// Helper functions to find autosnooze-card through nested shadow DOMs
+// and query elements across child component shadow roots
 const findAutosnoozeCard = `
   function findAutosnoozeCard() {
     const findCard = (root) => {
@@ -17,6 +18,33 @@ const findAutosnoozeCard = `
       return null;
     };
     return findCard(document);
+  }
+
+  function deepQuery(card, selector) {
+    if (!card?.shadowRoot) return null;
+    let result = card.shadowRoot.querySelector(selector);
+    if (result) return result;
+    const children = card.shadowRoot.querySelectorAll('*');
+    for (const child of children) {
+      if (child.shadowRoot) {
+        result = child.shadowRoot.querySelector(selector);
+        if (result) return result;
+      }
+    }
+    return null;
+  }
+
+  function deepQueryAll(card, selector) {
+    const results = [];
+    if (!card?.shadowRoot) return results;
+    results.push(...card.shadowRoot.querySelectorAll(selector));
+    const children = card.shadowRoot.querySelectorAll('*');
+    for (const child of children) {
+      if (child.shadowRoot) {
+        results.push(...child.shadowRoot.querySelectorAll(selector));
+      }
+    }
+    return results;
   }
 `;
 
@@ -115,16 +143,19 @@ export class AutoSnoozeCard extends BasePage {
 
   async waitForCardReady(): Promise<void> {
     // Wait for the autosnooze-card element to appear (may be nested in sections)
+    // After refactoring, .list-item and .list-empty live inside the
+    // autosnooze-automation-list child component's shadow root
     await this.page.waitForFunction(
       `
       (() => {
         ${findAutosnoozeCard}
         const card = findAutosnoozeCard();
         if (!card?.shadowRoot) return false;
-        const listItems = card.shadowRoot.querySelectorAll('.list-item');
-        const emptyMessage = card.shadowRoot.querySelector('.list-empty');
-        const header = card.shadowRoot.querySelector('.header');
-        return header !== null && (listItems.length > 0 || emptyMessage !== null);
+        const header = deepQuery(card, '.header');
+        if (!header) return false;
+        const listItems = deepQueryAll(card, '.list-item');
+        const emptyMessage = deepQuery(card, '.list-empty');
+        return listItems.length > 0 || emptyMessage !== null;
       })()
       `,
       { timeout: 30000 }
@@ -138,7 +169,7 @@ export class AutoSnoozeCard extends BasePage {
       (() => {
         ${findAutosnoozeCard}
         const card = findAutosnoozeCard();
-        const items = card?.shadowRoot?.querySelectorAll('.paused-item');
+        const items = deepQueryAll(card, '.paused-item');
         return (items?.length ?? 0) === ${count};
       })()
       `,
@@ -153,7 +184,7 @@ export class AutoSnoozeCard extends BasePage {
       (() => {
         ${findAutosnoozeCard}
         const card = findAutosnoozeCard();
-        const items = card?.shadowRoot?.querySelectorAll('.scheduled-item');
+        const items = deepQueryAll(card, '.scheduled-item');
         return (items?.length ?? 0) === ${count};
       })()
       `,
@@ -168,7 +199,7 @@ export class AutoSnoozeCard extends BasePage {
       (() => {
         ${findAutosnoozeCard}
         const card = findAutosnoozeCard();
-        return card?.shadowRoot?.querySelector('.toast') !== null;
+        return deepQuery(card, '.toast') !== null;
       })()
       `,
       { timeout }
@@ -182,7 +213,7 @@ export class AutoSnoozeCard extends BasePage {
       (() => {
         ${findAutosnoozeCard}
         const card = findAutosnoozeCard();
-        return card?.shadowRoot?.querySelector('.toast') === null;
+        return deepQuery(card, '.toast') === null;
       })()
       `,
       { timeout }
@@ -197,7 +228,7 @@ export class AutoSnoozeCard extends BasePage {
       (() => {
         ${findAutosnoozeCard}
         const card = findAutosnoozeCard();
-        const items = card?.shadowRoot?.querySelectorAll('.paused-item');
+        const items = deepQueryAll(card, '.paused-item');
         for (const item of items || []) {
           if (item.textContent?.includes('${escapedName}')) {
             return true;
@@ -218,7 +249,7 @@ export class AutoSnoozeCard extends BasePage {
       (() => {
         ${findAutosnoozeCard}
         const card = findAutosnoozeCard();
-        const items = card?.shadowRoot?.querySelectorAll('.paused-item');
+        const items = deepQueryAll(card, '.paused-item');
         for (const item of items || []) {
           if (item.textContent?.includes('${escapedName}')) {
             return false;
@@ -238,7 +269,7 @@ export class AutoSnoozeCard extends BasePage {
       (() => {
         ${findAutosnoozeCard}
         const card = findAutosnoozeCard();
-        const items = card?.shadowRoot?.querySelectorAll('.list-item');
+        const items = deepQueryAll(card, '.list-item');
         items?.forEach((item) => {
           if (item.textContent?.includes('${name.replace(/'/g, "\\'")}')) {
             item.click();
@@ -256,7 +287,7 @@ export class AutoSnoozeCard extends BasePage {
       (() => {
         ${findAutosnoozeCard}
         const card = findAutosnoozeCard();
-        const items = card?.shadowRoot?.querySelectorAll('.list-item');
+        const items = deepQueryAll(card, '.list-item');
         if (items?.[${index}]) {
           items[${index}].click();
         }
@@ -272,7 +303,7 @@ export class AutoSnoozeCard extends BasePage {
       (() => {
         ${findAutosnoozeCard}
         const card = findAutosnoozeCard();
-        const items = card?.shadowRoot?.querySelectorAll('.list-item');
+        const items = deepQueryAll(card, '.list-item');
         for (const item of items || []) {
           if (item.textContent?.includes('${name.replace(/'/g, "\\'")}')) {
             return item.classList.contains('selected');
@@ -290,7 +321,7 @@ export class AutoSnoozeCard extends BasePage {
       (() => {
         ${findAutosnoozeCard}
         const card = findAutosnoozeCard();
-        const btn = card?.shadowRoot?.querySelector('.select-all');
+        const btn = deepQuery(card, '.select-all');
         btn?.click();
       })()
       `
@@ -304,7 +335,7 @@ export class AutoSnoozeCard extends BasePage {
       (() => {
         ${findAutosnoozeCard}
         const card = findAutosnoozeCard();
-        const btn = card?.shadowRoot?.querySelector('.clear-selection');
+        const btn = deepQuery(card, '.clear-selection');
         btn?.click();
       })()
       `
@@ -319,7 +350,7 @@ export class AutoSnoozeCard extends BasePage {
         ${findAutosnoozeCard}
         const card = findAutosnoozeCard();
         // The status span is inside .selection-actions div
-        const status = card?.shadowRoot?.querySelector('.selection-actions [role="status"]');
+        const status = deepQuery(card, '.selection-actions [role="status"]');
         return status?.textContent ?? '';
       })()
       `
@@ -335,7 +366,7 @@ export class AutoSnoozeCard extends BasePage {
       (() => {
         ${findAutosnoozeCard}
         const card = findAutosnoozeCard();
-        const tabs = card?.shadowRoot?.querySelectorAll('.tab');
+        const tabs = deepQueryAll(card, '.tab');
         tabs?.forEach((t) => {
           if (t.textContent?.toLowerCase().includes('${tab}')) {
             t.click();
@@ -354,7 +385,7 @@ export class AutoSnoozeCard extends BasePage {
       (() => {
         ${findAutosnoozeCard}
         const card = findAutosnoozeCard();
-        const input = card?.shadowRoot?.querySelector('.search-box input');
+        const input = deepQuery(card, '.search-box input');
         if (input) {
           input.value = '${query.replace(/'/g, "\\'")}';
           input.dispatchEvent(new Event('input', { bubbles: true }));
@@ -377,7 +408,7 @@ export class AutoSnoozeCard extends BasePage {
       (() => {
         ${findAutosnoozeCard}
         const card = findAutosnoozeCard();
-        const pills = card?.shadowRoot?.querySelectorAll('.pill');
+        const pills = deepQueryAll(card, '.pill');
         pills?.forEach((pill) => {
           if (pill.textContent?.trim() === '${label}') {
             pill.click();
@@ -392,18 +423,17 @@ export class AutoSnoozeCard extends BasePage {
   async setCustomDuration(duration: string): Promise<void> {
     await this.selectDuration('Custom');
     await this.page.evaluate(
-      ({ duration, findCardScript }) => {
-        const findAutosnoozeCard = new Function(findCardScript + 'return findAutosnoozeCard();');
-        const card = findAutosnoozeCard() as Element | null;
-        const input = (card as Element & { shadowRoot?: ShadowRoot })?.shadowRoot?.querySelector(
-          '.duration-input'
-        ) as HTMLInputElement | null;
+      `
+      (() => {
+        ${findAutosnoozeCard}
+        const card = findAutosnoozeCard();
+        const input = deepQuery(card, '.duration-input');
         if (input) {
-          input.value = duration;
+          input.value = '${duration}';
           input.dispatchEvent(new Event('input', { bubbles: true }));
         }
-      },
-      { duration, findCardScript: findAutosnoozeCard }
+      })()
+      `
     );
     await this.page.waitForTimeout(100);
   }
@@ -414,7 +444,7 @@ export class AutoSnoozeCard extends BasePage {
       (() => {
         ${findAutosnoozeCard}
         const card = findAutosnoozeCard();
-        const input = card?.shadowRoot?.querySelector('.duration-input');
+        const input = deepQuery(card, '.duration-input');
         return !input?.classList.contains('invalid');
       })()
       `
@@ -428,7 +458,7 @@ export class AutoSnoozeCard extends BasePage {
       (() => {
         ${findAutosnoozeCard}
         const card = findAutosnoozeCard();
-        const link = card?.shadowRoot?.querySelector('.schedule-link');
+        const link = deepQuery(card, '.schedule-link');
         if (link?.textContent?.includes('Pick specific')) {
           link.click();
         }
@@ -444,7 +474,7 @@ export class AutoSnoozeCard extends BasePage {
       (() => {
         ${findAutosnoozeCard}
         const card = findAutosnoozeCard();
-        const link = card?.shadowRoot?.querySelector('.schedule-link');
+        const link = deepQuery(card, '.schedule-link');
         if (link?.textContent?.includes('Back to duration')) {
           link.click();
         }
@@ -467,8 +497,8 @@ export class AutoSnoozeCard extends BasePage {
         const opts = ${opts};
 
         if (opts.disableAt) {
-          const disableDate = card?.shadowRoot?.querySelector('select[aria-label="Snooze date"]');
-          const disableTime = card?.shadowRoot?.querySelector('input[aria-label="Snooze time"]');
+          const disableDate = deepQuery(card, 'select[aria-labelledby="snooze-at-label"]');
+          const disableTime = deepQuery(card, 'input[type="time"][aria-labelledby="snooze-at-label"]');
           if (disableDate) {
             disableDate.value = opts.disableAt.date;
             disableDate.dispatchEvent(new Event('change', { bubbles: true }));
@@ -479,8 +509,8 @@ export class AutoSnoozeCard extends BasePage {
           }
         }
 
-        const resumeDate = card?.shadowRoot?.querySelector('select[aria-label="Resume date"]');
-        const resumeTime = card?.shadowRoot?.querySelector('input[aria-label="Resume time"]');
+        const resumeDate = deepQuery(card, 'select[aria-labelledby="resume-at-label"]');
+        const resumeTime = deepQuery(card, 'input[type="time"][aria-labelledby="resume-at-label"]');
         if (resumeDate) {
           resumeDate.value = opts.resumeAt.date;
           resumeDate.dispatchEvent(new Event('change', { bubbles: true }));
@@ -506,7 +536,7 @@ export class AutoSnoozeCard extends BasePage {
       (() => {
         ${findAutosnoozeCard}
         const card = findAutosnoozeCard();
-        const btn = card?.shadowRoot?.querySelector('.snooze-btn');
+        const btn = deepQuery(card, '.snooze-btn');
         btn?.click();
       })()
       `
@@ -520,8 +550,8 @@ export class AutoSnoozeCard extends BasePage {
         (() => {
           ${findAutosnoozeCard}
           const card = findAutosnoozeCard();
-          const pausedItems = card?.shadowRoot?.querySelectorAll('.paused-item');
-          const scheduledItems = card?.shadowRoot?.querySelectorAll('.scheduled-item');
+          const pausedItems = deepQueryAll(card, '.paused-item');
+          const scheduledItems = deepQueryAll(card, '.scheduled-item');
           const currentPaused = pausedItems?.length ?? 0;
           const currentScheduled = scheduledItems?.length ?? 0;
           return currentPaused > ${beforePaused} || currentScheduled > ${beforeScheduled};
@@ -543,7 +573,7 @@ export class AutoSnoozeCard extends BasePage {
       (() => {
         ${findAutosnoozeCard}
         const card = findAutosnoozeCard();
-        const btn = card?.shadowRoot?.querySelector('.wake-all');
+        const btn = deepQuery(card, '.wake-all');
         btn?.click();
       })()
       `
@@ -555,7 +585,7 @@ export class AutoSnoozeCard extends BasePage {
       (() => {
         ${findAutosnoozeCard}
         const card = findAutosnoozeCard();
-        const btn = card?.shadowRoot?.querySelector('.wake-all');
+        const btn = deepQuery(card, '.wake-all');
         btn?.click();
       })()
       `
@@ -572,7 +602,7 @@ export class AutoSnoozeCard extends BasePage {
       (() => {
         ${findAutosnoozeCard}
         const card = findAutosnoozeCard();
-        const items = card?.shadowRoot?.querySelectorAll('.paused-item');
+        const items = deepQueryAll(card, '.paused-item');
         items?.forEach((item) => {
           if (item.textContent?.includes('${escapedName}')) {
             const btn = item.querySelector('.wake-btn');
@@ -595,7 +625,7 @@ export class AutoSnoozeCard extends BasePage {
       (() => {
         ${findAutosnoozeCard}
         const card = findAutosnoozeCard();
-        const items = card?.shadowRoot?.querySelectorAll('.scheduled-item');
+        const items = deepQueryAll(card, '.scheduled-item');
         items?.forEach((item) => {
           if (item.textContent?.includes('${escapedName}')) {
             const btn = item.querySelector('.cancel-scheduled-btn');
@@ -618,7 +648,7 @@ export class AutoSnoozeCard extends BasePage {
       (() => {
         ${findAutosnoozeCard}
         const card = findAutosnoozeCard();
-        const btn = card?.shadowRoot?.querySelector('.toast-undo-btn');
+        const btn = deepQuery(card, '.toast-undo-btn');
         btn?.click();
       })()
       `
@@ -634,7 +664,7 @@ export class AutoSnoozeCard extends BasePage {
       (() => {
         ${findAutosnoozeCard}
         const card = findAutosnoozeCard();
-        return card?.shadowRoot?.querySelectorAll('.list-item').length ?? 0;
+        return deepQueryAll(card, '.list-item').length ?? 0;
       })()
       `
     );
@@ -646,7 +676,7 @@ export class AutoSnoozeCard extends BasePage {
       (() => {
         ${findAutosnoozeCard}
         const card = findAutosnoozeCard();
-        return card?.shadowRoot?.querySelectorAll('.paused-item').length ?? 0;
+        return deepQueryAll(card, '.paused-item').length ?? 0;
       })()
       `
     );
@@ -658,7 +688,7 @@ export class AutoSnoozeCard extends BasePage {
       (() => {
         ${findAutosnoozeCard}
         const card = findAutosnoozeCard();
-        return card?.shadowRoot?.querySelectorAll('.scheduled-item').length ?? 0;
+        return deepQueryAll(card, '.scheduled-item').length ?? 0;
       })()
       `
     );
@@ -670,7 +700,7 @@ export class AutoSnoozeCard extends BasePage {
       (() => {
         ${findAutosnoozeCard}
         const card = findAutosnoozeCard();
-        const toast = card?.shadowRoot?.querySelector('.toast');
+        const toast = deepQuery(card, '.toast');
         return toast?.textContent?.trim() ?? '';
       })()
       `
@@ -683,7 +713,7 @@ export class AutoSnoozeCard extends BasePage {
       (() => {
         ${findAutosnoozeCard}
         const card = findAutosnoozeCard();
-        return card?.shadowRoot?.querySelector('.toast') !== null;
+        return deepQuery(card, '.toast') !== null;
       })()
       `
     );
@@ -695,7 +725,7 @@ export class AutoSnoozeCard extends BasePage {
       (() => {
         ${findAutosnoozeCard}
         const card = findAutosnoozeCard();
-        const items = card?.shadowRoot?.querySelectorAll('.paused-item');
+        const items = deepQueryAll(card, '.paused-item');
         for (const item of items || []) {
           if (item.textContent?.includes('${name.replace(/'/g, "\\'")}')) {
             const group = item.closest('.pause-group');
@@ -715,7 +745,7 @@ export class AutoSnoozeCard extends BasePage {
       (() => {
         ${findAutosnoozeCard}
         const card = findAutosnoozeCard();
-        const btn = card?.shadowRoot?.querySelector('.snooze-btn');
+        const btn = deepQuery(card, '.snooze-btn');
         return btn && !btn.disabled;
       })()
       `
@@ -728,7 +758,7 @@ export class AutoSnoozeCard extends BasePage {
       (() => {
         ${findAutosnoozeCard}
         const card = findAutosnoozeCard();
-        return card?.shadowRoot?.querySelectorAll('.group-header').length ?? 0;
+        return deepQueryAll(card, '.group-header').length ?? 0;
       })()
       `
     );
@@ -740,7 +770,7 @@ export class AutoSnoozeCard extends BasePage {
       (() => {
         ${findAutosnoozeCard}
         const card = findAutosnoozeCard();
-        const headers = card?.shadowRoot?.querySelectorAll('.group-header');
+        const headers = deepQueryAll(card, '.group-header');
         headers?.forEach((header) => {
           if (header.textContent?.includes('${groupName.replace(/'/g, "\\'")}') && !header.classList.contains('expanded')) {
             header.click();
@@ -758,7 +788,7 @@ export class AutoSnoozeCard extends BasePage {
       (() => {
         ${findAutosnoozeCard}
         const card = findAutosnoozeCard();
-        const headers = card?.shadowRoot?.querySelectorAll('.group-header');
+        const headers = deepQueryAll(card, '.group-header');
         headers?.forEach((header) => {
           if (header.textContent?.includes('${groupName.replace(/'/g, "\\'")}') && header.classList.contains('expanded')) {
             header.click();
@@ -776,7 +806,7 @@ export class AutoSnoozeCard extends BasePage {
       (() => {
         ${findAutosnoozeCard}
         const card = findAutosnoozeCard();
-        const headers = card?.shadowRoot?.querySelectorAll('.group-header');
+        const headers = deepQueryAll(card, '.group-header');
         headers?.forEach((header) => {
           if (header.textContent?.includes('${groupName.replace(/'/g, "\\'")}')) {
             const checkbox = header.querySelector('input[type="checkbox"]');
@@ -795,7 +825,7 @@ export class AutoSnoozeCard extends BasePage {
       (() => {
         ${findAutosnoozeCard}
         const card = findAutosnoozeCard();
-        const activeTab = card?.shadowRoot?.querySelector('.tab.active');
+        const activeTab = deepQuery(card, '.tab.active');
         return activeTab?.textContent?.trim().split(/\\s+/)[0].toLowerCase() ?? '';
       })()
       `
@@ -808,7 +838,7 @@ export class AutoSnoozeCard extends BasePage {
       (() => {
         ${findAutosnoozeCard}
         const card = findAutosnoozeCard();
-        const activePill = card?.shadowRoot?.querySelector('.pill.active');
+        const activePill = deepQuery(card, '.pill.active');
         return activePill?.textContent?.trim() ?? '';
       })()
       `
@@ -821,7 +851,7 @@ export class AutoSnoozeCard extends BasePage {
       (() => {
         ${findAutosnoozeCard}
         const card = findAutosnoozeCard();
-        return card?.shadowRoot?.querySelector('.header')?.textContent ?? '';
+        return deepQuery(card, '.header')?.textContent ?? '';
       })()
       `
     );
@@ -884,7 +914,7 @@ export class AutoSnoozeCard extends BasePage {
       (() => {
         ${findAutosnoozeCard}
         const card = findAutosnoozeCard();
-        const badge = card?.shadowRoot?.querySelector('.last-duration-badge');
+        const badge = deepQuery(card, '.last-duration-badge');
         return badge !== null && getComputedStyle(badge).display !== 'none';
       })()
       `
@@ -900,7 +930,7 @@ export class AutoSnoozeCard extends BasePage {
       (() => {
         ${findAutosnoozeCard}
         const card = findAutosnoozeCard();
-        const badge = card?.shadowRoot?.querySelector('.last-duration-badge');
+        const badge = deepQuery(card, '.last-duration-badge');
         return badge?.textContent?.trim() ?? '';
       })()
       `
@@ -916,7 +946,7 @@ export class AutoSnoozeCard extends BasePage {
       (() => {
         ${findAutosnoozeCard}
         const card = findAutosnoozeCard();
-        const badge = card?.shadowRoot?.querySelector('.last-duration-badge');
+        const badge = deepQuery(card, '.last-duration-badge');
         badge?.click();
       })()
       `
@@ -933,7 +963,7 @@ export class AutoSnoozeCard extends BasePage {
       (() => {
         ${findAutosnoozeCard}
         const card = findAutosnoozeCard();
-        const badge = card?.shadowRoot?.querySelector('.last-duration-badge');
+        const badge = deepQuery(card, '.last-duration-badge');
         return badge !== null && getComputedStyle(badge).display !== 'none';
       })()
       `,
@@ -950,7 +980,7 @@ export class AutoSnoozeCard extends BasePage {
       (() => {
         ${findAutosnoozeCard}
         const card = findAutosnoozeCard();
-        const badge = card?.shadowRoot?.querySelector('.last-duration-badge');
+        const badge = deepQuery(card, '.last-duration-badge');
         return badge === null || getComputedStyle(badge).display === 'none';
       })()
       `,
@@ -967,7 +997,7 @@ export class AutoSnoozeCard extends BasePage {
       (() => {
         ${findAutosnoozeCard}
         const card = findAutosnoozeCard();
-        const pills = card?.shadowRoot?.querySelectorAll('.pill');
+        const pills = deepQueryAll(card, '.pill');
         return Array.from(pills || []).map(pill => ({
           textContent: pill.textContent?.trim() ?? '',
           active: pill.classList.contains('active')

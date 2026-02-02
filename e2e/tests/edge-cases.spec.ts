@@ -23,7 +23,7 @@ test.describe('Edge Cases', () => {
       (() => {
         ${findCardScript}
         const card = findAutosnoozeCard();
-        const input = card?.shadowRoot?.querySelector('.duration-input');
+        const input = deepQuery(card, '.duration-input');
         if (input) {
           input.value = '';
           input.dispatchEvent(new Event('input', { bubbles: true }));
@@ -158,7 +158,7 @@ test.describe('Edge Cases', () => {
       (() => {
         ${findCardScript}
         const card = findAutosnoozeCard();
-        return card?.shadowRoot?.querySelector('.snooze-btn')?.textContent?.trim() ?? '';
+        return deepQuery(card, '.snooze-btn')?.textContent?.trim() ?? '';
       })()
       `
     );
@@ -171,7 +171,7 @@ test.describe('Edge Cases', () => {
       (() => {
         ${findCardScript}
         const card = findAutosnoozeCard();
-        return card?.shadowRoot?.querySelector('.snooze-btn')?.textContent?.trim() ?? '';
+        return deepQuery(card, '.snooze-btn')?.textContent?.trim() ?? '';
       })()
       `
     );
@@ -184,7 +184,7 @@ test.describe('Edge Cases', () => {
       (() => {
         ${findCardScript}
         const card = findAutosnoozeCard();
-        return card?.shadowRoot?.querySelector('.snooze-btn')?.textContent?.trim() ?? '';
+        return deepQuery(card, '.snooze-btn')?.textContent?.trim() ?? '';
       })()
       `
     );
@@ -208,7 +208,7 @@ test.describe('Edge Cases', () => {
       (() => {
         ${findCardScript}
         const card = findAutosnoozeCard();
-        const countdown = card?.shadowRoot?.querySelector('.pause-group .countdown');
+        const countdown = deepQuery(card, '.pause-group .countdown');
         return countdown && /\\d+m/.test(countdown.textContent || '');
       })()
       `,
@@ -234,7 +234,7 @@ test.describe('Edge Cases', () => {
       (() => {
         ${findCardScript}
         const card = findAutosnoozeCard();
-        const countdown = card?.shadowRoot?.querySelector('.pause-group .countdown');
+        const countdown = deepQuery(card, '.pause-group .countdown');
         return countdown && /\\d+h/.test(countdown.textContent || '');
       })()
       `,

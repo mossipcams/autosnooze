@@ -151,6 +151,28 @@
           "description": "Automation(s) with scheduled snoozes to cancel."
         }
       }
+    },
+    "adjust": {
+      "name": "Adjust Snooze",
+      "description": "Add or subtract time from an active snooze.",
+      "fields": {
+        "entity_id": {
+          "name": "Automation",
+          "description": "Automation(s) to adjust."
+        },
+        "days": {
+          "name": "Days",
+          "description": "Number of days to add (negative to subtract)."
+        },
+        "hours": {
+          "name": "Hours",
+          "description": "Number of hours to add (negative to subtract)."
+        },
+        "minutes": {
+          "name": "Minutes",
+          "description": "Number of minutes to add (negative to subtract)."
+        }
+      }
     }
   },
   "exceptions": {
@@ -165,6 +187,12 @@
     },
     "disable_after_resume": {
       "message": "Pause time must be before resume time. The automation needs to be paused before it can resume."
+    },
+    "invalid_adjustment": {
+      "message": "Adjustment must be non-zero. Please specify at least one non-zero value for days, hours, or minutes."
+    },
+    "adjust_time_too_short": {
+      "message": "Adjusted resume time must be at least 1 minute in the future. The snooze cannot be shortened that much."
     }
   }
 }

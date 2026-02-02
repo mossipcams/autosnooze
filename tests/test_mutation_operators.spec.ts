@@ -1,3 +1,4 @@
+// @ts-nocheck -- migrated from JS, type annotations deferred
 /**
  * Mutation Operators Tests
  *
@@ -11,6 +12,9 @@
  */
 
 import '../custom_components/autosnooze/www/autosnooze-card.js';
+import { formatCountdown, parseDurationInput, formatDuration } from '../src/utils/index.js';
+import { formatRegistryId } from '../src/state/automations.js';
+import { queryActivePauses, queryAutomationList, queryDurationSelector, queryInActivePauses, queryInDurationSelector } from './helpers/query-helpers.js';
 
 // =============================================================================
 // ARITHMETIC OPERATORS
@@ -47,54 +51,74 @@ describe('Arithmetic Operator Mutations', () => {
   });
 
   describe('Duration to milliseconds conversion', () => {
-    test('30 minutes equals exactly 1800000 ms', () => {
-      card._setDuration(30);
+    test('30 minutes equals exactly 1800000 ms', async () => {
+      card._handleDurationChange(new CustomEvent('duration-change', {
+        detail: { minutes: 30, duration: { days: 0, hours: 0, minutes: 30 }, input: '30m', showCustomInput: false },
+      }));
+      await card.updateComplete;
       expect(card._duration).toBe(30 * 60 * 1000);
       expect(card._duration).not.toBe(30 + 60 + 1000);
       expect(card._duration).not.toBe(30 - 60 - 1000);
     });
 
-    test('60 minutes equals exactly 3600000 ms', () => {
-      card._setDuration(60);
+    test('60 minutes equals exactly 3600000 ms', async () => {
+      card._handleDurationChange(new CustomEvent('duration-change', {
+        detail: { minutes: 60, duration: { days: 0, hours: 1, minutes: 0 }, input: '1h', showCustomInput: false },
+      }));
+      await card.updateComplete;
       expect(card._duration).toBe(60 * 60 * 1000);
       expect(card._duration).not.toBe(60 / 60 / 1000);
     });
 
-    test('1440 minutes equals exactly 86400000 ms (1 day)', () => {
-      card._setDuration(1440);
+    test('1440 minutes equals exactly 86400000 ms (1 day)', async () => {
+      card._handleDurationChange(new CustomEvent('duration-change', {
+        detail: { minutes: 1440, duration: { days: 1, hours: 0, minutes: 0 }, input: '1d', showCustomInput: false },
+      }));
+      await card.updateComplete;
       expect(card._duration).toBe(1440 * 60 * 1000);
     });
 
-    test('240 minutes equals exactly 14400000 ms (4 hours)', () => {
-      card._setDuration(240);
+    test('240 minutes equals exactly 14400000 ms (4 hours)', async () => {
+      card._handleDurationChange(new CustomEvent('duration-change', {
+        detail: { minutes: 240, duration: { days: 0, hours: 4, minutes: 0 }, input: '4h', showCustomInput: false },
+      }));
+      await card.updateComplete;
       expect(card._duration).toBe(240 * 60 * 1000);
     });
   });
 
   describe('Custom duration calculation', () => {
-    test('1d 2h 30m calculates correctly', () => {
-      card._customDuration = { days: 1, hours: 2, minutes: 30 };
-      card._updateCustomDuration();
+    test('1d 2h 30m calculates correctly', async () => {
+      card._handleDurationChange(new CustomEvent('duration-change', {
+        detail: { minutes: 1590, duration: { days: 1, hours: 2, minutes: 30 }, input: '1d2h30m' },
+      }));
+      await card.updateComplete;
       // (1 * 1440 + 2 * 60 + 30) * 60000
       const expected = (1440 + 120 + 30) * 60000;
       expect(card._duration).toBe(expected);
     });
 
-    test('0d 0h 1m equals 60000 ms', () => {
-      card._customDuration = { days: 0, hours: 0, minutes: 1 };
-      card._updateCustomDuration();
+    test('0d 0h 1m equals 60000 ms', async () => {
+      card._handleDurationChange(new CustomEvent('duration-change', {
+        detail: { minutes: 1, duration: { days: 0, hours: 0, minutes: 1 }, input: '1m' },
+      }));
+      await card.updateComplete;
       expect(card._duration).toBe(60000);
     });
 
-    test('0d 1h 0m equals 3600000 ms', () => {
-      card._customDuration = { days: 0, hours: 1, minutes: 0 };
-      card._updateCustomDuration();
+    test('0d 1h 0m equals 3600000 ms', async () => {
+      card._handleDurationChange(new CustomEvent('duration-change', {
+        detail: { minutes: 60, duration: { days: 0, hours: 1, minutes: 0 }, input: '1h' },
+      }));
+      await card.updateComplete;
       expect(card._duration).toBe(3600000);
     });
 
-    test('1d 0h 0m equals 86400000 ms', () => {
-      card._customDuration = { days: 1, hours: 0, minutes: 0 };
-      card._updateCustomDuration();
+    test('1d 0h 0m equals 86400000 ms', async () => {
+      card._handleDurationChange(new CustomEvent('duration-change', {
+        detail: { minutes: 1440, duration: { days: 1, hours: 0, minutes: 0 }, input: '1d' },
+      }));
+      await card.updateComplete;
       expect(card._duration).toBe(86400000);
     });
   });
@@ -102,19 +126,19 @@ describe('Arithmetic Operator Mutations', () => {
   describe('Countdown calculations', () => {
     test('60 seconds difference shows 1m', () => {
       const future = new Date(Date.now() + 60500).toISOString();
-      const result = card._formatCountdown(future);
+      const result = formatCountdown(future);
       expect(result).toMatch(/1m/);
     });
 
     test('3600 seconds difference shows 1h', () => {
       const future = new Date(Date.now() + 3600500).toISOString();
-      const result = card._formatCountdown(future);
+      const result = formatCountdown(future);
       expect(result).toMatch(/1h/);
     });
 
     test('86400 seconds difference shows 1d', () => {
       const future = new Date(Date.now() + 86400500).toISOString();
-      const result = card._formatCountdown(future);
+      const result = formatCountdown(future);
       expect(result).toMatch(/1d/);
     });
   });
@@ -188,43 +212,43 @@ describe('Comparison Operator Mutations', () => {
   describe('Countdown boundary checks', () => {
     test('0 diff returns Resuming...', () => {
       const now = new Date().toISOString();
-      expect(card._formatCountdown(now)).toBe('Resuming...');
+      expect(formatCountdown(now)).toBe('Resuming...');
     });
 
     test('negative diff returns Resuming...', () => {
       const past = new Date(Date.now() - 10000).toISOString();
-      expect(card._formatCountdown(past)).toBe('Resuming...');
+      expect(formatCountdown(past)).toBe('Resuming...');
     });
 
     test('positive 1ms diff does not return Resuming...', () => {
       const future = new Date(Date.now() + 2000).toISOString();
-      expect(card._formatCountdown(future)).not.toBe('Resuming...');
+      expect(formatCountdown(future)).not.toBe('Resuming...');
     });
   });
 
   describe('Duration format thresholds', () => {
     test('exactly 1 day shows singular', () => {
-      expect(card._formatDuration(1, 0, 0)).toBe('1 day');
+      expect(formatDuration(1, 0, 0)).toBe('1 day');
     });
 
     test('exactly 2 days shows plural', () => {
-      expect(card._formatDuration(2, 0, 0)).toBe('2 days');
+      expect(formatDuration(2, 0, 0)).toBe('2 days');
     });
 
     test('exactly 1 hour shows singular', () => {
-      expect(card._formatDuration(0, 1, 0)).toBe('1 hour');
+      expect(formatDuration(0, 1, 0)).toBe('1 hour');
     });
 
     test('exactly 2 hours shows plural', () => {
-      expect(card._formatDuration(0, 2, 0)).toBe('2 hours');
+      expect(formatDuration(0, 2, 0)).toBe('2 hours');
     });
 
     test('exactly 1 minute shows singular', () => {
-      expect(card._formatDuration(0, 0, 1)).toBe('1 minute');
+      expect(formatDuration(0, 0, 1)).toBe('1 minute');
     });
 
     test('exactly 2 minutes shows plural', () => {
-      expect(card._formatDuration(0, 0, 2)).toBe('2 minutes');
+      expect(formatDuration(0, 0, 2)).toBe('2 minutes');
     });
   });
 
@@ -294,7 +318,9 @@ describe('Comparison Operator Mutations', () => {
         },
       });
       await card.updateComplete;
-      const wakeAll = card.shadowRoot.querySelector('.wake-all');
+      const activePauses = queryActivePauses(card);
+      if (activePauses) await activePauses.updateComplete;
+      const wakeAll = queryInActivePauses(card, '.wake-all');
       expect(wakeAll).toBeNull();
     });
 
@@ -315,7 +341,9 @@ describe('Comparison Operator Mutations', () => {
         },
       });
       await card.updateComplete;
-      const wakeAll = card.shadowRoot.querySelector('.wake-all');
+      const activePauses = queryActivePauses(card);
+      if (activePauses) await activePauses.updateComplete;
+      const wakeAll = queryInActivePauses(card, '.wake-all');
       expect(wakeAll).not.toBeNull();
     });
   });
@@ -415,20 +443,30 @@ describe('Logical Operator Mutations', () => {
     test('custom input hidden when _showCustomInput is false', async () => {
       card._showCustomInput = false;
       await card.updateComplete;
-      const customInput = card.shadowRoot.querySelector('.custom-duration-input');
+      const ds = queryDurationSelector(card);
+      ds.showCustomInput = false;
+      await ds.updateComplete;
+      const customInput = queryInDurationSelector(card, '.custom-duration-input');
       expect(customInput).toBeNull();
     });
 
     test('custom input shown when _showCustomInput is true', async () => {
       card._showCustomInput = true;
       await card.updateComplete;
-      const customInput = card.shadowRoot.querySelector('.custom-duration-input');
+      const ds = queryDurationSelector(card);
+      ds.showCustomInput = true;
+      await ds.updateComplete;
+      const customInput = queryInDurationSelector(card, '.custom-duration-input');
       expect(customInput).not.toBeNull();
     });
 
-    test('schedule mode toggle', () => {
+    test('schedule mode toggle via child event', async () => {
       card._scheduleMode = false;
-      card._enterScheduleMode();
+      // Simulate schedule-mode-change event (Lit @event bindings don't propagate in jsdom)
+      card._handleScheduleModeChange(new CustomEvent('schedule-mode-change', {
+        detail: { enabled: true },
+      }));
+      await card.updateComplete;
       expect(card._scheduleMode).toBe(true);
     });
   });
@@ -469,13 +507,13 @@ describe('Array Operation Mutations', () => {
   describe('Array includes/indexOf', () => {
     test('toggleSelection adds when not present', () => {
       card._selected = ['automation.a'];
-      card._toggleSelection('automation.b');
+      queryAutomationList(card)._toggleSelection('automation.b');
       expect(card._selected).toContain('automation.b');
     });
 
     test('toggleSelection removes when present', () => {
       card._selected = ['automation.a', 'automation.b'];
-      card._toggleSelection('automation.a');
+      queryAutomationList(card)._toggleSelection('automation.a');
       expect(card._selected).not.toContain('automation.a');
       expect(card._selected).toContain('automation.b');
     });
@@ -525,7 +563,7 @@ describe('Array Operation Mutations', () => {
       card._entityRegistryFetched = true;
       card._automationsCache = null;
 
-      const grouped = card._getGroupedByArea();
+      const grouped = queryAutomationList(card)._getGroupedByArea();
       const names = grouped.map(([name]) => name);
       // Area A should come before Zone B
       expect(names.indexOf('Area A')).toBeLessThan(names.indexOf('Zone B'));
@@ -547,11 +585,11 @@ describe('Array Operation Mutations', () => {
   describe('Array push/splice', () => {
     test('toggleSelection modifies array correctly', () => {
       card._selected = [];
-      card._toggleSelection('automation.a');
+      queryAutomationList(card)._toggleSelection('automation.a');
       expect(card._selected.length).toBe(1);
-      card._toggleSelection('automation.b');
+      queryAutomationList(card)._toggleSelection('automation.b');
       expect(card._selected.length).toBe(2);
-      card._toggleSelection('automation.a');
+      queryAutomationList(card)._toggleSelection('automation.a');
       expect(card._selected.length).toBe(1);
     });
   });
@@ -581,13 +619,13 @@ describe('String Operation Mutations', () => {
   describe('String concatenation', () => {
     test('countdown format combines units correctly', () => {
       const future = new Date(Date.now() + 3661500).toISOString();
-      const result = card._formatCountdown(future);
+      const result = formatCountdown(future);
       // 1h 1m 1s
       expect(result).toMatch(/1h 1m 1s/);
     });
 
     test('duration format joins with comma', () => {
-      expect(card._formatDuration(1, 1, 1)).toBe('1 day, 1 hour, 1 minute');
+      expect(formatDuration(1, 1, 1)).toBe('1 day, 1 hour, 1 minute');
     });
   });
 
@@ -609,28 +647,28 @@ describe('String Operation Mutations', () => {
 
   describe('String replace/split', () => {
     test('_formatRegistryId replaces underscores with spaces', () => {
-      expect(card._formatRegistryId('my_area_name')).toBe('My Area Name');
+      expect(formatRegistryId('my_area_name')).toBe('My Area Name');
     });
 
     test('_formatRegistryId capitalizes each word', () => {
-      expect(card._formatRegistryId('living_room')).toBe('Living Room');
+      expect(formatRegistryId('living_room')).toBe('Living Room');
     });
   });
 
   describe('String toLowerCase/toUpperCase', () => {
     test('duration parsing is case insensitive', () => {
-      const lower = card._parseDurationInput('1h30m');
-      const upper = card._parseDurationInput('1H30M');
+      const lower = parseDurationInput('1h30m');
+      const upper = parseDurationInput('1H30M');
       expect(lower).toEqual(upper);
     });
   });
 
   describe('String match/test', () => {
     test('duration regex matches various formats', () => {
-      expect(card._parseDurationInput('1d')).not.toBeNull();
-      expect(card._parseDurationInput('2h')).not.toBeNull();
-      expect(card._parseDurationInput('30m')).not.toBeNull();
-      expect(card._parseDurationInput('1d2h30m')).not.toBeNull();
+      expect(parseDurationInput('1d')).not.toBeNull();
+      expect(parseDurationInput('2h')).not.toBeNull();
+      expect(parseDurationInput('30m')).not.toBeNull();
+      expect(parseDurationInput('1d2h30m')).not.toBeNull();
     });
 
     test('search filters by name match', async () => {
@@ -657,10 +695,10 @@ describe('String Operation Mutations', () => {
       document.body.appendChild(card);
       await card.updateComplete;
 
-      card._search = 'living';
+      queryAutomationList(card)._search = 'living';
       await card.updateComplete;
 
-      const visible = card._getFilteredAutomations();
+      const visible = queryAutomationList(card)._getFilteredAutomations();
       expect(visible.some((a) => a.name.toLowerCase().includes('living'))).toBe(true);
 
       card.remove();
@@ -798,23 +836,28 @@ describe('Boolean Operation Mutations', () => {
   describe('Boolean toggle', () => {
     test('clicking custom toggles _showCustomInput', async () => {
       expect(card._showCustomInput).toBe(false);
-      const pills = card.shadowRoot.querySelectorAll('.pill');
-      const customPill = Array.from(pills).find((p) => p.textContent.includes('Custom'));
-      customPill.click();
+      // Simulate custom-input-toggle event (Lit @event bindings don't propagate in jsdom)
+      card._handleCustomInputToggle(new CustomEvent('custom-input-toggle', {
+        detail: { show: true },
+      }));
       await card.updateComplete;
       expect(card._showCustomInput).toBe(true);
     });
   });
 
   describe('Boolean returns', () => {
-    test('_isDurationValid returns true for valid', () => {
-      card._customDurationInput = '30m';
-      expect(card._isDurationValid()).toBe(true);
+    test('_isDurationValid returns true for valid via child', async () => {
+      const ds = queryDurationSelector(card);
+      await ds.updateComplete;
+      ds.customDurationInput = '30m';
+      expect(ds._isDurationValid()).toBe(true);
     });
 
-    test('_isDurationValid returns false for invalid', () => {
-      card._customDurationInput = 'invalid';
-      expect(card._isDurationValid()).toBe(false);
+    test('_isDurationValid returns false for invalid via child', async () => {
+      const ds = queryDurationSelector(card);
+      await ds.updateComplete;
+      ds.customDurationInput = 'invalid';
+      expect(ds._isDurationValid()).toBe(false);
     });
   });
 });
@@ -842,18 +885,18 @@ describe('Ternary Operator Mutations', () => {
 
   describe('Singular vs plural', () => {
     test('1 day singular, 2 days plural', () => {
-      expect(card._formatDuration(1, 0, 0)).toBe('1 day');
-      expect(card._formatDuration(2, 0, 0)).toBe('2 days');
+      expect(formatDuration(1, 0, 0)).toBe('1 day');
+      expect(formatDuration(2, 0, 0)).toBe('2 days');
     });
 
     test('1 hour singular, 2 hours plural', () => {
-      expect(card._formatDuration(0, 1, 0)).toBe('1 hour');
-      expect(card._formatDuration(0, 2, 0)).toBe('2 hours');
+      expect(formatDuration(0, 1, 0)).toBe('1 hour');
+      expect(formatDuration(0, 2, 0)).toBe('2 hours');
     });
 
     test('1 minute singular, 2 minutes plural', () => {
-      expect(card._formatDuration(0, 0, 1)).toBe('1 minute');
-      expect(card._formatDuration(0, 0, 2)).toBe('2 minutes');
+      expect(formatDuration(0, 0, 1)).toBe('1 minute');
+      expect(formatDuration(0, 0, 2)).toBe('2 minutes');
     });
   });
 
@@ -1012,20 +1055,20 @@ describe('Return Value Mutations', () => {
     });
 
     test('_formatDuration returns string', () => {
-      expect(typeof card._formatDuration(1, 0, 0)).toBe('string');
+      expect(typeof formatDuration(1, 0, 0)).toBe('string');
     });
 
     test('_formatCountdown returns string', () => {
       const future = new Date(Date.now() + 60000).toISOString();
-      expect(typeof card._formatCountdown(future)).toBe('string');
+      expect(typeof formatCountdown(future)).toBe('string');
     });
 
     test('_parseDurationInput returns object or null', () => {
-      const valid = card._parseDurationInput('30m');
+      const valid = parseDurationInput('30m');
       expect(valid).not.toBeNull();
       expect(typeof valid).toBe('object');
 
-      const invalid = card._parseDurationInput('xyz');
+      const invalid = parseDurationInput('xyz');
       expect(invalid).toBeNull();
     });
   });
@@ -1054,37 +1097,37 @@ describe('Boundary Value Tests', () => {
 
   describe('Duration boundaries', () => {
     test('minimum 1 minute', () => {
-      const result = card._parseDurationInput('1m');
+      const result = parseDurationInput('1m');
       expect(result).toEqual({ days: 0, hours: 0, minutes: 1 });
     });
 
     test('59 minutes', () => {
-      const result = card._parseDurationInput('59m');
+      const result = parseDurationInput('59m');
       expect(result).toEqual({ days: 0, hours: 0, minutes: 59 });
     });
 
     test('60 minutes becomes 1h', () => {
-      const result = card._parseDurationInput('60');
+      const result = parseDurationInput('60');
       expect(result).toEqual({ days: 0, hours: 1, minutes: 0 });
     });
 
     test('61 minutes becomes 1h 1m', () => {
-      const result = card._parseDurationInput('61');
+      const result = parseDurationInput('61');
       expect(result).toEqual({ days: 0, hours: 1, minutes: 1 });
     });
 
     test('1439 minutes', () => {
-      const result = card._parseDurationInput('1439');
+      const result = parseDurationInput('1439');
       expect(result).toEqual({ days: 0, hours: 23, minutes: 59 });
     });
 
     test('1440 minutes becomes 1d', () => {
-      const result = card._parseDurationInput('1440');
+      const result = parseDurationInput('1440');
       expect(result).toEqual({ days: 1, hours: 0, minutes: 0 });
     });
 
     test('1441 minutes becomes 1d 0h 1m', () => {
-      const result = card._parseDurationInput('1441');
+      const result = parseDurationInput('1441');
       expect(result).toEqual({ days: 1, hours: 0, minutes: 1 });
     });
   });
@@ -1092,25 +1135,25 @@ describe('Boundary Value Tests', () => {
   describe('Countdown boundaries', () => {
     test('exactly 60 seconds shows minutes', () => {
       const future = new Date(Date.now() + 60500).toISOString();
-      const result = card._formatCountdown(future);
+      const result = formatCountdown(future);
       expect(result).toMatch(/1m/);
     });
 
     test('59 seconds shows seconds', () => {
       const future = new Date(Date.now() + 59500).toISOString();
-      const result = card._formatCountdown(future);
+      const result = formatCountdown(future);
       expect(result).toMatch(/\d+s/);
     });
 
     test('exactly 3600 seconds shows hours', () => {
       const future = new Date(Date.now() + 3600500).toISOString();
-      const result = card._formatCountdown(future);
+      const result = formatCountdown(future);
       expect(result).toMatch(/1h/);
     });
 
     test('exactly 86400 seconds shows days', () => {
       const future = new Date(Date.now() + 86400500).toISOString();
-      const result = card._formatCountdown(future);
+      const result = formatCountdown(future);
       expect(result).toMatch(/1d/);
     });
   });

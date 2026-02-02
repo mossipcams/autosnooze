@@ -1,3 +1,4 @@
+// @ts-nocheck -- migrated from JS, type annotations deferred
 /**
  * Boundary Mutation Tests
  *
@@ -13,6 +14,9 @@
 
 import { vi } from 'vitest';
 import '../custom_components/autosnooze/www/autosnooze-card.js';
+import { formatCountdown } from '../src/utils/index.js';
+import { formatRegistryId } from '../src/state/automations.js';
+import { queryAutomationList } from './helpers/query-helpers.js';
 
 // =============================================================================
 // HELPER: Create Card Instance
@@ -34,7 +38,8 @@ function createCard() {
 // FORMAT REGISTRY ID TESTS (Parametrized)
 // =============================================================================
 describe('_formatRegistryId', () => {
-  let card;
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  let card: any;
   beforeEach(() => {
     card = createCard();
   });
@@ -46,12 +51,12 @@ describe('_formatRegistryId', () => {
     ['', '', 'handles empty string'],
     ['room_1', 'Room 1', 'preserves numbers'],
   ])('"%s" → "%s" (%s)', (input, expected) => {
-    const result = card._formatRegistryId(input);
+    const result = formatRegistryId(input);
     expect(result).toBe(expected);
   });
 
   test('output contains no underscores', () => {
-    const result = card._formatRegistryId('living_room');
+    const result = formatRegistryId('living_room');
     expect(result).toContain(' ');
     expect(result).not.toContain('_');
   });
@@ -61,7 +66,8 @@ describe('_formatRegistryId', () => {
 // GET AREA NAME TESTS (Parametrized)
 // =============================================================================
 describe('_getAreaName', () => {
-  let card;
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  let card: any;
   beforeEach(() => {
     card = createCard();
   });
@@ -71,18 +77,18 @@ describe('_getAreaName', () => {
     [undefined, 'Unassigned'],
     ['', 'Unassigned'],
   ])('returns "Unassigned" for falsy value: %s', (input, expected) => {
-    const result = card._getAreaName(input);
+    const result = queryAutomationList(card)._getAreaName(input);
     expect(result).toBe(expected);
   });
 
   test('returns area name from hass when available', () => {
     card.hass.areas = { living_room: { name: 'Living Room' } };
-    expect(card._getAreaName('living_room')).toBe('Living Room');
+    expect(queryAutomationList(card)._getAreaName('living_room')).toBe('Living Room');
   });
 
   test('falls back to formatted ID when area not in hass', () => {
     card.hass.areas = {};
-    expect(card._getAreaName('my_area')).toBe('My Area');
+    expect(queryAutomationList(card)._getAreaName('my_area')).toBe('My Area');
   });
 });
 
@@ -90,19 +96,20 @@ describe('_getAreaName', () => {
 // GET LABEL NAME TESTS
 // =============================================================================
 describe('_getLabelName', () => {
-  let card;
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  let card: any;
   beforeEach(() => {
     card = createCard();
   });
 
   test('returns label name from registry', () => {
     card._labelRegistry = { test_label: { name: 'Test Label' } };
-    expect(card._getLabelName('test_label')).toBe('Test Label');
+    expect(queryAutomationList(card)._getLabelName('test_label')).toBe('Test Label');
   });
 
   test('falls back to formatted ID when not in registry', () => {
     card._labelRegistry = {};
-    expect(card._getLabelName('my_label')).toBe('My Label');
+    expect(queryAutomationList(card)._getLabelName('my_label')).toBe('My Label');
   });
 });
 
@@ -110,7 +117,8 @@ describe('_getLabelName', () => {
 // GET CATEGORY NAME TESTS (Parametrized)
 // =============================================================================
 describe('_getCategoryName', () => {
-  let card;
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  let card: any;
   beforeEach(() => {
     card = createCard();
   });
@@ -120,18 +128,18 @@ describe('_getCategoryName', () => {
     [undefined, 'Uncategorized'],
     ['', 'Uncategorized'],
   ])('returns "Uncategorized" for falsy value: %s', (input, expected) => {
-    const result = card._getCategoryName(input);
+    const result = queryAutomationList(card)._getCategoryName(input);
     expect(result).toBe(expected);
   });
 
   test('returns category name from registry', () => {
     card._categoryRegistry = { lights: { name: 'Lights' } };
-    expect(card._getCategoryName('lights')).toBe('Lights');
+    expect(queryAutomationList(card)._getCategoryName('lights')).toBe('Lights');
   });
 
   test('falls back to formatted ID when not in registry', () => {
     card._categoryRegistry = {};
-    expect(card._getCategoryName('my_category')).toBe('My Category');
+    expect(queryAutomationList(card)._getCategoryName('my_category')).toBe('My Category');
   });
 });
 
@@ -149,7 +157,7 @@ describe('_groupAutomationsBy Sorting', () => {
       'automation.c_auto': { attributes: { friendly_name: 'C Auto' } },
     };
     card._entityRegistry = {};
-    card._search = '';
+    queryAutomationList(card)._search = '';
   });
 
   test('default group appears last in sorting', () => {
@@ -160,7 +168,7 @@ describe('_groupAutomationsBy Sorting', () => {
     };
     card.hass.areas = { room1: { name: 'Room 1' }, room2: { name: 'Room 2' } };
 
-    const groups = card._getGroupedByArea();
+    const groups = queryAutomationList(card)._getGroupedByArea();
     const lastGroup = groups[groups.length - 1];
     expect(lastGroup[0]).toBe('Unassigned');
   });
@@ -177,7 +185,7 @@ describe('_groupAutomationsBy Sorting', () => {
       mango: { name: 'Mango' },
     };
 
-    const groups = card._getGroupedByArea();
+    const groups = queryAutomationList(card)._getGroupedByArea();
     expect(groups[0][0]).toBe('Apple');
     expect(groups[1][0]).toBe('Mango');
     expect(groups[2][0]).toBe('Zebra');
@@ -208,8 +216,8 @@ describe('_getFilteredAutomations Search', () => {
     ['', 3, null, 'returns all when search is empty'],
     ['nonexistent', 0, null, 'returns empty when no match'],
   ])('search "%s" returns %d results (%s)', (search, expectedCount, expectedName) => {
-    card._search = search;
-    const filtered = card._getFilteredAutomations();
+    queryAutomationList(card)._search = search;
+    const filtered = queryAutomationList(card)._getFilteredAutomations();
     expect(filtered.length).toBe(expectedCount);
     if (expectedName && filtered.length > 0) {
       expect(filtered[0].name).toBe(expectedName);
@@ -238,12 +246,12 @@ describe('_getAreaCount', () => {
   });
 
   test('counts unique areas correctly', () => {
-    expect(card._getAreaCount()).toBe(2);
+    expect(queryAutomationList(card)._getAreaCount()).toBe(2);
   });
 
   test('returns 0 when no areas assigned', () => {
     card._entityRegistry = {};
-    expect(card._getAreaCount()).toBe(0);
+    expect(queryAutomationList(card)._getAreaCount()).toBe(0);
   });
 });
 
@@ -260,12 +268,12 @@ describe('_selectAllVisible', () => {
       'automation.b': { attributes: { friendly_name: 'B' } },
     };
     card._entityRegistry = {};
-    card._search = '';
+    queryAutomationList(card)._search = '';
     card._selected = [];
   });
 
   test('selects all when none selected', () => {
-    card._selectAllVisible();
+    queryAutomationList(card)._selectAllVisible();
     expect(card._selected).toContain('automation.a');
     expect(card._selected).toContain('automation.b');
     expect(card._selected.length).toBe(2);
@@ -273,13 +281,13 @@ describe('_selectAllVisible', () => {
 
   test('deselects all when all selected', () => {
     card._selected = ['automation.a', 'automation.b'];
-    card._selectAllVisible();
+    queryAutomationList(card)._selectAllVisible();
     expect(card._selected.length).toBe(0);
   });
 
   test('selects remaining when some selected', () => {
     card._selected = ['automation.a'];
-    card._selectAllVisible();
+    queryAutomationList(card)._selectAllVisible();
     expect(card._selected).toContain('automation.a');
     expect(card._selected).toContain('automation.b');
   });
@@ -289,7 +297,8 @@ describe('_selectAllVisible', () => {
 // COUNTDOWN FORMATTING TESTS (Parametrized)
 // =============================================================================
 describe('_formatCountdown', () => {
-  let card;
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  let card: any;
   beforeEach(() => {
     card = createCard();
   });
@@ -301,7 +310,7 @@ describe('_formatCountdown', () => {
     [45 * 1000, 's', 'includes seconds'],
   ])('offset %dms contains "%s" (%s)', (offset, expected) => {
     const future = new Date(Date.now() + offset).toISOString();
-    const result = card._formatCountdown(future);
+    const result = formatCountdown(future);
     if (expected === 'Resuming...') {
       expect(result).toBe(expected);
     } else {
@@ -354,7 +363,8 @@ describe('_formatDateTime', () => {
 // PAUSED GROUPING TESTS
 // =============================================================================
 describe('_getPausedGroupedByResumeTime', () => {
-  let card;
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  let card: any;
   beforeEach(() => {
     card = createCard();
   });
@@ -448,19 +458,19 @@ describe('_toggleSelection', () => {
   });
 
   test('adds item when not selected', () => {
-    card._toggleSelection('automation.a');
+    queryAutomationList(card)._toggleSelection('automation.a');
     expect(card._selected).toContain('automation.a');
   });
 
   test('removes item when already selected', () => {
     card._selected = ['automation.a'];
-    card._toggleSelection('automation.a');
+    queryAutomationList(card)._toggleSelection('automation.a');
     expect(card._selected).not.toContain('automation.a');
   });
 
   test('preserves other selections when toggling', () => {
     card._selected = ['automation.a', 'automation.b'];
-    card._toggleSelection('automation.a');
+    queryAutomationList(card)._toggleSelection('automation.a');
     expect(card._selected).not.toContain('automation.a');
     expect(card._selected).toContain('automation.b');
   });
@@ -488,21 +498,22 @@ describe('Static Methods', () => {
 // CLEAR SELECTION TESTS
 // =============================================================================
 describe('_clearSelection', () => {
-  let card;
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  let card: any;
   beforeEach(() => {
     card = createCard();
   });
 
   test('clears all selected items', () => {
     card._selected = ['automation.a', 'automation.b', 'automation.c'];
-    card._clearSelection();
+    queryAutomationList(card)._clearSelection();
     expect(card._selected.length).toBe(0);
     expect(Array.isArray(card._selected)).toBe(true);
   });
 
   test('works when already empty', () => {
     card._selected = [];
-    card._clearSelection();
+    queryAutomationList(card)._clearSelection();
     expect(card._selected.length).toBe(0);
   });
 });
@@ -522,12 +533,12 @@ describe('Filter Tab', () => {
   });
 
   test('_filterTab defaults to "all"', () => {
-    expect(card._filterTab).toBe('all');
+    expect(queryAutomationList(card)._filterTab).toBe('all');
   });
 
   test('setting _filterTab changes filter', () => {
-    card._filterTab = 'areas';
-    expect(card._filterTab).toBe('areas');
+    queryAutomationList(card)._filterTab = 'areas';
+    expect(queryAutomationList(card)._filterTab).toBe('areas');
   });
 });
 
@@ -535,7 +546,8 @@ describe('Filter Tab', () => {
 // GET PAUSED / SCHEDULED FALLBACK TESTS (Parametrized)
 // =============================================================================
 describe('_getPaused and _getScheduled Fallbacks', () => {
-  let card;
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  let card: any;
   beforeEach(() => {
     card = createCard();
   });

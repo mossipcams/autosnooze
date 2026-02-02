@@ -58,7 +58,7 @@ test.describe('Wake Operations', () => {
       (() => {
         ${findCardScript}
         const card = findAutosnoozeCard();
-        const btn = card?.shadowRoot?.querySelector('.wake-all');
+        const btn = deepQuery(card, '.wake-all');
         btn?.click();
       })()
       `
@@ -73,7 +73,7 @@ test.describe('Wake Operations', () => {
         (() => {
           ${findCardScript}
           const card = findAutosnoozeCard();
-          return card?.shadowRoot?.querySelector('.wake-all')?.textContent?.trim() ?? '';
+          return deepQuery(card, '.wake-all')?.textContent?.trim() ?? '';
         })()
         `
       );
@@ -88,7 +88,7 @@ test.describe('Wake Operations', () => {
       (() => {
         ${findCardScript}
         const card = findAutosnoozeCard();
-        const btn = card?.shadowRoot?.querySelector('.wake-all');
+        const btn = deepQuery(card, '.wake-all');
         btn?.click();
       })()
       `
@@ -122,7 +122,7 @@ test.describe('Wake Operations', () => {
       (() => {
         ${findCardScript}
         const card = findAutosnoozeCard();
-        const btn = card?.shadowRoot?.querySelector('.wake-all');
+        const btn = deepQuery(card, '.wake-all');
         btn?.click();
       })()
       `
@@ -141,7 +141,7 @@ test.describe('Wake Operations', () => {
         (() => {
           ${findCardScript}
           const card = findAutosnoozeCard();
-          return card?.shadowRoot?.querySelector('.wake-all')?.textContent?.trim() ?? '';
+          return deepQuery(card, '.wake-all')?.textContent?.trim() ?? '';
         })()
         `
       );
@@ -167,7 +167,7 @@ test.describe('Wake Operations', () => {
       (() => {
         ${findCardScript}
         const card = findAutosnoozeCard();
-        const pausedItems = card?.shadowRoot?.querySelectorAll('.paused-item');
+        const pausedItems = deepQueryAll(card, '.paused-item');
         let count = 0;
         pausedItems?.forEach(item => {
           if (item.querySelector('.wake-btn')) count++;
@@ -190,7 +190,7 @@ test.describe('Wake Operations', () => {
         ${findCardScript}
         const card = findAutosnoozeCard();
         // Check for paused items container or pause-groups
-        const pausedItems = card?.shadowRoot?.querySelectorAll('.paused-item');
+        const pausedItems = deepQueryAll(card, '.paused-item');
         return (pausedItems?.length ?? 0) > 0;
       })()
       `
@@ -210,7 +210,7 @@ test.describe('Wake Operations', () => {
       (() => {
         ${findCardScript}
         const card = findAutosnoozeCard();
-        const pausedItems = card?.shadowRoot?.querySelectorAll('.paused-item');
+        const pausedItems = deepQueryAll(card, '.paused-item');
         return (pausedItems?.length ?? 0) > 0;
       })()
       `

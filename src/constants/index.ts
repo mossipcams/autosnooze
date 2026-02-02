@@ -65,6 +65,8 @@ export const ERROR_MESSAGES: Record<string, string> = {
   invalid_duration: 'Failed to snooze: Please specify a valid duration (days, hours, or minutes)',
   resume_time_past: 'Failed to snooze: Resume time must be in the future',
   disable_after_resume: 'Failed to snooze: Snooze time must be before resume time',
+  invalid_adjustment: 'Adjustment must be non-zero. Specify at least one of: days, hours, or minutes.',
+  adjust_time_too_short: 'Cannot shorten snooze that much. Resume time must be at least 1 minute away.',
 };
 
 /**

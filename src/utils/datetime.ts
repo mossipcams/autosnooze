@@ -78,10 +78,3 @@ export function generateDateOptions(daysAhead: number = 365, locale?: string): D
   return options;
 }
 
-/**
- * Check if a date/time combination is in the past (with optional buffer).
- */
-export function isDateTimeInPast(date: string, time: string, bufferMs: number = 0): boolean {
-  const dateTime = new Date(`${date}T${time}`);
-  return dateTime.getTime() < Date.now() + bufferMs;
-}

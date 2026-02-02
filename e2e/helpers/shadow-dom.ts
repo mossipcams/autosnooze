@@ -16,4 +16,31 @@ export const findCardScript = `
     };
     return findCard(document);
   }
+
+  function deepQuery(card, selector) {
+    if (!card?.shadowRoot) return null;
+    let result = card.shadowRoot.querySelector(selector);
+    if (result) return result;
+    const children = card.shadowRoot.querySelectorAll('*');
+    for (const child of children) {
+      if (child.shadowRoot) {
+        result = child.shadowRoot.querySelector(selector);
+        if (result) return result;
+      }
+    }
+    return null;
+  }
+
+  function deepQueryAll(card, selector) {
+    const results = [];
+    if (!card?.shadowRoot) return results;
+    results.push(...card.shadowRoot.querySelectorAll(selector));
+    const children = card.shadowRoot.querySelectorAll('*');
+    for (const child of children) {
+      if (child.shadowRoot) {
+        results.push(...child.shadowRoot.querySelectorAll(selector));
+      }
+    }
+    return results;
+  }
 `;

@@ -1,3 +1,4 @@
+// @ts-nocheck -- migrated from JS, type annotations deferred
 /**
  * Card Compatibility Tests
  *
@@ -7,6 +8,7 @@
 
 import { vi } from 'vitest';
 import '../custom_components/autosnooze/www/autosnooze-card.js';
+import { queryAutomationList } from './helpers/query-helpers.js';
 
 describe('Card Compatibility', () => {
   let mockHass;
@@ -85,11 +87,11 @@ describe('Card Compatibility', () => {
       await card2.updateComplete;
 
       card1._selected = ['automation.test'];
-      card1._filterTab = 'areas';
+      queryAutomationList(card1)._filterTab = 'areas';
       await card1.updateComplete;
 
       expect(card2._selected).toEqual([]);
-      expect(card2._filterTab).toBe('all');
+      expect(queryAutomationList(card2)._filterTab).toBe('all');
     });
 
     test('removing one card does not affect another', async () => {
@@ -208,7 +210,10 @@ describe('Card Compatibility', () => {
 
       expect(document.querySelector('.pill')).toBeNull();
       expect(document.querySelector('.list-item')).toBeNull();
-      expect(autosnoozeCard.shadowRoot.querySelectorAll('.pill').length).toBeGreaterThan(0);
+      // Pills are now in the duration-selector child component's shadow DOM
+      const ds = autosnoozeCard.shadowRoot.querySelector('autosnooze-duration-selector');
+      await ds.updateComplete;
+      expect(ds.shadowRoot.querySelectorAll('.pill').length).toBeGreaterThan(0);
     });
   });
 
