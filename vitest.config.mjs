@@ -19,7 +19,7 @@ export default defineConfig({
     coverage: {
       provider: 'istanbul',
       include: ['src/**/*.ts'],
-      exclude: ['src/**/*.test.ts', 'src/legacy/**'],
+      exclude: ['src/**/*.test.ts'],
       thresholds: {
         global: {
           branches: 85,
