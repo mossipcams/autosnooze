@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from datetime import timedelta
 import json
 import logging
 from pathlib import Path
@@ -21,6 +22,16 @@ STORAGE_VERSION = 2
 MAX_SAVE_RETRIES = 3
 SAVE_RETRY_DELAYS = [0.1, 0.2, 0.4]  # Exponential backoff delays in seconds
 TRANSIENT_ERRORS = (IOError, OSError)  # Errors that should trigger retry
+
+# Duration validation constants
+MINUTES_PER_DAY = 1440
+MINUTES_PER_YEAR = 525600
+
+# Minimum buffer for adjust operations
+MIN_ADJUST_BUFFER = timedelta(minutes=1)
+
+# Number of individual preset fields shown in options flow
+NUM_PRESET_FIELDS = 4
 
 # Read version from manifest for cache-busting
 # Note: This is sync I/O at import time, but it's a small local file read.

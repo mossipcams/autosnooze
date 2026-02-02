@@ -14,7 +14,7 @@ from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.event import async_track_point_in_time
 from homeassistant.util import dt as dt_util
 
-from .const import DOMAIN, MAX_SAVE_RETRIES, SAVE_RETRY_DELAYS, TRANSIENT_ERRORS
+from .const import DOMAIN, MAX_SAVE_RETRIES, MIN_ADJUST_BUFFER, SAVE_RETRY_DELAYS, TRANSIENT_ERRORS
 from .models import (
     AutomationPauseData,
     PausedAutomation,
@@ -141,7 +141,7 @@ async def async_adjust_snooze(
         new_resume_at = paused.resume_at + delta
         now = dt_util.utcnow()
 
-        if new_resume_at <= now + timedelta(minutes=1):
+        if new_resume_at <= now + MIN_ADJUST_BUFFER:
             raise ServiceValidationError(
                 "Adjusted time must be at least 1 minute in the future",
                 translation_domain=DOMAIN,

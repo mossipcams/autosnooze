@@ -7,14 +7,11 @@ from typing import Any
 
 import voluptuous as vol
 
-from homeassistant.config_entries import ConfigFlow, ConfigFlowResult, OptionsFlow
+from homeassistant.config_entries import ConfigEntry, ConfigFlow, ConfigFlowResult, OptionsFlow
 from homeassistant.core import callback
 
 from . import DOMAIN
-from .const import DEFAULT_DURATION_PRESETS
-
-# Number of individual preset fields to show (Last and Custom are added automatically)
-NUM_PRESET_FIELDS = 4
+from .const import DEFAULT_DURATION_PRESETS, MINUTES_PER_DAY, MINUTES_PER_YEAR, NUM_PRESET_FIELDS
 
 
 class AutomationPauseConfigFlow(ConfigFlow, domain=DOMAIN):  # pyright: ignore[reportCallIssue,reportGeneralTypeIssues]
@@ -24,7 +21,7 @@ class AutomationPauseConfigFlow(ConfigFlow, domain=DOMAIN):  # pyright: ignore[r
 
     @staticmethod
     @callback
-    def async_get_options_flow(config_entry):
+    def async_get_options_flow(config_entry: ConfigEntry):
         """Get the options flow for this handler."""
         return AutoSnoozeOptionsFlow(config_entry)
 
@@ -58,8 +55,8 @@ def parse_duration_string(duration_str: str) -> dict[str, str | int] | None:
     hours = int(match.group(2)) if match.group(2) else 0
     minutes = int(match.group(3)) if match.group(3) else 0
 
-    total_minutes = days * 1440 + hours * 60 + minutes
-    if total_minutes <= 0 or total_minutes > 525600:  # Max 1 year
+    total_minutes = days * MINUTES_PER_DAY + hours * 60 + minutes
+    if total_minutes <= 0 or total_minutes > MINUTES_PER_YEAR:  # Max 1 year
         return None
 
     # Generate a clean label
@@ -77,11 +74,11 @@ def parse_duration_string(duration_str: str) -> dict[str, str | int] | None:
 class AutoSnoozeOptionsFlow(OptionsFlow):
     """Handle options flow for AutoSnooze."""
 
-    def __init__(self, config_entry):
+    def __init__(self, config_entry: ConfigEntry) -> None:
         """Initialize options flow."""
         self._entry = config_entry
 
-    async def async_step_init(self, user_input: dict[str, Any] | None = None):
+    async def async_step_init(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
         """Handle the initial step of options flow."""
         errors: dict[str, str] = {}
 
