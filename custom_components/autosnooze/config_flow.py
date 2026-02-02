@@ -74,37 +74,6 @@ def parse_duration_string(duration_str: str) -> dict[str, str | int] | None:
     return {"label": "".join(label_parts), "minutes": total_minutes}
 
 
-def parse_duration_presets(presets_str: str) -> list[dict[str, str | int]] | None:
-    """Parse comma-separated duration strings into a list of preset dicts.
-
-    Returns empty list if input is empty.
-    Returns None if any non-empty entry is invalid (validation error).
-    """
-    if not presets_str.strip():
-        return []
-
-    presets = []
-    for part in presets_str.split(","):
-        trimmed = part.strip()
-        if not trimmed:
-            continue
-        parsed = parse_duration_string(trimmed)
-        if parsed:
-            presets.append(parsed)
-        else:
-            # Invalid non-empty entry - return None to signal validation error
-            return None
-
-    return presets
-
-
-def format_presets(presets: list[dict[str, str | int]]) -> str:
-    """Format a list of preset dicts back to a comma-separated string."""
-    if not presets:
-        return ""
-    return ", ".join(str(preset.get("label", "")) for preset in presets)
-
-
 class AutoSnoozeOptionsFlow(OptionsFlow):
     """Handle options flow for AutoSnooze."""
 
