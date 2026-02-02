@@ -1,3 +1,4 @@
+// @ts-nocheck -- migrated from JS, type annotations deferred
 /**
  * Tests for backend schema alignment and validation.
  *
@@ -16,15 +17,7 @@ import { fileURLToPath } from 'url';
 // Import the built card to test error handling
 import '../custom_components/autosnooze/www/autosnooze-card.js';
 import { getErrorMessage } from '../src/utils/index.js';
-
-// Helper to query inside the duration-selector child component's shadow DOM
-function queryDurationSelector(card) {
-  return card.shadowRoot?.querySelector('autosnooze-duration-selector');
-}
-function queryInDurationSelector(card, selector) {
-  const ds = queryDurationSelector(card);
-  return ds?.shadowRoot?.querySelector(selector);
-}
+import { queryAutomationList, queryDurationSelector } from './helpers/query-helpers.js';
 
 // Get the directory of this test file
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -63,67 +56,6 @@ try {
 }
 
 // =============================================================================
-// HELPER: Shadow DOM helpers for child component access
-// =============================================================================
-function _computeAutomations(card) {
-  const states = card.hass?.states || {};
-  const entityReg = card._entityRegistry || {};
-  const hassEntities = card.hass?.entities || {};
-  return Object.entries(states)
-    .filter(([id, state]) => id.startsWith('automation.') && state)
-    .map(([id, state]) => {
-      const reg = entityReg[id] || {};
-      const hassEntry = hassEntities[id] || {};
-      const categories = reg.categories || {};
-      return {
-        id,
-        name: state.attributes?.friendly_name || id,
-        area_id: reg.area_id ?? hassEntry.area_id ?? null,
-        labels: reg.labels ?? hassEntry.labels ?? [],
-        category_id: categories.automation ?? null,
-      };
-    })
-    .sort((a, b) => a.name.localeCompare(b.name));
-}
-
-function queryAutomationList(card) {
-  // If card has rendered, find child in shadow DOM
-  const sr = card.shadowRoot;
-  if (sr) {
-    const child = sr.querySelector('autosnooze-automation-list');
-    if (child) {
-      // Sync all properties from card to child (may not have re-rendered yet)
-      if (card.hass) child.hass = card.hass;
-      if (card._selected !== undefined) child.selected = card._selected;
-      if (card._labelRegistry) child.labelRegistry = card._labelRegistry;
-      if (card._categoryRegistry) child.categoryRegistry = card._categoryRegistry;
-      // Recompute automations from card's current state (entity registry may have changed)
-      child.automations = _computeAutomations(card);
-      return child;
-    }
-  }
-  // For tests that access child methods without rendering:
-  // Create a standalone automation list with synced data
-  if (!card.__automationList) {
-    const list = document.createElement('autosnooze-automation-list');
-    // Listen for selection-change events on the element itself
-    list.addEventListener('selection-change', (e) => {
-      list.selected = e.detail.selected;
-      card._selected = e.detail.selected;
-    });
-    card.__automationList = list;
-  }
-  const list = card.__automationList;
-  // Sync state from card to child
-  if (card.hass) list.hass = card.hass;
-  list.automations = _computeAutomations(card);
-  list.selected = card._selected || [];
-  list.labelRegistry = card._labelRegistry || {};
-  list.categoryRegistry = card._categoryRegistry || {};
-  return list;
-}
-
-// =============================================================================
 // DATE HELPERS - Avoid hardcoded dates
 // =============================================================================
 
@@ -137,15 +69,6 @@ function getFutureDate(daysFromNow = 1) {
   return date.toISOString().split('T')[0];
 }
 
-/**
- * Get a past date string in YYYY-MM-DD format.
- * @param {number} daysAgo - Number of days ago
- * @returns {string} Date string in YYYY-MM-DD format
- */
-function getPastDate(daysAgo = 1) {
-  const date = new Date(Date.now() - daysAgo * 24 * 60 * 60 * 1000);
-  return date.toISOString().split('T')[0];
-}
 
 /**
  * Get a future ISO datetime string.
@@ -193,6 +116,7 @@ describe('Backend Error Schema Alignment', () => {
       // Get the card class to access ERROR_MESSAGES via _getErrorMessage
       const CardClass = customElements.get('autosnooze-card');
       expect(CardClass).toBeDefined();
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const card = new CardClass();
 
       // Test each backend key produces a specific error message (not default)
@@ -211,6 +135,7 @@ describe('Backend Error Schema Alignment', () => {
       expect(translationKeys.length).toBeGreaterThan(0);
 
       const CardClass = customElements.get('autosnooze-card');
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const card = new CardClass();
 
       for (const key of translationKeys) {
@@ -227,6 +152,7 @@ describe('Backend Error Schema Alignment', () => {
       expect(requiredKeys.length).toBeGreaterThan(0);
 
       const CardClass = customElements.get('autosnooze-card');
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const card = new CardClass();
 
       for (const key of requiredKeys) {
@@ -1086,6 +1012,7 @@ describe('Integration State Changes', () => {
     card._selected = ['automation.test'];
     card._customDuration = { days: 0, hours: 1, minutes: 0 };
 
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const originalSelection = [...card._selected];
 
     await card._snooze();
@@ -1096,6 +1023,7 @@ describe('Integration State Changes', () => {
   });
 
   test('loading state is properly managed during snooze', async () => {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     let loadingDuringCall = false;
 
     mockCallService.mockImplementation(async () => {
