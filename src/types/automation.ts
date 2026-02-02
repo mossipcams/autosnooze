@@ -67,15 +67,6 @@ export interface DurationPreset {
 }
 
 /**
- * Toast notification configuration.
- */
-export interface ToastConfig {
-  message: string;
-  type: 'success' | 'error' | 'info';
-  duration?: number;
-}
-
-/**
  * Base service call data that can be passed to HA services.
  */
 export type ServiceData = Record<string, unknown>;
