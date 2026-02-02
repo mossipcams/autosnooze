@@ -54,19 +54,20 @@ export class AutoSnoozeDurationSelector extends LitElement {
   @property({ type: String })
   resumeAtTime: string = '';
 
-  _getDurationPills(): { label: string; minutes: number | null }[] {
+  private _getBasePresets(): { label: string; minutes: number }[] {
     const sensor = this.hass?.states?.[SENSOR_ENTITY_ID];
     const configuredPresets = sensor?.attributes?.duration_presets as
       | { label: string; minutes: number }[]
       | undefined;
 
-    const basePresets: { label: string; minutes: number }[] =
-      configuredPresets?.length
-        ? configuredPresets
-        : DEFAULT_DURATIONS.filter((d): d is { label: string; minutes: number } => d.minutes !== null);
+    return configuredPresets?.length
+      ? configuredPresets
+      : DEFAULT_DURATIONS.filter((d): d is { label: string; minutes: number } => d.minutes !== null);
+  }
 
+  _getDurationPills(): { label: string; minutes: number | null }[] {
     return [
-      ...basePresets,
+      ...this._getBasePresets(),
       { label: localize(this.hass, 'duration.custom'), minutes: null },
     ];
   }
@@ -91,14 +92,7 @@ export class AutoSnoozeDurationSelector extends LitElement {
   _renderLastDurationBadge(): TemplateResult | string {
     if (!this.lastDuration) return '';
 
-    const sensor = this.hass?.states?.[SENSOR_ENTITY_ID];
-    const configuredPresets = sensor?.attributes?.duration_presets as
-      | { label: string; minutes: number }[]
-      | undefined;
-    const basePresets: { label: string; minutes: number }[] =
-      configuredPresets?.length
-        ? configuredPresets
-        : DEFAULT_DURATIONS.filter((d): d is { label: string; minutes: number } => d.minutes !== null);
+    const basePresets = this._getBasePresets();
 
     const lastMinutes = this.lastDuration.minutes;
     const isUniqueFromPresets = !basePresets.some((d) => d.minutes === lastMinutes);
