@@ -159,7 +159,7 @@ export class AutoSnoozeActivePauses extends LitElement {
                 : html`<span class="countdown">${formatCountdown(group.resumeAt, localize(this.hass, 'status.resuming'))}</span>`}
             </div>
             ${group.automations.map((auto) => html`
-              <div class="paused-item" @click=${() => this._fireAdjust(auto)}>
+              <div class="paused-item" role="button" tabindex="0" @click=${() => this._fireAdjust(auto)} @keydown=${(e: KeyboardEvent) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); this._fireAdjust(auto); } }}>
                 <ha-icon class="paused-icon" icon="mdi:sleep" aria-hidden="true"></ha-icon>
                 <div class="paused-info">
                   <div class="paused-name">${auto.friendly_name || auto.entity_id}</div>

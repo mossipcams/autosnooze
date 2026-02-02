@@ -138,6 +138,12 @@ export class AutoSnoozeAdjustModal extends LitElement {
     }));
   }
 
+  private _handleOverlayKeydown(e: KeyboardEvent): void {
+    if (e.key === 'Escape') {
+      this._close();
+    }
+  }
+
   _handleOverlayClick(e: Event): void {
     if (e.target === e.currentTarget) {
       this._close();
@@ -148,10 +154,10 @@ export class AutoSnoozeAdjustModal extends LitElement {
     if (!this.open) return html``;
 
     return html`
-      <div class="modal-overlay" @click=${this._handleOverlayClick}>
-        <div class="modal-content" @click=${(e: Event) => e.stopPropagation()}>
+      <div class="modal-overlay" @click=${this._handleOverlayClick} @keydown=${this._handleOverlayKeydown}>
+        <div class="modal-content" role="dialog" aria-modal="true" aria-labelledby="adjust-title" @click=${(e: Event) => e.stopPropagation()}>
           <div class="modal-header">
-            <span class="modal-title">
+            <span class="modal-title" id="adjust-title">
               ${this._isGroupMode
                 ? localize(this.hass, 'adjust.group_title', { count: this.entityIds.length })
                 : (this.friendlyName || this.entityId)}
