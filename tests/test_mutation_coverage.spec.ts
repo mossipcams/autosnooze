@@ -1,3 +1,4 @@
+// @ts-nocheck -- migrated from JS, type annotations deferred
 /**
  * Mutation Coverage Tests
  *
@@ -11,6 +12,9 @@
 
 import { vi } from 'vitest';
 import '../custom_components/autosnooze/www/autosnooze-card.js';
+import { formatCountdown, parseDurationInput, formatDuration, combineDateTime, getErrorMessage } from '../src/utils/index.js';
+import { formatRegistryId } from '../src/state/automations.js';
+import { queryAutomationList, queryDurationSelector } from './helpers/query-helpers.js';
 
 // =============================================================================
 // CONSTANT VALUE TESTS
