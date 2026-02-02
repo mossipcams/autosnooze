@@ -17,8 +17,8 @@ describe('Duration Selector Styles', () => {
     expect(cssText).toContain(':host');
   });
 
-  it('should be re-exported from styles barrel index', async () => {
-    const { durationSelectorStyles } = await import('../src/styles/index.js');
+  it('should be importable from direct module path', async () => {
+    const { durationSelectorStyles } = await import('../src/styles/duration-selector.styles.js');
     expect(durationSelectorStyles).toBeDefined();
     expect(durationSelectorStyles.cssText).toContain('.duration-selector');
   });

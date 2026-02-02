@@ -30,7 +30,7 @@ describe('Active Pauses Styles', () => {
   });
 
   it('should be re-exported from styles barrel index', async () => {
-    const { activePausesStyles } = await import('../src/styles/index.js');
+    const { activePausesStyles } = await import('../src/styles/active-pauses.styles.js');
     expect(activePausesStyles).toBeDefined();
     expect(activePausesStyles.cssText).toContain('.snooze-list');
   });
