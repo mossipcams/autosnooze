@@ -10,6 +10,7 @@ import type { HomeAssistant, HassLabel, HassCategory, HassEntityRegistryEntry, H
 import type { AutoSnoozeCardConfig, FilterTab, HapticFeedbackType } from '../types/card.js';
 import type { AutomationItem, ParsedDuration, PauseGroup } from '../types/automation.js';
 import { cardStyles } from '../styles/card.styles.js';
+import { sharedPausedStyles } from '../styles/shared.styles.js';
 import {
   TIME_MS,
   MINUTES_PER,
@@ -65,7 +66,7 @@ import {
 
 
 export class AutomationPauseCard extends LitElement {
-  static styles = cardStyles;
+  static styles = [sharedPausedStyles, cardStyles];
 
   @property({ attribute: false })
   hass?: HomeAssistant;

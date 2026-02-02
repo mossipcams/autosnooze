@@ -11,11 +11,12 @@ import { formatCountdown, formatDateTime, hapticFeedback } from '../utils/index.
 import { UI_TIMING } from '../constants/index.js';
 import { startSynchronizedCountdown, stopCountdown, type CountdownState } from '../utils/countdown-timer.js';
 import { activePausesStyles } from '../styles/active-pauses.styles.js';
+import { sharedPausedStyles } from '../styles/shared.styles.js';
 import type { HomeAssistant } from '../types/hass.js';
 import type { PauseGroup, PausedAutomation } from '../types/automation.js';
 
 export class AutoSnoozeActivePauses extends LitElement {
-  static styles = activePausesStyles;
+  static styles = [sharedPausedStyles, activePausesStyles];
 
   @property({ attribute: false })
   hass?: HomeAssistant;
