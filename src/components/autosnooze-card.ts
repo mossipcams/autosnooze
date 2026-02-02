@@ -6,8 +6,8 @@
 import { LitElement, html, PropertyValues, TemplateResult } from 'lit';
 import { property, state } from 'lit/decorators.js';
 import { localize } from '../localization/localize.js';
-import type { HomeAssistant, HassLabel, HassCategory, HassEntityRegistryEntry, HassEntities, ScheduledSnoozeAttribute } from '../types/hass.js';
-import type { AutoSnoozeCardConfig, FilterTab } from '../types/card.js';
+import type { HomeAssistant, HassLabel, HassCategory, HassEntityRegistryEntry, HassEntities, PausedAutomationAttribute, ScheduledSnoozeAttribute } from '../types/hass.js';
+import type { AutoSnoozeCardConfig, FilterTab, HapticFeedbackType } from '../types/card.js';
 import type { AutomationItem, ParsedDuration, PauseGroup } from '../types/automation.js';
 import { cardStyles } from '../styles/card.styles.js';
 import {
@@ -378,7 +378,7 @@ export class AutomationPauseCard extends LitElement {
     return getUniqueCount(automations, (auto) => auto.category_id ? [auto.category_id] : null);
   }
 
-  private _getPaused(): Record<string, unknown> {
+  private _getPaused(): Record<string, PausedAutomationAttribute> {
     if (!this.hass) return {};
     return getPaused(this.hass);
   }
@@ -526,8 +526,8 @@ export class AutomationPauseCard extends LitElement {
     }
   }
 
-  private _hapticFeedback(type: string = 'light'): void {
-    hapticFeedback(type as 'light' | 'medium' | 'heavy' | 'success' | 'warning' | 'failure' | 'selection');
+  private _hapticFeedback(type: HapticFeedbackType = 'light'): void {
+    hapticFeedback(type);
   }
 
   private _handleSearchInput(e: Event): void {
