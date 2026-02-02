@@ -160,6 +160,46 @@ async def async_adjust_snooze(
     _LOGGER.info("Adjusted snooze for %s: new resume at %s", entity_id, new_resume_at)
 
 
+async def async_adjust_snooze_batch(
+    hass: HomeAssistant,
+    data: AutomationPauseData,
+    entity_ids: list[str],
+    delta: timedelta,
+) -> None:
+    """Adjust the resume time of multiple paused automations with single save."""
+    if data.unloaded:
+        return
+    if not entity_ids:
+        return
+
+    async with data.lock:
+        for entity_id in entity_ids:
+            paused = data.paused.get(entity_id)
+            if paused is None:
+                _LOGGER.warning("Cannot adjust %s: not currently snoozed", entity_id)
+                continue
+
+            new_resume_at = paused.resume_at + delta
+            now = dt_util.utcnow()
+
+            if new_resume_at <= now + MIN_ADJUST_BUFFER:
+                raise ServiceValidationError(
+                    "Adjusted time must be at least 1 minute in the future",
+                    translation_domain=DOMAIN,
+                    translation_key="adjust_time_too_short",
+                )
+
+            paused.resume_at = new_resume_at
+            paused.days = 0
+            paused.hours = 0
+            paused.minutes = 0
+
+            schedule_resume(hass, data, entity_id, new_resume_at)
+        await async_save(data)
+    data.notify()
+    _LOGGER.info("Adjusted snooze for %d automations", len(entity_ids))
+
+
 def schedule_disable(
     hass: HomeAssistant,
     data: AutomationPauseData,

@@ -23,6 +23,7 @@ from .const import (
 )
 from .coordinator import (
     async_adjust_snooze,
+    async_adjust_snooze_batch,
     async_cancel_scheduled,
     async_cancel_scheduled_batch,
     async_resume,
@@ -284,8 +285,7 @@ def register_services(hass: HomeAssistant, data: AutomationPauseData) -> None:
                 translation_key="invalid_adjustment",
             )
 
-        for entity_id in entity_ids:
-            await async_adjust_snooze(hass, data, entity_id, delta)
+        await async_adjust_snooze_batch(hass, data, entity_ids, delta)
 
     hass.services.async_register(DOMAIN, "pause", handle_pause, schema=PAUSE_SCHEMA)
     hass.services.async_register(DOMAIN, "cancel", handle_cancel, schema=CANCEL_SCHEMA)
