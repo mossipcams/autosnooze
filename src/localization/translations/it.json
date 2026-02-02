@@ -95,7 +95,8 @@
     "placeholder": "es. 2h30m, 1.5h, 1g, 45m",
     "preview_label": "Durata:",
     "help": "Inserisci durata: 30m, 2h, 1.5h, 4h30m, 1g, 1g2h",
-    "last_used_tooltip": "Usa ultima durata: {duration}"
+    "last_used_tooltip": "Usa ultima durata: {duration}",
+    "custom": "Personalizzato"
   },
   "section": {
     "snoozed_count": "Automazioni in pausa ({count})",
@@ -106,7 +107,8 @@
     "disables": "Disattiva:",
     "resumes_at": "Riprende:",
     "active_count": "{count} attive",
-    "scheduled_count": "{count} programmate"
+    "scheduled_count": "{count} programmate",
+    "resuming": "Ripresa..."
   },
   "tab": {
     "all": "Tutto",

@@ -168,7 +168,7 @@ export class AutoSnoozeAdjustModal extends LitElement {
           </div>
           <div class="modal-body">
             <div class="remaining-label">${localize(this.hass, 'adjust.remaining')}</div>
-            <div class="remaining-time">${formatCountdown(this.resumeAt)}</div>
+            <div class="remaining-time">${formatCountdown(this.resumeAt, localize(this.hass, 'status.resuming'))}</div>
 
             <div class="adjust-section">
               <div class="adjust-section-label">${localize(this.hass, 'adjust.add_time')}</div>

@@ -32,9 +32,9 @@ export function formatDateTime(isoString: string, locale?: string): string {
  * Format a countdown string for the given resume time.
  * Returns "Resuming..." if the time has passed.
  */
-export function formatCountdown(resumeAt: string): string {
+export function formatCountdown(resumeAt: string, fallbackExpired: string = 'Resuming...'): string {
   const diff = new Date(resumeAt).getTime() - Date.now();
-  if (diff <= 0) return 'Resuming...';
+  if (diff <= 0) return fallbackExpired;
 
   const d = Math.floor(diff / TIME_MS.DAY);
   const h = Math.floor((diff % TIME_MS.DAY) / TIME_MS.HOUR);

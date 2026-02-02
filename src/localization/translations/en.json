@@ -95,7 +95,8 @@
     "placeholder": "e.g. 2h30m, 1.5h, 1d, 45m",
     "preview_label": "Duration:",
     "help": "Enter duration: 30m, 2h, 1.5h, 4h30m, 1d, 1d2h",
-    "last_used_tooltip": "Use last duration: {duration}"
+    "last_used_tooltip": "Use last duration: {duration}",
+    "custom": "Custom"
   },
   "section": {
     "snoozed_count": "Snoozed Automations ({count})",
@@ -106,7 +107,8 @@
     "disables": "Disables:",
     "resumes_at": "Resumes:",
     "active_count": "{count} active",
-    "scheduled_count": "{count} scheduled"
+    "scheduled_count": "{count} scheduled",
+    "resuming": "Resuming..."
   },
   "tab": {
     "all": "All",

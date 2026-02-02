@@ -156,7 +156,7 @@ export class AutoSnoozeActivePauses extends LitElement {
               <ha-icon icon="mdi:timer-outline" aria-hidden="true"></ha-icon>
               ${group.disableAt
                 ? html`${localize(this.hass, 'status.resumes')} ${formatDateTime(group.resumeAt, locale)}`
-                : html`<span class="countdown">${formatCountdown(group.resumeAt)}</span>`}
+                : html`<span class="countdown">${formatCountdown(group.resumeAt, localize(this.hass, 'status.resuming'))}</span>`}
             </div>
             ${group.automations.map((auto) => html`
               <div class="paused-item" @click=${() => this._fireAdjust(auto)}>

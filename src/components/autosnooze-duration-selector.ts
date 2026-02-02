@@ -67,7 +67,7 @@ export class AutoSnoozeDurationSelector extends LitElement {
 
     return [
       ...basePresets,
-      { label: 'Custom', minutes: null },
+      { label: localize(this.hass, 'duration.custom'), minutes: null },
     ];
   }
 
