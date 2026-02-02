@@ -52,7 +52,12 @@
     "group_count": "{count} automatisations",
     "select_all_in_group": "Tout sélectionner dans {name}",
     "snooze_last_duration": "Pause pour dernière durée",
-    "snooze_for_duration": "Pause pour {duration}"
+    "snooze_for_duration": "Pause pour {duration}",
+    "close_adjust_modal": "Fermer le modal d'ajustement",
+    "adjust_automation": "Ajuster la mise en veille pour {name}",
+    "add_minutes": "Ajouter {label}",
+    "reduce_minutes": "Réduire de {label}",
+    "adjust_group": "Ajuster le temps de pause pour {count} automatisations dans ce groupe"
   },
   "toast": {
     "error": {
@@ -63,7 +68,8 @@
       "undo_failed": "Échec de l'annulation. Les automatisations ont peut-être déjà été modifiées.",
       "resume_failed": "Échec de la reprise de l'automatisation",
       "resume_all_failed": "Échec de la reprise des automatisations. Consultez les journaux de Home Assistant.",
-      "cancel_failed": "Échec de l'annulation de la pause programmée"
+      "cancel_failed": "Échec de l'annulation de la pause programmée",
+      "adjust_failed": "Échec de l'ajustement de la mise en veille"
     },
     "success": {
       "scheduled_one": "1 automatisation programmée pour pause",
@@ -76,7 +82,8 @@
       "restored_many": "{count} automatisations restaurées",
       "resumed": "Automatisation reprise avec succès",
       "resumed_all": "Toutes les automatisations ont été reprises avec succès",
-      "cancelled": "Pause programmée annulée avec succès"
+      "cancelled": "Pause programmée annulée avec succès",
+      "adjusted": "Durée de mise en veille ajustée"
     }
   },
   "list": {
@@ -128,5 +135,12 @@
   "editor": {
     "title_label": "Titre",
     "title_placeholder": "AutoSnooze"
+  },
+  "adjust": {
+    "remaining": "Temps restant",
+    "add_time": "Ajouter du temps",
+    "reduce_time": "Réduire le temps",
+    "group_title": "Ajuster {count} automatisations",
+    "group_subtitle": "Toutes les automatisations de ce groupe"
   }
 }

@@ -77,7 +77,9 @@ describe('Constant Values - Mutation Killing', () => {
   describe('Duration Pill Labels', () => {
     test('duration pills have correct labels', async () => {
       await card.updateComplete;
-      const pills = card.shadowRoot.querySelectorAll('.pill');
+      const ds = queryDurationSelector(card);
+      await ds.updateComplete;
+      const pills = ds.shadowRoot.querySelectorAll('.pill');
       const labels = Array.from(pills).map((p) => p.textContent.trim());
 
       expect(labels).toContain('30m');
@@ -88,30 +90,45 @@ describe('Constant Values - Mutation Killing', () => {
   });
 
   describe('Time Constants in Duration Calculations', () => {
-    test('_setDuration uses 60000ms per minute', () => {
-      card._setDuration(1);
+    test('duration-change event uses 60000ms per minute', async () => {
+      card._handleDurationChange(new CustomEvent('duration-change', {
+        detail: { minutes: 1, duration: { days: 0, hours: 0, minutes: 1 }, input: '1m' },
+      }));
+      await card.updateComplete;
       expect(card._duration).toBe(60000);
     });
 
-    test('_setDuration uses 3600000ms per hour', () => {
-      card._setDuration(60);
+    test('duration-change event uses 3600000ms per hour', async () => {
+      card._handleDurationChange(new CustomEvent('duration-change', {
+        detail: { minutes: 60, duration: { days: 0, hours: 1, minutes: 0 }, input: '1h' },
+      }));
+      await card.updateComplete;
       expect(card._duration).toBe(3600000);
     });
 
-    test('_setDuration uses 86400000ms per day', () => {
-      card._setDuration(1440);
+    test('duration-change event uses 86400000ms per day', async () => {
+      card._handleDurationChange(new CustomEvent('duration-change', {
+        detail: { minutes: 1440, duration: { days: 1, hours: 0, minutes: 0 }, input: '1d' },
+      }));
+      await card.updateComplete;
       expect(card._duration).toBe(86400000);
     });
 
-    test('_setDuration calculates days from 1440 minutes', () => {
-      card._setDuration(1440);
+    test('duration-change event calculates days from 1440 minutes', async () => {
+      card._handleDurationChange(new CustomEvent('duration-change', {
+        detail: { minutes: 1440, duration: { days: 1, hours: 0, minutes: 0 }, input: '1d' },
+      }));
+      await card.updateComplete;
       expect(card._customDuration.days).toBe(1);
       expect(card._customDuration.hours).toBe(0);
       expect(card._customDuration.minutes).toBe(0);
     });
 
-    test('_setDuration calculates hours from 60 minutes', () => {
-      card._setDuration(60);
+    test('duration-change event calculates hours from 60 minutes', async () => {
+      card._handleDurationChange(new CustomEvent('duration-change', {
+        detail: { minutes: 60, duration: { days: 0, hours: 1, minutes: 0 }, input: '1h' },
+      }));
+      await card.updateComplete;
       expect(card._customDuration.days).toBe(0);
       expect(card._customDuration.hours).toBe(1);
       expect(card._customDuration.minutes).toBe(0);
@@ -122,28 +139,28 @@ describe('Constant Values - Mutation Killing', () => {
     test('_formatCountdown uses 86400000ms for day calculation', () => {
       // Add extra buffer to avoid timing edge cases
       const oneDayFromNow = new Date(Date.now() + 86400000 + 2000).toISOString();
-      const result = card._formatCountdown(oneDayFromNow);
+      const result = formatCountdown(oneDayFromNow);
       expect(result).toMatch(/1d/);
     });
 
     test('_formatCountdown uses 3600000ms for hour calculation', () => {
       // Add buffer for timing
       const oneHourFromNow = new Date(Date.now() + 3600000 + 2000).toISOString();
-      const result = card._formatCountdown(oneHourFromNow);
+      const result = formatCountdown(oneHourFromNow);
       expect(result).toMatch(/1h/);
     });
 
     test('_formatCountdown uses 60000ms for minute calculation', () => {
       // Add buffer for timing
       const twoMinutesFromNow = new Date(Date.now() + 120000 + 2000).toISOString();
-      const result = card._formatCountdown(twoMinutesFromNow);
+      const result = formatCountdown(twoMinutesFromNow);
       expect(result).toMatch(/2m/);
     });
 
     test('_formatCountdown uses 1000ms for second calculation', () => {
       // Add buffer for timing
       const thirtySecondsFromNow = new Date(Date.now() + 30000 + 2000).toISOString();
-      const result = card._formatCountdown(thirtySecondsFromNow);
+      const result = formatCountdown(thirtySecondsFromNow);
       expect(result).toMatch(/0m/);
     });
   });
@@ -193,34 +210,34 @@ describe('String Literal Values - Mutation Killing', () => {
   describe('Countdown String Literals', () => {
     test('_formatCountdown returns exactly "Resuming..." for past time', () => {
       const pastTime = new Date(Date.now() - 1000).toISOString();
-      expect(card._formatCountdown(pastTime)).toBe('Resuming...');
+      expect(formatCountdown(pastTime)).toBe('Resuming...');
     });
 
     test('_formatCountdown returns "Resuming..." for zero diff', () => {
       const now = new Date(Date.now()).toISOString();
-      expect(card._formatCountdown(now)).toBe('Resuming...');
+      expect(formatCountdown(now)).toBe('Resuming...');
     });
   });
 
   describe('Group Name Literals', () => {
     test('_getAreaName returns exactly "Unassigned" for null', () => {
-      expect(card._getAreaName(null)).toBe('Unassigned');
+      expect(queryAutomationList(card)._getAreaName(null)).toBe('Unassigned');
     });
 
     test('_getAreaName returns exactly "Unassigned" for undefined', () => {
-      expect(card._getAreaName(undefined)).toBe('Unassigned');
+      expect(queryAutomationList(card)._getAreaName(undefined)).toBe('Unassigned');
     });
 
     test('_getCategoryName returns exactly "Uncategorized" for null', () => {
-      expect(card._getCategoryName(null)).toBe('Uncategorized');
+      expect(queryAutomationList(card)._getCategoryName(null)).toBe('Uncategorized');
     });
 
     test('_getCategoryName returns exactly "Uncategorized" for undefined', () => {
-      expect(card._getCategoryName(undefined)).toBe('Uncategorized');
+      expect(queryAutomationList(card)._getCategoryName(undefined)).toBe('Uncategorized');
     });
 
     test('_getLabelName formats snake_case to Title Case', () => {
-      expect(card._getLabelName('my_custom_label')).toBe('My Custom Label');
+      expect(queryAutomationList(card)._getLabelName('my_custom_label')).toBe('My Custom Label');
     });
   });
 
@@ -234,31 +251,31 @@ describe('String Literal Values - Mutation Killing', () => {
   describe('Error Message Strings', () => {
     test('_getErrorMessage returns correct message for not_automation', () => {
       const error = { translation_key: 'not_automation' };
-      const result = card._getErrorMessage(error, 'Default');
+      const result = getErrorMessage(error, 'Default');
       expect(result).toBe('Failed to snooze: One or more selected items are not automations');
     });
 
     test('_getErrorMessage returns correct message for invalid_duration', () => {
       const error = { translation_key: 'invalid_duration' };
-      const result = card._getErrorMessage(error, 'Default');
+      const result = getErrorMessage(error, 'Default');
       expect(result).toBe('Failed to snooze: Please specify a valid duration (days, hours, or minutes)');
     });
 
     test('_getErrorMessage returns correct message for resume_time_past', () => {
       const error = { translation_key: 'resume_time_past' };
-      const result = card._getErrorMessage(error, 'Default');
+      const result = getErrorMessage(error, 'Default');
       expect(result).toBe('Failed to snooze: Resume time must be in the future');
     });
 
     test('_getErrorMessage returns correct message for disable_after_resume', () => {
       const error = { translation_key: 'disable_after_resume' };
-      const result = card._getErrorMessage(error, 'Default');
+      const result = getErrorMessage(error, 'Default');
       expect(result).toBe('Failed to snooze: Snooze time must be before resume time');
     });
 
     test('_getErrorMessage appends log check for unknown errors', () => {
       const error = { message: 'Unknown error' };
-      const result = card._getErrorMessage(error, 'Failed');
+      const result = getErrorMessage(error, 'Failed');
       expect(result).toContain('Check Home Assistant logs for details');
     });
   });
@@ -285,7 +302,7 @@ describe('String Literal Values - Mutation Killing', () => {
         },
       };
       card._automationsCache = null;
-      const result = card._getFilteredAutomations();
+      const result = queryAutomationList(card)._getFilteredAutomations();
       expect(result).toEqual([]);
       // Restore
       card.hass.states = originalStates;
@@ -331,70 +348,70 @@ describe('Arithmetic Operations - Mutation Killing', () => {
 
   describe('Duration Parsing Arithmetic', () => {
     test('_parseDurationInput parses 1.5h as 90 minutes', () => {
-      const result = card._parseDurationInput('1.5h');
+      const result = parseDurationInput('1.5h');
       expect(result).toEqual({ days: 0, hours: 1, minutes: 30 });
     });
 
     test('_parseDurationInput parses 2.5d as 2d 12h', () => {
-      const result = card._parseDurationInput('2.5d');
+      const result = parseDurationInput('2.5d');
       expect(result).toEqual({ days: 2, hours: 12, minutes: 0 });
     });
 
     test('_parseDurationInput parses 0.5h as 30m', () => {
-      const result = card._parseDurationInput('0.5h');
+      const result = parseDurationInput('0.5h');
       expect(result).toEqual({ days: 0, hours: 0, minutes: 30 });
     });
 
     test('_parseDurationInput parses combined units correctly', () => {
-      const result = card._parseDurationInput('1d 2h 30m');
+      const result = parseDurationInput('1d 2h 30m');
       expect(result).toEqual({ days: 1, hours: 2, minutes: 30 });
     });
 
     test('_parseDurationInput returns null for 0', () => {
-      const result = card._parseDurationInput('0');
+      const result = parseDurationInput('0');
       expect(result).toBeNull();
     });
 
     test('_parseDurationInput handles negative prefix by extracting number', () => {
       // The regex captures digits, so "-30m" extracts "30m"
-      const result = card._parseDurationInput('-30m');
+      const result = parseDurationInput('-30m');
       expect(result).toEqual({ days: 0, hours: 0, minutes: 30 });
     });
 
     test('_parseDurationInput handles plain number as minutes', () => {
-      const result = card._parseDurationInput('45');
+      const result = parseDurationInput('45');
       expect(result).toEqual({ days: 0, hours: 0, minutes: 45 });
     });
 
     test('_parseDurationInput rounds decimal minutes', () => {
-      const result = card._parseDurationInput('30.6m');
+      const result = parseDurationInput('30.6m');
       expect(result).toEqual({ days: 0, hours: 0, minutes: 31 });
     });
   });
 
   describe('Duration Formatting Arithmetic', () => {
     test('_formatDuration handles 0 days correctly', () => {
-      expect(card._formatDuration(0, 1, 30)).toBe('1 hour, 30 minutes');
+      expect(formatDuration(0, 1, 30)).toBe('1 hour, 30 minutes');
     });
 
     test('_formatDuration handles 0 hours correctly', () => {
-      expect(card._formatDuration(1, 0, 30)).toBe('1 day, 30 minutes');
+      expect(formatDuration(1, 0, 30)).toBe('1 day, 30 minutes');
     });
 
     test('_formatDuration handles 0 minutes correctly', () => {
-      expect(card._formatDuration(1, 2, 0)).toBe('1 day, 2 hours');
+      expect(formatDuration(1, 2, 0)).toBe('1 day, 2 hours');
     });
 
     test('_formatDuration handles all zeros', () => {
-      expect(card._formatDuration(0, 0, 0)).toBe('');
+      expect(formatDuration(0, 0, 0)).toBe('');
     });
 
     test('_formatDuration singular forms', () => {
-      expect(card._formatDuration(1, 1, 1)).toBe('1 day, 1 hour, 1 minute');
+      expect(formatDuration(1, 1, 1)).toBe('1 day, 1 hour, 1 minute');
     });
 
     test('_formatDuration plural forms', () => {
-      expect(card._formatDuration(2, 2, 2)).toBe('2 days, 2 hours, 2 minutes');
+      expect(formatDuration(2, 2, 2)).toBe('2 days, 2 hours, 2 minutes');
     });
   });
 
@@ -402,28 +419,28 @@ describe('Arithmetic Operations - Mutation Killing', () => {
     test('_formatCountdown at exactly 1 day boundary', () => {
       // 1 day = 86400000ms + buffer
       const time = new Date(Date.now() + 86400000 + 5000).toISOString();
-      const result = card._formatCountdown(time);
+      const result = formatCountdown(time);
       expect(result).toContain('1d');
     });
 
     test('_formatCountdown just under 1 day', () => {
       // Just under 24 hours (23h 59m)
       const time = new Date(Date.now() + 86340000).toISOString(); // 23h 59m
-      const result = card._formatCountdown(time);
+      const result = formatCountdown(time);
       expect(result).toContain('23h');
       expect(result).not.toContain('d');
     });
 
     test('_formatCountdown at exactly 1 hour boundary', () => {
       const time = new Date(Date.now() + 3600000 + 5000).toISOString();
-      const result = card._formatCountdown(time);
+      const result = formatCountdown(time);
       expect(result).toContain('1h');
     });
 
     test('_formatCountdown just under 1 hour', () => {
       // 59 minutes + 500ms buffer to avoid timing flakiness
       const time = new Date(Date.now() + 3540500).toISOString();
-      const result = card._formatCountdown(time);
+      const result = formatCountdown(time);
       expect(result).toContain('59m');
       expect(result).not.toContain('h');
     });
@@ -484,46 +501,46 @@ describe('Conditional Logic - Mutation Killing', () => {
 
   describe('_parseDurationInput Conditionals', () => {
     test('returns null for empty string', () => {
-      expect(card._parseDurationInput('')).toBeNull();
+      expect(parseDurationInput('')).toBeNull();
     });
 
     test('returns null for whitespace only', () => {
-      expect(card._parseDurationInput('   ')).toBeNull();
+      expect(parseDurationInput('   ')).toBeNull();
     });
 
     test('returns null for invalid text', () => {
-      expect(card._parseDurationInput('abc')).toBeNull();
+      expect(parseDurationInput('abc')).toBeNull();
     });
 
     test('returns null for NaN values', () => {
-      expect(card._parseDurationInput('NaN')).toBeNull();
+      expect(parseDurationInput('NaN')).toBeNull();
     });
 
     test('handles mixed case input', () => {
-      expect(card._parseDurationInput('2H30M')).toEqual({ days: 0, hours: 2, minutes: 30 });
+      expect(parseDurationInput('2H30M')).toEqual({ days: 0, hours: 2, minutes: 30 });
     });
 
     test('handles input with spaces', () => {
-      expect(card._parseDurationInput('1d 2h 30m')).toEqual({ days: 1, hours: 2, minutes: 30 });
+      expect(parseDurationInput('1d 2h 30m')).toEqual({ days: 1, hours: 2, minutes: 30 });
     });
   });
 
   describe('_toggleSelection Conditionals', () => {
     test('adds item when not selected', () => {
       card._selected = [];
-      card._toggleSelection('automation.test');
+      queryAutomationList(card)._toggleSelection('automation.test');
       expect(card._selected).toContain('automation.test');
     });
 
     test('removes item when already selected', () => {
       card._selected = ['automation.test'];
-      card._toggleSelection('automation.test');
+      queryAutomationList(card)._toggleSelection('automation.test');
       expect(card._selected).not.toContain('automation.test');
     });
 
     test('preserves other selections when toggling', () => {
       card._selected = ['automation.other', 'automation.test'];
-      card._toggleSelection('automation.test');
+      queryAutomationList(card)._toggleSelection('automation.test');
       expect(card._selected).toContain('automation.other');
       expect(card._selected).not.toContain('automation.test');
     });
@@ -532,22 +549,22 @@ describe('Conditional Logic - Mutation Killing', () => {
   describe('_selectAllVisible Conditionals', () => {
     test('selects all when none selected', () => {
       card._selected = [];
-      card._selectAllVisible();
+      queryAutomationList(card)._selectAllVisible();
       expect(card._selected.length).toBeGreaterThan(0);
     });
 
     test('deselects all when all selected', () => {
-      const automations = card._getFilteredAutomations();
+      const automations = queryAutomationList(card)._getFilteredAutomations();
       card._selected = automations.map((a) => a.id);
-      card._selectAllVisible();
+      queryAutomationList(card)._selectAllVisible();
       expect(card._selected.length).toBe(0);
     });
 
     test('selects remaining when some selected', () => {
-      const automations = card._getFilteredAutomations();
+      const automations = queryAutomationList(card)._getFilteredAutomations();
       if (automations.length > 1) {
         card._selected = [automations[0].id];
-        card._selectAllVisible();
+        queryAutomationList(card)._selectAllVisible();
         expect(card._selected.length).toBe(automations.length);
       }
     });
@@ -593,23 +610,23 @@ describe('Conditional Logic - Mutation Killing', () => {
 
   describe('_combineDateTime Conditionals', () => {
     test('returns null when date is null', () => {
-      expect(card._combineDateTime(null, '12:00')).toBeNull();
+      expect(combineDateTime(null, '12:00')).toBeNull();
     });
 
     test('returns null when time is null', () => {
-      expect(card._combineDateTime('2024-12-25', null)).toBeNull();
+      expect(combineDateTime('2024-12-25', null)).toBeNull();
     });
 
     test('returns null when date is empty', () => {
-      expect(card._combineDateTime('', '12:00')).toBeNull();
+      expect(combineDateTime('', '12:00')).toBeNull();
     });
 
     test('returns null when time is empty', () => {
-      expect(card._combineDateTime('2024-12-25', '')).toBeNull();
+      expect(combineDateTime('2024-12-25', '')).toBeNull();
     });
 
     test('returns formatted datetime when both provided', () => {
-      const result = card._combineDateTime('2024-12-25', '12:00');
+      const result = combineDateTime('2024-12-25', '12:00');
       expect(result).not.toBeNull();
       expect(result).toMatch(/^2024-12-25T12:00[+-]\d{2}:\d{2}$/);
     });
@@ -711,7 +728,7 @@ describe('Method Return Values - Mutation Killing', () => {
 
   describe('_getAreaCount Return Values', () => {
     test('returns exact count of unique areas', () => {
-      const count = card._getAreaCount();
+      const count = queryAutomationList(card)._getAreaCount();
       expect(count).toBe(2);
     });
 
@@ -722,13 +739,13 @@ describe('Method Return Values - Mutation Killing', () => {
         'automation.bedroom': { entity_id: 'automation.bedroom', area_id: null, categories: {}, labels: [] },
       };
       card._automationsCache = null;
-      expect(card._getAreaCount()).toBe(0);
+      expect(queryAutomationList(card)._getAreaCount()).toBe(0);
     });
   });
 
   describe('_getLabelCount Return Values', () => {
     test('returns exact count of unique labels', () => {
-      const count = card._getLabelCount();
+      const count = queryAutomationList(card)._getLabelCount();
       expect(count).toBe(1);
     });
 
@@ -739,13 +756,13 @@ describe('Method Return Values - Mutation Killing', () => {
         'automation.bedroom': { entity_id: 'automation.bedroom', area_id: 'bedroom', categories: {}, labels: [] },
       };
       card._automationsCache = null;
-      expect(card._getLabelCount()).toBe(0);
+      expect(queryAutomationList(card)._getLabelCount()).toBe(0);
     });
   });
 
   describe('_getCategoryCount Return Values', () => {
     test('returns exact count of unique categories', () => {
-      const count = card._getCategoryCount();
+      const count = queryAutomationList(card)._getCategoryCount();
       expect(count).toBe(1);
     });
 
@@ -756,7 +773,7 @@ describe('Method Return Values - Mutation Killing', () => {
         'automation.bedroom': { entity_id: 'automation.bedroom', area_id: 'bedroom', categories: {}, labels: [] },
       };
       card._automationsCache = null;
-      expect(card._getCategoryCount()).toBe(0);
+      expect(queryAutomationList(card)._getCategoryCount()).toBe(0);
     });
   });
 
@@ -931,18 +948,18 @@ describe('Grouping Logic - Mutation Killing', () => {
 
   describe('_getGroupedByArea', () => {
     test('groups by area correctly', () => {
-      const grouped = card._getGroupedByArea();
+      const grouped = queryAutomationList(card)._getGroupedByArea();
       expect(grouped.length).toBe(3); // Area One, Area Two, Unassigned
     });
 
     test('Unassigned is always last', () => {
-      const grouped = card._getGroupedByArea();
+      const grouped = queryAutomationList(card)._getGroupedByArea();
       const lastGroup = grouped[grouped.length - 1];
       expect(lastGroup[0]).toBe('Unassigned');
     });
 
     test('groups are sorted alphabetically', () => {
-      const grouped = card._getGroupedByArea();
+      const grouped = queryAutomationList(card)._getGroupedByArea();
       const names = grouped.slice(0, -1).map(([name]) => name);
       const sorted = [...names].sort();
       expect(names).toEqual(sorted);
@@ -951,12 +968,12 @@ describe('Grouping Logic - Mutation Killing', () => {
 
   describe('_getGroupedByCategory', () => {
     test('groups by category correctly', () => {
-      const grouped = card._getGroupedByCategory();
+      const grouped = queryAutomationList(card)._getGroupedByCategory();
       expect(grouped.length).toBe(2); // Category One, Uncategorized
     });
 
     test('Uncategorized is always last', () => {
-      const grouped = card._getGroupedByCategory();
+      const grouped = queryAutomationList(card)._getGroupedByCategory();
       const lastGroup = grouped[grouped.length - 1];
       expect(lastGroup[0]).toBe('Uncategorized');
     });
@@ -964,12 +981,12 @@ describe('Grouping Logic - Mutation Killing', () => {
 
   describe('_getGroupedByLabel', () => {
     test('groups by label correctly', () => {
-      const grouped = card._getGroupedByLabel();
+      const grouped = queryAutomationList(card)._getGroupedByLabel();
       expect(grouped.length).toBe(3); // Label A, Label B, Unlabeled
     });
 
     test('Unlabeled is always last', () => {
-      const grouped = card._getGroupedByLabel();
+      const grouped = queryAutomationList(card)._getGroupedByLabel();
       const lastGroup = grouped[grouped.length - 1];
       expect(lastGroup[0]).toBe('Unlabeled');
     });
@@ -978,7 +995,7 @@ describe('Grouping Logic - Mutation Killing', () => {
   describe('_selectGroup', () => {
     test('selects all items in group', () => {
       const items = [{ id: 'automation.a' }, { id: 'automation.b' }];
-      card._selectGroup(items);
+      queryAutomationList(card)._selectGroup(items);
       expect(card._selected).toContain('automation.a');
       expect(card._selected).toContain('automation.b');
     });
@@ -986,7 +1003,7 @@ describe('Grouping Logic - Mutation Killing', () => {
     test('deselects all when all already selected', () => {
       const items = [{ id: 'automation.a' }, { id: 'automation.b' }];
       card._selected = ['automation.a', 'automation.b'];
-      card._selectGroup(items);
+      queryAutomationList(card)._selectGroup(items);
       expect(card._selected).not.toContain('automation.a');
       expect(card._selected).not.toContain('automation.b');
     });
@@ -994,7 +1011,7 @@ describe('Grouping Logic - Mutation Killing', () => {
     test('adds remaining items when some selected', () => {
       const items = [{ id: 'automation.a' }, { id: 'automation.b' }];
       card._selected = ['automation.a'];
-      card._selectGroup(items);
+      queryAutomationList(card)._selectGroup(items);
       expect(card._selected).toContain('automation.a');
       expect(card._selected).toContain('automation.b');
     });
@@ -1002,19 +1019,21 @@ describe('Grouping Logic - Mutation Killing', () => {
 
   describe('_toggleGroupExpansion', () => {
     test('toggles group from undefined to false', () => {
-      expect(card._expandedGroups['TestGroup']).toBeUndefined();
-      card._toggleGroupExpansion('TestGroup');
+      const list = queryAutomationList(card);
+      expect(list._expandedGroups['TestGroup']).toBeUndefined();
+      list._toggleGroupExpansion('TestGroup');
       // First toggle - !undefined = true, then stored
-      const firstState = card._expandedGroups['TestGroup'];
+      const firstState = list._expandedGroups['TestGroup'];
       expect(typeof firstState).toBe('boolean');
     });
 
     test('toggles group state back and forth', () => {
-      card._expandedGroups = { TestGroup: true };
-      card._toggleGroupExpansion('TestGroup');
-      expect(card._expandedGroups['TestGroup']).toBe(false);
-      card._toggleGroupExpansion('TestGroup');
-      expect(card._expandedGroups['TestGroup']).toBe(true);
+      const list = queryAutomationList(card);
+      list._expandedGroups = { TestGroup: true };
+      list._toggleGroupExpansion('TestGroup');
+      expect(list._expandedGroups['TestGroup']).toBe(false);
+      list._toggleGroupExpansion('TestGroup');
+      expect(list._expandedGroups['TestGroup']).toBe(true);
     });
   });
 });
@@ -1050,23 +1069,23 @@ describe('Registry ID Formatting - Mutation Killing', () => {
 
   describe('_formatRegistryId', () => {
     test('replaces underscores with spaces', () => {
-      const result = card._formatRegistryId('living_room');
+      const result = formatRegistryId('living_room');
       expect(result).toContain(' ');
       expect(result).not.toContain('_');
     });
 
     test('capitalizes first letter of each word', () => {
-      const result = card._formatRegistryId('living_room');
+      const result = formatRegistryId('living_room');
       expect(result).toBe('Living Room');
     });
 
     test('handles single word', () => {
-      const result = card._formatRegistryId('kitchen');
+      const result = formatRegistryId('kitchen');
       expect(result).toBe('Kitchen');
     });
 
     test('handles multiple underscores', () => {
-      const result = card._formatRegistryId('my_very_long_name');
+      const result = formatRegistryId('my_very_long_name');
       expect(result).toBe('My Very Long Name');
     });
   });
@@ -1189,6 +1208,7 @@ describe('Snooze Validation - Mutation Killing', () => {
   });
 });
 
+// =============================================================================
 // SEARCH DEBOUNCE TESTS
 // =============================================================================
 
@@ -1222,43 +1242,43 @@ describe('Search Debounce - Mutation Killing', () => {
 
   test('search is debounced at 300ms', () => {
     const event = { target: { value: 'test' } };
-    card._handleSearchInput(event);
+    queryAutomationList(card)._handleSearchInput(event);
 
     // Before 300ms
     vi.advanceTimersByTime(299);
-    expect(card._search).toBe('');
+    expect(queryAutomationList(card)._search).toBe('');
 
     // At 300ms
     vi.advanceTimersByTime(1);
-    expect(card._search).toBe('test');
+    expect(queryAutomationList(card)._search).toBe('test');
   });
 
   test('search is not updated before debounce completes', () => {
     const event = { target: { value: 'first' } };
-    card._handleSearchInput(event);
+    queryAutomationList(card)._handleSearchInput(event);
 
     vi.advanceTimersByTime(100);
-    expect(card._search).toBe('');
+    expect(queryAutomationList(card)._search).toBe('');
 
     vi.advanceTimersByTime(100);
-    expect(card._search).toBe('');
+    expect(queryAutomationList(card)._search).toBe('');
 
     vi.advanceTimersByTime(100);
-    expect(card._search).toBe('first');
+    expect(queryAutomationList(card)._search).toBe('first');
   });
 
   test('subsequent inputs reset the debounce timer', () => {
-    card._handleSearchInput({ target: { value: 'first' } });
+    queryAutomationList(card)._handleSearchInput({ target: { value: 'first' } });
     vi.advanceTimersByTime(200);
 
-    card._handleSearchInput({ target: { value: 'second' } });
+    queryAutomationList(card)._handleSearchInput({ target: { value: 'second' } });
     vi.advanceTimersByTime(200);
 
     // First timer would have fired, but was cancelled
-    expect(card._search).toBe('');
+    expect(queryAutomationList(card)._search).toBe('');
 
     vi.advanceTimersByTime(100);
-    expect(card._search).toBe('second');
+    expect(queryAutomationList(card)._search).toBe('second');
   });
 });
 
@@ -1302,35 +1322,45 @@ describe('Wake All Confirmation - Mutation Killing', () => {
     }
   });
 
-  test('first click sets pending flag', () => {
-    expect(card._wakeAllPending).toBe(false);
-    card._handleWakeAll();
-    expect(card._wakeAllPending).toBe(true);
+  test('first click sets pending flag on child', () => {
+    const ChildClass = customElements.get('autosnooze-active-pauses');
+    const child = new ChildClass();
+    expect(child._wakeAllPending).toBe(false);
+    child._handleWakeAll();
+    expect(child._wakeAllPending).toBe(true);
   });
 
-  test('pending resets after 3000ms', () => {
-    card._handleWakeAll();
-    expect(card._wakeAllPending).toBe(true);
+  test('pending resets after 3000ms on child', () => {
+    const ChildClass = customElements.get('autosnooze-active-pauses');
+    const child = new ChildClass();
+    child._handleWakeAll();
+    expect(child._wakeAllPending).toBe(true);
 
     vi.advanceTimersByTime(2999);
-    expect(card._wakeAllPending).toBe(true);
+    expect(child._wakeAllPending).toBe(true);
 
     vi.advanceTimersByTime(1);
-    expect(card._wakeAllPending).toBe(false);
+    expect(child._wakeAllPending).toBe(false);
   });
 
-  test('second click within timeout calls service', async () => {
-    card._handleWakeAll();
+  test('second click within timeout fires wake-all event', async () => {
+    const ChildClass = customElements.get('autosnooze-active-pauses');
+    const child = new ChildClass();
+    const events = [];
+    child.addEventListener('wake-all', (e) => events.push(e));
+    child._handleWakeAll();
     vi.advanceTimersByTime(1000);
-    await card._handleWakeAll();
+    child._handleWakeAll();
 
-    expect(mockHass.callService).toHaveBeenCalledWith('autosnooze', 'cancel_all', {});
+    expect(events.length).toBe(1);
   });
 
-  test('second click resets pending flag', async () => {
-    card._handleWakeAll();
-    await card._handleWakeAll();
-    expect(card._wakeAllPending).toBe(false);
+  test('second click resets pending flag on child', async () => {
+    const ChildClass = customElements.get('autosnooze-active-pauses');
+    const child = new ChildClass();
+    child._handleWakeAll();
+    child._handleWakeAll();
+    expect(child._wakeAllPending).toBe(false);
   });
 });
 

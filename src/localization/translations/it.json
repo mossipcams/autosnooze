@@ -52,7 +52,12 @@
     "group_count": "{count} automazioni",
     "select_all_in_group": "Seleziona tutto in {name}",
     "snooze_last_duration": "Pausa per ultima durata",
-    "snooze_for_duration": "Pausa per {duration}"
+    "snooze_for_duration": "Pausa per {duration}",
+    "close_adjust_modal": "Chiudi finestra di modifica",
+    "adjust_automation": "Modifica tempo di snooze per {name}",
+    "add_minutes": "Aggiungi {label}",
+    "reduce_minutes": "Riduci di {label}",
+    "adjust_group": "Modifica il tempo di pausa per {count} automazioni in questo gruppo"
   },
   "toast": {
     "error": {
@@ -63,7 +68,8 @@
       "undo_failed": "Annullamento fallito. Le automazioni potrebbero essere già state modificate.",
       "resume_failed": "Ripresa dell'automazione fallita",
       "resume_all_failed": "Ripresa delle automazioni fallita. Controlla i log di Home Assistant.",
-      "cancel_failed": "Annullamento della pausa programmata fallito"
+      "cancel_failed": "Annullamento della pausa programmata fallito",
+      "adjust_failed": "Impossibile modificare il tempo di snooze"
     },
     "success": {
       "scheduled_one": "1 automazione programmata per la pausa",
@@ -76,7 +82,8 @@
       "restored_many": "{count} automazioni ripristinate",
       "resumed": "Automazione ripresa con successo",
       "resumed_all": "Tutte le automazioni riprese con successo",
-      "cancelled": "Pausa programmata annullata con successo"
+      "cancelled": "Pausa programmata annullata con successo",
+      "adjusted": "Tempo di snooze modificato"
     }
   },
   "list": {
@@ -128,5 +135,12 @@
   "editor": {
     "title_label": "Titolo",
     "title_placeholder": "AutoSnooze"
+  },
+  "adjust": {
+    "remaining": "Tempo rimanente",
+    "add_time": "Aggiungi tempo",
+    "reduce_time": "Riduci tempo",
+    "group_title": "Modifica {count} automazioni",
+    "group_subtitle": "Tutte le automazioni in questo gruppo"
   }
 }

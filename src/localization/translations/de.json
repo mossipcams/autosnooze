@@ -52,7 +52,12 @@
     "group_count": "{count} Automatisierungen",
     "select_all_in_group": "Alle in {name} auswählen",
     "snooze_last_duration": "Letzte Dauer verwenden",
-    "snooze_for_duration": "Für {duration} pausieren"
+    "snooze_for_duration": "Für {duration} pausieren",
+    "close_adjust_modal": "Anpassungsdialog schließen",
+    "adjust_automation": "Schlummerzeit anpassen für {name}",
+    "add_minutes": "{label} hinzufügen",
+    "reduce_minutes": "Um {label} reduzieren",
+    "adjust_group": "Schlummerzeit für {count} Automatisierungen in dieser Gruppe anpassen"
   },
   "toast": {
     "error": {
@@ -63,7 +68,8 @@
       "undo_failed": "Rückgängig machen fehlgeschlagen. Die Automatisierungen wurden möglicherweise bereits geändert.",
       "resume_failed": "Fortsetzen der Automatisierung fehlgeschlagen",
       "resume_all_failed": "Fortsetzen der Automatisierungen fehlgeschlagen. Prüfen Sie die Home Assistant Logs.",
-      "cancel_failed": "Abbrechen der geplanten Pause fehlgeschlagen"
+      "cancel_failed": "Abbrechen der geplanten Pause fehlgeschlagen",
+      "adjust_failed": "Schlummerzeit konnte nicht angepasst werden"
     },
     "success": {
       "scheduled_one": "1 Automatisierung zum Pausieren geplant",
@@ -76,7 +82,8 @@
       "restored_many": "{count} Automatisierungen wiederhergestellt",
       "resumed": "Automatisierung erfolgreich fortgesetzt",
       "resumed_all": "Alle Automatisierungen erfolgreich fortgesetzt",
-      "cancelled": "Geplante Pause erfolgreich abgebrochen"
+      "cancelled": "Geplante Pause erfolgreich abgebrochen",
+      "adjusted": "Schlummerzeit angepasst"
     }
   },
   "list": {
@@ -128,5 +135,12 @@
   "editor": {
     "title_label": "Titel",
     "title_placeholder": "AutoSnooze"
+  },
+  "adjust": {
+    "remaining": "Verbleibende Zeit",
+    "add_time": "Zeit hinzufügen",
+    "reduce_time": "Zeit reduzieren",
+    "group_title": "Anpassen von {count} Automatisierungen",
+    "group_subtitle": "Alle Automatisierungen in dieser Gruppe"
   }
 }

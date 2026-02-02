@@ -52,7 +52,12 @@
     "group_count": "{count} automations",
     "select_all_in_group": "Select all automations in {name}",
     "snooze_last_duration": "Snooze for last used duration",
-    "snooze_for_duration": "Snooze for {duration}"
+    "snooze_for_duration": "Snooze for {duration}",
+    "close_adjust_modal": "Close adjust modal",
+    "adjust_automation": "Adjust snooze time for {name}",
+    "add_minutes": "Add {label}",
+    "reduce_minutes": "Reduce by {label}",
+    "adjust_group": "Adjust snooze time for {count} automations in this group"
   },
   "toast": {
     "error": {
@@ -63,7 +68,8 @@
       "undo_failed": "Failed to undo. The automations may have already been modified.",
       "resume_failed": "Failed to resume automation",
       "resume_all_failed": "Failed to resume automations. Check Home Assistant logs for details.",
-      "cancel_failed": "Failed to cancel scheduled snooze"
+      "cancel_failed": "Failed to cancel scheduled snooze",
+      "adjust_failed": "Failed to adjust snooze time"
     },
     "success": {
       "scheduled_one": "Scheduled 1 automation to snooze",
@@ -76,7 +82,8 @@
       "restored_many": "Restored {count} automations",
       "resumed": "Automation resumed successfully",
       "resumed_all": "All automations resumed successfully",
-      "cancelled": "Scheduled snooze cancelled successfully"
+      "cancelled": "Scheduled snooze cancelled successfully",
+      "adjusted": "Snooze time adjusted"
     }
   },
   "list": {
@@ -128,5 +135,12 @@
   "editor": {
     "title_label": "Title",
     "title_placeholder": "AutoSnooze"
+  },
+  "adjust": {
+    "remaining": "Time remaining",
+    "add_time": "Add time",
+    "reduce_time": "Reduce time",
+    "group_title": "Adjust {count} automations",
+    "group_subtitle": "All automations in this group"
   }
 }
