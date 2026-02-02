@@ -343,7 +343,7 @@ describe('Parent Card Integration', () => {
       customElements.define('autosnooze-card-wake-test', class extends AutomationPauseCard {});
     }
     const card = new (customElements.get('autosnooze-card-wake-test')! as typeof AutomationPauseCard)();
-    card.setConfig({ title: 'Test' });
+    card.setConfig({ type: 'custom:autosnooze-card', title: 'Test' });
     const futureDate = new Date(Date.now() + 3600000).toISOString();
     card.hass = {
       callService: vi.fn().mockResolvedValue(undefined),
@@ -387,7 +387,7 @@ describe('Parent Card Integration', () => {
       customElements.define('autosnooze-card-wakeall-test', class extends AutomationPauseCard {});
     }
     const card = new (customElements.get('autosnooze-card-wakeall-test')! as typeof AutomationPauseCard)();
-    card.setConfig({ title: 'Test' });
+    card.setConfig({ type: 'custom:autosnooze-card', title: 'Test' });
     card.hass = {
       callService: vi.fn().mockResolvedValue(undefined),
       states: {
@@ -423,7 +423,7 @@ describe('Parent Card Integration', () => {
       customElements.define('autosnooze-card-wakeall-toast-test', class extends AutomationPauseCard {});
     }
     const card = new (customElements.get('autosnooze-card-wakeall-toast-test')! as typeof AutomationPauseCard)();
-    card.setConfig({ title: 'Test' });
+    card.setConfig({ type: 'custom:autosnooze-card', title: 'Test' });
     card.hass = {
       callService: vi.fn().mockResolvedValue(undefined),
       states: {
@@ -457,7 +457,7 @@ describe('Parent Card Integration', () => {
       customElements.define('autosnooze-card-wakeall-err-test', class extends AutomationPauseCard {});
     }
     const card = new (customElements.get('autosnooze-card-wakeall-err-test')! as typeof AutomationPauseCard)();
-    card.setConfig({ title: 'Test' });
+    card.setConfig({ type: 'custom:autosnooze-card', title: 'Test' });
     card.hass = {
       callService: vi.fn().mockRejectedValue(new Error('Service failed')),
       states: {
@@ -522,7 +522,7 @@ describe('Parent Card Integration', () => {
       customElements.define('autosnooze-card-group-test', class extends AutomationPauseCard {});
     }
     const card = new (customElements.get('autosnooze-card-group-test')! as typeof AutomationPauseCard)();
-    card.setConfig({ title: 'Test' });
+    card.setConfig({ type: 'custom:autosnooze-card', title: 'Test' });
     card.hass = {
       callService: vi.fn().mockResolvedValue(undefined),
       states: {
@@ -565,7 +565,7 @@ describe('Parent Card Integration', () => {
       customElements.define('autosnooze-card-group-event-test', class extends AutomationPauseCard {});
     }
     const card = new (customElements.get('autosnooze-card-group-event-test')! as typeof AutomationPauseCard)();
-    card.setConfig({ title: 'Test' });
+    card.setConfig({ type: 'custom:autosnooze-card', title: 'Test' });
     const futureDate = new Date(Date.now() + 3600000).toISOString();
     card.hass = {
       callService: vi.fn().mockResolvedValue(undefined),
@@ -609,7 +609,7 @@ describe('Parent Card Integration', () => {
       customElements.define('autosnooze-card-group-template-test', class extends AutomationPauseCard {});
     }
     const card = new (customElements.get('autosnooze-card-group-template-test')! as typeof AutomationPauseCard)();
-    card.setConfig({ title: 'Test' });
+    card.setConfig({ type: 'custom:autosnooze-card', title: 'Test' });
     const futureDate = new Date(Date.now() + 3600000).toISOString();
     card.hass = {
       callService: vi.fn().mockResolvedValue(undefined),
@@ -656,7 +656,7 @@ describe('Parent Card Integration', () => {
       customElements.define('autosnooze-card-group-autoclose-test', class extends AutomationPauseCard {});
     }
     const card = new (customElements.get('autosnooze-card-group-autoclose-test')! as typeof AutomationPauseCard)();
-    card.setConfig({ title: 'Test' });
+    card.setConfig({ type: 'custom:autosnooze-card', title: 'Test' });
     const futureDate = new Date(Date.now() + 3600000).toISOString();
     // Start with 2 paused automations
     card.hass = {
@@ -712,7 +712,7 @@ describe('Parent Card Integration', () => {
       customElements.define('autosnooze-card-group-close-test', class extends AutomationPauseCard {});
     }
     const card = new (customElements.get('autosnooze-card-group-close-test')! as typeof AutomationPauseCard)();
-    card.setConfig({ title: 'Test' });
+    card.setConfig({ type: 'custom:autosnooze-card', title: 'Test' });
     card.hass = {
       callService: vi.fn().mockResolvedValue(undefined),
       states: {
@@ -752,7 +752,7 @@ describe('Parent Card Integration', () => {
       customElements.define('autosnooze-card-group-adjust-test', class extends AutomationPauseCard {});
     }
     const card = new (customElements.get('autosnooze-card-group-adjust-test')! as typeof AutomationPauseCard)();
-    card.setConfig({ title: 'Test' });
+    card.setConfig({ type: 'custom:autosnooze-card', title: 'Test' });
     card.hass = {
       callService: vi.fn().mockResolvedValue(undefined),
       states: {
@@ -792,7 +792,7 @@ describe('Parent Card Integration', () => {
       customElements.define('autosnooze-card-integration-test', class extends AutomationPauseCard {});
     }
     const card = new (customElements.get('autosnooze-card-integration-test')! as typeof AutomationPauseCard)();
-    card.setConfig({ title: 'Test' });
+    card.setConfig({ type: 'custom:autosnooze-card', title: 'Test' });
     const futureDate = new Date(Date.now() + 3600000).toISOString();
     card.hass = {
       callService: vi.fn(),
