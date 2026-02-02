@@ -95,3 +95,23 @@ export async function cancelScheduled(
     throw error;
   }
 }
+
+/**
+ * Adjust the snooze duration for a paused automation.
+ * Positive values add time, negative values reduce time.
+ */
+export async function adjustSnooze(
+  hass: HomeAssistant,
+  entityId: string | string[],
+  params: { days?: number; hours?: number; minutes?: number }
+): Promise<void> {
+  try {
+    await hass.callService('autosnooze', 'adjust', {
+      entity_id: entityId,
+      ...params,
+    });
+  } catch (error) {
+    console.error('[AutoSnooze] Failed to adjust snooze:', error);
+    throw error;
+  }
+}

@@ -14,6 +14,7 @@ from homeassistant.helpers import entity_registry as er
 from homeassistant.util import dt as dt_util
 
 from .const import (
+    ADJUST_SCHEMA,
     CANCEL_SCHEMA,
     DOMAIN,
     PAUSE_BY_AREA_SCHEMA,
@@ -21,6 +22,7 @@ from .const import (
     PAUSE_SCHEMA,
 )
 from .coordinator import (
+    async_adjust_snooze,
     async_cancel_scheduled,
     async_cancel_scheduled_batch,
     async_resume,
@@ -267,9 +269,28 @@ def register_services(hass: HomeAssistant, data: AutomationPauseData) -> None:
         if valid_ids:
             await async_cancel_scheduled_batch(hass, data, valid_ids)
 
+    async def handle_adjust(call: ServiceCall) -> None:
+        """Handle adjust snooze service call."""
+        entity_ids = call.data[ATTR_ENTITY_ID]
+        days = call.data.get("days", 0)
+        hours = call.data.get("hours", 0)
+        minutes = call.data.get("minutes", 0)
+
+        delta = timedelta(days=days, hours=hours, minutes=minutes)
+        if delta == timedelta():
+            raise ServiceValidationError(
+                "Adjustment must be non-zero",
+                translation_domain=DOMAIN,
+                translation_key="invalid_adjustment",
+            )
+
+        for entity_id in entity_ids:
+            await async_adjust_snooze(hass, data, entity_id, delta)
+
     hass.services.async_register(DOMAIN, "pause", handle_pause, schema=PAUSE_SCHEMA)
     hass.services.async_register(DOMAIN, "cancel", handle_cancel, schema=CANCEL_SCHEMA)
     hass.services.async_register(DOMAIN, "cancel_all", handle_cancel_all)
     hass.services.async_register(DOMAIN, "pause_by_area", handle_pause_by_area, schema=PAUSE_BY_AREA_SCHEMA)
     hass.services.async_register(DOMAIN, "pause_by_label", handle_pause_by_label, schema=PAUSE_BY_LABEL_SCHEMA)
     hass.services.async_register(DOMAIN, "cancel_scheduled", handle_cancel_scheduled, schema=CANCEL_SCHEMA)
+    hass.services.async_register(DOMAIN, "adjust", handle_adjust, schema=ADJUST_SCHEMA)

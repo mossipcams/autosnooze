@@ -4,16 +4,17 @@ from __future__ import annotations
 
 import asyncio
 from collections.abc import Callable
-from datetime import datetime
+from datetime import datetime, timedelta
 import logging
 from typing import Any
 
 from homeassistant.const import ATTR_ENTITY_ID, ATTR_FRIENDLY_NAME
+from homeassistant.exceptions import ServiceValidationError
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.event import async_track_point_in_time
 from homeassistant.util import dt as dt_util
 
-from .const import MAX_SAVE_RETRIES, SAVE_RETRY_DELAYS, TRANSIENT_ERRORS
+from .const import DOMAIN, MAX_SAVE_RETRIES, SAVE_RETRY_DELAYS, TRANSIENT_ERRORS
 from .models import (
     AutomationPauseData,
     PausedAutomation,
@@ -120,6 +121,43 @@ async def async_resume_batch(hass: HomeAssistant, data: AutomationPauseData, ent
         await async_save(data)
     data.notify()
     _LOGGER.info("Woke %d automations", len(entity_ids))
+
+
+async def async_adjust_snooze(
+    hass: HomeAssistant,
+    data: AutomationPauseData,
+    entity_id: str,
+    delta: timedelta,
+) -> None:
+    """Adjust the resume time of a paused automation by a time delta."""
+    if data.unloaded:
+        return
+    async with data.lock:
+        paused = data.paused.get(entity_id)
+        if paused is None:
+            _LOGGER.warning("Cannot adjust %s: not currently snoozed", entity_id)
+            return
+
+        new_resume_at = paused.resume_at + delta
+        now = dt_util.utcnow()
+
+        if new_resume_at <= now + timedelta(minutes=1):
+            raise ServiceValidationError(
+                "Adjusted time must be at least 1 minute in the future",
+                translation_domain=DOMAIN,
+                translation_key="adjust_time_too_short",
+            )
+
+        paused.resume_at = new_resume_at
+        # Clear stale duration fields -- resume_at is the source of truth after adjustment
+        paused.days = 0
+        paused.hours = 0
+        paused.minutes = 0
+
+        schedule_resume(hass, data, entity_id, new_resume_at)
+        await async_save(data)
+    data.notify()
+    _LOGGER.info("Adjusted snooze for %s: new resume at %s", entity_id, new_resume_at)
 
 
 def schedule_disable(

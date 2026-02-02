@@ -54,7 +54,7 @@ test.describe('Filter Tabs', () => {
       (() => {
         ${findCardScript}
         const card = findAutosnoozeCard();
-        const counts = card?.shadowRoot?.querySelectorAll('.tab-count');
+        const counts = deepQueryAll(card, '.tab-count');
         return (counts?.length ?? 0) > 0;
       })()
       `
@@ -69,7 +69,7 @@ test.describe('Filter Tabs', () => {
       (() => {
         ${findCardScript}
         const card = findAutosnoozeCard();
-        const tabs = card?.shadowRoot?.querySelectorAll('.tab');
+        const tabs = deepQueryAll(card, '.tab');
         for (const tab of tabs || []) {
           if (tab.textContent?.toLowerCase().includes('all')) {
             const count = tab.querySelector('.tab-count');
@@ -100,7 +100,7 @@ test.describe('Filter Tabs', () => {
       (() => {
         ${findCardScript}
         const card = findAutosnoozeCard();
-        const headers = card?.shadowRoot?.querySelectorAll('.group-header');
+        const headers = deepQueryAll(card, '.group-header');
         for (const header of headers || []) {
           const chevron = header.querySelector('.chevron, .expand-icon, svg, ha-icon');
           if (chevron) return true;
@@ -122,7 +122,7 @@ test.describe('Filter Tabs', () => {
       (() => {
         ${findCardScript}
         const card = findAutosnoozeCard();
-        const header = card?.shadowRoot?.querySelector('.group-header');
+        const header = deepQuery(card, '.group-header');
         // Extract just the group name, not the count
         const text = header?.textContent?.trim() ?? '';
         return text.split(/\\s+/)[0];
@@ -138,7 +138,7 @@ test.describe('Filter Tabs', () => {
       (() => {
         ${findCardScript}
         const card = findAutosnoozeCard();
-        const group = card?.shadowRoot?.querySelector('.group');
+        const group = deepQuery(card, '.group');
         const items = group?.querySelectorAll('.list-item');
         return items?.length ?? 0;
       })()
@@ -151,7 +151,7 @@ test.describe('Filter Tabs', () => {
       (() => {
         ${findCardScript}
         const card = findAutosnoozeCard();
-        const header = card?.shadowRoot?.querySelector('.group-header');
+        const header = deepQuery(card, '.group-header');
         header?.click();
       })()
       `
@@ -164,7 +164,7 @@ test.describe('Filter Tabs', () => {
       (() => {
         ${findCardScript}
         const card = findAutosnoozeCard();
-        const header = card?.shadowRoot?.querySelector('.group-header');
+        const header = deepQuery(card, '.group-header');
         header?.click();
       })()
       `
@@ -177,7 +177,7 @@ test.describe('Filter Tabs', () => {
       (() => {
         ${findCardScript}
         const card = findAutosnoozeCard();
-        const group = card?.shadowRoot?.querySelector('.group');
+        const group = deepQuery(card, '.group');
         const items = group?.querySelectorAll('.list-item');
         return items?.length ?? 0;
       })()

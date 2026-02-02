@@ -7,30 +7,54 @@
       "fields": {
         "entity_id": {
           "required": true,
-          "selector": { "entity": { "domain": "automation", "multiple": true } }
+          "selector": {
+            "entity": {
+              "domain": "automation",
+              "multiple": true
+            }
+          }
         },
         "days": {
           "required": false,
           "default": 0,
-          "selector": { "number": { "min": 0, "max": 365 } }
+          "selector": {
+            "number": {
+              "min": 0,
+              "max": 365
+            }
+          }
         },
         "hours": {
           "required": false,
           "default": 0,
-          "selector": { "number": { "min": 0, "max": 23 } }
+          "selector": {
+            "number": {
+              "min": 0,
+              "max": 23
+            }
+          }
         },
         "minutes": {
           "required": false,
           "default": 0,
-          "selector": { "number": { "min": 0, "max": 59 } }
+          "selector": {
+            "number": {
+              "min": 0,
+              "max": 59
+            }
+          }
         },
         "disable_at": {
           "required": false,
-          "selector": { "datetime": {} }
+          "selector": {
+            "datetime": {}
+          }
         },
         "resume_at": {
           "required": false,
-          "selector": { "datetime": {} }
+          "selector": {
+            "datetime": {}
+          }
         }
       }
     },
@@ -39,7 +63,12 @@
       "fields": {
         "entity_id": {
           "required": true,
-          "selector": { "entity": { "domain": "automation", "multiple": true } }
+          "selector": {
+            "entity": {
+              "domain": "automation",
+              "multiple": true
+            }
+          }
         }
       }
     },
@@ -52,30 +81,53 @@
       "fields": {
         "area_id": {
           "required": true,
-          "selector": { "area": { "multiple": true } }
+          "selector": {
+            "area": {
+              "multiple": true
+            }
+          }
         },
         "days": {
           "required": false,
           "default": 0,
-          "selector": { "number": { "min": 0, "max": 365 } }
+          "selector": {
+            "number": {
+              "min": 0,
+              "max": 365
+            }
+          }
         },
         "hours": {
           "required": false,
           "default": 0,
-          "selector": { "number": { "min": 0, "max": 23 } }
+          "selector": {
+            "number": {
+              "min": 0,
+              "max": 23
+            }
+          }
         },
         "minutes": {
           "required": false,
           "default": 0,
-          "selector": { "number": { "min": 0, "max": 59 } }
+          "selector": {
+            "number": {
+              "min": 0,
+              "max": 59
+            }
+          }
         },
         "disable_at": {
           "required": false,
-          "selector": { "datetime": {} }
+          "selector": {
+            "datetime": {}
+          }
         },
         "resume_at": {
           "required": false,
-          "selector": { "datetime": {} }
+          "selector": {
+            "datetime": {}
+          }
         }
       }
     },
@@ -84,30 +136,53 @@
       "fields": {
         "label_id": {
           "required": true,
-          "selector": { "label": { "multiple": true } }
+          "selector": {
+            "label": {
+              "multiple": true
+            }
+          }
         },
         "days": {
           "required": false,
           "default": 0,
-          "selector": { "number": { "min": 0, "max": 365 } }
+          "selector": {
+            "number": {
+              "min": 0,
+              "max": 365
+            }
+          }
         },
         "hours": {
           "required": false,
           "default": 0,
-          "selector": { "number": { "min": 0, "max": 23 } }
+          "selector": {
+            "number": {
+              "min": 0,
+              "max": 23
+            }
+          }
         },
         "minutes": {
           "required": false,
           "default": 0,
-          "selector": { "number": { "min": 0, "max": 59 } }
+          "selector": {
+            "number": {
+              "min": 0,
+              "max": 59
+            }
+          }
         },
         "disable_at": {
           "required": false,
-          "selector": { "datetime": {} }
+          "selector": {
+            "datetime": {}
+          }
         },
         "resume_at": {
           "required": false,
-          "selector": { "datetime": {} }
+          "selector": {
+            "datetime": {}
+          }
         }
       }
     },
@@ -116,7 +191,56 @@
       "fields": {
         "entity_id": {
           "required": true,
-          "selector": { "entity": { "domain": "automation", "multiple": true } }
+          "selector": {
+            "entity": {
+              "domain": "automation",
+              "multiple": true
+            }
+          }
+        }
+      }
+    },
+    "adjust": {
+      "name": "Adjust Snooze",
+      "fields": {
+        "entity_id": {
+          "required": true,
+          "selector": {
+            "entity": {
+              "domain": "automation",
+              "multiple": true
+            }
+          }
+        },
+        "days": {
+          "required": false,
+          "default": 0,
+          "selector": {
+            "number": {
+              "min": -365,
+              "max": 365
+            }
+          }
+        },
+        "hours": {
+          "required": false,
+          "default": 0,
+          "selector": {
+            "number": {
+              "min": -23,
+              "max": 23
+            }
+          }
+        },
+        "minutes": {
+          "required": false,
+          "default": 0,
+          "selector": {
+            "number": {
+              "min": -59,
+              "max": 59
+            }
+          }
         }
       }
     }
@@ -125,6 +249,8 @@
     "not_automation",
     "resume_time_past",
     "disable_after_resume",
-    "invalid_duration"
+    "invalid_duration",
+    "invalid_adjustment",
+    "adjust_time_too_short"
   ]
 }

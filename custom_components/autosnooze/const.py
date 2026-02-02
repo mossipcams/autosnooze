@@ -84,6 +84,16 @@ PAUSE_BY_LABEL_SCHEMA = vol.Schema(
     }
 )
 
+# Adjust snooze duration (positive adds time, negative subtracts)
+ADJUST_SCHEMA = vol.Schema(
+    {
+        vol.Required(ATTR_ENTITY_ID): cv.entity_ids,
+        vol.Optional("days", default=0): vol.All(int, vol.Range(min=-365, max=365)),
+        vol.Optional("hours", default=0): vol.All(int, vol.Range(min=-23, max=23)),
+        vol.Optional("minutes", default=0): vol.All(int, vol.Range(min=-59, max=59)),
+    }
+)
+
 # Default duration presets for the card's quick-select buttons
 # Each preset has a label (displayed on button) and minutes (duration value)
 DEFAULT_DURATION_PRESETS: list[dict[str, str | int]] = [

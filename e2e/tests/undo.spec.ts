@@ -22,7 +22,7 @@ test.describe('Undo Functionality', () => {
       (() => {
         ${findCardScript}
         const card = findAutosnoozeCard();
-        return card?.shadowRoot?.querySelector('.toast-undo-btn') !== null;
+        return deepQuery(card, '.toast-undo-btn') !== null;
       })()
       `
     );
@@ -133,7 +133,7 @@ test.describe('Undo Functionality', () => {
       (() => {
         ${findCardScript}
         const card = findAutosnoozeCard();
-        return card?.shadowRoot?.querySelectorAll('.toast').length ?? 0;
+        return deepQueryAll(card, '.toast').length ?? 0;
       })()
       `
     );

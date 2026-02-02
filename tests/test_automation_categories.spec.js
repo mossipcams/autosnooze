@@ -11,6 +11,67 @@
 import { vi } from 'vitest';
 import '../custom_components/autosnooze/www/autosnooze-card.js';
 
+// =============================================================================
+// HELPER: Shadow DOM helpers for child component access
+// =============================================================================
+function _computeAutomations(card) {
+  const states = card.hass?.states || {};
+  const entityReg = card._entityRegistry || {};
+  const hassEntities = card.hass?.entities || {};
+  return Object.entries(states)
+    .filter(([id, state]) => id.startsWith('automation.') && state)
+    .map(([id, state]) => {
+      const reg = entityReg[id] || {};
+      const hassEntry = hassEntities[id] || {};
+      const categories = reg.categories || {};
+      return {
+        id,
+        name: state.attributes?.friendly_name || id,
+        area_id: reg.area_id ?? hassEntry.area_id ?? null,
+        labels: reg.labels ?? hassEntry.labels ?? [],
+        category_id: categories.automation ?? null,
+      };
+    })
+    .sort((a, b) => a.name.localeCompare(b.name));
+}
+
+function queryAutomationList(card) {
+  // If card has rendered, find child in shadow DOM
+  const sr = card.shadowRoot;
+  if (sr) {
+    const child = sr.querySelector('autosnooze-automation-list');
+    if (child) {
+      // Sync all properties from card to child (may not have re-rendered yet)
+      if (card.hass) child.hass = card.hass;
+      if (card._selected !== undefined) child.selected = card._selected;
+      if (card._labelRegistry) child.labelRegistry = card._labelRegistry;
+      if (card._categoryRegistry) child.categoryRegistry = card._categoryRegistry;
+      // Recompute automations from card's current state (entity registry may have changed)
+      child.automations = _computeAutomations(card);
+      return child;
+    }
+  }
+  // For tests that access child methods without rendering:
+  // Create a standalone automation list with synced data
+  if (!card.__automationList) {
+    const list = document.createElement('autosnooze-automation-list');
+    // Listen for selection-change events on the element itself
+    list.addEventListener('selection-change', (e) => {
+      list.selected = e.detail.selected;
+      card._selected = e.detail.selected;
+    });
+    card.__automationList = list;
+  }
+  const list = card.__automationList;
+  // Sync state from card to child
+  if (card.hass) list.hass = card.hass;
+  list.automations = _computeAutomations(card);
+  list.selected = card._selected || [];
+  list.labelRegistry = card._labelRegistry || {};
+  list.categoryRegistry = card._categoryRegistry || {};
+  return list;
+}
+
 describe('Categories Feature', () => {
   let card;
   let mockHass;
@@ -116,7 +177,7 @@ describe('Categories Feature', () => {
 
   describe('Category counting', () => {
     test('_getCategoryCount returns correct unique count', () => {
-      expect(card._getCategoryCount()).toBe(2);
+      expect(queryAutomationList(card)._getCategoryCount()).toBe(2);
     });
 
     test('_getCategoryCount returns 0 when no categories assigned', () => {
@@ -139,27 +200,27 @@ describe('Categories Feature', () => {
         },
       };
       card._automationsCache = null;
-      expect(card._getCategoryCount()).toBe(0);
+      expect(queryAutomationList(card)._getCategoryCount()).toBe(0);
     });
   });
 
   describe('Category name resolution', () => {
     test('_getCategoryName returns name from registry', () => {
-      expect(card._getCategoryName('cat_lighting')).toBe('Lighting');
+      expect(queryAutomationList(card)._getCategoryName('cat_lighting')).toBe('Lighting');
     });
 
     test('_getCategoryName returns "Uncategorized" for null', () => {
-      expect(card._getCategoryName(null)).toBe('Uncategorized');
+      expect(queryAutomationList(card)._getCategoryName(null)).toBe('Uncategorized');
     });
 
     test('_getCategoryName transforms ID if not in registry', () => {
-      expect(card._getCategoryName('some_test_category')).toBe('Some Test Category');
+      expect(queryAutomationList(card)._getCategoryName('some_test_category')).toBe('Some Test Category');
     });
   });
 
   describe('Category grouping', () => {
     test('_getGroupedByCategory groups automations correctly', () => {
-      const grouped = card._getGroupedByCategory();
+      const grouped = queryAutomationList(card)._getGroupedByCategory();
       const groupNames = grouped.map(([name]) => name);
 
       expect(groupNames).toContain('Lighting');
@@ -168,7 +229,7 @@ describe('Categories Feature', () => {
     });
 
     test('groups have correct automation count', () => {
-      const grouped = card._getGroupedByCategory();
+      const grouped = queryAutomationList(card)._getGroupedByCategory();
       const groupMap = Object.fromEntries(grouped);
 
       expect(groupMap['Lighting'].length).toBe(2);
@@ -177,7 +238,7 @@ describe('Categories Feature', () => {
     });
 
     test('groups are sorted alphabetically with Uncategorized last', () => {
-      const grouped = card._getGroupedByCategory();
+      const grouped = queryAutomationList(card)._getGroupedByCategory();
       const groupNames = grouped.map(([name]) => name);
 
       expect(groupNames[0]).toBe('Lighting');
@@ -189,18 +250,18 @@ describe('Categories Feature', () => {
   describe('Categories tab UI', () => {
     test('switching to categories tab renders category groups', async () => {
       // Start with a different tab
-      card._filterTab = 'all';
+      queryAutomationList(card)._filterTab = 'all';
       await card.updateComplete;
 
       // Get initial group headers count (should be 0 or different structure in 'all' tab)
-      const initialHeaders = card.shadowRoot.querySelectorAll('.group-header');
+      const initialHeaders = queryAutomationList(card).shadowRoot.querySelectorAll('.group-header');
 
       // Switch to categories tab
-      card._filterTab = 'categories';
+      queryAutomationList(card)._filterTab = 'categories';
       await card.updateComplete;
 
       // Verify the DOM actually changed - categories tab should show group headers
-      const categoryHeaders = card.shadowRoot.querySelectorAll('.group-header');
+      const categoryHeaders = queryAutomationList(card).shadowRoot.querySelectorAll('.group-header');
       expect(categoryHeaders.length).toBeGreaterThan(0);
 
       // Verify category names are rendered (Lighting, Security, Uncategorized)
@@ -209,18 +270,18 @@ describe('Categories Feature', () => {
     });
 
     test('renders category groups in categories tab with correct count', async () => {
-      card._filterTab = 'categories';
-      await card.updateComplete;
+      const list = queryAutomationList(card);
+      list._filterTab = 'categories';
+      await list.updateComplete;
 
-      const groupHeaders = card.shadowRoot.querySelectorAll('.group-header');
+      const groupHeaders = list.shadowRoot.querySelectorAll('.group-header');
       // Should have 3 groups: Lighting (2 automations), Security (1), Uncategorized (1)
       expect(groupHeaders.length).toBe(3);
 
-      // Verify the card rendered content (check for checkboxes or list items)
-      const checkboxes = card.shadowRoot.querySelectorAll('input[type="checkbox"]');
-      const listItems = card.shadowRoot.querySelectorAll('label, .item, li');
+      // Verify rendered content (check for list items in child's shadow DOM)
+      const listItems = list.shadowRoot.querySelectorAll('.list-item');
       // Should have rendered some interactive elements for the automations
-      expect(checkboxes.length + listItems.length).toBeGreaterThan(0);
+      expect(listItems.length).toBeGreaterThan(0);
     });
   });
 });

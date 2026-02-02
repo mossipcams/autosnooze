@@ -13,6 +13,69 @@
 
 import { vi } from 'vitest';
 import '../custom_components/autosnooze/www/autosnooze-card.js';
+import { formatCountdown } from '../src/utils/index.js';
+import { formatRegistryId } from '../src/state/automations.js';
+
+// =============================================================================
+// HELPER: Shadow DOM helpers for child component access
+// =============================================================================
+function _computeAutomations(card) {
+  const states = card.hass?.states || {};
+  const entityReg = card._entityRegistry || {};
+  const hassEntities = card.hass?.entities || {};
+  return Object.entries(states)
+    .filter(([id, state]) => id.startsWith('automation.') && state)
+    .map(([id, state]) => {
+      const reg = entityReg[id] || {};
+      const hassEntry = hassEntities[id] || {};
+      const categories = reg.categories || {};
+      return {
+        id,
+        name: state.attributes?.friendly_name || id,
+        area_id: reg.area_id ?? hassEntry.area_id ?? null,
+        labels: reg.labels ?? hassEntry.labels ?? [],
+        category_id: categories.automation ?? null,
+      };
+    })
+    .sort((a, b) => a.name.localeCompare(b.name));
+}
+
+function queryAutomationList(card) {
+  // If card has rendered, find child in shadow DOM
+  const sr = card.shadowRoot;
+  if (sr) {
+    const child = sr.querySelector('autosnooze-automation-list');
+    if (child) {
+      // Sync all properties from card to child (may not have re-rendered yet)
+      if (card.hass) child.hass = card.hass;
+      if (card._selected !== undefined) child.selected = card._selected;
+      if (card._labelRegistry) child.labelRegistry = card._labelRegistry;
+      if (card._categoryRegistry) child.categoryRegistry = card._categoryRegistry;
+      // Recompute automations from card's current state (entity registry may have changed)
+      child.automations = _computeAutomations(card);
+      return child;
+    }
+  }
+  // For tests that access child methods without rendering:
+  // Create a standalone automation list with synced data
+  if (!card.__automationList) {
+    const list = document.createElement('autosnooze-automation-list');
+    // Listen for selection-change events on the element itself
+    list.addEventListener('selection-change', (e) => {
+      list.selected = e.detail.selected;
+      card._selected = e.detail.selected;
+    });
+    card.__automationList = list;
+  }
+  const list = card.__automationList;
+  // Sync state from card to child
+  if (card.hass) list.hass = card.hass;
+  list.automations = _computeAutomations(card);
+  list.selected = card._selected || [];
+  list.labelRegistry = card._labelRegistry || {};
+  list.categoryRegistry = card._categoryRegistry || {};
+  return list;
+}
 
 // =============================================================================
 // HELPER: Create Card Instance
@@ -46,12 +109,12 @@ describe('_formatRegistryId', () => {
     ['', '', 'handles empty string'],
     ['room_1', 'Room 1', 'preserves numbers'],
   ])('"%s" → "%s" (%s)', (input, expected) => {
-    const result = card._formatRegistryId(input);
+    const result = formatRegistryId(input);
     expect(result).toBe(expected);
   });
 
   test('output contains no underscores', () => {
-    const result = card._formatRegistryId('living_room');
+    const result = formatRegistryId('living_room');
     expect(result).toContain(' ');
     expect(result).not.toContain('_');
   });
@@ -71,18 +134,18 @@ describe('_getAreaName', () => {
     [undefined, 'Unassigned'],
     ['', 'Unassigned'],
   ])('returns "Unassigned" for falsy value: %s', (input, expected) => {
-    const result = card._getAreaName(input);
+    const result = queryAutomationList(card)._getAreaName(input);
     expect(result).toBe(expected);
   });
 
   test('returns area name from hass when available', () => {
     card.hass.areas = { living_room: { name: 'Living Room' } };
-    expect(card._getAreaName('living_room')).toBe('Living Room');
+    expect(queryAutomationList(card)._getAreaName('living_room')).toBe('Living Room');
   });
 
   test('falls back to formatted ID when area not in hass', () => {
     card.hass.areas = {};
-    expect(card._getAreaName('my_area')).toBe('My Area');
+    expect(queryAutomationList(card)._getAreaName('my_area')).toBe('My Area');
   });
 });
 
@@ -97,12 +160,12 @@ describe('_getLabelName', () => {
 
   test('returns label name from registry', () => {
     card._labelRegistry = { test_label: { name: 'Test Label' } };
-    expect(card._getLabelName('test_label')).toBe('Test Label');
+    expect(queryAutomationList(card)._getLabelName('test_label')).toBe('Test Label');
   });
 
   test('falls back to formatted ID when not in registry', () => {
     card._labelRegistry = {};
-    expect(card._getLabelName('my_label')).toBe('My Label');
+    expect(queryAutomationList(card)._getLabelName('my_label')).toBe('My Label');
   });
 });
 
@@ -120,18 +183,18 @@ describe('_getCategoryName', () => {
     [undefined, 'Uncategorized'],
     ['', 'Uncategorized'],
   ])('returns "Uncategorized" for falsy value: %s', (input, expected) => {
-    const result = card._getCategoryName(input);
+    const result = queryAutomationList(card)._getCategoryName(input);
     expect(result).toBe(expected);
   });
 
   test('returns category name from registry', () => {
     card._categoryRegistry = { lights: { name: 'Lights' } };
-    expect(card._getCategoryName('lights')).toBe('Lights');
+    expect(queryAutomationList(card)._getCategoryName('lights')).toBe('Lights');
   });
 
   test('falls back to formatted ID when not in registry', () => {
     card._categoryRegistry = {};
-    expect(card._getCategoryName('my_category')).toBe('My Category');
+    expect(queryAutomationList(card)._getCategoryName('my_category')).toBe('My Category');
   });
 });
 
@@ -149,7 +212,7 @@ describe('_groupAutomationsBy Sorting', () => {
       'automation.c_auto': { attributes: { friendly_name: 'C Auto' } },
     };
     card._entityRegistry = {};
-    card._search = '';
+    queryAutomationList(card)._search = '';
   });
 
   test('default group appears last in sorting', () => {
@@ -160,7 +223,7 @@ describe('_groupAutomationsBy Sorting', () => {
     };
     card.hass.areas = { room1: { name: 'Room 1' }, room2: { name: 'Room 2' } };
 
-    const groups = card._getGroupedByArea();
+    const groups = queryAutomationList(card)._getGroupedByArea();
     const lastGroup = groups[groups.length - 1];
     expect(lastGroup[0]).toBe('Unassigned');
   });
@@ -177,7 +240,7 @@ describe('_groupAutomationsBy Sorting', () => {
       mango: { name: 'Mango' },
     };
 
-    const groups = card._getGroupedByArea();
+    const groups = queryAutomationList(card)._getGroupedByArea();
     expect(groups[0][0]).toBe('Apple');
     expect(groups[1][0]).toBe('Mango');
     expect(groups[2][0]).toBe('Zebra');
@@ -208,8 +271,8 @@ describe('_getFilteredAutomations Search', () => {
     ['', 3, null, 'returns all when search is empty'],
     ['nonexistent', 0, null, 'returns empty when no match'],
   ])('search "%s" returns %d results (%s)', (search, expectedCount, expectedName) => {
-    card._search = search;
-    const filtered = card._getFilteredAutomations();
+    queryAutomationList(card)._search = search;
+    const filtered = queryAutomationList(card)._getFilteredAutomations();
     expect(filtered.length).toBe(expectedCount);
     if (expectedName && filtered.length > 0) {
       expect(filtered[0].name).toBe(expectedName);
@@ -238,12 +301,12 @@ describe('_getAreaCount', () => {
   });
 
   test('counts unique areas correctly', () => {
-    expect(card._getAreaCount()).toBe(2);
+    expect(queryAutomationList(card)._getAreaCount()).toBe(2);
   });
 
   test('returns 0 when no areas assigned', () => {
     card._entityRegistry = {};
-    expect(card._getAreaCount()).toBe(0);
+    expect(queryAutomationList(card)._getAreaCount()).toBe(0);
   });
 });
 
@@ -260,12 +323,12 @@ describe('_selectAllVisible', () => {
       'automation.b': { attributes: { friendly_name: 'B' } },
     };
     card._entityRegistry = {};
-    card._search = '';
+    queryAutomationList(card)._search = '';
     card._selected = [];
   });
 
   test('selects all when none selected', () => {
-    card._selectAllVisible();
+    queryAutomationList(card)._selectAllVisible();
     expect(card._selected).toContain('automation.a');
     expect(card._selected).toContain('automation.b');
     expect(card._selected.length).toBe(2);
@@ -273,13 +336,13 @@ describe('_selectAllVisible', () => {
 
   test('deselects all when all selected', () => {
     card._selected = ['automation.a', 'automation.b'];
-    card._selectAllVisible();
+    queryAutomationList(card)._selectAllVisible();
     expect(card._selected.length).toBe(0);
   });
 
   test('selects remaining when some selected', () => {
     card._selected = ['automation.a'];
-    card._selectAllVisible();
+    queryAutomationList(card)._selectAllVisible();
     expect(card._selected).toContain('automation.a');
     expect(card._selected).toContain('automation.b');
   });
@@ -301,7 +364,7 @@ describe('_formatCountdown', () => {
     [45 * 1000, 's', 'includes seconds'],
   ])('offset %dms contains "%s" (%s)', (offset, expected) => {
     const future = new Date(Date.now() + offset).toISOString();
-    const result = card._formatCountdown(future);
+    const result = formatCountdown(future);
     if (expected === 'Resuming...') {
       expect(result).toBe(expected);
     } else {
@@ -448,19 +511,19 @@ describe('_toggleSelection', () => {
   });
 
   test('adds item when not selected', () => {
-    card._toggleSelection('automation.a');
+    queryAutomationList(card)._toggleSelection('automation.a');
     expect(card._selected).toContain('automation.a');
   });
 
   test('removes item when already selected', () => {
     card._selected = ['automation.a'];
-    card._toggleSelection('automation.a');
+    queryAutomationList(card)._toggleSelection('automation.a');
     expect(card._selected).not.toContain('automation.a');
   });
 
   test('preserves other selections when toggling', () => {
     card._selected = ['automation.a', 'automation.b'];
-    card._toggleSelection('automation.a');
+    queryAutomationList(card)._toggleSelection('automation.a');
     expect(card._selected).not.toContain('automation.a');
     expect(card._selected).toContain('automation.b');
   });
@@ -495,14 +558,14 @@ describe('_clearSelection', () => {
 
   test('clears all selected items', () => {
     card._selected = ['automation.a', 'automation.b', 'automation.c'];
-    card._clearSelection();
+    queryAutomationList(card)._clearSelection();
     expect(card._selected.length).toBe(0);
     expect(Array.isArray(card._selected)).toBe(true);
   });
 
   test('works when already empty', () => {
     card._selected = [];
-    card._clearSelection();
+    queryAutomationList(card)._clearSelection();
     expect(card._selected.length).toBe(0);
   });
 });
@@ -522,12 +585,12 @@ describe('Filter Tab', () => {
   });
 
   test('_filterTab defaults to "all"', () => {
-    expect(card._filterTab).toBe('all');
+    expect(queryAutomationList(card)._filterTab).toBe('all');
   });
 
   test('setting _filterTab changes filter', () => {
-    card._filterTab = 'areas';
-    expect(card._filterTab).toBe('areas');
+    queryAutomationList(card)._filterTab = 'areas';
+    expect(queryAutomationList(card)._filterTab).toBe('areas');
   });
 });
 

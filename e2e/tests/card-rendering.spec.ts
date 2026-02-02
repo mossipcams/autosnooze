@@ -13,7 +13,7 @@ test.describe('Card Rendering', () => {
       (() => {
         ${findCardScript}
         const card = findAutosnoozeCard();
-        const tabElements = card?.shadowRoot?.querySelectorAll('.tab');
+        const tabElements = deepQueryAll(card, '.tab');
         return Array.from(tabElements || []).map((t) => t.textContent?.toLowerCase() ?? '');
       })()
       `
@@ -31,7 +31,7 @@ test.describe('Card Rendering', () => {
       (() => {
         ${findCardScript}
         const card = findAutosnoozeCard();
-        const input = card?.shadowRoot?.querySelector('.search-box input');
+        const input = deepQuery(card, '.search-box input');
         return input !== null;
       })()
       `
@@ -45,7 +45,7 @@ test.describe('Card Rendering', () => {
       (() => {
         ${findCardScript}
         const card = findAutosnoozeCard();
-        const pillElements = card?.shadowRoot?.querySelectorAll('.pill');
+        const pillElements = deepQueryAll(card, '.pill');
         return Array.from(pillElements || []).map((p) => p.textContent?.trim() ?? '');
       })()
       `

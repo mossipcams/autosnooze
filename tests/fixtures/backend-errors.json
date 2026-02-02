@@ -21,6 +21,14 @@
     "invalid_duration": {
       "translation_key": "invalid_duration",
       "message": "Duration must be greater than zero"
+    },
+    "invalid_adjustment": {
+      "translation_key": "invalid_adjustment",
+      "message": "Adjustment must be non-zero"
+    },
+    "adjust_time_too_short": {
+      "translation_key": "adjust_time_too_short",
+      "message": "Adjusted resume time must be at least 1 minute in the future"
     }
   }
 }

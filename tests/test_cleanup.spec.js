@@ -42,41 +42,34 @@ describe('Cleanup Verification', () => {
     vi.clearAllTimers();
   });
 
-  describe('Interval cleanup', () => {
-    test('disconnectedCallback clears countdown interval', async () => {
+  describe('Interval cleanup (child component)', () => {
+    test('child disconnectedCallback clears countdown interval', async () => {
       vi.useFakeTimers();
 
-      const CardClass = customElements.get('autosnooze-card');
-      const card = new CardClass();
-      card.setConfig({ title: 'Test' });
-      card.hass = mockHass;
-      document.body.appendChild(card);
-      await card.updateComplete;
+      const ChildClass = customElements.get('autosnooze-active-pauses');
+      const child = new ChildClass();
+      child._interval = setInterval(() => {}, 1000);
 
-      expect(card._interval).toBeDefined();
+      child.disconnectedCallback();
 
-      card.remove();
-
-      expect(card._interval).toBeNull();
+      expect(child._interval).toBeNull();
 
       vi.useRealTimers();
     });
 
-    test('multiple connect/disconnect cycles clean up properly', async () => {
+    test('multiple connect/disconnect cycles clean up child timers', async () => {
       vi.useFakeTimers();
 
-      const CardClass = customElements.get('autosnooze-card');
-      const card = new CardClass();
-      card.setConfig({ title: 'Test' });
-      card.hass = mockHass;
+      const ChildClass = customElements.get('autosnooze-active-pauses');
+      const child = new ChildClass();
 
       for (let i = 0; i < 5; i++) {
-        document.body.appendChild(card);
-        await card.updateComplete;
-        expect(card._interval).toBeDefined();
+        child.connectedCallback();
+        expect(child._syncTimeout).not.toBeNull();
 
-        card.remove();
-        expect(card._interval).toBeNull();
+        child.disconnectedCallback();
+        expect(child._interval).toBeNull();
+        expect(child._syncTimeout).toBeNull();
       }
 
       vi.useRealTimers();
