@@ -254,11 +254,11 @@ describe('AutoSnoozeAdjustModal', () => {
       resumeAt: futureResumeAt(),
     });
     // Timer should be running
-    expect(el._interval !== null || el._syncTimeout !== null).toBe(true);
+    expect(el._countdownState.interval !== null || el._countdownState.syncTimeout !== null).toBe(true);
     // Disconnect
     el.remove();
-    expect(el._interval).toBeNull();
-    expect(el._syncTimeout).toBeNull();
+    expect(el._countdownState.interval).toBeNull();
+    expect(el._countdownState.syncTimeout).toBeNull();
   });
 
   it('should have entityIds and friendlyNames properties defaulting to empty arrays', () => {

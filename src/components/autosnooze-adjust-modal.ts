@@ -8,7 +8,8 @@ import { LitElement, html } from 'lit';
 import { property } from 'lit/decorators.js';
 import { localize } from '../localization/localize.js';
 import { formatCountdown } from '../utils/index.js';
-import { TIME_MS, UI_TIMING } from '../constants/index.js';
+import { TIME_MS } from '../constants/index.js';
+import { startSynchronizedCountdown, stopCountdown, type CountdownState } from '../utils/countdown-timer.js';
 import { adjustModalStyles } from '../styles/adjust-modal.styles.js';
 import type { HomeAssistant } from '../types/hass.js';
 import type { PropertyValues } from 'lit';
@@ -67,8 +68,7 @@ export class AutoSnoozeAdjustModal extends LitElement {
     return this.entityIds.length > 1;
   }
 
-  _interval: number | null = null;
-  _syncTimeout: number | null = null;
+  private _countdownState: CountdownState = { interval: null, syncTimeout: null };
 
   updated(changedProps: PropertyValues): void {
     if (changedProps.has('open')) {
@@ -86,27 +86,12 @@ export class AutoSnoozeAdjustModal extends LitElement {
   }
 
   _startSynchronizedCountdown(): void {
-    this._stopCountdown();
-    const now = Date.now();
-    const msUntilNextSecond = 1000 - (now % 1000);
-    this._syncTimeout = window.setTimeout(() => {
-      this._syncTimeout = null;
-      this.requestUpdate();
-      this._interval = window.setInterval(() => {
-        this.requestUpdate();
-      }, UI_TIMING.COUNTDOWN_INTERVAL_MS);
-    }, msUntilNextSecond);
+    stopCountdown(this._countdownState);
+    this._countdownState = startSynchronizedCountdown(() => this.requestUpdate());
   }
 
   _stopCountdown(): void {
-    if (this._interval !== null) {
-      clearInterval(this._interval);
-      this._interval = null;
-    }
-    if (this._syncTimeout !== null) {
-      clearTimeout(this._syncTimeout);
-      this._syncTimeout = null;
-    }
+    stopCountdown(this._countdownState);
   }
 
   _isDecrementDisabled(thresholdMs: number): boolean {

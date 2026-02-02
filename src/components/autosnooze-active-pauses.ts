@@ -9,6 +9,7 @@ import { property } from 'lit/decorators.js';
 import { localize } from '../localization/localize.js';
 import { formatCountdown, formatDateTime, hapticFeedback } from '../utils/index.js';
 import { UI_TIMING } from '../constants/index.js';
+import { startSynchronizedCountdown, stopCountdown, type CountdownState } from '../utils/countdown-timer.js';
 import { activePausesStyles } from '../styles/active-pauses.styles.js';
 import type { HomeAssistant } from '../types/hass.js';
 import type { PauseGroup, PausedAutomation } from '../types/automation.js';
@@ -28,50 +29,22 @@ export class AutoSnoozeActivePauses extends LitElement {
   _wakeAllPending: boolean = false;
 
   private _wakeAllTimeout: number | null = null;
-  _interval: number | null = null;
-  _syncTimeout: number | null = null;
+  private _countdownState: CountdownState = { interval: null, syncTimeout: null };
 
   connectedCallback(): void {
     super.connectedCallback();
 
-    if (this._interval) {
-      window.clearInterval(this._interval);
-      this._interval = null;
-    }
-    if (this._syncTimeout) {
-      window.clearTimeout(this._syncTimeout);
-      this._syncTimeout = null;
-    }
-
-    this._startSynchronizedCountdown();
+    stopCountdown(this._countdownState);
+    this._countdownState = startSynchronizedCountdown(() => this._updateCountdownIfNeeded());
   }
 
   disconnectedCallback(): void {
     super.disconnectedCallback();
-    if (this._interval !== null) {
-      clearInterval(this._interval);
-      this._interval = null;
-    }
-    if (this._syncTimeout !== null) {
-      clearTimeout(this._syncTimeout);
-      this._syncTimeout = null;
-    }
+    stopCountdown(this._countdownState);
     if (this._wakeAllTimeout !== null) {
       clearTimeout(this._wakeAllTimeout);
       this._wakeAllTimeout = null;
     }
-  }
-
-  _startSynchronizedCountdown(): void {
-    const now = Date.now();
-    const msUntilNextSecond = 1000 - (now % 1000);
-    this._syncTimeout = window.setTimeout(() => {
-      this._syncTimeout = null;
-      this._updateCountdownIfNeeded();
-      this._interval = window.setInterval(() => {
-        this._updateCountdownIfNeeded();
-      }, UI_TIMING.COUNTDOWN_INTERVAL_MS);
-    }, msUntilNextSecond);
   }
 
   private _updateCountdownIfNeeded(): void {

@@ -1211,7 +1211,7 @@ describe('Lifecycle Methods', () => {
     const child = new ChildClass();
     child.connectedCallback();
 
-    expect(child._syncTimeout).not.toBeNull();
+    expect(child._countdownState.syncTimeout).not.toBeNull();
 
     child.disconnectedCallback();
     vi.useRealTimers();
@@ -1237,14 +1237,14 @@ describe('Lifecycle Methods', () => {
 
     const ChildClass = customElements.get('autosnooze-active-pauses');
     const child = new ChildClass();
-    child._interval = setInterval(() => {}, 1000);
-    child._syncTimeout = setTimeout(() => {}, 1000);
+    child._countdownState.interval = setInterval(() => {}, 1000);
+    child._countdownState.syncTimeout = setTimeout(() => {}, 1000);
     child._wakeAllTimeout = setTimeout(() => {}, 3000);
 
     child.disconnectedCallback();
 
-    expect(child._interval).toBeNull();
-    expect(child._syncTimeout).toBeNull();
+    expect(child._countdownState.interval).toBeNull();
+    expect(child._countdownState.syncTimeout).toBeNull();
     expect(child._wakeAllTimeout).toBeNull();
 
     vi.useRealTimers();

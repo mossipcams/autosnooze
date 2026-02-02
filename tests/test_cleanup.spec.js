@@ -48,11 +48,11 @@ describe('Cleanup Verification', () => {
 
       const ChildClass = customElements.get('autosnooze-active-pauses');
       const child = new ChildClass();
-      child._interval = setInterval(() => {}, 1000);
+      child._countdownState.interval = setInterval(() => {}, 1000);
 
       child.disconnectedCallback();
 
-      expect(child._interval).toBeNull();
+      expect(child._countdownState.interval).toBeNull();
 
       vi.useRealTimers();
     });
@@ -65,11 +65,11 @@ describe('Cleanup Verification', () => {
 
       for (let i = 0; i < 5; i++) {
         child.connectedCallback();
-        expect(child._syncTimeout).not.toBeNull();
+        expect(child._countdownState.syncTimeout).not.toBeNull();
 
         child.disconnectedCallback();
-        expect(child._interval).toBeNull();
-        expect(child._syncTimeout).toBeNull();
+        expect(child._countdownState.interval).toBeNull();
+        expect(child._countdownState.syncTimeout).toBeNull();
       }
 
       vi.useRealTimers();

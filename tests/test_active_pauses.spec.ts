@@ -140,20 +140,19 @@ describe('AutoSnoozeActivePauses Component', () => {
     const el = new AutoSnoozeActivePauses();
 
     const internal = el as unknown as {
-      _interval: number | null;
-      _syncTimeout: number | null;
+      _countdownState: { interval: number | null; syncTimeout: number | null };
       _wakeAllTimeout: number | null;
     };
 
     // Simulate having active timers
-    internal._interval = window.setInterval(() => {}, 1000);
-    internal._syncTimeout = window.setTimeout(() => {}, 1000);
+    internal._countdownState.interval = window.setInterval(() => {}, 1000);
+    internal._countdownState.syncTimeout = window.setTimeout(() => {}, 1000);
     internal._wakeAllTimeout = window.setTimeout(() => {}, 3000);
 
     el.disconnectedCallback();
 
-    expect(internal._interval).toBeNull();
-    expect(internal._syncTimeout).toBeNull();
+    expect(internal._countdownState.interval).toBeNull();
+    expect(internal._countdownState.syncTimeout).toBeNull();
     expect(internal._wakeAllTimeout).toBeNull();
 
     vi.useRealTimers();
@@ -168,16 +167,14 @@ describe('AutoSnoozeActivePauses Component', () => {
     const el = new AutoSnoozeActivePauses();
 
     const internal = el as unknown as {
-      _syncTimeout: number | null;
-      _interval: number | null;
-      _startSynchronizedCountdown: () => void;
+      _countdownState: { interval: number | null; syncTimeout: number | null };
     };
 
     // Call connectedCallback to start timers
     el.connectedCallback();
 
     // After connectedCallback, _syncTimeout should be set (waiting for next second boundary)
-    expect(internal._syncTimeout).not.toBeNull();
+    expect(internal._countdownState.syncTimeout).not.toBeNull();
 
     vi.useRealTimers();
     el.disconnectedCallback();
@@ -191,20 +188,19 @@ describe('AutoSnoozeActivePauses Component', () => {
     }
     const el = new AutoSnoozeActivePauses();
     const internal = el as unknown as {
-      _syncTimeout: number | null;
-      _interval: number | null;
+      _countdownState: { interval: number | null; syncTimeout: number | null };
     };
 
     el.connectedCallback();
 
     // Before sync timeout fires, interval should be null
-    expect(internal._interval).toBeNull();
+    expect(internal._countdownState.interval).toBeNull();
 
     // Advance past sync timeout (max 1000ms)
     vi.advanceTimersByTime(1000);
 
     // After sync fires, interval should be set
-    expect(internal._interval).not.toBeNull();
+    expect(internal._countdownState.interval).not.toBeNull();
 
     vi.useRealTimers();
     el.disconnectedCallback();
