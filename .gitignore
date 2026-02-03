@@ -33,3 +33,6 @@ stryker-result.txt
 # Playwright e2e tests
 e2e/.auth/
 e2e/playwright-report/
+
+# Hypothesis PBT cache
+.hypothesis/
