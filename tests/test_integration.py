@@ -727,6 +727,42 @@ class TestGuardrailLabels:
         )
         assert "automation.alarm_critical_automation" in data.paused
 
+    async def test_co_critical_automation_requires_confirm_without_registry_entry(
+        self, hass: HomeAssistant, setup_integration: ConfigEntry
+    ) -> None:
+        """CO keyword should trigger guardrail even when automation is not in entity registry."""
+        entry = setup_integration
+        data = entry.runtime_data
+        hass.states.async_set(
+            "automation.co_monitor_critical",
+            "on",
+            {"friendly_name": "CO Monitor Critical"},
+        )
+
+        with pytest.raises(ServiceValidationError) as exc_info:
+            await hass.services.async_call(
+                DOMAIN,
+                "pause",
+                {
+                    ATTR_ENTITY_ID: ["automation.co_monitor_critical"],
+                    "hours": 1,
+                },
+                blocking=True,
+            )
+        assert exc_info.value.translation_key == "confirm_required"
+
+        await hass.services.async_call(
+            DOMAIN,
+            "pause",
+            {
+                ATTR_ENTITY_ID: ["automation.co_monitor_critical"],
+                "hours": 1,
+                "confirm": True,
+            },
+            blocking=True,
+        )
+        assert "automation.co_monitor_critical" in data.paused
+
     async def test_pause_by_area_requires_confirm_for_critical_automation(
         self, hass: HomeAssistant, setup_integration: ConfigEntry
     ) -> None:

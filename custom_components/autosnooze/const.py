@@ -155,6 +155,7 @@ CRITICAL_AUTOMATION_TERMS: tuple[str, ...] = (
     "siren",
     "lock",
     "smoke",
+    "co",
     "carbon monoxide",
     "co2",
     "leak",

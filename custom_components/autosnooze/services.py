@@ -98,14 +98,10 @@ def _validate_guardrails(hass: HomeAssistant, entity_ids: list[str], confirm: bo
 
     for entity_id in entity_ids:
         entry = entity_reg.async_get(entity_id)
-        if entry is None:
-            continue
         state = hass.states.get(entity_id)
         friendly_name = state.attributes.get("friendly_name", "") if state is not None else ""
-        if _entity_has_label_name(entry, LABEL_CONFIRM_NAME, labels_by_id) or _is_critical_automation(
-            entity_id,
-            friendly_name,
-        ):
+        has_confirm_label = entry is not None and _entity_has_label_name(entry, LABEL_CONFIRM_NAME, labels_by_id)
+        if has_confirm_label or _is_critical_automation(entity_id, friendly_name):
             requires_confirm.append(entity_id)
 
     if requires_confirm and not confirm:
