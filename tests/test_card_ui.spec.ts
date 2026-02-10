@@ -778,13 +778,6 @@ describe('AutoSnooze Card Main Component', () => {
       expect(btn).toBeDefined();
     });
 
-    test('renders sticky snooze action bar', async () => {
-      await card.updateComplete;
-      const actionBar = card.shadowRoot.querySelector('.snooze-action-bar');
-      expect(actionBar).toBeDefined();
-      expect(actionBar.querySelector('.snooze-btn')).toBeDefined();
-    });
-
     test('snooze button is disabled when no selection', async () => {
       card._selected = [];
       await card.updateComplete;
@@ -1027,22 +1020,22 @@ describe('AutoSnooze Card Main Component', () => {
       expect(namesAfter).toEqual(namesBefore);
     });
 
-    test('sticky action bar selected count updates when selecting and clearing', async () => {
-      const getCountText = () => {
-        const node = card.shadowRoot.querySelector('.snooze-action-count');
+    test('snooze button count updates when selecting and clearing', async () => {
+      const getButtonText = () => {
+        const node = card.shadowRoot.querySelector('.snooze-btn');
         return node?.textContent?.trim() ?? '';
       };
 
       await card.updateComplete;
-      expect(getCountText()).toContain('0');
+      expect(getButtonText()).toContain('0');
 
       queryAutomationList(card)._toggleSelection('automation.test_automation');
       await card.updateComplete;
-      expect(getCountText()).toContain('1');
+      expect(getButtonText()).toContain('1');
 
       queryAutomationList(card)._clearSelection();
       await card.updateComplete;
-      expect(getCountText()).toContain('0');
+      expect(getButtonText()).toContain('0');
     });
 
     test('clicking list item selects automation', async () => {
