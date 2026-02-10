@@ -195,7 +195,7 @@
       "message": "Adjusted resume time must be at least 1 minute in the future. The snooze cannot be shortened that much."
     },
     "confirm_required": {
-      "message": "Some selected automations are tagged autosnooze_confirm and require confirmation before snoozing."
+      "message": "Some selected automations are tagged autosnooze_confirm or detected as critical and require confirmation before snoozing."
     }
   }
 }

@@ -11,6 +11,8 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from custom_components.autosnooze.services import (
+    _contains_guardrail_term,
+    _is_critical_automation,
     get_automations_by_area,
     get_automations_by_label,
 )
@@ -377,3 +379,50 @@ class TestAsyncPauseAutomations:
             )
 
         listener.assert_called()
+
+
+class TestContainsGuardrailTerm:
+    """Tests for _contains_guardrail_term function."""
+
+    def test_case_insensitive(self) -> None:
+        """Matching should be case-insensitive."""
+        assert _contains_guardrail_term("ALARM_PANEL", "alarm") is True
+        assert _contains_guardrail_term("Smoke Detector", "smoke") is True
+
+    def test_no_substring_match(self) -> None:
+        """Term embedded in a larger word should NOT match."""
+        assert _contains_guardrail_term("fireplace_toggle", "fire") is False
+        assert _contains_guardrail_term("madagascar_lights", "gas") is False
+
+    def test_multi_word_term(self) -> None:
+        """Multi-word terms like 'carbon monoxide' should match."""
+        assert _contains_guardrail_term("carbon monoxide detector", "carbon monoxide") is True
+
+
+class TestIsCriticalAutomation:
+    """Tests for _is_critical_automation function."""
+
+    def test_detects_alarm_in_entity_id(self) -> None:
+        """Alarm keyword in entity_id should trigger critical detection."""
+        assert _is_critical_automation("automation.front_door_alarm", "Front Door") is True
+
+    def test_detects_keyword_in_friendly_name(self) -> None:
+        """Critical keyword in friendly_name should trigger detection."""
+        assert _is_critical_automation("automation.some_thing", "Front Door Alarm") is True
+
+    def test_non_critical_returns_false(self) -> None:
+        """Non-critical automation should not trigger detection."""
+        assert _is_critical_automation("automation.living_room_lights", "Living Room Lights") is False
+
+    def test_no_substring_false_positive(self) -> None:
+        """Words containing critical terms as substrings should NOT match."""
+        assert _is_critical_automation("automation.fireplace_toggle", "Fireplace Toggle") is False
+        assert _is_critical_automation("automation.madagascar_scene", "Madagascar Scene") is False
+
+    def test_co_false_positive_not_in_terms(self) -> None:
+        """'co' as standalone term should not be in CRITICAL_AUTOMATION_TERMS.
+
+        'co_operative', 'co_ordinator' etc. contain 'co' at word boundaries
+        and would false-positive. Only 'carbon monoxide' and 'co2' should match.
+        """
+        assert _is_critical_automation("automation.co_operative_lights", "Co-operative Lights") is False

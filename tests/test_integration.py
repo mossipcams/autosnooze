@@ -684,6 +684,209 @@ class TestGuardrailLabels:
         )
         assert "automation.confirm_automation" in data.paused
 
+    async def test_non_critical_automation_pauses_without_confirm(
+        self, hass: HomeAssistant, setup_integration: ConfigEntry
+    ) -> None:
+        """Non-critical automation should pause without needing confirm."""
+        entry = setup_integration
+        data = entry.runtime_data
+        entity_reg = er.async_get(hass)
+        entity_reg.async_get_or_create(
+            "automation",
+            "test",
+            "living_room_lights",
+            suggested_object_id="living_room_lights",
+        )
+        hass.states.async_set(
+            "automation.living_room_lights",
+            "on",
+            {"friendly_name": "Living Room Lights"},
+        )
+
+        await hass.services.async_call(
+            DOMAIN,
+            "pause",
+            {
+                ATTR_ENTITY_ID: ["automation.living_room_lights"],
+                "hours": 1,
+            },
+            blocking=True,
+        )
+        assert "automation.living_room_lights" in data.paused
+
+    async def test_critical_automation_requires_confirm_without_label(
+        self, hass: HomeAssistant, setup_integration: ConfigEntry
+    ) -> None:
+        """Critical automation should require confirm even without autosnooze_confirm label."""
+        entry = setup_integration
+        data = entry.runtime_data
+        entity_reg = er.async_get(hass)
+        entity_reg.async_get_or_create(
+            "automation",
+            "test",
+            "alarm_critical_automation",
+            suggested_object_id="alarm_critical_automation",
+        )
+        hass.states.async_set(
+            "automation.alarm_critical_automation",
+            "on",
+            {"friendly_name": "Alarm Critical Automation"},
+        )
+
+        with pytest.raises(ServiceValidationError) as exc_info:
+            await hass.services.async_call(
+                DOMAIN,
+                "pause",
+                {
+                    ATTR_ENTITY_ID: ["automation.alarm_critical_automation"],
+                    "hours": 1,
+                },
+                blocking=True,
+            )
+        assert exc_info.value.translation_key == "confirm_required"
+
+        await hass.services.async_call(
+            DOMAIN,
+            "pause",
+            {
+                ATTR_ENTITY_ID: ["automation.alarm_critical_automation"],
+                "hours": 1,
+                "confirm": True,
+            },
+            blocking=True,
+        )
+        assert "automation.alarm_critical_automation" in data.paused
+
+    async def test_critical_automation_requires_confirm_without_registry_entry(
+        self, hass: HomeAssistant, setup_integration: ConfigEntry
+    ) -> None:
+        """Critical keyword should trigger guardrail even when automation is not in entity registry."""
+        entry = setup_integration
+        data = entry.runtime_data
+        hass.states.async_set(
+            "automation.smoke_detector_hallway",
+            "on",
+            {"friendly_name": "Smoke Detector Hallway"},
+        )
+
+        with pytest.raises(ServiceValidationError) as exc_info:
+            await hass.services.async_call(
+                DOMAIN,
+                "pause",
+                {
+                    ATTR_ENTITY_ID: ["automation.smoke_detector_hallway"],
+                    "hours": 1,
+                },
+                blocking=True,
+            )
+        assert exc_info.value.translation_key == "confirm_required"
+
+        await hass.services.async_call(
+            DOMAIN,
+            "pause",
+            {
+                ATTR_ENTITY_ID: ["automation.smoke_detector_hallway"],
+                "hours": 1,
+                "confirm": True,
+            },
+            blocking=True,
+        )
+        assert "automation.smoke_detector_hallway" in data.paused
+
+    async def test_pause_by_area_requires_confirm_for_critical_automation(
+        self, hass: HomeAssistant, setup_integration: ConfigEntry
+    ) -> None:
+        """pause_by_area should require confirm when a critical automation is matched."""
+        entry = setup_integration
+        data = entry.runtime_data
+        entity_reg = er.async_get(hass)
+        entity_reg.async_get_or_create(
+            "automation",
+            "test",
+            "security_zone_critical",
+            suggested_object_id="security_zone_critical",
+        )
+        entity_reg.async_update_entity(
+            "automation.security_zone_critical",
+            area_id="front_entry",
+        )
+        hass.states.async_set(
+            "automation.security_zone_critical",
+            "on",
+            {"friendly_name": "Security Zone Critical"},
+        )
+
+        with pytest.raises(ServiceValidationError) as exc_info:
+            await hass.services.async_call(
+                DOMAIN,
+                "pause_by_area",
+                {
+                    "area_id": "front_entry",
+                    "hours": 1,
+                },
+                blocking=True,
+            )
+        assert exc_info.value.translation_key == "confirm_required"
+
+        await hass.services.async_call(
+            DOMAIN,
+            "pause_by_area",
+            {
+                "area_id": "front_entry",
+                "hours": 1,
+                "confirm": True,
+            },
+            blocking=True,
+        )
+        assert "automation.security_zone_critical" in data.paused
+
+    async def test_pause_by_label_requires_confirm_for_critical_automation(
+        self, hass: HomeAssistant, setup_integration: ConfigEntry
+    ) -> None:
+        """pause_by_label should require confirm when a critical automation is matched."""
+        entry = setup_integration
+        data = entry.runtime_data
+        entity_reg = er.async_get(hass)
+        entity_reg.async_get_or_create(
+            "automation",
+            "test",
+            "smoke_alert_critical",
+            suggested_object_id="smoke_alert_critical",
+        )
+        entity_reg.async_update_entity(
+            "automation.smoke_alert_critical",
+            labels={"routine"},
+        )
+        hass.states.async_set(
+            "automation.smoke_alert_critical",
+            "on",
+            {"friendly_name": "Smoke Alert Critical"},
+        )
+
+        with pytest.raises(ServiceValidationError) as exc_info:
+            await hass.services.async_call(
+                DOMAIN,
+                "pause_by_label",
+                {
+                    "label_id": "routine",
+                    "hours": 1,
+                },
+                blocking=True,
+            )
+        assert exc_info.value.translation_key == "confirm_required"
+
+        await hass.services.async_call(
+            DOMAIN,
+            "pause_by_label",
+            {
+                "label_id": "routine",
+                "hours": 1,
+                "confirm": True,
+            },
+            blocking=True,
+        )
+        assert "automation.smoke_alert_critical" in data.paused
+
 
 # =============================================================================
 # Setup/Unload Tests
