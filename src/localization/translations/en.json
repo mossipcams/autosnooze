@@ -135,7 +135,7 @@
   },
   "guardrail": {
     "confirm_title": "Review required",
-    "confirm_body": "Some selected automations are tagged autosnooze_confirm. Continue to snooze them."
+    "confirm_body": "Some selected automations are tagged autosnooze_confirm or detected as critical. Continue to snooze them."
   },
   "card": {
     "default_title": "AutoSnooze"

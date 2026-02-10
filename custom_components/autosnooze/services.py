@@ -5,6 +5,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from datetime import datetime, timedelta
 import logging
+import re
 from typing import Any
 
 from homeassistant.const import ATTR_ENTITY_ID
@@ -19,6 +20,7 @@ from homeassistant.util import dt as dt_util
 from .const import (
     ADJUST_SCHEMA,
     CANCEL_SCHEMA,
+    CRITICAL_AUTOMATION_TERMS,
     DOMAIN,
     LABEL_CONFIRM_NAME,
     PAUSE_BY_AREA_SCHEMA,
@@ -96,9 +98,10 @@ def _validate_guardrails(hass: HomeAssistant, entity_ids: list[str], confirm: bo
 
     for entity_id in entity_ids:
         entry = entity_reg.async_get(entity_id)
-        if entry is None:
-            continue
-        if _entity_has_label_name(entry, LABEL_CONFIRM_NAME, labels_by_id):
+        state = hass.states.get(entity_id)
+        friendly_name = state.attributes.get("friendly_name", "") if state is not None else ""
+        has_confirm_label = entry is not None and _entity_has_label_name(entry, LABEL_CONFIRM_NAME, labels_by_id)
+        if has_confirm_label or _is_critical_automation(entity_id, friendly_name):
             requires_confirm.append(entity_id)
 
     if requires_confirm and not confirm:
@@ -108,6 +111,18 @@ def _validate_guardrails(hass: HomeAssistant, entity_ids: list[str], confirm: bo
             translation_key="confirm_required",
             translation_placeholders={"entity_id": ", ".join(sorted(requires_confirm))},
         )
+
+
+def _contains_guardrail_term(text: str, term: str) -> bool:
+    """Check whether a term appears as a token/phrase in text."""
+    escaped = re.escape(term.lower())
+    return re.search(rf"(?<![a-z0-9]){escaped}(?![a-z0-9])", text.lower()) is not None
+
+
+def _is_critical_automation(entity_id: str, friendly_name: str) -> bool:
+    """Detect whether automation appears to control critical infrastructure."""
+    targets = [entity_id, friendly_name]
+    return any(_contains_guardrail_term(target, term) for target in targets for term in CRITICAL_AUTOMATION_TERMS)
 
 
 async def async_pause_automations(
