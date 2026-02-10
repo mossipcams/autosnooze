@@ -13,6 +13,7 @@
     "deselect_all": "Deselect All",
     "select_all": "Select All",
     "clear": "Clear",
+    "continue": "Continue",
     "snoozing": "Snoozing...",
     "schedule_count": "Schedule ({count})",
     "snooze_count": "Snooze ({count})"
@@ -95,7 +96,10 @@
     "hint_immediate": "Leave empty to snooze immediately",
     "resume_at": "Resume at:",
     "back_to_duration": "Back to duration selection",
-    "pick_datetime": "Pick specific date/time instead"
+    "pick_datetime": "Pick specific date/time instead",
+    "summary_immediate": "Will pause immediately and resume {resume}",
+    "summary_with_disable": "Will pause {disable} and resume {resume}",
+    "summary_invalid_order": "Pause time must be before resume time"
   },
   "duration": {
     "header": "Snooze Duration",
@@ -128,6 +132,10 @@
   },
   "selection": {
     "count": "{selected} of {total} selected"
+  },
+  "guardrail": {
+    "confirm_title": "Confirmation required",
+    "confirm_body": "One or more selected automations require explicit confirmation before snoozing."
   },
   "card": {
     "default_title": "AutoSnooze"

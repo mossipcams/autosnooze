@@ -634,6 +634,89 @@ class TestAdjustService:
         assert not hass.services.has_service(DOMAIN, "adjust")
 
 
+class TestGuardrailLabels:
+    """Test protected/confirm guardrail label behavior."""
+
+    async def test_protected_label_blocks_pause(self, hass: HomeAssistant, setup_integration: ConfigEntry) -> None:
+        """Test autosnooze_protected label prevents snoozing."""
+        entity_reg = er.async_get(hass)
+        entity_reg.async_get_or_create(
+            "automation",
+            "test",
+            "protected_automation",
+            suggested_object_id="protected_automation",
+        )
+        entity_reg.async_update_entity(
+            "automation.protected_automation",
+            labels={"autosnooze_protected"},
+        )
+        hass.states.async_set(
+            "automation.protected_automation",
+            "on",
+            {"friendly_name": "Protected Automation"},
+        )
+
+        with pytest.raises(ServiceValidationError) as exc_info:
+            await hass.services.async_call(
+                DOMAIN,
+                "pause",
+                {
+                    ATTR_ENTITY_ID: ["automation.protected_automation"],
+                    "hours": 1,
+                },
+                blocking=True,
+            )
+
+        assert exc_info.value.translation_key == "protected_automation"
+
+    async def test_confirm_label_requires_confirm_flag(
+        self, hass: HomeAssistant, setup_integration: ConfigEntry
+    ) -> None:
+        """Test autosnooze_confirm label requires explicit confirm flag."""
+        entry = setup_integration
+        data = entry.runtime_data
+        entity_reg = er.async_get(hass)
+        entity_reg.async_get_or_create(
+            "automation",
+            "test",
+            "confirm_automation",
+            suggested_object_id="confirm_automation",
+        )
+        entity_reg.async_update_entity(
+            "automation.confirm_automation",
+            labels={"autosnooze_confirm"},
+        )
+        hass.states.async_set(
+            "automation.confirm_automation",
+            "on",
+            {"friendly_name": "Confirm Automation"},
+        )
+
+        with pytest.raises(ServiceValidationError) as exc_info:
+            await hass.services.async_call(
+                DOMAIN,
+                "pause",
+                {
+                    ATTR_ENTITY_ID: ["automation.confirm_automation"],
+                    "hours": 1,
+                },
+                blocking=True,
+            )
+        assert exc_info.value.translation_key == "confirm_required"
+
+        await hass.services.async_call(
+            DOMAIN,
+            "pause",
+            {
+                ATTR_ENTITY_ID: ["automation.confirm_automation"],
+                "hours": 1,
+                "confirm": True,
+            },
+            blocking=True,
+        )
+        assert "automation.confirm_automation" in data.paused
+
+
 # =============================================================================
 # Setup/Unload Tests
 # =============================================================================

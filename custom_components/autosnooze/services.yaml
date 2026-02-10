@@ -47,6 +47,12 @@ pause:
       description: Specific datetime when to re-enable the automation. Overrides duration fields if set.
       selector:
         datetime:
+    confirm:
+      name: Confirm Guardrails
+      description: Explicitly confirm snoozing automations that are tagged with the autosnooze_confirm label.
+      default: false
+      selector:
+        boolean:
 
 cancel:
   name: Wake
@@ -113,6 +119,12 @@ pause_by_area:
       description: Specific datetime when to re-enable the automations.
       selector:
         datetime:
+    confirm:
+      name: Confirm Guardrails
+      description: Explicitly confirm snoozing automations that are tagged with the autosnooze_confirm label.
+      default: false
+      selector:
+        boolean:
 
 pause_by_label:
   name: Snooze by Label
@@ -162,6 +174,12 @@ pause_by_label:
       description: Specific datetime when to re-enable the automations.
       selector:
         datetime:
+    confirm:
+      name: Confirm Guardrails
+      description: Explicitly confirm snoozing automations that are tagged with the autosnooze_confirm label.
+      default: false
+      selector:
+        boolean:
 
 cancel_scheduled:
   name: Cancel Scheduled Snooze

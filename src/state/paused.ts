@@ -56,4 +56,3 @@ export function getPausedGroupedByResumeTime(hass: HomeAssistant): PauseGroup[] 
     (a, b) => new Date(a.resumeAt).getTime() - new Date(b.resumeAt).getTime()
   );
 }
-

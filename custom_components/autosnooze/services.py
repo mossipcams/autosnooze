@@ -10,13 +10,18 @@ from typing import Any
 from homeassistant.const import ATTR_ENTITY_ID
 from homeassistant.core import HomeAssistant, ServiceCall
 from homeassistant.exceptions import ServiceValidationError
+from collections.abc import Mapping
+
 from homeassistant.helpers import entity_registry as er
+from homeassistant.helpers import label_registry as lr
 from homeassistant.util import dt as dt_util
 
 from .const import (
     ADJUST_SCHEMA,
     CANCEL_SCHEMA,
     DOMAIN,
+    LABEL_CONFIRM_NAME,
+    LABEL_PROTECTED_NAME,
     PAUSE_BY_AREA_SCHEMA,
     PAUSE_BY_LABEL_SCHEMA,
     PAUSE_SCHEMA,
@@ -65,6 +70,56 @@ def get_automations_by_area(hass: HomeAssistant, area_ids: list[str]) -> list[st
 def get_automations_by_label(hass: HomeAssistant, label_ids: list[str]) -> list[str]:
     """Get all automation entity IDs with the specified labels."""
     return _get_automations_by_filter(hass, lambda e: e.labels and any(label in label_ids for label in e.labels))
+
+
+def _entity_has_label_name(
+    entity: Any,
+    label_name: str,
+    labels_by_id: Mapping[str, Any],
+) -> bool:
+    """Check whether entity has a label by id or name."""
+    labels = entity.labels or set()
+    for label_id in labels:
+        if label_id == label_name:
+            return True
+        label = labels_by_id.get(label_id)
+        if label and getattr(label, "name", None) == label_name:
+            return True
+    return False
+
+
+def _validate_guardrails(hass: HomeAssistant, entity_ids: list[str], confirm: bool = False) -> None:
+    """Validate protected/confirm label guardrails for pause operations."""
+    entity_reg = er.async_get(hass)
+    label_reg = lr.async_get(hass)
+    labels_by_id = label_reg.labels if label_reg is not None else {}
+    protected: list[str] = []
+    requires_confirm: list[str] = []
+
+    for entity_id in entity_ids:
+        entry = entity_reg.async_get(entity_id)
+        if entry is None:
+            continue
+        if _entity_has_label_name(entry, LABEL_PROTECTED_NAME, labels_by_id):
+            protected.append(entity_id)
+        if _entity_has_label_name(entry, LABEL_CONFIRM_NAME, labels_by_id):
+            requires_confirm.append(entity_id)
+
+    if protected:
+        raise ServiceValidationError(
+            "One or more selected automations are protected and cannot be snoozed",
+            translation_domain=DOMAIN,
+            translation_key="protected_automation",
+            translation_placeholders={"entity_id": ", ".join(sorted(protected))},
+        )
+
+    if requires_confirm and not confirm:
+        raise ServiceValidationError(
+            "One or more selected automations require confirmation before snoozing",
+            translation_domain=DOMAIN,
+            translation_key="confirm_required",
+            translation_placeholders={"entity_id": ", ".join(sorted(requires_confirm))},
+        )
 
 
 async def async_pause_automations(
@@ -189,12 +244,14 @@ def register_services(hass: HomeAssistant, data: AutomationPauseData) -> None:
     async def handle_pause(call: ServiceCall) -> None:
         """Handle snooze service call."""
         entity_ids = call.data[ATTR_ENTITY_ID]
+        confirm = call.data.get("confirm", False)
         days = call.data.get("days", 0)
         hours = call.data.get("hours", 0)
         minutes = call.data.get("minutes", 0)
         # Ensure datetimes from service calls are UTC-aware
         disable_at = ensure_utc_aware(call.data.get("disable_at"))
         resume_at_dt = ensure_utc_aware(call.data.get("resume_at"))
+        _validate_guardrails(hass, entity_ids, confirm=confirm)
 
         await async_pause_automations(hass, data, entity_ids, days, hours, minutes, disable_at, resume_at_dt)
 
@@ -232,12 +289,14 @@ def register_services(hass: HomeAssistant, data: AutomationPauseData) -> None:
         minutes = call.data.get("minutes", 0)
         disable_at = ensure_utc_aware(call.data.get("disable_at"))
         resume_at_dt = ensure_utc_aware(call.data.get("resume_at"))
+        confirm = call.data.get("confirm", False)
 
         entity_ids = get_automations_fn(hass, filter_ids)
         if not entity_ids:
             _LOGGER.warning(not_found_msg, filter_ids)
             return
 
+        _validate_guardrails(hass, entity_ids, confirm=confirm)
         await async_pause_automations(hass, data, entity_ids, days, hours, minutes, disable_at, resume_at_dt)
 
     async def handle_pause_by_area(call: ServiceCall) -> None:

@@ -8,8 +8,10 @@ import pytest
 
 from custom_components.autosnooze import _async_ensure_labels_exist
 from custom_components.autosnooze.const import (
+    LABEL_CONFIRM_CONFIG,
     LABEL_EXCLUDE_CONFIG,
     LABEL_INCLUDE_CONFIG,
+    LABEL_PROTECTED_CONFIG,
 )
 
 
@@ -39,7 +41,7 @@ class TestAsyncEnsureLabelsExist:
         ):
             await _async_ensure_labels_exist(mock_hass)
 
-        assert mock_label_registry.async_create.call_count == 2
+        assert mock_label_registry.async_create.call_count == 4
 
     @pytest.mark.asyncio
     async def test_handles_value_error_when_label_exists(
@@ -123,12 +125,17 @@ class TestAsyncEnsureLabelsExist:
     async def test_continues_after_first_label_fails(
         self, mock_hass: MagicMock, mock_label_registry: MagicMock
     ) -> None:
-        """Test continues to create second label even if first fails."""
-        # First call raises ValueError, second succeeds
-        mock_label_registry.async_create.side_effect = [
-            ValueError("Label already exists"),
-            None,
-        ]
+        """Test continues creating remaining labels even if one fails."""
+        # First call raises ValueError, remaining calls succeed
+        call_counter = {"count": 0}
+
+        def _side_effect(*_args, **_kwargs):
+            call_counter["count"] += 1
+            if call_counter["count"] == 1:
+                raise ValueError("Label already exists")
+            return None
+
+        mock_label_registry.async_create.side_effect = _side_effect
 
         with patch(
             "custom_components.autosnooze.lr.async_get",
@@ -136,8 +143,8 @@ class TestAsyncEnsureLabelsExist:
         ):
             await _async_ensure_labels_exist(mock_hass)
 
-        # Should have attempted both labels
-        assert mock_label_registry.async_create.call_count == 2
+        # Should have attempted all labels
+        assert mock_label_registry.async_create.call_count == 4
 
     @pytest.mark.asyncio
     async def test_logs_info_when_creating_label(self, mock_hass: MagicMock, mock_label_registry: MagicMock) -> None:
@@ -152,7 +159,7 @@ class TestAsyncEnsureLabelsExist:
             await _async_ensure_labels_exist(mock_hass)
 
         # Should log info for each created label
-        assert mock_logger.info.call_count == 2
+        assert mock_logger.info.call_count == 4
 
     @pytest.mark.asyncio
     async def test_logs_debug_when_label_exists(self, mock_hass: MagicMock, mock_label_registry: MagicMock) -> None:
@@ -169,7 +176,7 @@ class TestAsyncEnsureLabelsExist:
             await _async_ensure_labels_exist(mock_hass)
 
         # Should log debug for each existing label
-        assert mock_logger.debug.call_count == 2
+        assert mock_logger.debug.call_count == 4
 
     @pytest.mark.asyncio
     async def test_logs_warning_on_exception(self, mock_hass: MagicMock, mock_label_registry: MagicMock) -> None:
@@ -186,4 +193,20 @@ class TestAsyncEnsureLabelsExist:
             await _async_ensure_labels_exist(mock_hass)
 
         # Should log warning for each failed label
-        assert mock_logger.warning.call_count == 2
+        assert mock_logger.warning.call_count == 4
+
+    @pytest.mark.asyncio
+    async def test_creates_protected_and_confirm_labels(
+        self, mock_hass: MagicMock, mock_label_registry: MagicMock
+    ) -> None:
+        """Test guardrail labels are created."""
+        with patch(
+            "custom_components.autosnooze.lr.async_get",
+            return_value=mock_label_registry,
+        ):
+            await _async_ensure_labels_exist(mock_hass)
+
+        calls = mock_label_registry.async_create.call_args_list
+        created_names = {call.kwargs.get("name") for call in calls}
+        assert LABEL_PROTECTED_CONFIG["name"] in created_names
+        assert LABEL_CONFIRM_CONFIG["name"] in created_names
