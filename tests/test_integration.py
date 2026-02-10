@@ -635,39 +635,7 @@ class TestAdjustService:
 
 
 class TestGuardrailLabels:
-    """Test protected/confirm guardrail label behavior."""
-
-    async def test_protected_label_blocks_pause(self, hass: HomeAssistant, setup_integration: ConfigEntry) -> None:
-        """Test autosnooze_protected label prevents snoozing."""
-        entity_reg = er.async_get(hass)
-        entity_reg.async_get_or_create(
-            "automation",
-            "test",
-            "protected_automation",
-            suggested_object_id="protected_automation",
-        )
-        entity_reg.async_update_entity(
-            "automation.protected_automation",
-            labels={"autosnooze_protected"},
-        )
-        hass.states.async_set(
-            "automation.protected_automation",
-            "on",
-            {"friendly_name": "Protected Automation"},
-        )
-
-        with pytest.raises(ServiceValidationError) as exc_info:
-            await hass.services.async_call(
-                DOMAIN,
-                "pause",
-                {
-                    ATTR_ENTITY_ID: ["automation.protected_automation"],
-                    "hours": 1,
-                },
-                blocking=True,
-            )
-
-        assert exc_info.value.translation_key == "protected_automation"
+    """Test confirm guardrail label behavior."""
 
     async def test_confirm_label_requires_confirm_flag(
         self, hass: HomeAssistant, setup_integration: ConfigEntry

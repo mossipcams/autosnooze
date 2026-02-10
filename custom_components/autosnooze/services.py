@@ -21,7 +21,6 @@ from .const import (
     CANCEL_SCHEMA,
     DOMAIN,
     LABEL_CONFIRM_NAME,
-    LABEL_PROTECTED_NAME,
     PAUSE_BY_AREA_SCHEMA,
     PAUSE_BY_LABEL_SCHEMA,
     PAUSE_SCHEMA,
@@ -89,29 +88,18 @@ def _entity_has_label_name(
 
 
 def _validate_guardrails(hass: HomeAssistant, entity_ids: list[str], confirm: bool = False) -> None:
-    """Validate protected/confirm label guardrails for pause operations."""
+    """Validate confirm label guardrails for pause operations."""
     entity_reg = er.async_get(hass)
     label_reg = lr.async_get(hass)
     labels_by_id = label_reg.labels if label_reg is not None else {}
-    protected: list[str] = []
     requires_confirm: list[str] = []
 
     for entity_id in entity_ids:
         entry = entity_reg.async_get(entity_id)
         if entry is None:
             continue
-        if _entity_has_label_name(entry, LABEL_PROTECTED_NAME, labels_by_id):
-            protected.append(entity_id)
         if _entity_has_label_name(entry, LABEL_CONFIRM_NAME, labels_by_id):
             requires_confirm.append(entity_id)
-
-    if protected:
-        raise ServiceValidationError(
-            "One or more selected automations are protected and cannot be snoozed",
-            translation_domain=DOMAIN,
-            translation_key="protected_automation",
-            translation_placeholders={"entity_id": ", ".join(sorted(protected))},
-        )
 
     if requires_confirm and not confirm:
         raise ServiceValidationError(
