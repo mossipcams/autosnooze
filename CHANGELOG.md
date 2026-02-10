@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.12](https://github.com/mossipcams/autosnooze/compare/v0.2.11...v0.2.12) (2026-02-10)
+
+
+### Bug Fixes
+
+* critical reliability, guardrails, and frontend UX improvements ([#282](https://github.com/mossipcams/autosnooze/issues/282)) ([c70b248](https://github.com/mossipcams/autosnooze/commit/c70b248a08da6f267285b5a7b1cb25cb55232477))
+
 ## [0.2.11](https://github.com/mossipcams/autosnooze/compare/v0.2.10...v0.2.11) (2026-02-02)
 
 
