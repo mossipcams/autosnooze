@@ -16,6 +16,7 @@ from homeassistant.exceptions import ServiceValidationError
 
 from custom_components.autosnooze.coordinator import (
     async_adjust_snooze,
+    async_adjust_snooze_batch,
     async_cancel_scheduled,
     async_cancel_scheduled_batch,
     async_execute_scheduled_disable,
@@ -746,6 +747,87 @@ class TestAsyncResume:
 
         listener.assert_called_once()
 
+    @pytest.mark.asyncio
+    async def test_gives_up_resume_retry_after_max_attempts(self) -> None:
+        """Verify resume stops retrying and removes entity after max retries."""
+        mock_hass = MagicMock()
+        mock_store = MagicMock()
+        mock_store.async_save = AsyncMock()
+        data = AutomationPauseData(store=mock_store)
+
+        now = datetime.now(UTC)
+        paused = PausedAutomation(
+            entity_id="automation.test",
+            friendly_name="Test",
+            resume_at=now,
+            paused_at=now - timedelta(hours=1),
+            resume_retries=5,  # Already at max
+        )
+        data.paused["automation.test"] = paused
+
+        with (
+            patch("custom_components.autosnooze.coordinator.async_set_automation_state", AsyncMock(return_value=False)),
+            patch("custom_components.autosnooze.coordinator.schedule_resume") as mock_schedule_resume,
+        ):
+            await async_resume(mock_hass, data, "automation.test")
+
+        # Entity should be removed after max retries exhausted
+        assert "automation.test" not in data.paused
+        mock_schedule_resume.assert_not_called()
+        mock_store.async_save.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_increments_resume_retries_on_failure(self) -> None:
+        """Verify resume_retries counter is incremented on each failed attempt."""
+        mock_hass = MagicMock()
+        mock_store = MagicMock()
+        mock_store.async_save = AsyncMock()
+        data = AutomationPauseData(store=mock_store)
+
+        now = datetime.now(UTC)
+        paused = PausedAutomation(
+            entity_id="automation.test",
+            friendly_name="Test",
+            resume_at=now,
+            paused_at=now - timedelta(hours=1),
+            resume_retries=2,
+        )
+        data.paused["automation.test"] = paused
+
+        with (
+            patch("custom_components.autosnooze.coordinator.async_set_automation_state", AsyncMock(return_value=False)),
+            patch("custom_components.autosnooze.coordinator.schedule_resume"),
+        ):
+            await async_resume(mock_hass, data, "automation.test")
+
+        assert data.paused["automation.test"].resume_retries == 3
+
+    @pytest.mark.asyncio
+    async def test_preserves_state_and_schedules_retry_when_turn_on_fails(self) -> None:
+        """Verify failed wake keeps paused state and schedules a retry."""
+        mock_hass = MagicMock()
+        mock_store = MagicMock()
+        mock_store.async_save = AsyncMock()
+        data = AutomationPauseData(store=mock_store)
+
+        now = datetime.now(UTC)
+        data.paused["automation.test"] = PausedAutomation(
+            entity_id="automation.test",
+            friendly_name="Test",
+            resume_at=now,
+            paused_at=now - timedelta(hours=1),
+        )
+
+        with (
+            patch("custom_components.autosnooze.coordinator.async_set_automation_state", AsyncMock(return_value=False)),
+            patch("custom_components.autosnooze.coordinator.schedule_resume") as mock_schedule_resume,
+        ):
+            await async_resume(mock_hass, data, "automation.test")
+
+        assert "automation.test" in data.paused
+        mock_schedule_resume.assert_called_once()
+        mock_store.async_save.assert_called_once()
+
 
 class TestAsyncResumeBatch:
     """Tests for async_resume_batch function."""
@@ -839,6 +921,72 @@ class TestAsyncResumeBatch:
 
         assert listener.call_count == 1
 
+    @pytest.mark.asyncio
+    async def test_batch_gives_up_after_max_retries(self) -> None:
+        """Verify batch resume removes entity after max retries instead of rescheduling."""
+        mock_hass = MagicMock()
+        mock_store = MagicMock()
+        mock_store.async_save = AsyncMock()
+        data = AutomationPauseData(store=mock_store)
+
+        now = datetime.now(UTC)
+        data.paused["automation.test"] = PausedAutomation(
+            entity_id="automation.test",
+            friendly_name="Test",
+            resume_at=now,
+            paused_at=now - timedelta(hours=1),
+            resume_retries=5,
+        )
+
+        with (
+            patch("custom_components.autosnooze.coordinator.async_set_automation_state", AsyncMock(return_value=False)),
+            patch("custom_components.autosnooze.coordinator.schedule_resume") as mock_schedule_resume,
+        ):
+            await async_resume_batch(mock_hass, data, ["automation.test"])
+
+        assert "automation.test" not in data.paused
+        mock_schedule_resume.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_keeps_failed_entities_paused_and_retries(self) -> None:
+        """Verify batch wake preserves failed entities and schedules retry."""
+        mock_hass = MagicMock()
+        mock_store = MagicMock()
+        mock_store.async_save = AsyncMock()
+        data = AutomationPauseData(store=mock_store)
+
+        now = datetime.now(UTC)
+        data.paused["automation.test1"] = PausedAutomation(
+            entity_id="automation.test1",
+            friendly_name="Test 1",
+            resume_at=now + timedelta(minutes=1),
+            paused_at=now,
+        )
+        data.paused["automation.test2"] = PausedAutomation(
+            entity_id="automation.test2",
+            friendly_name="Test 2",
+            resume_at=now + timedelta(minutes=1),
+            paused_at=now,
+        )
+
+        async def fake_set_state(_hass, entity_id: str, *, enabled: bool) -> bool:
+            assert enabled is True
+            return entity_id == "automation.test1"
+
+        with (
+            patch(
+                "custom_components.autosnooze.coordinator.async_set_automation_state",
+                AsyncMock(side_effect=fake_set_state),
+            ),
+            patch("custom_components.autosnooze.coordinator.schedule_resume") as mock_schedule_resume,
+        ):
+            await async_resume_batch(mock_hass, data, ["automation.test1", "automation.test2"])
+
+        assert "automation.test1" not in data.paused
+        assert "automation.test2" in data.paused
+        mock_schedule_resume.assert_called_once()
+        mock_store.async_save.assert_called_once()
+
 
 # =============================================================================
 # Execute Scheduled Disable
@@ -925,6 +1073,88 @@ class TestAsyncExecuteScheduledDisable:
             await async_execute_scheduled_disable(mock_hass, data, "automation.test", now + timedelta(hours=1))
 
         listener.assert_called()
+
+    @pytest.mark.asyncio
+    async def test_reschedules_disable_when_turn_off_fails(self) -> None:
+        """Test failed scheduled disable is retried in-process."""
+        mock_hass = MagicMock()
+        mock_store = MagicMock()
+        mock_store.async_save = AsyncMock()
+        data = AutomationPauseData(store=mock_store)
+
+        now = datetime.now(UTC)
+        data.scheduled["automation.test"] = ScheduledSnooze(
+            entity_id="automation.test",
+            friendly_name="Original Name",
+            disable_at=now,
+            resume_at=now + timedelta(hours=1),
+        )
+
+        with (
+            patch("custom_components.autosnooze.coordinator.async_set_automation_state", AsyncMock(return_value=False)),
+            patch("custom_components.autosnooze.coordinator.schedule_disable") as mock_schedule_disable,
+        ):
+            await async_execute_scheduled_disable(mock_hass, data, "automation.test", now + timedelta(hours=1))
+
+        assert "automation.test" in data.scheduled
+        assert "automation.test" not in data.paused
+        mock_schedule_disable.assert_called_once()
+        mock_store.async_save.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_skips_retry_when_resume_time_already_passed(self) -> None:
+        """Test failed disable does not retry after resume time has passed."""
+        mock_hass = MagicMock()
+        mock_store = MagicMock()
+        mock_store.async_save = AsyncMock()
+        data = AutomationPauseData(store=mock_store)
+
+        now = datetime.now(UTC)
+        data.scheduled["automation.test"] = ScheduledSnooze(
+            entity_id="automation.test",
+            friendly_name="Original Name",
+            disable_at=now - timedelta(minutes=5),
+            resume_at=now - timedelta(minutes=1),
+        )
+
+        with (
+            patch("custom_components.autosnooze.coordinator.async_set_automation_state", AsyncMock(return_value=False)),
+            patch("custom_components.autosnooze.coordinator.schedule_disable") as mock_schedule_disable,
+            patch("custom_components.autosnooze.coordinator.dt_util.utcnow", return_value=now),
+        ):
+            await async_execute_scheduled_disable(mock_hass, data, "automation.test", now - timedelta(minutes=1))
+
+        assert "automation.test" not in data.scheduled
+        mock_schedule_disable.assert_not_called()
+        mock_store.async_save.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_skips_retry_when_next_retry_would_be_after_resume(self) -> None:
+        """Test failed disable does not retry when retry_at >= resume_at."""
+        mock_hass = MagicMock()
+        mock_store = MagicMock()
+        mock_store.async_save = AsyncMock()
+        data = AutomationPauseData(store=mock_store)
+
+        now = datetime.now(UTC)
+        resume_at = now + timedelta(seconds=30)
+        data.scheduled["automation.test"] = ScheduledSnooze(
+            entity_id="automation.test",
+            friendly_name="Original Name",
+            disable_at=now - timedelta(minutes=1),
+            resume_at=resume_at,
+        )
+
+        with (
+            patch("custom_components.autosnooze.coordinator.async_set_automation_state", AsyncMock(return_value=False)),
+            patch("custom_components.autosnooze.coordinator.schedule_disable") as mock_schedule_disable,
+            patch("custom_components.autosnooze.coordinator.dt_util.utcnow", return_value=now),
+        ):
+            await async_execute_scheduled_disable(mock_hass, data, "automation.test", resume_at)
+
+        assert "automation.test" not in data.scheduled
+        mock_schedule_disable.assert_not_called()
+        mock_store.async_save.assert_called_once()
 
 
 # =============================================================================
@@ -1307,3 +1537,48 @@ class TestAsyncAdjustSnooze:
             await async_adjust_snooze(mock_hass, data, "automation.test", timedelta(hours=1))
 
         listener.assert_called_once()
+
+
+class TestAsyncAdjustSnoozeBatch:
+    """Tests for async_adjust_snooze_batch function."""
+
+    @pytest.mark.asyncio
+    async def test_is_atomic_when_one_adjustment_is_invalid(self) -> None:
+        """Verify no entity is mutated when any batch item is invalid."""
+        mock_hass = MagicMock()
+        mock_store = MagicMock()
+        mock_store.async_save = AsyncMock()
+        data = AutomationPauseData(store=mock_store)
+
+        now = datetime.now(UTC)
+        data.paused["automation.valid"] = PausedAutomation(
+            entity_id="automation.valid",
+            friendly_name="Valid",
+            resume_at=now + timedelta(hours=2),
+            paused_at=now,
+        )
+        data.paused["automation.invalid"] = PausedAutomation(
+            entity_id="automation.invalid",
+            friendly_name="Invalid",
+            resume_at=now + timedelta(minutes=5),
+            paused_at=now,
+        )
+        original_valid_resume = data.paused["automation.valid"].resume_at
+        original_invalid_resume = data.paused["automation.invalid"].resume_at
+
+        with (
+            patch("custom_components.autosnooze.coordinator.dt_util.utcnow", return_value=now),
+            patch("custom_components.autosnooze.coordinator.schedule_resume") as mock_schedule_resume,
+            pytest.raises(ServiceValidationError),
+        ):
+            await async_adjust_snooze_batch(
+                mock_hass,
+                data,
+                ["automation.valid", "automation.invalid"],
+                timedelta(minutes=-5),
+            )
+
+        assert data.paused["automation.valid"].resume_at == original_valid_resume
+        assert data.paused["automation.invalid"].resume_at == original_invalid_resume
+        mock_schedule_resume.assert_not_called()
+        mock_store.async_save.assert_not_called()

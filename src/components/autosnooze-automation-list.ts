@@ -37,6 +37,9 @@ export class AutoSnoozeAutomationList extends LitElement {
   @property({ attribute: false })
   labelRegistry: Record<string, HassLabel> = {};
 
+  @property({ type: Boolean })
+  labelRegistryUnavailable: boolean = false;
+
   @property({ attribute: false })
   categoryRegistry: Record<string, HassCategory> = {};
 
@@ -112,7 +115,12 @@ export class AutoSnoozeAutomationList extends LitElement {
   }
 
   _getFilteredAutomations(): AutomationItem[] {
-    return filterAutomations(this.automations, this._search, this.labelRegistry);
+    return filterAutomations(
+      this.automations,
+      this._search,
+      this.labelRegistry,
+      this.labelRegistryUnavailable,
+    );
   }
 
   private _getAreaName(areaId: string | null): string {

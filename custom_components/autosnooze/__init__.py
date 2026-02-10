@@ -16,8 +16,10 @@ from .const import (
     CARD_URL,
     CARD_URL_VERSIONED,
     DOMAIN,
+    LABEL_CONFIRM_CONFIG,
     LABEL_EXCLUDE_CONFIG,
     LABEL_INCLUDE_CONFIG,
+    LABEL_PROTECTED_CONFIG,
     PLATFORMS,
     STORAGE_VERSION,
     VERSION,
@@ -78,7 +80,7 @@ async def _async_ensure_labels_exist(hass: HomeAssistant) -> None:
     """
     label_reg = lr.async_get(hass)
 
-    for config in [LABEL_INCLUDE_CONFIG, LABEL_EXCLUDE_CONFIG]:
+    for config in [LABEL_INCLUDE_CONFIG, LABEL_EXCLUDE_CONFIG, LABEL_PROTECTED_CONFIG, LABEL_CONFIRM_CONFIG]:
         try:
             label_reg.async_create(
                 name=config["name"],

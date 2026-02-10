@@ -14,7 +14,16 @@ from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.event import async_track_point_in_time
 from homeassistant.util import dt as dt_util
 
-from .const import DOMAIN, MAX_SAVE_RETRIES, MIN_ADJUST_BUFFER, SAVE_RETRY_DELAYS, TRANSIENT_ERRORS
+from .const import (
+    DOMAIN,
+    MAX_RESUME_RETRIES,
+    MAX_SAVE_RETRIES,
+    MIN_ADJUST_BUFFER,
+    RESUME_RETRY_DELAY,
+    SAVE_RETRY_DELAYS,
+    SCHEDULED_DISABLE_RETRY_DELAY,
+    TRANSIENT_ERRORS,
+)
 from .models import (
     AutomationPauseData,
     PausedAutomation,
@@ -92,13 +101,31 @@ async def async_resume(hass: HomeAssistant, data: AutomationPauseData, entity_id
     # Check if integration is unloaded to prevent post-unload operations
     if data.unloaded:
         return
+    woke_successfully = False
     async with data.lock:
-        cancel_timer(data, entity_id)
-        data.paused.pop(entity_id, None)
-        await async_set_automation_state(hass, entity_id, enabled=True)
+        paused = data.paused.get(entity_id)
+        woke_successfully = await async_set_automation_state(hass, entity_id, enabled=True)
+        if woke_successfully:
+            cancel_timer(data, entity_id)
+            data.paused.pop(entity_id, None)
+        elif paused is not None:
+            if paused.resume_retries >= MAX_RESUME_RETRIES:
+                cancel_timer(data, entity_id)
+                data.paused.pop(entity_id, None)
+                _LOGGER.error("Giving up waking %s after %d retries", entity_id, paused.resume_retries)
+            else:
+                paused.resume_retries += 1
+                retry_at = dt_util.utcnow() + RESUME_RETRY_DELAY
+                paused.resume_at = retry_at
+                schedule_resume(hass, data, entity_id, retry_at)
         await async_save(data)
     data.notify()
-    _LOGGER.info("Woke automation: %s", entity_id)
+    if woke_successfully:
+        _LOGGER.info("Woke automation: %s", entity_id)
+    elif entity_id not in data.paused:
+        pass  # Already logged above when giving up
+    else:
+        _LOGGER.warning("Failed to wake %s; retry scheduled", entity_id)
 
 
 async def async_resume_batch(hass: HomeAssistant, data: AutomationPauseData, entity_ids: list[str]) -> None:
@@ -112,15 +139,36 @@ async def async_resume_batch(hass: HomeAssistant, data: AutomationPauseData, ent
     if not entity_ids:
         return
 
+    failed = 0
+    woke = 0
     async with data.lock:
         for entity_id in entity_ids:
-            cancel_timer(data, entity_id)
-            data.paused.pop(entity_id, None)
-            await async_set_automation_state(hass, entity_id, enabled=True)
+            paused = data.paused.get(entity_id)
+            if paused is None:
+                continue
+
+            if await async_set_automation_state(hass, entity_id, enabled=True):
+                cancel_timer(data, entity_id)
+                data.paused.pop(entity_id, None)
+                woke += 1
+            else:
+                if paused.resume_retries >= MAX_RESUME_RETRIES:
+                    cancel_timer(data, entity_id)
+                    data.paused.pop(entity_id, None)
+                    _LOGGER.error("Giving up waking %s after %d retries", entity_id, paused.resume_retries)
+                else:
+                    failed += 1
+                    paused.resume_retries += 1
+                    retry_at = dt_util.utcnow() + RESUME_RETRY_DELAY
+                    paused.resume_at = retry_at
+                    schedule_resume(hass, data, entity_id, retry_at)
         # Single save after all operations
         await async_save(data)
     data.notify()
-    _LOGGER.info("Woke %d automations", len(entity_ids))
+    if failed:
+        _LOGGER.warning("Woke %d automations, %d failed and were rescheduled", woke, failed)
+    else:
+        _LOGGER.info("Woke %d automations", woke)
 
 
 async def async_adjust_snooze(
@@ -172,6 +220,9 @@ async def async_adjust_snooze_batch(
     if not entity_ids:
         return
 
+    now = dt_util.utcnow()
+    updates: list[tuple[str, PausedAutomation, datetime]] = []
+
     async with data.lock:
         for entity_id in entity_ids:
             paused = data.paused.get(entity_id)
@@ -180,7 +231,6 @@ async def async_adjust_snooze_batch(
                 continue
 
             new_resume_at = paused.resume_at + delta
-            now = dt_util.utcnow()
 
             if new_resume_at <= now + MIN_ADJUST_BUFFER:
                 raise ServiceValidationError(
@@ -189,6 +239,9 @@ async def async_adjust_snooze_batch(
                     translation_key="adjust_time_too_short",
                 )
 
+            updates.append((entity_id, paused, new_resume_at))
+
+        for entity_id, paused, new_resume_at in updates:
             paused.resume_at = new_resume_at
             paused.days = 0
             paused.hours = 0
@@ -231,15 +284,43 @@ async def async_execute_scheduled_disable(
         return
     async with data.lock:
         cancel_scheduled_timer(data, entity_id)
+        scheduled = data.scheduled.get(entity_id)
 
         # DEF-014 FIX: Check disable BEFORE popping scheduled entry
         # This preserves the schedule for retry if disable fails
         if not await async_set_automation_state(hass, entity_id, enabled=False):
+            now = dt_util.utcnow()
+            retry_at = now + SCHEDULED_DISABLE_RETRY_DELAY
+
+            # If resume time has passed (or retry would run at/after resume), stop retrying.
+            if resume_at <= now or retry_at >= resume_at:
+                data.scheduled.pop(entity_id, None)
+                await async_save(data)
+                _LOGGER.warning(
+                    "Failed to execute scheduled disable for %s; skipping retry because resume time has passed",
+                    entity_id,
+                )
+                data.notify()
+                return
+
+            if scheduled is None:
+                scheduled = ScheduledSnooze(
+                    entity_id=entity_id,
+                    friendly_name=get_friendly_name(hass, entity_id),
+                    disable_at=retry_at,
+                    resume_at=resume_at,
+                )
+            else:
+                scheduled.disable_at = retry_at
+
+            data.scheduled[entity_id] = scheduled
+            schedule_disable(hass, data, entity_id, scheduled)
+            await async_save(data)
             _LOGGER.warning(
-                "Failed to execute scheduled disable for %s, schedule preserved for retry",
+                "Failed to execute scheduled disable for %s, retrying at %s",
                 entity_id,
+                retry_at,
             )
-            # Don't pop the scheduled entry - let it be retried on next load
             data.notify()
             return
 

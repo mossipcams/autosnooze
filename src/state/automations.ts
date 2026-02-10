@@ -103,8 +103,19 @@ export function hasLabel(
 export function filterAutomations(
   automations: AutomationItem[],
   search: string,
-  labelRegistry: Record<string, HassLabel>
+  labelRegistry: Record<string, HassLabel>,
+  strictOnMissingRegistry: boolean = false
 ): AutomationItem[] {
+  // Fail-safe: if automations carry labels but registry is unavailable,
+  // hide list rather than risk exposing excluded entities.
+  const registryUnavailable =
+    strictOnMissingRegistry &&
+    Object.keys(labelRegistry).length === 0 &&
+    automations.some((a) => Array.isArray(a.labels) && a.labels.length > 0);
+  if (registryUnavailable) {
+    return [];
+  }
+
   let filtered = automations;
 
   // Check if any automation has the include label (enables whitelist mode)
