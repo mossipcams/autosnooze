@@ -134,8 +134,8 @@
     "count": "{selected} of {total} selected"
   },
   "guardrail": {
-    "confirm_title": "Confirmation required",
-    "confirm_body": "One or more selected automations require explicit confirmation before snoozing."
+    "confirm_title": "Review required",
+    "confirm_body": "Some selected automations are tagged autosnooze_confirm. Continue to snooze them."
   },
   "card": {
     "default_title": "AutoSnooze"

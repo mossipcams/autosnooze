@@ -124,7 +124,6 @@ DEFAULT_DURATION_PRESETS: list[dict[str, str | int]] = [
 # These labels control which automations appear in the AutoSnooze card
 LABEL_INCLUDE_NAME = "autosnooze_include"
 LABEL_EXCLUDE_NAME = "autosnooze_exclude"
-LABEL_PROTECTED_NAME = "autosnooze_protected"
 LABEL_CONFIRM_NAME = "autosnooze_confirm"
 
 LABEL_INCLUDE_CONFIG: dict[str, str] = {
@@ -141,16 +140,9 @@ LABEL_EXCLUDE_CONFIG: dict[str, str] = {
     "description": "Automations with this label will be hidden from the AutoSnooze card",
 }
 
-LABEL_PROTECTED_CONFIG: dict[str, str] = {
-    "name": LABEL_PROTECTED_NAME,
-    "color": "amber",
-    "icon": "mdi:shield-lock",
-    "description": "Automations with this label cannot be snoozed by AutoSnooze",
-}
-
 LABEL_CONFIRM_CONFIG: dict[str, str] = {
     "name": LABEL_CONFIRM_NAME,
     "color": "orange",
     "icon": "mdi:alert-circle-check",
-    "description": "Automations with this label require explicit confirmation before snoozing",
+    "description": "Use this label to require a second confirmation before snoozing an automation",
 }
