@@ -44,7 +44,7 @@
     "@typescript-eslint/eslint-plugin": "^8.55.0",
     "@typescript-eslint/parser": "^8.53.0",
     "@vitest/coverage-istanbul": "^4.0.18",
-    "eslint": "^8.57.0",
+    "eslint": "^10.0.0",
     "husky": "^9.0.0",
     "jsdom": "^25.0.1",
     "lint-staged": "^15.0.0",
