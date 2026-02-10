@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.13](https://github.com/mossipcams/autosnooze/compare/v0.2.12...v0.2.13) (2026-02-10)
+
+
+### Bug Fixes
+
+* remove sticky snooze action bar from card UI ([#292](https://github.com/mossipcams/autosnooze/issues/292)) ([e02bfce](https://github.com/mossipcams/autosnooze/commit/e02bfce6791e516e0079ea66442b0b56c66151cc))
+
 ## [0.2.12](https://github.com/mossipcams/autosnooze/compare/v0.2.11...v0.2.12) (2026-02-10)
 
 
