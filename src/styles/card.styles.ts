@@ -37,23 +37,6 @@ export const cardStyles = css`
     }
 
     /* Snooze Button */
-    .snooze-action-bar {
-      position: sticky;
-      bottom: 0;
-      z-index: 2;
-      margin-top: 12px;
-      padding: 10px;
-      border: 1px solid var(--divider-color);
-      border-radius: 10px;
-      background: var(--card-background-color);
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
-    }
-    .snooze-action-count {
-      font-size: 0.85em;
-      color: var(--secondary-text-color);
-    }
     .guardrail-confirm {
       margin-top: 10px;
       padding: 12px;
@@ -282,23 +265,6 @@ export const cardStyles = css`
         margin-top: 6px;
         touch-action: manipulation;
         -webkit-tap-highlight-color: transparent;
-      }
-      .snooze-action-bar {
-        margin-top: 10px;
-        padding: 10px;
-        border-radius: 14px;
-        border: 1.5px solid color-mix(in srgb, var(--divider-color) 70%, transparent);
-        background: linear-gradient(
-          180deg,
-          var(--card-background-color) 0%,
-          color-mix(in srgb, var(--card-background-color) 94%, var(--primary-color)) 100%
-        );
-        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.06);
-        bottom: max(0px, env(safe-area-inset-bottom));
-      }
-      .snooze-action-count {
-        font-size: 0.78em;
-        font-weight: 500;
       }
       .guardrail-confirm {
         border-radius: 14px;

@@ -860,32 +860,27 @@ export class AutomationPauseCard extends LitElement {
             </div>
           ` : ''}
 
-          <div class="snooze-action-bar">
-            <span class="snooze-action-count" role="status" aria-live="polite">
-              ${localize(this.hass, 'selection.count', { selected: this._selected.length, total: automations.length })}
-            </span>
-            <button
-              type="button"
-              class="snooze-btn"
-              ?disabled=${this._selected.length === 0 ||
-              (!this._scheduleMode && !isDurationValid(this._customDurationInput)) ||
-              (this._scheduleMode && !this._hasResumeAt()) ||
-              this._loading}
-              @click=${() => this._snooze()}
-              aria-label="${this._loading
-                ? localize(this.hass, 'a11y.snoozing')
-                : this._scheduleMode
-                  ? localize(this.hass, 'a11y.schedule_snooze', { count: this._selected.length })
-                  : localize(this.hass, 'a11y.snooze_count', { count: this._selected.length })}"
-              aria-busy=${this._loading}
-            >
-              ${this._loading
-                ? localize(this.hass, 'button.snoozing')
-                : this._scheduleMode
-                  ? localize(this.hass, 'button.schedule_count', { count: this._selected.length })
-                  : localize(this.hass, 'button.snooze_count', { count: this._selected.length })}
-            </button>
-          </div>
+          <button
+            type="button"
+            class="snooze-btn"
+            ?disabled=${this._selected.length === 0 ||
+            (!this._scheduleMode && !isDurationValid(this._customDurationInput)) ||
+            (this._scheduleMode && !this._hasResumeAt()) ||
+            this._loading}
+            @click=${() => this._snooze()}
+            aria-label="${this._loading
+              ? localize(this.hass, 'a11y.snoozing')
+              : this._scheduleMode
+                ? localize(this.hass, 'a11y.schedule_snooze', { count: this._selected.length })
+                : localize(this.hass, 'a11y.snooze_count', { count: this._selected.length })}"
+            aria-busy=${this._loading}
+          >
+            ${this._loading
+              ? localize(this.hass, 'button.snoozing')
+              : this._scheduleMode
+                ? localize(this.hass, 'button.schedule_count', { count: this._selected.length })
+                : localize(this.hass, 'button.snooze_count', { count: this._selected.length })}
+          </button>
         </div>
 
         ${pausedCount > 0
