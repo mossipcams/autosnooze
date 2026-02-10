@@ -34,6 +34,8 @@ Snooze automations for a set duration. They re-enable automatically when the tim
 |**Restart Survival**|Timers persist through reboots and power outages   |
 |**Quick Wake**      |Cancel individual snoozes or wake all at once      |
 |**Schedule Mode**   |Snooze until a specific date/time                  |
+|**Adjust Snooze**   |Extend or shorten active snoozes on the fly        |
+|**Critical Guards** |Auto-detects critical automations, requires confirm|
 |**Status Sensor**   |Track snoozed count in automations and dashboards  |
 
 -----
@@ -83,6 +85,7 @@ Control which automations appear in the card using Home Assistant labels:
 |-----|--------|
 |`autosnooze_include`|**Whitelist mode**: Only automations with this label are shown|
 |`autosnooze_exclude`|**Blacklist mode**: Automations with this label are hidden|
+|`autosnooze_confirm`|**Confirm mode**: Requires explicit confirmation before snoozing|
 
 **How it works:**
 - If **any** automation has the `autosnooze_include` label, the card switches to whitelist mode and only shows automations with that label
@@ -92,7 +95,17 @@ Control which automations appear in the card using Home Assistant labels:
 1. Go to **Settings → Labels** and create `autosnooze_include` or `autosnooze_exclude`
 2. Edit an automation and assign the label under **Labels**
 
-This is useful for hiding automations you never want to snooze (like critical security automations) or limiting the card to only show specific automations.
+This is useful for hiding automations you never want to snooze or limiting the card to only show specific automations.
+
+### Critical Automation Guardrails
+
+AutoSnooze automatically detects critical automations and requires confirmation before snoozing them. This applies to automations whose entity ID or friendly name contains keywords like:
+
+> alarm, security, siren, lock, smoke, carbon monoxide, co2, leak, flood, fire, gas
+
+You can also manually require confirmation for any automation by adding the `autosnooze_confirm` label.
+
+When a critical or confirm-labeled automation is selected, the card prompts for confirmation before proceeding. For service calls, pass `confirm: true` to acknowledge.
 
 -----
 
@@ -141,6 +154,7 @@ data:
 |`minutes`   |No      |Duration in minutes                               |
 |`resume_at` |No      |Datetime when to re-enable (overrides duration)   |
 |`disable_at`|No      |Datetime when to start the snooze (for scheduling)|
+|`confirm`   |No      |Set `true` to snooze critical/confirm-labeled automations|
 
 ### `autosnooze.cancel`
 
@@ -185,6 +199,25 @@ data:
     - motion
   hours: 1
 ```
+
+### `autosnooze.adjust`
+
+Add or subtract time from an active snooze.
+
+```yaml
+service: autosnooze.adjust
+data:
+  entity_id: automation.motion_lights
+  hours: 1
+  minutes: 30
+```
+
+|Parameter   |Required|Description                                 |
+|------------|--------|--------------------------------------------|
+|`entity_id` |Yes     |Automation entity ID(s)                     |
+|`days`      |No      |Days to add (negative to subtract)          |
+|`hours`     |No      |Hours to add (negative to subtract)         |
+|`minutes`   |No      |Minutes to add (negative to subtract)       |
 
 ### `autosnooze.cancel_scheduled`
 

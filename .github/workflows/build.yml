@@ -18,19 +18,6 @@ on:
       - 'tsconfig.test.json'
   pull_request:
     branches: [main]
-    paths:
-      - '.github/workflows/**'
-      - 'src/**'
-      - 'tests/**'
-      - 'custom_components/**'
-      - 'package.json'
-      - 'package-lock.json'
-      - 'rollup.config.mjs'
-      - 'requirements_test.txt'
-      - 'pyproject.toml'
-      - '.eslintrc.json'
-      - 'tsconfig.json'
-      - 'tsconfig.test.json'
   workflow_dispatch:
 
 concurrency:
