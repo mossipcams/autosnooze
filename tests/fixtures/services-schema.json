@@ -55,6 +55,13 @@
           "selector": {
             "datetime": {}
           }
+        },
+        "confirm": {
+          "required": false,
+          "default": false,
+          "selector": {
+            "boolean": {}
+          }
         }
       }
     },
@@ -128,6 +135,13 @@
           "selector": {
             "datetime": {}
           }
+        },
+        "confirm": {
+          "required": false,
+          "default": false,
+          "selector": {
+            "boolean": {}
+          }
         }
       }
     },
@@ -182,6 +196,13 @@
           "required": false,
           "selector": {
             "datetime": {}
+          }
+        },
+        "confirm": {
+          "required": false,
+          "default": false,
+          "selector": {
+            "boolean": {}
           }
         }
       }
@@ -251,6 +272,8 @@
     "disable_after_resume",
     "invalid_duration",
     "invalid_adjustment",
-    "adjust_time_too_short"
+    "adjust_time_too_short",
+    "protected_automation",
+    "confirm_required"
   ]
 }

@@ -255,6 +255,19 @@ export const durationSelectorStyles = css`
       outline: none;
       border-color: var(--primary-color);
     }
+    .schedule-summary {
+      font-size: 0.82em;
+      color: var(--secondary-text-color);
+      background: color-mix(in srgb, var(--primary-color) 8%, transparent);
+      border: 1px solid color-mix(in srgb, var(--primary-color) 24%, transparent);
+      border-radius: 8px;
+      padding: 8px 10px;
+    }
+    .schedule-summary.invalid {
+      color: #b71c1c;
+      background: color-mix(in srgb, #f44336 10%, transparent);
+      border-color: color-mix(in srgb, #f44336 36%, transparent);
+    }
 
     /* Mobile Responsive Styles */
     @media (max-width: 480px) {
@@ -439,6 +452,11 @@ export const durationSelectorStyles = css`
         font-size: 0.7em;
         opacity: 0.6;
         font-style: italic;
+      }
+      .schedule-summary {
+        font-size: 0.76em;
+        border-radius: 10px;
+        padding: 9px 10px;
       }
     }
 `;

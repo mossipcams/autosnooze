@@ -30,6 +30,11 @@ MINUTES_PER_YEAR = 525600
 # Minimum buffer for adjust operations
 MIN_ADJUST_BUFFER = timedelta(minutes=1)
 
+# Retry delays for failed operations
+RESUME_RETRY_DELAY = timedelta(minutes=1)
+SCHEDULED_DISABLE_RETRY_DELAY = timedelta(minutes=1)
+MAX_RESUME_RETRIES = 5
+
 # Number of individual preset fields shown in options flow
 NUM_PRESET_FIELDS = 4
 
@@ -63,6 +68,7 @@ _DURATION_AND_DATE_SCHEMA = {
     vol.Optional("minutes", default=0): vol.All(cv.positive_int, vol.Range(max=59)),
     vol.Optional("disable_at"): cv.datetime,
     vol.Optional("resume_at"): cv.datetime,
+    vol.Optional("confirm", default=False): cv.boolean,
 }
 
 PAUSE_SCHEMA = vol.Schema(
@@ -118,6 +124,8 @@ DEFAULT_DURATION_PRESETS: list[dict[str, str | int]] = [
 # These labels control which automations appear in the AutoSnooze card
 LABEL_INCLUDE_NAME = "autosnooze_include"
 LABEL_EXCLUDE_NAME = "autosnooze_exclude"
+LABEL_PROTECTED_NAME = "autosnooze_protected"
+LABEL_CONFIRM_NAME = "autosnooze_confirm"
 
 LABEL_INCLUDE_CONFIG: dict[str, str] = {
     "name": LABEL_INCLUDE_NAME,
@@ -131,4 +139,18 @@ LABEL_EXCLUDE_CONFIG: dict[str, str] = {
     "color": "red",
     "icon": "mdi:cancel",
     "description": "Automations with this label will be hidden from the AutoSnooze card",
+}
+
+LABEL_PROTECTED_CONFIG: dict[str, str] = {
+    "name": LABEL_PROTECTED_NAME,
+    "color": "amber",
+    "icon": "mdi:shield-lock",
+    "description": "Automations with this label cannot be snoozed by AutoSnooze",
+}
+
+LABEL_CONFIRM_CONFIG: dict[str, str] = {
+    "name": LABEL_CONFIRM_NAME,
+    "color": "orange",
+    "icon": "mdi:alert-circle-check",
+    "description": "Automations with this label require explicit confirmation before snoozing",
 }

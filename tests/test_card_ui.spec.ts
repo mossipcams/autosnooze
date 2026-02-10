@@ -13,7 +13,7 @@
  */
 
 import { vi } from 'vitest';
-import '../custom_components/autosnooze/www/autosnooze-card.js';
+import '../src/index.ts';
 import { formatCountdown, parseDurationInput, formatDuration, combineDateTime, getErrorMessage } from '../src/utils/index.js';
 import { queryActivePauses, queryAllInActivePauses, queryAutomationList, queryDurationSelector, queryInActivePauses, queryInDurationSelector } from './helpers/query-helpers.js';
 
@@ -416,6 +416,27 @@ describe('AutoSnooze Card Main Component', () => {
       expect(filtered.length).toBe(1);
       expect(filtered[0].id).toBe('automation.living_room');
     });
+
+    test('_getFilteredAutomations fails safe when labels exist but registry is unavailable', () => {
+      card._labelRegistry = {};
+      card._labelRegistryUnavailable = true;
+      card._entityRegistry = {
+        'automation.test_automation': {
+          entity_id: 'automation.test_automation',
+          labels: ['label_unknown'],
+        },
+        'automation.living_room': {
+          entity_id: 'automation.living_room',
+          labels: [],
+        },
+      };
+      card._automationsCache = null;
+      queryAutomationList(card).labelRegistryUnavailable = true;
+      queryAutomationList(card)._search = '';
+
+      const filtered = queryAutomationList(card)._getFilteredAutomations();
+      expect(filtered.length).toBe(0);
+    });
   });
 
   describe('Selection', () => {
@@ -757,6 +778,13 @@ describe('AutoSnooze Card Main Component', () => {
       expect(btn).toBeDefined();
     });
 
+    test('renders sticky snooze action bar', async () => {
+      await card.updateComplete;
+      const actionBar = card.shadowRoot.querySelector('.snooze-action-bar');
+      expect(actionBar).toBeDefined();
+      expect(actionBar.querySelector('.snooze-btn')).toBeDefined();
+    });
+
     test('snooze button is disabled when no selection', async () => {
       card._selected = [];
       await card.updateComplete;
@@ -983,6 +1011,40 @@ describe('AutoSnooze Card Main Component', () => {
   });
 
   describe('List Item Interactions', () => {
+    test('selecting an item does not reorder visible list rows', async () => {
+      const list = queryAutomationList(card);
+      await list.updateComplete;
+      const namesBefore = Array.from(list.shadowRoot.querySelectorAll('.list-item-name'))
+        .map((el) => el.textContent.trim());
+
+      list._toggleSelection('automation.test_automation');
+      await card.updateComplete;
+      await list.updateComplete;
+
+      const namesAfter = Array.from(list.shadowRoot.querySelectorAll('.list-item-name'))
+        .map((el) => el.textContent.trim());
+
+      expect(namesAfter).toEqual(namesBefore);
+    });
+
+    test('sticky action bar selected count updates when selecting and clearing', async () => {
+      const getCountText = () => {
+        const node = card.shadowRoot.querySelector('.snooze-action-count');
+        return node?.textContent?.trim() ?? '';
+      };
+
+      await card.updateComplete;
+      expect(getCountText()).toContain('0');
+
+      queryAutomationList(card)._toggleSelection('automation.test_automation');
+      await card.updateComplete;
+      expect(getCountText()).toContain('1');
+
+      queryAutomationList(card)._clearSelection();
+      await card.updateComplete;
+      expect(getCountText()).toContain('0');
+    });
+
     test('clicking list item selects automation', async () => {
       const listItem = queryAutomationList(card).shadowRoot.querySelector('.list-item');
       listItem.click();
@@ -1352,6 +1414,54 @@ describe('Snooze Operations', () => {
 
       expect(card._loading).toBe(false);
     });
+
+    test('shows in-card guardrail confirmation when backend requires confirm', async () => {
+      card._selected = ['automation.test'];
+      card._customDuration = { days: 0, hours: 0, minutes: 30 };
+      mockHass.callService.mockRejectedValueOnce({ translation_key: 'confirm_required' });
+
+      await card._snooze();
+      await card.updateComplete;
+
+      const guardrail = card.shadowRoot.querySelector('.guardrail-confirm');
+      expect(guardrail).not.toBeNull();
+    });
+
+    test('guardrail cancel closes prompt and does not retry with confirm=true', async () => {
+      card._selected = ['automation.test'];
+      card._customDuration = { days: 0, hours: 0, minutes: 30 };
+      mockHass.callService.mockRejectedValueOnce({ translation_key: 'confirm_required' });
+
+      await card._snooze();
+      await card.updateComplete;
+
+      const cancelBtn = card.shadowRoot.querySelector('.guardrail-cancel-btn');
+      cancelBtn.click();
+      await card.updateComplete;
+
+      expect(card.shadowRoot.querySelector('.guardrail-confirm')).toBeNull();
+      expect(mockHass.callService).toHaveBeenCalledTimes(1);
+    });
+
+    test('guardrail continue retries snooze with confirm=true', async () => {
+      card._selected = ['automation.test'];
+      card._customDuration = { days: 0, hours: 0, minutes: 30 };
+      mockHass.callService
+        .mockRejectedValueOnce({ translation_key: 'confirm_required' })
+        .mockResolvedValueOnce({});
+
+      await card._snooze();
+      await card.updateComplete;
+
+      const continueBtn = card.shadowRoot.querySelector('.guardrail-continue-btn');
+      continueBtn.click();
+      await Promise.resolve();
+      await card.updateComplete;
+
+      expect(mockHass.callService).toHaveBeenCalledTimes(2);
+      const secondCall = mockHass.callService.mock.calls[1];
+      expect(secondCall[2].confirm).toBe(true);
+    });
   });
 
   describe('_snooze - Schedule Mode', () => {
@@ -1654,6 +1764,45 @@ describe('Schedule Mode UI', () => {
     expect(card._scheduleMode).toBe(true);
   });
 
+  test('enabling schedule mode defaults resume time from last duration', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date(2026, 0, 14, 10, 15, 0));
+
+    card._lastDuration = {
+      minutes: 90,
+      duration: { days: 0, hours: 1, minutes: 30 },
+      timestamp: Date.now(),
+    };
+
+    card._handleScheduleModeChange(new CustomEvent('schedule-mode-change', {
+      detail: { enabled: true },
+    }));
+    await card.updateComplete;
+
+    expect(card._disableAtDate).toBe('2026-01-14');
+    expect(card._disableAtTime).toBe('10:15');
+    expect(card._resumeAtDate).toBe('2026-01-14');
+    expect(card._resumeAtTime).toBe('11:45');
+
+    vi.useRealTimers();
+  });
+
+  test('enabling schedule mode falls back to default duration when no last duration exists', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date(2026, 0, 14, 10, 15, 0));
+
+    card._lastDuration = null;
+    card._handleScheduleModeChange(new CustomEvent('schedule-mode-change', {
+      detail: { enabled: true },
+    }));
+    await card.updateComplete;
+
+    expect(card._resumeAtDate).toBe('2026-01-14');
+    expect(card._resumeAtTime).toBe('10:45');
+
+    vi.useRealTimers();
+  });
+
   test('clicking back link switches to duration mode via event', async () => {
     card._scheduleMode = true;
     await card.updateComplete;
@@ -1690,6 +1839,48 @@ describe('Schedule Mode UI', () => {
     await card.updateComplete;
 
     expect(card._resumeAtTime).toBe('16:00');
+  });
+
+  test('renders schedule timeline summary when schedule values are valid', async () => {
+    card._scheduleMode = true;
+    card._disableAtDate = '2026-01-15';
+    card._disableAtTime = '10:00';
+    card._resumeAtDate = '2026-01-15';
+    card._resumeAtTime = '12:00';
+    await card.updateComplete;
+
+    const ds = queryDurationSelector(card);
+    ds.scheduleMode = true;
+    ds.disableAtDate = card._disableAtDate;
+    ds.disableAtTime = card._disableAtTime;
+    ds.resumeAtDate = card._resumeAtDate;
+    ds.resumeAtTime = card._resumeAtTime;
+    await ds.updateComplete;
+
+    const summary = queryInDurationSelector(card, '.schedule-summary');
+    expect(summary).not.toBeNull();
+    expect(summary.textContent).toContain('Will pause');
+  });
+
+  test('renders invalid schedule summary when disable time is after resume time', async () => {
+    card._scheduleMode = true;
+    card._disableAtDate = '2026-01-15';
+    card._disableAtTime = '13:00';
+    card._resumeAtDate = '2026-01-15';
+    card._resumeAtTime = '12:00';
+    await card.updateComplete;
+
+    const ds = queryDurationSelector(card);
+    ds.scheduleMode = true;
+    ds.disableAtDate = card._disableAtDate;
+    ds.disableAtTime = card._disableAtTime;
+    ds.resumeAtDate = card._resumeAtDate;
+    ds.resumeAtTime = card._resumeAtTime;
+    await ds.updateComplete;
+
+    const summary = queryInDurationSelector(card, '.schedule-summary.invalid');
+    expect(summary).not.toBeNull();
+    expect(summary.textContent).toContain('before resume');
   });
 });
 
@@ -2454,5 +2645,30 @@ describe('shouldUpdate optimization', () => {
     changedProps.set('hass', oldHass);
     expect(card.shouldUpdate(changedProps)).toBe(false);
   });
-});
 
+  test('_fetchLabelRegistry keeps retry enabled when fetch fails', async () => {
+    card._labelsFetched = false;
+    card._labelRegistry = {};
+    card.hass.connection = {
+      sendMessagePromise: vi.fn().mockRejectedValue(new Error('registry unavailable')),
+    };
+
+    await card._fetchLabelRegistry();
+
+    expect(card._labelsFetched).toBe(false);
+  });
+
+  test('updated does not bypass label retry backoff when retry timer is active', () => {
+    card._labelsFetched = false;
+    card._labelRegistryRetryTimeout = 123;
+    card.hass.connection = { sendMessagePromise: vi.fn() };
+
+    const fetchSpy = vi.spyOn(card, '_fetchLabelRegistry');
+    const changedProps = new Map();
+    changedProps.set('hass', {});
+
+    card.updated(changedProps);
+
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+});

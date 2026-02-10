@@ -9,7 +9,7 @@ import type { HomeAssistant, HassLabel, HassCategory, HassEntityRegistryEntry } 
  */
 export async function fetchLabelRegistry(
   hass: HomeAssistant
-): Promise<Record<string, HassLabel>> {
+): Promise<Record<string, HassLabel> | null> {
   try {
     const items = await hass.connection.sendMessagePromise<HassLabel[]>({
       type: 'config/label_registry/list',
@@ -24,7 +24,7 @@ export async function fetchLabelRegistry(
     return labelMap;
   } catch (err) {
     console.warn('[AutoSnooze] Failed to fetch label registry:', err);
-    return {};
+    return null;
   }
 }
 

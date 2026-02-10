@@ -14,6 +14,7 @@ import {
   durationToMinutes,
   minutesToDuration,
   generateDateOptions,
+  combineDateTime,
 } from '../utils/index.js';
 import { DEFAULT_DURATIONS } from '../constants/index.js';
 import type { ParsedDuration } from '../types/automation.js';
@@ -161,6 +162,53 @@ export class AutoSnoozeDurationSelector extends LitElement {
     }));
   }
 
+  private _formatScheduleDateTime(isoDateTime: string): string {
+    const locale = this.hass?.locale?.language;
+    const dt = new Date(isoDateTime);
+    return dt.toLocaleString(locale, {
+      month: 'short',
+      day: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+    });
+  }
+
+  private _renderScheduleSummary(): TemplateResult | string {
+    if (!this.resumeAtDate || !this.resumeAtTime) return '';
+
+    const resumeAt = combineDateTime(this.resumeAtDate, this.resumeAtTime);
+    if (!resumeAt) return '';
+
+    const hasDisableAt = Boolean(this.disableAtDate && this.disableAtTime);
+    if (!hasDisableAt) {
+      return html`
+        <div class="schedule-summary" role="status" aria-live="polite">
+          ${localize(this.hass, 'schedule.summary_immediate', { resume: this._formatScheduleDateTime(resumeAt) })}
+        </div>
+      `;
+    }
+
+    const disableAt = combineDateTime(this.disableAtDate, this.disableAtTime);
+    if (!disableAt) return '';
+
+    if (new Date(disableAt).getTime() >= new Date(resumeAt).getTime()) {
+      return html`
+        <div class="schedule-summary invalid" role="status" aria-live="polite">
+          ${localize(this.hass, 'schedule.summary_invalid_order')}
+        </div>
+      `;
+    }
+
+    return html`
+      <div class="schedule-summary" role="status" aria-live="polite">
+        ${localize(this.hass, 'schedule.summary_with_disable', {
+          disable: this._formatScheduleDateTime(disableAt),
+          resume: this._formatScheduleDateTime(resumeAt),
+        })}
+      </div>
+    `;
+  }
+
   render(): TemplateResult {
     if (this.scheduleMode) {
       return html`
@@ -204,6 +252,7 @@ export class AutoSnoozeDurationSelector extends LitElement {
               />
             </div>
           </div>
+          ${this._renderScheduleSummary()}
           <button
             type="button"
             class="schedule-link"

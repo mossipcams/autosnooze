@@ -8,7 +8,7 @@ import { property, state } from 'lit/decorators.js';
 import { localize } from '../localization/localize.js';
 import type { HomeAssistant, HassLabel, HassCategory, HassEntityRegistryEntry, HassEntities, PausedAutomationAttribute, ScheduledSnoozeAttribute } from '../types/hass.js';
 import type { AutoSnoozeCardConfig, HapticFeedbackType } from '../types/card.js';
-import type { AutomationItem, ParsedDuration, PauseGroup } from '../types/automation.js';
+import type { AutomationItem, ParsedDuration, PauseGroup, PauseServiceParams } from '../types/automation.js';
 import { cardStyles } from '../styles/card.styles.js';
 import { sharedPausedStyles } from '../styles/shared.styles.js';
 import {
@@ -70,6 +70,7 @@ export class AutomationPauseCard extends LitElement {
   @state() private _resumeAtDate: string = '';
   @state() private _resumeAtTime: string = '';
   @state() private _labelRegistry: Record<string, HassLabel> = {};
+  @state() private _labelRegistryUnavailable: boolean = false;
   @state() private _categoryRegistry: Record<string, HassCategory> = {};
   @state() private _entityRegistry: Record<string, HassEntityRegistryEntry> = {};
   @state() private _showCustomInput: boolean = false;
@@ -82,6 +83,7 @@ export class AutomationPauseCard extends LitElement {
   @state() private _adjustModalResumeAt: string = '';
   @state() private _adjustModalEntityIds: string[] = [];
   @state() private _adjustModalFriendlyNames: string[] = [];
+  @state() private _guardrailConfirmOpen: boolean = false;
 
   private _labelsFetched: boolean = false;
   private _categoriesFetched: boolean = false;
@@ -90,6 +92,8 @@ export class AutomationPauseCard extends LitElement {
   private _lastCacheVersion: number = 0;
   private _toastTimeout: number | null = null;
   private _toastFadeTimeout: number | null = null;
+  private _labelRegistryRetryTimeout: number | null = null;
+  private _labelRegistryRetryDelayMs: number = UI_TIMING.REGISTRY_RETRY_MIN_MS;
 
   static getConfigElement(): HTMLElement {
     return document.createElement('autosnooze-card-editor');
@@ -165,7 +169,7 @@ export class AutomationPauseCard extends LitElement {
   updated(changedProps: PropertyValues): void {
     super.updated(changedProps);
     if (changedProps.has('hass') && this.hass?.connection) {
-      if (!this._labelsFetched) {
+      if (!this._labelsFetched && this._labelRegistryRetryTimeout === null) {
         this._fetchLabelRegistry();
       }
       if (!this._categoriesFetched) {
@@ -224,13 +228,43 @@ export class AutomationPauseCard extends LitElement {
       clearTimeout(this._toastFadeTimeout);
       this._toastFadeTimeout = null;
     }
+    if (this._labelRegistryRetryTimeout !== null) {
+      clearTimeout(this._labelRegistryRetryTimeout);
+      this._labelRegistryRetryTimeout = null;
+    }
   }
 
 
   private async _fetchLabelRegistry(): Promise<void> {
     if (this._labelsFetched || !this.hass?.connection) return;
-    this._labelRegistry = await fetchLabelRegistry(this.hass);
+    const labels = await fetchLabelRegistry(this.hass);
+    if (labels === null) {
+      this._labelsFetched = false;
+      this._labelRegistryUnavailable = true;
+      if (this._labelRegistryRetryTimeout === null) {
+        const delay = this._labelRegistryRetryDelayMs;
+        this._labelRegistryRetryTimeout = window.setTimeout(() => {
+          this._labelRegistryRetryTimeout = null;
+          if (!this.isConnected) return;
+          void this._fetchLabelRegistry();
+        }, delay);
+        this._labelRegistryRetryDelayMs = Math.min(
+          this._labelRegistryRetryDelayMs * 2,
+          UI_TIMING.REGISTRY_RETRY_MAX_MS,
+        );
+      }
+      return;
+    }
+
+    this._labelRegistry = labels;
     this._labelsFetched = true;
+    this._labelRegistryUnavailable = false;
+    this._automationsCacheVersion++;
+    this._labelRegistryRetryDelayMs = UI_TIMING.REGISTRY_RETRY_MIN_MS;
+    if (this._labelRegistryRetryTimeout !== null) {
+      clearTimeout(this._labelRegistryRetryTimeout);
+      this._labelRegistryRetryTimeout = null;
+    }
   }
 
   private async _fetchCategoryRegistry(): Promise<void> {
@@ -360,7 +394,28 @@ export class AutomationPauseCard extends LitElement {
     }, UI_TIMING.TOAST_DURATION_MS);
   }
 
-  private async _snooze(): Promise<void> {
+  private async _callPauseWithGuardrailConfirm(params: PauseServiceParams, forceConfirm: boolean = false): Promise<boolean> {
+    if (!this.hass) return false;
+    if (forceConfirm) {
+      await pauseAutomations(this.hass, { ...params, confirm: true });
+      return true;
+    }
+
+    try {
+      await pauseAutomations(this.hass, params);
+      return true;
+    } catch (error) {
+      const serviceError = error as { translation_key?: string; data?: { translation_key?: string } };
+      const translationKey = serviceError?.translation_key ?? serviceError?.data?.translation_key;
+      if (translationKey === 'confirm_required') {
+        this._guardrailConfirmOpen = true;
+        return false;
+      }
+      throw error;
+    }
+  }
+
+  private async _snooze(forceConfirm: boolean = false): Promise<void> {
     if (this._selected.length === 0 || this._loading) return;
 
     if (this._scheduleMode) {
@@ -399,6 +454,7 @@ export class AutomationPauseCard extends LitElement {
     }
 
     this._loading = true;
+    this._guardrailConfirmOpen = false;
     try {
       if (!this.hass) {
         this._loading = false;
@@ -422,11 +478,15 @@ export class AutomationPauseCard extends LitElement {
           return;
         }
 
-        await pauseAutomations(this.hass, {
+        const didPause = await this._callPauseWithGuardrailConfirm({
           entity_id: this._selected,
           resume_at: resumeAt,
           ...(disableAt && { disable_at: disableAt }),
-        });
+        }, forceConfirm);
+        if (!didPause) {
+          this._loading = false;
+          return;
+        }
 
         if (!this.isConnected || !this.shadowRoot) {
           this._loading = false;
@@ -446,12 +506,16 @@ export class AutomationPauseCard extends LitElement {
       } else {
         const { days, hours, minutes } = this._customDuration;
 
-        await pauseAutomations(this.hass, {
+        const didPause = await this._callPauseWithGuardrailConfirm({
           entity_id: this._selected,
           days,
           hours,
           minutes,
-        });
+        }, forceConfirm);
+        if (!didPause) {
+          this._loading = false;
+          return;
+        }
 
         if (!this.isConnected || !this.shadowRoot) {
           this._loading = false;
@@ -642,11 +706,21 @@ export class AutomationPauseCard extends LitElement {
   private _handleScheduleModeChange(e: CustomEvent<{ enabled: boolean }>): void {
     this._scheduleMode = e.detail.enabled;
     if (e.detail.enabled) {
+      const now = new Date();
       const { date, time } = getCurrentDateTime();
+      const resumeMinutes = this._lastDuration?.minutes ?? DEFAULT_SNOOZE_MINUTES;
+      const resumeDate = new Date(now.getTime() + (resumeMinutes * TIME_MS.MINUTE));
+
+      const resumeYear = resumeDate.getFullYear();
+      const resumeMonth = String(resumeDate.getMonth() + 1).padStart(2, '0');
+      const resumeDay = String(resumeDate.getDate()).padStart(2, '0');
+      const resumeHours = String(resumeDate.getHours()).padStart(2, '0');
+      const resumeMins = String(resumeDate.getMinutes()).padStart(2, '0');
+
       this._disableAtDate = date;
       this._disableAtTime = time;
-      this._resumeAtDate = date;
-      this._resumeAtTime = time;
+      this._resumeAtDate = `${resumeYear}-${resumeMonth}-${resumeDay}`;
+      this._resumeAtTime = `${resumeHours}:${resumeMins}`;
     }
   }
 
@@ -674,6 +748,15 @@ export class AutomationPauseCard extends LitElement {
 
   private _handleSelectionChange(e: CustomEvent<{ selected: string[] }>): void {
     this._selected = e.detail.selected;
+  }
+
+  private _handleGuardrailCancel(): void {
+    this._guardrailConfirmOpen = false;
+  }
+
+  private async _handleGuardrailContinue(): Promise<void> {
+    this._guardrailConfirmOpen = false;
+    await this._snooze(true);
   }
 
   private _renderScheduledPauses(scheduledCount: number, scheduled: Record<string, { friendly_name?: string; disable_at?: string; resume_at: string }>): TemplateResult | string {
@@ -720,6 +803,7 @@ export class AutomationPauseCard extends LitElement {
     const pausedCount = Object.keys(paused).length;
     const scheduled = this._getScheduled();
     const scheduledCount = Object.keys(scheduled).length;
+    const automations = this._getAutomations();
 
     return html`
       <ha-card>
@@ -736,9 +820,10 @@ export class AutomationPauseCard extends LitElement {
         <div class="snooze-setup">
           <autosnooze-automation-list
             .hass=${this.hass}
-            .automations=${this._getAutomations()}
+            .automations=${automations}
             .selected=${this._selected}
             .labelRegistry=${this._labelRegistry}
+            .labelRegistryUnavailable=${this._labelRegistryUnavailable}
             .categoryRegistry=${this._categoryRegistry}
             @selection-change=${this._handleSelectionChange}
           ></autosnooze-automation-list>
@@ -760,27 +845,47 @@ export class AutomationPauseCard extends LitElement {
             @custom-input-toggle=${this._handleCustomInputToggle}
           ></autosnooze-duration-selector>
 
-          <button
-            type="button"
-            class="snooze-btn"
-            ?disabled=${this._selected.length === 0 ||
-            (!this._scheduleMode && !isDurationValid(this._customDurationInput)) ||
-            (this._scheduleMode && !this._hasResumeAt()) ||
-            this._loading}
-            @click=${() => this._snooze()}
-            aria-label="${this._loading
-              ? localize(this.hass, 'a11y.snoozing')
-              : this._scheduleMode
-                ? localize(this.hass, 'a11y.schedule_snooze', { count: this._selected.length })
-                : localize(this.hass, 'a11y.snooze_count', { count: this._selected.length })}"
-            aria-busy=${this._loading}
-          >
-            ${this._loading
-              ? localize(this.hass, 'button.snoozing')
-              : this._scheduleMode
-                ? localize(this.hass, 'button.schedule_count', { count: this._selected.length })
-                : localize(this.hass, 'button.snooze_count', { count: this._selected.length })}
-          </button>
+          ${this._guardrailConfirmOpen ? html`
+            <div class="guardrail-confirm" role="alertdialog" aria-live="polite">
+              <div class="guardrail-title">${localize(this.hass, 'guardrail.confirm_title')}</div>
+              <div class="guardrail-body">${localize(this.hass, 'guardrail.confirm_body')}</div>
+              <div class="guardrail-actions">
+                <button type="button" class="guardrail-cancel-btn" @click=${() => this._handleGuardrailCancel()}>
+                  ${localize(this.hass, 'button.cancel')}
+                </button>
+                <button type="button" class="guardrail-continue-btn" @click=${() => this._handleGuardrailContinue()}>
+                  ${localize(this.hass, 'button.continue')}
+                </button>
+              </div>
+            </div>
+          ` : ''}
+
+          <div class="snooze-action-bar">
+            <span class="snooze-action-count" role="status" aria-live="polite">
+              ${localize(this.hass, 'selection.count', { selected: this._selected.length, total: automations.length })}
+            </span>
+            <button
+              type="button"
+              class="snooze-btn"
+              ?disabled=${this._selected.length === 0 ||
+              (!this._scheduleMode && !isDurationValid(this._customDurationInput)) ||
+              (this._scheduleMode && !this._hasResumeAt()) ||
+              this._loading}
+              @click=${() => this._snooze()}
+              aria-label="${this._loading
+                ? localize(this.hass, 'a11y.snoozing')
+                : this._scheduleMode
+                  ? localize(this.hass, 'a11y.schedule_snooze', { count: this._selected.length })
+                  : localize(this.hass, 'a11y.snooze_count', { count: this._selected.length })}"
+              aria-busy=${this._loading}
+            >
+              ${this._loading
+                ? localize(this.hass, 'button.snoozing')
+                : this._scheduleMode
+                  ? localize(this.hass, 'button.schedule_count', { count: this._selected.length })
+                  : localize(this.hass, 'button.snooze_count', { count: this._selected.length })}
+            </button>
+          </div>
         </div>
 
         ${pausedCount > 0

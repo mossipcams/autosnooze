@@ -37,6 +37,61 @@ export const cardStyles = css`
     }
 
     /* Snooze Button */
+    .snooze-action-bar {
+      position: sticky;
+      bottom: 0;
+      z-index: 2;
+      margin-top: 12px;
+      padding: 10px;
+      border: 1px solid var(--divider-color);
+      border-radius: 10px;
+      background: var(--card-background-color);
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .snooze-action-count {
+      font-size: 0.85em;
+      color: var(--secondary-text-color);
+    }
+    .guardrail-confirm {
+      margin-top: 10px;
+      padding: 12px;
+      border-radius: 10px;
+      border: 1px solid color-mix(in srgb, #ff9800 40%, var(--divider-color));
+      background: color-mix(in srgb, #ff9800 8%, var(--card-background-color));
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .guardrail-title {
+      font-weight: 600;
+      font-size: 0.92em;
+    }
+    .guardrail-body {
+      font-size: 0.85em;
+      color: var(--secondary-text-color);
+    }
+    .guardrail-actions {
+      display: flex;
+      gap: 8px;
+      justify-content: flex-end;
+    }
+    .guardrail-cancel-btn,
+    .guardrail-continue-btn {
+      border-radius: 8px;
+      min-height: 40px;
+      padding: 8px 12px;
+      border: 1px solid var(--divider-color);
+      background: var(--card-background-color);
+      color: var(--primary-text-color);
+      cursor: pointer;
+    }
+    .guardrail-continue-btn {
+      border-color: var(--primary-color);
+      background: var(--primary-color);
+      color: var(--text-primary-color);
+    }
     .snooze-btn {
       width: 100%;
       padding: 14px;
@@ -227,6 +282,30 @@ export const cardStyles = css`
         margin-top: 6px;
         touch-action: manipulation;
         -webkit-tap-highlight-color: transparent;
+      }
+      .snooze-action-bar {
+        margin-top: 10px;
+        padding: 10px;
+        border-radius: 14px;
+        border: 1.5px solid color-mix(in srgb, var(--divider-color) 70%, transparent);
+        background: linear-gradient(
+          180deg,
+          var(--card-background-color) 0%,
+          color-mix(in srgb, var(--card-background-color) 94%, var(--primary-color)) 100%
+        );
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.06);
+        bottom: max(0px, env(safe-area-inset-bottom));
+      }
+      .snooze-action-count {
+        font-size: 0.78em;
+        font-weight: 500;
+      }
+      .guardrail-confirm {
+        border-radius: 14px;
+        padding: 12px;
+      }
+      .guardrail-body {
+        font-size: 0.8em;
       }
 
       .snooze-btn:hover:not(:disabled) {

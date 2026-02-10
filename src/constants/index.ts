@@ -39,6 +39,8 @@ export const UI_TIMING = {
   TOAST_DURATION_MS: 5000,
   COUNTDOWN_INTERVAL_MS: 1000,
   TIME_VALIDATION_BUFFER_MS: 5000,
+  REGISTRY_RETRY_MIN_MS: 1000,
+  REGISTRY_RETRY_MAX_MS: 30000,
 } as const;
 
 /**
@@ -67,6 +69,8 @@ export const ERROR_MESSAGES: Record<string, string> = {
   disable_after_resume: 'Failed to snooze: Snooze time must be before resume time',
   invalid_adjustment: 'Adjustment must be non-zero. Specify at least one of: days, hours, or minutes.',
   adjust_time_too_short: 'Cannot shorten snooze that much. Resume time must be at least 1 minute away.',
+  protected_automation: 'Failed to snooze: One or more selected automations are protected',
+  confirm_required: 'Failed to snooze: Confirmation is required for one or more selected automations',
 };
 
 /**
@@ -78,4 +82,3 @@ export const EXCLUDE_LABEL = 'autosnooze_exclude';
  * Label for including automations in AutoSnooze (whitelist mode).
  */
 export const INCLUDE_LABEL = 'autosnooze_include';
-

@@ -81,6 +81,7 @@ class PausedAutomation:
     hours: int = 0
     minutes: int = 0
     disable_at: datetime | None = None  # Set when snooze originated from schedule mode
+    resume_retries: int = 0
 
     def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for storage/attributes."""

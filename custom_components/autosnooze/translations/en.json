@@ -193,6 +193,12 @@
     },
     "adjust_time_too_short": {
       "message": "Adjusted resume time must be at least 1 minute in the future. The snooze cannot be shortened that much."
+    },
+    "protected_automation": {
+      "message": "One or more selected automations are protected and cannot be snoozed."
+    },
+    "confirm_required": {
+      "message": "One or more selected automations require explicit confirmation before snoozing."
     }
   }
 }
