@@ -49,7 +49,7 @@ pause:
         datetime:
     confirm:
       name: Confirm Labeled Automations
-      description: Set to true to snooze automations tagged with the autosnooze_confirm label.
+      description: Set to true to snooze automations tagged with autosnooze_confirm or detected as critical.
       default: false
       selector:
         boolean:
@@ -121,7 +121,7 @@ pause_by_area:
         datetime:
     confirm:
       name: Confirm Labeled Automations
-      description: Set to true to snooze automations tagged with the autosnooze_confirm label.
+      description: Set to true to snooze automations tagged with autosnooze_confirm or detected as critical.
       default: false
       selector:
         boolean:
@@ -176,7 +176,7 @@ pause_by_label:
         datetime:
     confirm:
       name: Confirm Labeled Automations
-      description: Set to true to snooze automations tagged with the autosnooze_confirm label.
+      description: Set to true to snooze automations tagged with autosnooze_confirm or detected as critical.
       default: false
       selector:
         boolean:

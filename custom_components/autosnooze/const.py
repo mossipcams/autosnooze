@@ -146,3 +146,19 @@ LABEL_CONFIRM_CONFIG: dict[str, str] = {
     "icon": "mdi:alert-circle-check",
     "description": "Use this label to require a second confirmation before snoozing an automation",
 }
+
+# Guardrail keywords for critical automations that should require confirmation.
+# Matched against automation entity_id and friendly_name (case-insensitive).
+CRITICAL_AUTOMATION_TERMS: tuple[str, ...] = (
+    "alarm",
+    "security",
+    "siren",
+    "lock",
+    "smoke",
+    "carbon monoxide",
+    "co2",
+    "leak",
+    "flood",
+    "fire",
+    "gas",
+)
