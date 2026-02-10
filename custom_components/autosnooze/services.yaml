@@ -48,8 +48,8 @@ pause:
       selector:
         datetime:
     confirm:
-      name: Confirm Guardrails
-      description: Explicitly confirm snoozing automations that are tagged with the autosnooze_confirm label.
+      name: Confirm Labeled Automations
+      description: Set to true to snooze automations tagged with the autosnooze_confirm label.
       default: false
       selector:
         boolean:
@@ -120,8 +120,8 @@ pause_by_area:
       selector:
         datetime:
     confirm:
-      name: Confirm Guardrails
-      description: Explicitly confirm snoozing automations that are tagged with the autosnooze_confirm label.
+      name: Confirm Labeled Automations
+      description: Set to true to snooze automations tagged with the autosnooze_confirm label.
       default: false
       selector:
         boolean:
@@ -175,8 +175,8 @@ pause_by_label:
       selector:
         datetime:
     confirm:
-      name: Confirm Guardrails
-      description: Explicitly confirm snoozing automations that are tagged with the autosnooze_confirm label.
+      name: Confirm Labeled Automations
+      description: Set to true to snooze automations tagged with the autosnooze_confirm label.
       default: false
       selector:
         boolean:

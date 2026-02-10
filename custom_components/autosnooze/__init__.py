@@ -19,7 +19,6 @@ from .const import (
     LABEL_CONFIRM_CONFIG,
     LABEL_EXCLUDE_CONFIG,
     LABEL_INCLUDE_CONFIG,
-    LABEL_PROTECTED_CONFIG,
     PLATFORMS,
     STORAGE_VERSION,
     VERSION,
@@ -72,15 +71,14 @@ __all__ = [
 async def _async_ensure_labels_exist(hass: HomeAssistant) -> None:
     """Ensure AutoSnooze filter labels exist in the label registry.
 
-    Creates autosnooze_include and autosnooze_exclude labels if they don't
-    already exist. These labels enable the frontend's whitelist/blacklist
-    filtering functionality.
+    Creates autosnooze_include, autosnooze_exclude, and autosnooze_confirm
+    labels if they don't already exist.
 
     This is idempotent - if labels already exist, they are not modified.
     """
     label_reg = lr.async_get(hass)
 
-    for config in [LABEL_INCLUDE_CONFIG, LABEL_EXCLUDE_CONFIG, LABEL_PROTECTED_CONFIG, LABEL_CONFIRM_CONFIG]:
+    for config in [LABEL_INCLUDE_CONFIG, LABEL_EXCLUDE_CONFIG, LABEL_CONFIRM_CONFIG]:
         try:
             label_reg.async_create(
                 name=config["name"],
