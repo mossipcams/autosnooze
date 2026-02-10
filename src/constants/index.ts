@@ -69,7 +69,6 @@ export const ERROR_MESSAGES: Record<string, string> = {
   disable_after_resume: 'Failed to snooze: Snooze time must be before resume time',
   invalid_adjustment: 'Adjustment must be non-zero. Specify at least one of: days, hours, or minutes.',
   adjust_time_too_short: 'Cannot shorten snooze that much. Resume time must be at least 1 minute away.',
-  protected_automation: 'Failed to snooze: One or more selected automations are protected',
   confirm_required: 'Failed to snooze: Confirmation is required for one or more selected automations',
 };
 
