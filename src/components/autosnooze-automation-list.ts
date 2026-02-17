@@ -119,7 +119,6 @@ export class AutoSnoozeAutomationList extends LitElement {
       this.automations,
       this._search,
       this.labelRegistry,
-      this.labelRegistryUnavailable,
     );
   }
 
@@ -299,6 +298,7 @@ export class AutoSnoozeAutomationList extends LitElement {
 
   render(): TemplateResult {
     const filtered = this._getFilteredAutomations();
+    const showRegistryWarning = this.labelRegistryUnavailable;
     return html`
       <div class="filter-tabs" role="tablist" aria-label="${localize(this.hass, 'a11y.filter_tabs')}">
         <button
@@ -356,6 +356,14 @@ export class AutoSnoozeAutomationList extends LitElement {
           aria-label="${localize(this.hass, 'a11y.search')}"
         />
       </div>
+
+      ${showRegistryWarning
+        ? html`
+            <div class="registry-warning" role="status">
+              ${localize(this.hass, 'list.label_registry_warning')}
+            </div>
+          `
+        : ''}
 
       ${filtered.length > 0
         ? html`

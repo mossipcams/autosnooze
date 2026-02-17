@@ -30,6 +30,10 @@
       "translation_key": "adjust_time_too_short",
       "message": "Adjusted resume time must be at least 1 minute in the future"
     },
+    "save_failed": {
+      "translation_key": "save_failed",
+      "message": "Failed to save snooze changes"
+    },
     "confirm_required": {
       "translation_key": "confirm_required",
       "message": "Some selected automations are tagged autosnooze_confirm or detected as critical and require confirmation before snoozing"

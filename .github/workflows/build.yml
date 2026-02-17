@@ -178,6 +178,9 @@ jobs:
           fi
           echo "Build verified: no bare imports found"
 
+      - name: Verify generated card artifact is up to date
+        run: git diff --exit-code custom_components/autosnooze/www/autosnooze-card.js
+
       # === Artifacts ===
       - name: Upload built artifact
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v4
