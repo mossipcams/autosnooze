@@ -7,10 +7,11 @@ from typing import Any
 
 from homeassistant.components.sensor import SensorEntity
 from homeassistant.core import HomeAssistant, callback
+from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.device_registry import DeviceEntryType, DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
-from .const import DEFAULT_DURATION_PRESETS, DOMAIN, VERSION
+from .const import DEFAULT_DURATION_PRESETS, DOMAIN, SENSOR_SCHEMA_VERSION, SIGNAL_STATE_CHANGED, VERSION
 from .models import AutomationPauseConfigEntry
 
 
@@ -50,7 +51,11 @@ class AutoSnoozeCountSensor(SensorEntity):
         def update() -> None:
             self.async_write_ha_state()
 
-        self._unsub = self._entry.runtime_data.add_listener(update)
+        if self.hass is not None:
+            self._unsub = async_dispatcher_connect(self.hass, SIGNAL_STATE_CHANGED, update)
+        else:
+            # Unit-test fallback when hass lifecycle wiring is not present.
+            self._unsub = self._entry.runtime_data.add_listener(update)
 
     async def async_will_remove_from_hass(self) -> None:
         """Remove listener when removed."""
@@ -71,8 +76,16 @@ class AutoSnoozeCountSensor(SensorEntity):
         if not presets:
             presets = DEFAULT_DURATION_PRESETS
 
+        paused = self._entry.runtime_data.get_paused_dict()
+        scheduled = self._entry.runtime_data.get_scheduled_dict()
+
         return {
-            "paused_automations": self._entry.runtime_data.get_paused_dict(),
-            "scheduled_snoozes": self._entry.runtime_data.get_scheduled_dict(),
+            "schema_version": SENSOR_SCHEMA_VERSION,
+            # Normalized contract roots.
+            "paused": paused,
+            "scheduled": scheduled,
+            # Backward-compatible aliases for existing frontend clients.
+            "paused_automations": paused,
+            "scheduled_snoozes": scheduled,
             "duration_presets": presets,
         }

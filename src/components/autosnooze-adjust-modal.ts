@@ -9,7 +9,8 @@ import { property } from 'lit/decorators.js';
 import { localize } from '../localization/localize.js';
 import { formatCountdown } from '../utils/index.js';
 import { TIME_MS } from '../constants/index.js';
-import { startSynchronizedCountdown, stopCountdown, type CountdownState } from '../utils/countdown-timer.js';
+import { startCountdownSync, stopCountdownSync } from '../services/countdown-sync.js';
+import type { CountdownState } from '../utils/countdown-timer.js';
 import { adjustModalStyles } from '../styles/adjust-modal.styles.js';
 import type { HomeAssistant } from '../types/hass.js';
 import type { PropertyValues } from 'lit';
@@ -86,12 +87,12 @@ export class AutoSnoozeAdjustModal extends LitElement {
   }
 
   _startSynchronizedCountdown(): void {
-    stopCountdown(this._countdownState);
-    this._countdownState = startSynchronizedCountdown(() => this.requestUpdate());
+    stopCountdownSync(this._countdownState);
+    this._countdownState = startCountdownSync(() => this.requestUpdate());
   }
 
   _stopCountdown(): void {
-    stopCountdown(this._countdownState);
+    stopCountdownSync(this._countdownState);
   }
 
   _isDecrementDisabled(thresholdMs: number): boolean {

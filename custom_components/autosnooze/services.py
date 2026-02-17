@@ -6,6 +6,7 @@ from collections.abc import Callable
 from datetime import datetime, timedelta
 import logging
 import re
+from time import perf_counter
 from typing import Any
 
 from homeassistant.const import ATTR_ENTITY_ID
@@ -27,6 +28,7 @@ from .const import (
     PAUSE_BY_LABEL_SCHEMA,
     PAUSE_SCHEMA,
 )
+from .logging_utils import _log_command, _raise_save_failed
 from .coordinator import (
     async_adjust_snooze,
     async_adjust_snooze_batch,
@@ -136,117 +138,121 @@ async def async_pause_automations(
     resume_at_dt: datetime | None = None,
 ) -> None:
     """Pause automations with duration or dates."""
-    if data.unloaded:
-        return
+    started_at = perf_counter()
+    outcome = "success"
+    try:
+        if data.unloaded:
+            return
 
-    # Early return if no entities provided (avoids unnecessary save/notify)
-    if not entity_ids:
-        return
+        # Early return if no entities provided (avoids unnecessary save/notify)
+        if not entity_ids:
+            return
 
-    # DEF-010 FIX: Validate ALL entity IDs upfront before any state changes
-    # This ensures atomic behavior - either all validations pass or none are processed
-    for entity_id in entity_ids:
-        if not entity_id.startswith("automation."):
-            raise ServiceValidationError(
-                f"{entity_id} is not an automation",
-                translation_domain=DOMAIN,
-                translation_key="not_automation",
-                translation_placeholders={"entity_id": entity_id},
-            )
-
-    now = dt_util.utcnow()
-
-    # Ensure incoming datetimes are UTC-aware to prevent comparison errors
-    # with dt_util.utcnow() which is always offset-aware
-    disable_at = ensure_utc_aware(disable_at)
-    resume_at_dt = ensure_utc_aware(resume_at_dt)
-
-    # Validate date-based scheduling constraints
-    if resume_at_dt is not None:
-        if resume_at_dt <= now:
-            raise ServiceValidationError(
-                "Resume time must be in the future",
-                translation_domain=DOMAIN,
-                translation_key="resume_time_past",
-            )
-        if disable_at is not None and disable_at >= resume_at_dt:
-            raise ServiceValidationError(
-                "Disable time must be before resume time",
-                translation_domain=DOMAIN,
-                translation_key="disable_after_resume",
-            )
-
-    # Determine if using date-based or duration-based scheduling
-    if resume_at_dt is not None:
-        # Date-based scheduling
-        resume_at = resume_at_dt
-        use_scheduled = disable_at is not None and disable_at > now
-    else:
-        # Duration-based scheduling
-        if days == 0 and hours == 0 and minutes == 0:
-            raise ServiceValidationError(
-                "Duration must be greater than zero",
-                translation_domain=DOMAIN,
-                translation_key="invalid_duration",
-            )
-        resume_at = now + timedelta(days=days, hours=hours, minutes=minutes)
-        use_scheduled = False
-
-    # Use lock to prevent concurrent state modifications
-    async with data.lock:
+        # DEF-010 FIX: Validate ALL entity IDs upfront before any state changes
+        # This ensures atomic behavior - either all validations pass or none are processed
         for entity_id in entity_ids:
-            # Validation already done above (DEF-010 fix)
-            friendly_name = get_friendly_name(hass, entity_id)
-
-            if use_scheduled:
-                # Schedule future disable (disable_at is guaranteed non-None when use_scheduled is True)
-                assert disable_at is not None
-                scheduled = ScheduledSnooze(
-                    entity_id=entity_id,
-                    friendly_name=friendly_name,
-                    disable_at=disable_at,
-                    resume_at=resume_at,
-                )
-                data.scheduled[entity_id] = scheduled
-                schedule_disable(hass, data, entity_id, scheduled)
-                _LOGGER.info(
-                    "Scheduled snooze for %s: disable at %s, resume at %s",
-                    entity_id,
-                    disable_at,
-                    resume_at,
-                )
-            else:
-                # Immediate disable
-                if not await async_set_automation_state(hass, entity_id, enabled=False):
-                    continue
-
-                # If using date-based scheduling (resume_at_dt provided), store disable_at
-                # to indicate this was a schedule-mode snooze (for UI display)
-                schedule_mode_disable_at = (
-                    disable_at if disable_at is not None else (now if resume_at_dt is not None else None)
+            if not entity_id.startswith("automation."):
+                raise ServiceValidationError(
+                    f"{entity_id} is not an automation",
+                    translation_domain=DOMAIN,
+                    translation_key="not_automation",
+                    translation_placeholders={"entity_id": entity_id},
                 )
 
-                data.paused[entity_id] = PausedAutomation(
-                    entity_id=entity_id,
-                    friendly_name=friendly_name,
-                    resume_at=resume_at,
-                    paused_at=now,
-                    days=days,
-                    hours=hours,
-                    minutes=minutes,
-                    disable_at=schedule_mode_disable_at,
+        now = dt_util.utcnow()
+
+        # Ensure incoming datetimes are UTC-aware to prevent comparison errors
+        # with dt_util.utcnow() which is always offset-aware
+        disable_at = ensure_utc_aware(disable_at)
+        resume_at_dt = ensure_utc_aware(resume_at_dt)
+
+        # Validate date-based scheduling constraints
+        if resume_at_dt is not None:
+            if resume_at_dt <= now:
+                raise ServiceValidationError(
+                    "Resume time must be in the future",
+                    translation_domain=DOMAIN,
+                    translation_key="resume_time_past",
+                )
+            if disable_at is not None and disable_at >= resume_at_dt:
+                raise ServiceValidationError(
+                    "Disable time must be before resume time",
+                    translation_domain=DOMAIN,
+                    translation_key="disable_after_resume",
                 )
 
-                schedule_resume(hass, data, entity_id, resume_at)
-                _LOGGER.info("Snoozed %s until %s", entity_id, resume_at)
+        # Determine if using date-based or duration-based scheduling
+        if resume_at_dt is not None:
+            # Date-based scheduling
+            resume_at = resume_at_dt
+            use_scheduled = disable_at is not None and disable_at > now
+        else:
+            # Duration-based scheduling
+            if days == 0 and hours == 0 and minutes == 0:
+                raise ServiceValidationError(
+                    "Duration must be greater than zero",
+                    translation_domain=DOMAIN,
+                    translation_key="invalid_duration",
+                )
+            resume_at = now + timedelta(days=days, hours=hours, minutes=minutes)
+            use_scheduled = False
 
-        if not await async_save(data):
-            raise ServiceValidationError(
-                "Failed to persist autosnooze state",
-                translation_domain=DOMAIN,
-                translation_key="save_failed",
-            )
-    data.notify()
+        # Use lock to prevent concurrent state modifications
+        async with data.lock:
+            for entity_id in entity_ids:
+                # Validation already done above (DEF-010 fix)
+                friendly_name = get_friendly_name(hass, entity_id)
+
+                if use_scheduled:
+                    # Schedule future disable (disable_at is guaranteed non-None when use_scheduled is True)
+                    assert disable_at is not None
+                    scheduled = ScheduledSnooze(
+                        entity_id=entity_id,
+                        friendly_name=friendly_name,
+                        disable_at=disable_at,
+                        resume_at=resume_at,
+                    )
+                    data.scheduled[entity_id] = scheduled
+                    schedule_disable(hass, data, entity_id, scheduled)
+                    _LOGGER.info(
+                        "Scheduled snooze for %s: disable at %s, resume at %s",
+                        entity_id,
+                        disable_at,
+                        resume_at,
+                    )
+                else:
+                    # Immediate disable
+                    if not await async_set_automation_state(hass, entity_id, enabled=False):
+                        continue
+
+                    # If using date-based scheduling (resume_at_dt provided), store disable_at
+                    # to indicate this was a schedule-mode snooze (for UI display)
+                    schedule_mode_disable_at = (
+                        disable_at if disable_at is not None else (now if resume_at_dt is not None else None)
+                    )
+
+                    data.paused[entity_id] = PausedAutomation(
+                        entity_id=entity_id,
+                        friendly_name=friendly_name,
+                        resume_at=resume_at,
+                        paused_at=now,
+                        days=days,
+                        hours=hours,
+                        minutes=minutes,
+                        disable_at=schedule_mode_disable_at,
+                    )
+
+                    schedule_resume(hass, data, entity_id, resume_at)
+                    _LOGGER.info("Snoozed %s until %s", entity_id, resume_at)
+
+            if not await async_save(data):
+                _raise_save_failed()
+        data.notify()
+    except Exception:
+        outcome = "error"
+        raise
+    finally:
+        _log_command("pause", outcome, started_at)
 
 
 def register_services(hass: HomeAssistant, data: AutomationPauseData) -> None:

@@ -10,8 +10,12 @@ import logging
 from typing import Any, TypeAlias
 
 from homeassistant.config_entries import ConfigEntry
+from homeassistant.core import HomeAssistant
+from homeassistant.helpers.dispatcher import async_dispatcher_send
 from homeassistant.helpers.storage import Store
 from homeassistant.util import dt as dt_util
+
+from .const import SIGNAL_STATE_CHANGED
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -153,6 +157,7 @@ class AutomationPauseData:
     scheduled_timers: dict[str, Callable[[], None]] = field(default_factory=dict)
     listeners: list[Callable[[], None]] = field(default_factory=list)
     store: Store | None = None
+    hass: HomeAssistant | None = None
     # Lock to prevent concurrent state modifications (race conditions)
     lock: asyncio.Lock = field(default_factory=asyncio.Lock)
     # Flag to track if integration is unloaded (prevents post-unload operations)
@@ -184,6 +189,8 @@ class AutomationPauseData:
         """
         if self.unloaded:
             return
+        if self.hass is not None:
+            async_dispatcher_send(self.hass, SIGNAL_STATE_CHANGED)
         for listener in list(self.listeners):
             try:
                 listener()
