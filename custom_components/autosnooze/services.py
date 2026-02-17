@@ -136,6 +136,9 @@ async def async_pause_automations(
     resume_at_dt: datetime | None = None,
 ) -> None:
     """Pause automations with duration or dates."""
+    if data.unloaded:
+        return
+
     # Early return if no entities provided (avoids unnecessary save/notify)
     if not entity_ids:
         return
@@ -237,7 +240,12 @@ async def async_pause_automations(
                 schedule_resume(hass, data, entity_id, resume_at)
                 _LOGGER.info("Snoozed %s until %s", entity_id, resume_at)
 
-        await async_save(data)
+        if not await async_save(data):
+            raise ServiceValidationError(
+                "Failed to persist autosnooze state",
+                translation_domain=DOMAIN,
+                translation_key="save_failed",
+            )
     data.notify()
 
 
@@ -246,6 +254,9 @@ def register_services(hass: HomeAssistant, data: AutomationPauseData) -> None:
 
     async def handle_pause(call: ServiceCall) -> None:
         """Handle snooze service call."""
+        if data.unloaded:
+            return
+
         entity_ids = call.data[ATTR_ENTITY_ID]
         confirm = call.data.get("confirm", False)
         days = call.data.get("days", 0)
@@ -260,6 +271,9 @@ def register_services(hass: HomeAssistant, data: AutomationPauseData) -> None:
 
     async def handle_cancel(call: ServiceCall) -> None:
         """Handle wake service call (FR-10: Early Wake Up)."""
+        if data.unloaded:
+            return
+
         # DEF-011 FIX: Use batch resume for efficiency
         entity_ids = call.data[ATTR_ENTITY_ID]
         valid_ids = []
@@ -273,6 +287,9 @@ def register_services(hass: HomeAssistant, data: AutomationPauseData) -> None:
 
     async def handle_cancel_all(_call: ServiceCall) -> None:
         """Handle wake all service call."""
+        if data.unloaded:
+            return
+
         # DEF-011 FIX: Use batch resume for single disk write
         entity_ids = list(data.paused.keys())
         if entity_ids:
@@ -285,6 +302,9 @@ def register_services(hass: HomeAssistant, data: AutomationPauseData) -> None:
         not_found_msg: str,
     ) -> None:
         """Handle pause by area/label service calls (shared logic)."""
+        if data.unloaded:
+            return
+
         filter_value = call.data[filter_key]
         filter_ids = [filter_value] if isinstance(filter_value, str) else filter_value
         days = call.data.get("days", 0)
@@ -322,6 +342,9 @@ def register_services(hass: HomeAssistant, data: AutomationPauseData) -> None:
 
     async def handle_cancel_scheduled(call: ServiceCall) -> None:
         """Handle cancel scheduled snooze service call."""
+        if data.unloaded:
+            return
+
         entity_ids = call.data[ATTR_ENTITY_ID]
         valid_ids = []
         for entity_id in entity_ids:
@@ -334,6 +357,9 @@ def register_services(hass: HomeAssistant, data: AutomationPauseData) -> None:
 
     async def handle_adjust(call: ServiceCall) -> None:
         """Handle adjust snooze service call."""
+        if data.unloaded:
+            return
+
         entity_ids = call.data[ATTR_ENTITY_ID]
         days = call.data.get("days", 0)
         hours = call.data.get("hours", 0)

@@ -417,7 +417,7 @@ describe('AutoSnooze Card Main Component', () => {
       expect(filtered[0].id).toBe('automation.living_room');
     });
 
-    test('_getFilteredAutomations fails safe when labels exist but registry is unavailable', () => {
+    test('_getFilteredAutomations falls back to visible list when label registry is unavailable', async () => {
       card._labelRegistry = {};
       card._labelRegistryUnavailable = true;
       card._entityRegistry = {
@@ -435,7 +435,12 @@ describe('AutoSnooze Card Main Component', () => {
       queryAutomationList(card)._search = '';
 
       const filtered = queryAutomationList(card)._getFilteredAutomations();
-      expect(filtered.length).toBe(0);
+      expect(filtered.length).toBe(2);
+
+      await card.updateComplete;
+      await queryAutomationList(card).updateComplete;
+      const warning = queryAutomationList(card).shadowRoot.querySelector('.registry-warning');
+      expect(warning).not.toBeNull();
     });
   });
 
@@ -810,6 +815,22 @@ describe('AutoSnooze Card Main Component', () => {
       await card.updateComplete;
       const selectionActions = queryAutomationList(card).shadowRoot.querySelector('.selection-actions');
       expect(selectionActions).not.toBeNull();
+    });
+
+    test('renders health banner when snoozed sensor is missing', async () => {
+      card.hass = createMockHass({
+        states: {
+          'automation.test_automation': {
+            entity_id: 'automation.test_automation',
+            state: 'on',
+            attributes: { friendly_name: 'Test Automation' },
+          },
+        },
+      });
+      await card.updateComplete;
+
+      const banner = card.shadowRoot.querySelector('.sensor-health-banner');
+      expect(banner).not.toBeNull();
     });
   });
 
@@ -2268,6 +2289,30 @@ describe('Undo Functionality in Snooze', () => {
     undoBtn.click();
     await new Promise((resolve) => setTimeout(resolve, 10));
   });
+
+  test('undo uses all-settled semantics and retries only failed entities', async () => {
+    card._selected = ['automation.test', 'automation.second'];
+    card._customDuration = { days: 0, hours: 0, minutes: 30 };
+
+    mockHass.callService.mockResolvedValueOnce(undefined); // snooze
+    mockHass.callService.mockRejectedValueOnce(new Error('Cancel failed')); // undo first entity
+    mockHass.callService.mockResolvedValueOnce(undefined); // undo second entity
+
+    await card._snooze();
+
+    const undoBtn = card.shadowRoot.querySelector('.toast-undo-btn');
+    undoBtn.click();
+    await new Promise((resolve) => setTimeout(resolve, 10));
+
+    expect(mockHass.callService).toHaveBeenCalledTimes(3);
+    expect(mockHass.callService).toHaveBeenNthCalledWith(2, 'autosnooze', 'cancel', {
+      entity_id: 'automation.test',
+    });
+    expect(mockHass.callService).toHaveBeenNthCalledWith(3, 'autosnooze', 'cancel', {
+      entity_id: 'automation.second',
+    });
+    expect(card._selected).toEqual(['automation.test']);
+  });
 });
 
 // =============================================================================
@@ -2637,6 +2682,37 @@ describe('shouldUpdate optimization', () => {
     const changedProps = new Map();
     changedProps.set('hass', oldHass);
     expect(card.shouldUpdate(changedProps)).toBe(false);
+  });
+
+  test('shouldUpdate avoids automation fingerprint scans when states reference is unchanged', () => {
+    const sharedStates = {
+      'automation.test1': { state: 'on', attributes: { friendly_name: 'Test 1' } },
+      'sensor.autosnooze_snoozed_automations': { state: '0', attributes: { paused_automations: {}, scheduled_snoozes: {} } },
+    };
+    const sharedEntities = {};
+    const sharedAreas = {};
+    const oldHass = {
+      states: sharedStates,
+      entities: sharedEntities,
+      areas: sharedAreas,
+    };
+    const newHass = {
+      states: sharedStates,
+      entities: sharedEntities,
+      areas: sharedAreas,
+    };
+    card.hass = newHass;
+
+    const keysSpy = vi.spyOn(Object, 'keys');
+    const changedProps = new Map();
+    changedProps.set('hass', oldHass);
+
+    const result = card.shouldUpdate(changedProps);
+    const scannedSharedStates = keysSpy.mock.calls.some(([value]) => value === sharedStates);
+
+    expect(result).toBe(false);
+    expect(scannedSharedStates).toBe(false);
+    keysSpy.mockRestore();
   });
 
   test('_fetchLabelRegistry keeps retry enabled when fetch fails', async () => {

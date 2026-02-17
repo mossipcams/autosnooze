@@ -30,6 +30,15 @@ export const cardStyles = css`
       font-size: 0.85em;
       color: var(--secondary-text-color);
     }
+    .sensor-health-banner {
+      margin-bottom: 12px;
+      padding: 10px 12px;
+      border: 1px solid color-mix(in srgb, #ff9800 45%, var(--divider-color));
+      border-radius: 8px;
+      background: color-mix(in srgb, #ff9800 10%, var(--card-background-color));
+      color: var(--primary-text-color);
+      font-size: 0.85em;
+    }
 
     /* Section A: Snooze Setup */
     .snooze-setup {

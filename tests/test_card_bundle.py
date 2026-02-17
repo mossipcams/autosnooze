@@ -22,6 +22,7 @@ from __future__ import annotations
 import json
 import re
 import subprocess
+import tomllib
 from pathlib import Path
 
 import pytest
@@ -36,6 +37,9 @@ PACKAGE_JSON_PATH = PROJECT_ROOT / "package.json"
 PACKAGE_LOCK_PATH = PROJECT_ROOT / "package-lock.json"
 NODE_MODULES_PATH = PROJECT_ROOT / "node_modules"
 CI_WORKFLOW_PATH = PROJECT_ROOT / ".github" / "workflows"
+BUILD_WORKFLOW_FILE = CI_WORKFLOW_PATH / "build.yml"
+STRYKER_CONFIG_MJS_PATH = PROJECT_ROOT / "stryker.config.mjs"
+PYPROJECT_TOML_PATH = PROJECT_ROOT / "pyproject.toml"
 
 
 class TestBuildInfrastructureExists:
@@ -481,3 +485,46 @@ class TestCDNCacheBusting:
             "REGRESSION: Lovelace resource should use CARD_URL_VERSIONED (with ?v=). "
             "This ensures browsers fetch the new version on updates."
         )
+
+
+class TestCIWorkflowContracts:
+    """Contract tests for critical CI workflow gates."""
+
+    def test_build_workflow_enforces_generated_artifact_freshness(self) -> None:
+        """Ensure CI verifies built artifact stays in sync with source."""
+        assert BUILD_WORKFLOW_FILE.exists(), (
+            "REGRESSION: .github/workflows/build.yml is missing. CI must enforce generated artifact freshness."
+        )
+
+        content = BUILD_WORKFLOW_FILE.read_text()
+        has_build_step = "npm run build" in content
+        has_artifact_diff_check = "git diff --exit-code custom_components/autosnooze/www/autosnooze-card.js" in content
+
+        assert has_build_step and has_artifact_diff_check, (
+            "REGRESSION: build workflow must run build + fail when "
+            "custom_components/autosnooze/www/autosnooze-card.js is stale."
+        )
+
+
+class TestMutationToolingContracts:
+    """Contract tests for mutation testing configuration validity."""
+
+    def test_stryker_uses_vitest_mjs_and_typescript_globs(self) -> None:
+        """Ensure Stryker uses project's Vitest config and TS mutate globs."""
+        assert STRYKER_CONFIG_MJS_PATH.exists(), (
+            "REGRESSION: stryker.config.mjs is missing. Mutation testing config must be present."
+        )
+
+        content = STRYKER_CONFIG_MJS_PATH.read_text()
+        assert "vitest.config.mjs" in content, "REGRESSION: stryker.config.mjs must reference vitest.config.mjs."
+        assert "src/**/*.ts" in content, "REGRESSION: stryker.config.mjs mutate globs must target TypeScript sources."
+
+    def test_mutmut_tests_dir_paths_exist(self) -> None:
+        """Ensure every mutmut tests_dir path points to an existing test file."""
+        assert PYPROJECT_TOML_PATH.exists(), "pyproject.toml not found"
+
+        pyproject = tomllib.loads(PYPROJECT_TOML_PATH.read_text())
+        tests_dir = pyproject.get("tool", {}).get("mutmut", {}).get("tests_dir", [])
+        missing = [path for path in tests_dir if not (PROJECT_ROOT / path).exists()]
+
+        assert not missing, f"REGRESSION: tool.mutmut.tests_dir contains non-existent paths: {missing}"

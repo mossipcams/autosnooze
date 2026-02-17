@@ -30,15 +30,18 @@ import {
   fetchLabelRegistry,
   fetchCategoryRegistry,
   fetchEntityRegistry,
-  pauseAutomations,
-  wakeAutomation,
-  wakeAll,
-  cancelScheduled,
-  adjustSnooze,
   saveLastDuration,
   loadLastDuration,
   type LastDurationData,
 } from '../services/index.js';
+import {
+  runAdjustAction,
+  runCancelScheduledAction,
+  runPauseAction,
+  runUndoAction,
+  runWakeAction,
+  runWakeAllAction,
+} from './autosnooze-actions-controller.js';
 import {
   getAutomations,
 } from '../state/automations.js';
@@ -88,6 +91,8 @@ export class AutomationPauseCard extends LitElement {
   private _labelsFetched: boolean = false;
   private _categoriesFetched: boolean = false;
   private _entityRegistryFetched: boolean = false;
+  private _lastAutomationFingerprintStates: HassEntities | null = null;
+  private _lastAutomationFingerprint: string = '';
   private _lastHassStates: HassEntities | null = null;
   private _lastCacheVersion: number = 0;
   private _toastTimeout: number | null = null;
@@ -146,24 +151,20 @@ export class AutomationPauseCard extends LitElement {
       return true;
     }
 
-    const newStates = newHass.states ?? {};
-    const oldStates = oldHass.states ?? {};
-
-    for (const entityId of Object.keys(newStates)) {
-      if (entityId.startsWith('automation.')) {
-        if (oldStates[entityId] !== newStates[entityId]) {
-          return true;
-        }
-      }
+    const newStates = newHass.states;
+    const oldStates = oldHass.states;
+    if (!newStates || !oldStates) {
+      return true;
     }
 
-    for (const entityId of Object.keys(oldStates)) {
-      if (entityId.startsWith('automation.') && !newStates[entityId]) {
-        return true;
-      }
+    // Fast path: no state object churn means no automation change scan needed.
+    if (oldStates === newStates) {
+      return false;
     }
 
-    return false;
+    const oldFingerprint = this._getAutomationStateFingerprint(oldStates);
+    const newFingerprint = this._getAutomationStateFingerprint(newStates);
+    return oldFingerprint !== newFingerprint;
   }
 
   updated(changedProps: PropertyValues): void {
@@ -302,6 +303,27 @@ export class AutomationPauseCard extends LitElement {
     return result;
   }
 
+  private _getAutomationStateFingerprint(states: HassEntities): string {
+    if (this._lastAutomationFingerprintStates === states) {
+      return this._lastAutomationFingerprint;
+    }
+
+    const automationIds = Object.keys(states)
+      .filter((entityId) => entityId.startsWith('automation.'))
+      .sort();
+
+    const fingerprint = automationIds
+      .map((entityId) => {
+        const entity = states[entityId] as { state?: string; last_changed?: string; last_updated?: string } | undefined;
+        return `${entityId}:${entity?.state ?? ''}:${entity?.last_changed ?? ''}:${entity?.last_updated ?? ''}`;
+      })
+      .join('|');
+
+    this._lastAutomationFingerprintStates = states;
+    this._lastAutomationFingerprint = fingerprint;
+    return fingerprint;
+  }
+
   private _getPaused(): Record<string, PausedAutomationAttribute> {
     if (!this.hass) return {};
     return getPaused(this.hass);
@@ -315,6 +337,10 @@ export class AutomationPauseCard extends LitElement {
   private _getScheduled(): Record<string, ScheduledSnoozeAttribute> {
     if (!this.hass) return {};
     return getScheduled(this.hass);
+  }
+
+  private _isSnoozeSensorAvailable(): boolean {
+    return Boolean(this.hass?.states?.[SENSOR_ENTITY_ID]);
   }
 
   private _formatDateTime(isoString: string): string {
@@ -397,12 +423,12 @@ export class AutomationPauseCard extends LitElement {
   private async _callPauseWithGuardrailConfirm(params: PauseServiceParams, forceConfirm: boolean = false): Promise<boolean> {
     if (!this.hass) return false;
     if (forceConfirm) {
-      await pauseAutomations(this.hass, { ...params, confirm: true });
+      await runPauseAction(this.hass, { ...params, confirm: true });
       return true;
     }
 
     try {
-      await pauseAutomations(this.hass, params);
+      await runPauseAction(this.hass, params);
       return true;
     } catch (error) {
       const serviceError = error as { translation_key?: string; data?: { translation_key?: string } };
@@ -540,19 +566,22 @@ export class AutomationPauseCard extends LitElement {
         onUndo: async () => {
           try {
             if (!this.hass) return;
-            for (const entityId of snoozedEntities) {
-              if (wasScheduleMode && hadDisableAt) {
-                await cancelScheduled(this.hass, entityId);
-              } else {
-                await wakeAutomation(this.hass, entityId);
-              }
-            }
+            const undoResult = await runUndoAction(this.hass, snoozedEntities, {
+              wasScheduleMode,
+              hadDisableAt,
+            });
             if (this.isConnected) {
-              this._selected = snoozedEntities;
-              const restoredMsg = count === 1
-                ? localize(this.hass, 'toast.success.restored_one')
-                : localize(this.hass, 'toast.success.restored_many', { count });
-              this._showToast(restoredMsg);
+              if (undoResult.failed.length === 0) {
+                this._selected = snoozedEntities;
+                const restoredMsg = count === 1
+                  ? localize(this.hass, 'toast.success.restored_one')
+                  : localize(this.hass, 'toast.success.restored_many', { count });
+                this._showToast(restoredMsg);
+              } else {
+                // Keep only failed entities selected to make retry easier.
+                this._selected = undoResult.failed;
+                this._showToast(localize(this.hass, 'toast.error.undo_failed'));
+              }
             }
           } catch (e) {
             console.error('Undo failed:', e);
@@ -581,7 +610,7 @@ export class AutomationPauseCard extends LitElement {
   private async _wake(entityId: string): Promise<void> {
     if (!this.hass) return;
     try {
-      await wakeAutomation(this.hass, entityId);
+      await runWakeAction(this.hass, entityId);
       this._hapticFeedback('success');
       if (this.isConnected && this.shadowRoot) {
         this._showToast(localize(this.hass, 'toast.success.resumed'));
@@ -602,7 +631,7 @@ export class AutomationPauseCard extends LitElement {
   private async _handleWakeAllEvent(): Promise<void> {
     if (!this.hass) return;
     try {
-      await wakeAll(this.hass);
+      await runWakeAllAction(this.hass);
       this._hapticFeedback('success');
       if (this.isConnected && this.shadowRoot) {
         this._showToast(localize(this.hass, 'toast.success.resumed_all'));
@@ -644,7 +673,7 @@ export class AutomationPauseCard extends LitElement {
     const { entityId, entityIds, ...params } = e.detail;
     const target = entityIds || entityId || '';
     try {
-      await adjustSnooze(this.hass, target, params);
+      await runAdjustAction(this.hass, target, params);
       this._hapticFeedback('success');
 
       // Optimistic UI update: compute new resumeAt locally
@@ -679,7 +708,7 @@ export class AutomationPauseCard extends LitElement {
   private async _cancelScheduled(entityId: string): Promise<void> {
     if (!this.hass) return;
     try {
-      await cancelScheduled(this.hass, entityId);
+      await runCancelScheduledAction(this.hass, entityId);
       this._hapticFeedback('success');
       if (this.isConnected && this.shadowRoot) {
         this._showToast(localize(this.hass, 'toast.success.cancelled'));
@@ -804,6 +833,7 @@ export class AutomationPauseCard extends LitElement {
     const scheduled = this._getScheduled();
     const scheduledCount = Object.keys(scheduled).length;
     const automations = this._getAutomations();
+    const sensorAvailable = this._isSnoozeSensorAvailable();
 
     return html`
       <ha-card>
@@ -816,6 +846,14 @@ export class AutomationPauseCard extends LitElement {
               >`
             : ''}
         </div>
+
+        ${!sensorAvailable
+          ? html`
+              <div class="sensor-health-banner" role="status">
+                ${localize(this.hass, 'status.sensor_unavailable')}
+              </div>
+            `
+          : ''}
 
         <div class="snooze-setup">
           <autosnooze-automation-list
