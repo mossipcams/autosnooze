@@ -9,7 +9,8 @@ import { property } from 'lit/decorators.js';
 import { localize } from '../localization/localize.js';
 import { formatCountdown, formatDateTime, hapticFeedback } from '../utils/index.js';
 import { UI_TIMING } from '../constants/index.js';
-import { startSynchronizedCountdown, stopCountdown, type CountdownState } from '../utils/countdown-timer.js';
+import { startCountdownSync, stopCountdownSync } from '../services/countdown-sync.js';
+import type { CountdownState } from '../utils/countdown-timer.js';
 import { activePausesStyles } from '../styles/active-pauses.styles.js';
 import { sharedPausedStyles } from '../styles/shared.styles.js';
 import type { HomeAssistant } from '../types/hass.js';
@@ -35,13 +36,13 @@ export class AutoSnoozeActivePauses extends LitElement {
   connectedCallback(): void {
     super.connectedCallback();
 
-    stopCountdown(this._countdownState);
-    this._countdownState = startSynchronizedCountdown(() => this._updateCountdownIfNeeded());
+    stopCountdownSync(this._countdownState);
+    this._countdownState = startCountdownSync(() => this._updateCountdownIfNeeded());
   }
 
   disconnectedCallback(): void {
     super.disconnectedCallback();
-    stopCountdown(this._countdownState);
+    stopCountdownSync(this._countdownState);
     if (this._wakeAllTimeout !== null) {
       clearTimeout(this._wakeAllTimeout);
       this._wakeAllTimeout = null;

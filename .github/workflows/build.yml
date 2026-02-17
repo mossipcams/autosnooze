@@ -166,6 +166,12 @@ jobs:
           TZ: UTC
         # Python coverage threshold enforced via pyproject.toml (85% minimum)
 
+      - name: Run backend schema contract checks
+        run: pytest tests/test_sensor_contract.py tests/test_schema_version_contract.py -q
+
+      - name: Run frontend schema contract checks
+        run: npm run test -- tests/test_paused_contract.spec.ts
+
       # === Build ===
       - name: Build card
         run: npm run build

@@ -3,16 +3,78 @@
  */
 
 import type { HomeAssistant, PausedAutomationAttribute, ScheduledSnoozeAttribute } from '../types/hass.js';
-import type { PauseGroup } from '../types/automation.js';
+import { SENSOR_SCHEMA_VERSION, type PauseGroup } from '../types/automation.js';
 
 export const SENSOR_ENTITY_ID = 'sensor.autosnooze_snoozed_automations';
+export const PAUSED_CONTRACT_VERSION = SENSOR_SCHEMA_VERSION;
+
+interface ParsedPausedContract {
+  paused: Record<string, PausedAutomationAttribute>;
+  scheduled: Record<string, ScheduledSnoozeAttribute>;
+}
+
+function asRecord(value: unknown): Record<string, unknown> | null {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return null;
+  }
+  return value as Record<string, unknown>;
+}
+
+function asPausedMap(value: unknown): Record<string, PausedAutomationAttribute> | null {
+  const record = asRecord(value);
+  return record as Record<string, PausedAutomationAttribute> | null;
+}
+
+function asScheduledMap(value: unknown): Record<string, ScheduledSnoozeAttribute> | null {
+  const record = asRecord(value);
+  return record as Record<string, ScheduledSnoozeAttribute> | null;
+}
+
+/**
+ * Parse sensor attributes using versioned contract with legacy fallback.
+ */
+export function parsePausedContract(attributes: unknown): ParsedPausedContract {
+  const root = asRecord(attributes);
+  if (!root) {
+    return { paused: {}, scheduled: {} };
+  }
+
+  const schemaVersion = root.schema_version;
+
+  // Explicitly supported versioned contract.
+  if (schemaVersion === PAUSED_CONTRACT_VERSION) {
+    const paused = asPausedMap(root.paused);
+    const scheduled = asScheduledMap(root.scheduled);
+    if (!paused || !scheduled) {
+      return { paused: {}, scheduled: {} };
+    }
+    return { paused, scheduled };
+  }
+
+  // Unversioned transitional contract: accept normalized keys if present.
+  if (schemaVersion === undefined) {
+    const paused = asPausedMap(root.paused);
+    const scheduled = asScheduledMap(root.scheduled);
+    if (paused && scheduled) {
+      return { paused, scheduled };
+    }
+  }
+
+  // Legacy fallback.
+  const legacyPaused = asPausedMap(root.paused_automations);
+  const legacyScheduled = asScheduledMap(root.scheduled_snoozes);
+  return {
+    paused: legacyPaused ?? {},
+    scheduled: legacyScheduled ?? {},
+  };
+}
 
 /**
  * Get paused automations from the sensor entity.
  */
 export function getPaused(hass: HomeAssistant): Record<string, PausedAutomationAttribute> {
   const entity = hass?.states?.[SENSOR_ENTITY_ID];
-  return (entity?.attributes?.paused_automations as Record<string, PausedAutomationAttribute>) ?? {};
+  return parsePausedContract(entity?.attributes).paused;
 }
 
 /**
@@ -20,7 +82,7 @@ export function getPaused(hass: HomeAssistant): Record<string, PausedAutomationA
  */
 export function getScheduled(hass: HomeAssistant): Record<string, ScheduledSnoozeAttribute> {
   const entity = hass?.states?.[SENSOR_ENTITY_ID];
-  return (entity?.attributes?.scheduled_snoozes as Record<string, ScheduledSnoozeAttribute>) ?? {};
+  return parsePausedContract(entity?.attributes).scheduled;
 }
 
 /**
