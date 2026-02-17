@@ -194,6 +194,9 @@
     "adjust_time_too_short": {
       "message": "Adjusted resume time must be at least 1 minute in the future. The snooze cannot be shortened that much."
     },
+    "save_failed": {
+      "message": "Failed to save snooze changes. Please try again and check Home Assistant logs if the issue persists."
+    },
     "confirm_required": {
       "message": "Some selected automations are tagged autosnooze_confirm or detected as critical and require confirmation before snoozing."
     }

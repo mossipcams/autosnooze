@@ -4,10 +4,10 @@ export default {
   reporters: ["html", "clear-text", "progress"],
   testRunner: "vitest",
   vitest: {
-    configFile: "vitest.config.js",
+    configFile: "vitest.config.mjs",
   },
   coverageAnalysis: "all",
-  mutate: ["src/**/*.js", "!src/**/*.test.js", "!src/**/*.spec.js"],
+  mutate: ["src/**/*.ts", "!src/**/*.test.ts", "!src/**/*.spec.ts"],
   thresholds: { high: 80, low: 60, break: 70 },
   concurrency: 8,
   timeoutMS: 10000,

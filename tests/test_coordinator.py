@@ -20,6 +20,7 @@ from custom_components.autosnooze.coordinator import (
     async_cancel_scheduled,
     async_cancel_scheduled_batch,
     async_execute_scheduled_disable,
+    async_load_stored,
     async_resume,
     async_resume_batch,
     async_save,
@@ -379,6 +380,92 @@ class TestAsyncSave:
 
         assert result is False
         assert mock_store.async_save.call_count == 4  # Initial + 3 retries
+
+
+class TestAsyncLoadStoredLocking:
+    """Tests that restore operations are lock-protected."""
+
+    @pytest.mark.asyncio
+    async def test_load_stored_lock_guards_state_restoration(self) -> None:
+        """Restore path should hold data.lock while mutating in-memory state."""
+        now = datetime.now(UTC)
+        mock_store = MagicMock()
+        mock_store.async_load = AsyncMock(
+            return_value={
+                "paused": {
+                    "automation.test": {
+                        "resume_at": (now + timedelta(hours=1)).isoformat(),
+                        "paused_at": now.isoformat(),
+                    }
+                },
+                "scheduled": {},
+            }
+        )
+        data = AutomationPauseData(store=mock_store)
+
+        class _TrackingLock:
+            def __init__(self) -> None:
+                self.entered = False
+                self.active = False
+
+            async def __aenter__(self):
+                self.entered = True
+                self.active = True
+                return self
+
+            async def __aexit__(self, exc_type, exc, tb):
+                self.active = False
+                return False
+
+        tracking_lock = _TrackingLock()
+        data.lock = tracking_lock
+
+        mock_hass = MagicMock()
+        mock_hass.states.get.return_value = MagicMock(attributes={ATTR_FRIENDLY_NAME: "Test"})
+
+        async def _set_state(*_args, **_kwargs):
+            assert tracking_lock.active, "Expected async_load_stored to hold data.lock during restore"
+            return True
+
+        with (
+            patch("custom_components.autosnooze.coordinator.async_set_automation_state", side_effect=_set_state),
+            patch("custom_components.autosnooze.coordinator.schedule_resume"),
+        ):
+            await async_load_stored(mock_hass, data)
+
+        assert tracking_lock.entered is True
+        assert "automation.test" in data.paused
+
+
+class TestSaveFailurePropagation:
+    """Tests that failed coordinator persistence surfaces as service errors."""
+
+    @pytest.mark.asyncio
+    async def test_adjust_raises_when_save_fails(self) -> None:
+        """Adjust should raise ServiceValidationError when async_save returns False."""
+        mock_hass = MagicMock()
+        data = AutomationPauseData(store=MagicMock())
+        now = datetime.now(UTC)
+        data.paused["automation.test"] = PausedAutomation(
+            entity_id="automation.test",
+            friendly_name="Test",
+            resume_at=now + timedelta(hours=1),
+            paused_at=now,
+        )
+
+        with (
+            patch("custom_components.autosnooze.coordinator.schedule_resume"),
+            patch("custom_components.autosnooze.coordinator.async_save", new_callable=AsyncMock, return_value=False),
+            pytest.raises(ServiceValidationError) as exc_info,
+        ):
+            await async_adjust_snooze(
+                mock_hass,
+                data,
+                "automation.test",
+                timedelta(minutes=5),
+            )
+
+        assert exc_info.value.translation_key == "save_failed"
 
 
 # =============================================================================

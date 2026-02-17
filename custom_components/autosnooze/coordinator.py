@@ -34,6 +34,15 @@ from .models import (
 _LOGGER = logging.getLogger(__name__)
 
 
+def _raise_save_failed() -> None:
+    """Raise a translated service error for persistence failures."""
+    raise ServiceValidationError(
+        "Failed to persist autosnooze state",
+        translation_domain=DOMAIN,
+        translation_key="save_failed",
+    )
+
+
 async def async_set_automation_state(hass: HomeAssistant, entity_id: str, *, enabled: bool) -> bool:
     """Enable or disable an automation."""
     state = hass.states.get(entity_id)
@@ -163,7 +172,8 @@ async def async_resume_batch(hass: HomeAssistant, data: AutomationPauseData, ent
                     paused.resume_at = retry_at
                     schedule_resume(hass, data, entity_id, retry_at)
         # Single save after all operations
-        await async_save(data)
+        if not await async_save(data):
+            _raise_save_failed()
     data.notify()
     if failed:
         _LOGGER.warning("Woke %d automations, %d failed and were rescheduled", woke, failed)
@@ -203,7 +213,8 @@ async def async_adjust_snooze(
         paused.minutes = 0
 
         schedule_resume(hass, data, entity_id, new_resume_at)
-        await async_save(data)
+        if not await async_save(data):
+            _raise_save_failed()
     data.notify()
     _LOGGER.info("Adjusted snooze for %s: new resume at %s", entity_id, new_resume_at)
 
@@ -248,7 +259,8 @@ async def async_adjust_snooze_batch(
             paused.minutes = 0
 
             schedule_resume(hass, data, entity_id, new_resume_at)
-        await async_save(data)
+        if not await async_save(data):
+            _raise_save_failed()
     data.notify()
     _LOGGER.info("Adjusted snooze for %d automations", len(entity_ids))
 
@@ -352,7 +364,8 @@ async def async_cancel_scheduled(hass: HomeAssistant, data: AutomationPauseData,
     async with data.lock:
         cancel_scheduled_timer(data, entity_id)
         data.scheduled.pop(entity_id, None)
-        await async_save(data)
+        if not await async_save(data):
+            _raise_save_failed()
     data.notify()
     _LOGGER.info("Cancelled scheduled snooze for: %s", entity_id)
 
@@ -374,7 +387,8 @@ async def async_cancel_scheduled_batch(hass: HomeAssistant, data: AutomationPaus
             cancel_scheduled_timer(data, entity_id)
             data.scheduled.pop(entity_id, None)
         # Single save after all operations
-        await async_save(data)
+        if not await async_save(data):
+            _raise_save_failed()
     data.notify()
     _LOGGER.info("Cancelled %d scheduled snoozes", len(entity_ids))
 
@@ -582,87 +596,88 @@ async def async_load_stored(hass: HomeAssistant, data: AutomationPauseData) -> N
 
     now = dt_util.utcnow()
     expired: list[str] = []
-
-    # Load paused automations
-    for entity_id, info in validated.get("paused", {}).items():
-        try:
-            # DEF-015 NOTE: This existence check is an optimization to avoid unnecessary
-            # service calls. If entity is deleted between check and disable call (TOCTOU),
-            # async_set_automation_state handles it gracefully by returning False.
-            if hass.states.get(entity_id) is None:
-                _LOGGER.info("Cleaning up deleted automation from storage: %s", entity_id)
-                expired.append(entity_id)
-                continue
-
-            paused = PausedAutomation.from_dict(entity_id, info)
-            if paused.resume_at <= now:
-                expired.append(entity_id)
-            else:
-                # Try to disable first - only track if disable succeeds
-                if await async_set_automation_state(hass, entity_id, enabled=False):
-                    data.paused[entity_id] = paused
-                    schedule_resume(hass, data, entity_id, paused.resume_at)
-                else:
-                    # DEF-012 FIX: Clean up storage entries that can't be restored
-                    _LOGGER.warning(
-                        "Failed to restore paused state for %s, removing from storage",
-                        entity_id,
-                    )
-                    expired.append(entity_id)
-        except (KeyError, ValueError) as err:
-            _LOGGER.warning("Invalid stored data for %s: %s", entity_id, err)
-            expired.append(entity_id)
-
-    # Load scheduled snoozes
     expired_scheduled: list[str] = []
-    for entity_id, info in validated.get("scheduled", {}).items():
-        try:
-            # Check if automation still exists - clean up deleted automations
-            if hass.states.get(entity_id) is None:
-                _LOGGER.info(
-                    "Cleaning up deleted automation from scheduled storage: %s",
-                    entity_id,
-                )
-                expired_scheduled.append(entity_id)
-                continue
 
-            scheduled = ScheduledSnooze.from_dict(entity_id, info)
-            if scheduled.disable_at <= now:
-                # Should have already disabled, check if resume is also past
-                if scheduled.resume_at <= now:
-                    expired_scheduled.append(entity_id)
+    async with data.lock:
+        # Load paused automations
+        for entity_id, info in validated.get("paused", {}).items():
+            try:
+                # DEF-015 NOTE: This existence check is an optimization to avoid unnecessary
+                # service calls. If entity is deleted between check and disable call (TOCTOU),
+                # async_set_automation_state handles it gracefully by returning False.
+                if hass.states.get(entity_id) is None:
+                    _LOGGER.info("Cleaning up deleted automation from storage: %s", entity_id)
+                    expired.append(entity_id)
+                    continue
+
+                paused = PausedAutomation.from_dict(entity_id, info)
+                if paused.resume_at <= now:
+                    expired.append(entity_id)
                 else:
-                    # Disable now and schedule resume - only track if disable succeeds
+                    # Try to disable first - only track if disable succeeds
                     if await async_set_automation_state(hass, entity_id, enabled=False):
-                        paused = PausedAutomation(
-                            entity_id=entity_id,
-                            friendly_name=scheduled.friendly_name,
-                            resume_at=scheduled.resume_at,
-                            paused_at=now,
-                            disable_at=scheduled.disable_at,
-                        )
                         data.paused[entity_id] = paused
-                        schedule_resume(hass, data, entity_id, scheduled.resume_at)
+                        schedule_resume(hass, data, entity_id, paused.resume_at)
                     else:
                         # DEF-012 FIX: Clean up storage entries that can't be restored
                         _LOGGER.warning(
-                            "Failed to execute scheduled disable for %s, removing from storage",
+                            "Failed to restore paused state for %s, removing from storage",
                             entity_id,
                         )
+                        expired.append(entity_id)
+            except (KeyError, ValueError) as err:
+                _LOGGER.warning("Invalid stored data for %s: %s", entity_id, err)
+                expired.append(entity_id)
+
+        # Load scheduled snoozes
+        for entity_id, info in validated.get("scheduled", {}).items():
+            try:
+                # Check if automation still exists - clean up deleted automations
+                if hass.states.get(entity_id) is None:
+                    _LOGGER.info(
+                        "Cleaning up deleted automation from scheduled storage: %s",
+                        entity_id,
+                    )
+                    expired_scheduled.append(entity_id)
+                    continue
+
+                scheduled = ScheduledSnooze.from_dict(entity_id, info)
+                if scheduled.disable_at <= now:
+                    # Should have already disabled, check if resume is also past
+                    if scheduled.resume_at <= now:
                         expired_scheduled.append(entity_id)
-            else:
-                data.scheduled[entity_id] = scheduled
-                schedule_disable(hass, data, entity_id, scheduled)
-        except (KeyError, ValueError) as err:
-            _LOGGER.warning("Invalid scheduled data for %s: %s", entity_id, err)
-            expired_scheduled.append(entity_id)
+                    else:
+                        # Disable now and schedule resume - only track if disable succeeds
+                        if await async_set_automation_state(hass, entity_id, enabled=False):
+                            paused = PausedAutomation(
+                                entity_id=entity_id,
+                                friendly_name=scheduled.friendly_name,
+                                resume_at=scheduled.resume_at,
+                                paused_at=now,
+                                disable_at=scheduled.disable_at,
+                            )
+                            data.paused[entity_id] = paused
+                            schedule_resume(hass, data, entity_id, scheduled.resume_at)
+                        else:
+                            # DEF-012 FIX: Clean up storage entries that can't be restored
+                            _LOGGER.warning(
+                                "Failed to execute scheduled disable for %s, removing from storage",
+                                entity_id,
+                            )
+                            expired_scheduled.append(entity_id)
+                else:
+                    data.scheduled[entity_id] = scheduled
+                    schedule_disable(hass, data, entity_id, scheduled)
+            except (KeyError, ValueError) as err:
+                _LOGGER.warning("Invalid scheduled data for %s: %s", entity_id, err)
+                expired_scheduled.append(entity_id)
 
-    # FR-06: Auto-Re-enable expired automations
-    for entity_id in expired:
-        await async_set_automation_state(hass, entity_id, enabled=True)
+        # FR-06: Auto-Re-enable expired automations
+        for entity_id in expired:
+            await async_set_automation_state(hass, entity_id, enabled=True)
 
-    if expired or expired_scheduled:
-        await async_save(data)
+        if expired or expired_scheduled:
+            await async_save(data)
 
     # Notify listeners to update UI with loaded state
     data.notify()

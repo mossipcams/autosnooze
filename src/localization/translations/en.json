@@ -88,7 +88,8 @@
     }
   },
   "list": {
-    "empty": "No automations found"
+    "empty": "No automations found",
+    "label_registry_warning": "Label metadata is temporarily unavailable. Showing automations without label-based filtering."
   },
   "schedule": {
     "snooze_at": "Snooze at:",
@@ -119,7 +120,8 @@
     "resumes_at": "Resumes:",
     "active_count": "{count} active",
     "scheduled_count": "{count} scheduled",
-    "resuming": "Resuming..."
+    "resuming": "Resuming...",
+    "sensor_unavailable": "AutoSnooze status sensor is unavailable. Pause controls are still shown, but active/scheduled state may be stale."
   },
   "tab": {
     "all": "All",

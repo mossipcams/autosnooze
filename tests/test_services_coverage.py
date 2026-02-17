@@ -6,6 +6,8 @@ These tests focus on the automation filtering and pause logic.
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
+from homeassistant.const import ATTR_ENTITY_ID
+from homeassistant.exceptions import ServiceValidationError
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -426,3 +428,131 @@ class TestIsCriticalAutomation:
         and would false-positive. Only 'carbon monoxide' and 'co2' should match.
         """
         assert _is_critical_automation("automation.co_operative_lights", "Co-operative Lights") is False
+
+
+class TestUnloadGuards:
+    """Tests for service no-op behavior when integration is unloaded."""
+
+    @pytest.mark.asyncio
+    async def test_async_pause_automations_noops_when_unloaded(self) -> None:
+        """Pause entrypoint should skip all work when data.unloaded is True."""
+        from custom_components.autosnooze.models import AutomationPauseData
+        from custom_components.autosnooze.services import async_pause_automations
+
+        mock_hass = MagicMock()
+        mock_hass.states.get.return_value = MagicMock(attributes={"friendly_name": "Test"})
+
+        mock_store = MagicMock()
+        mock_store.async_save = AsyncMock()
+        data = AutomationPauseData(store=mock_store)
+        data.unloaded = True
+
+        with patch(
+            "custom_components.autosnooze.services.async_set_automation_state", new_callable=AsyncMock
+        ) as set_state:
+            await async_pause_automations(
+                mock_hass,
+                data,
+                ["automation.test"],
+                hours=1,
+            )
+
+        set_state.assert_not_called()
+        mock_store.async_save.assert_not_called()
+        assert data.paused == {}
+        assert data.scheduled == {}
+
+    @pytest.mark.asyncio
+    async def test_pause_service_handler_noops_when_unloaded(self) -> None:
+        """Registered pause handler should return early when integration is unloaded."""
+        from custom_components.autosnooze.models import AutomationPauseData
+        from custom_components.autosnooze.services import register_services
+
+        mock_hass = MagicMock()
+        handlers: dict[str, object] = {}
+        mock_hass.services.async_register = lambda _domain, name, handler, schema=None: handlers.setdefault(
+            name, handler
+        )
+
+        data = AutomationPauseData(store=MagicMock())
+        data.unloaded = True
+        register_services(mock_hass, data)
+
+        pause_handler = handlers["pause"]
+        call = MagicMock()
+        call.data = {ATTR_ENTITY_ID: ["automation.test"], "hours": 1}
+
+        with (
+            patch("custom_components.autosnooze.services._validate_guardrails") as validate_guardrails,
+            patch(
+                "custom_components.autosnooze.services.async_pause_automations", new_callable=AsyncMock
+            ) as pause_automations,
+        ):
+            await pause_handler(call)
+
+        validate_guardrails.assert_not_called()
+        pause_automations.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_pause_by_area_handler_noops_when_unloaded(self) -> None:
+        """pause_by_area should skip lookup/validation/pause when unloaded."""
+        from custom_components.autosnooze.models import AutomationPauseData
+        from custom_components.autosnooze.services import register_services
+
+        mock_hass = MagicMock()
+        handlers: dict[str, object] = {}
+        mock_hass.services.async_register = lambda _domain, name, handler, schema=None: handlers.setdefault(
+            name, handler
+        )
+
+        data = AutomationPauseData(store=MagicMock())
+        data.unloaded = True
+        register_services(mock_hass, data)
+
+        pause_by_area_handler = handlers["pause_by_area"]
+        call = MagicMock()
+        call.data = {"area_id": "living_room", "hours": 1}
+
+        with (
+            patch(
+                "custom_components.autosnooze.services.get_automations_by_area", return_value=["automation.test"]
+            ) as get_by_area,
+            patch("custom_components.autosnooze.services._validate_guardrails") as validate_guardrails,
+            patch(
+                "custom_components.autosnooze.services.async_pause_automations", new_callable=AsyncMock
+            ) as pause_automations,
+        ):
+            await pause_by_area_handler(call)
+
+        get_by_area.assert_not_called()
+        validate_guardrails.assert_not_called()
+        pause_automations.assert_not_called()
+
+
+class TestSaveFailurePropagation:
+    """Tests that failed persistence is surfaced to service callers."""
+
+    @pytest.mark.asyncio
+    async def test_pause_raises_when_save_fails(self) -> None:
+        """Pause should raise ServiceValidationError when async_save returns False."""
+        from custom_components.autosnooze.models import AutomationPauseData
+        from custom_components.autosnooze.services import async_pause_automations
+
+        mock_hass = MagicMock()
+        mock_hass.states.get.return_value = MagicMock(attributes={"friendly_name": "Test"})
+
+        data = AutomationPauseData(store=MagicMock())
+
+        with (
+            patch(
+                "custom_components.autosnooze.services.async_set_automation_state",
+                new_callable=AsyncMock,
+                return_value=True,
+            ),
+            patch("custom_components.autosnooze.services.schedule_resume"),
+            patch("custom_components.autosnooze.services.async_save", new_callable=AsyncMock, return_value=False),
+            pytest.raises(ServiceValidationError) as exc_info,
+        ):
+            await async_pause_automations(mock_hass, data, ["automation.test"], hours=1)
+
+        assert exc_info.value.translation_key == "save_failed"
