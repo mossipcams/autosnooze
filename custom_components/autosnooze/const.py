@@ -17,6 +17,8 @@ _LOGGER = logging.getLogger(__name__)
 DOMAIN = "autosnooze"
 PLATFORMS = ["sensor"]
 STORAGE_VERSION = 2
+SIGNAL_STATE_CHANGED = f"{DOMAIN}_state_changed"
+SENSOR_SCHEMA_VERSION = 1
 
 # Retry configuration for save operations
 MAX_SAVE_RETRIES = 3

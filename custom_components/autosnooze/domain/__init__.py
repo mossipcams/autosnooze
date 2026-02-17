@@ -1,0 +1,1 @@
+"""Domain primitives for AutoSnooze."""
