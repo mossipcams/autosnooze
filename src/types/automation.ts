@@ -4,6 +4,12 @@
  */
 
 /**
+ * Shared sensor payload schema version.
+ * Keep in sync with `custom_components/autosnooze/const.py`.
+ */
+export const SENSOR_SCHEMA_VERSION = 1;
+
+/**
  * Represents a currently paused automation.
  * Matches Python PausedAutomation dataclass.
  */

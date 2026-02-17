@@ -51,6 +51,7 @@ import {
   getPausedGroupedByResumeTime,
   SENSOR_ENTITY_ID,
 } from '../state/paused.js';
+import { createCardStore } from '../state/card-store.js';
 
 
 export class AutomationPauseCard extends LitElement {
@@ -61,6 +62,8 @@ export class AutomationPauseCard extends LitElement {
 
   @property({ attribute: false })
   config: AutoSnoozeCardConfig = {} as AutoSnoozeCardConfig;
+
+  private _cardStore = createCardStore();
 
   @state() private _selected: string[] = [];
   @state() private _duration: number = DEFAULT_SNOOZE_MINUTES * TIME_MS.MINUTE;
@@ -572,14 +575,14 @@ export class AutomationPauseCard extends LitElement {
             });
             if (this.isConnected) {
               if (undoResult.failed.length === 0) {
-                this._selected = snoozedEntities;
+                this._setSelected(snoozedEntities);
                 const restoredMsg = count === 1
                   ? localize(this.hass, 'toast.success.restored_one')
                   : localize(this.hass, 'toast.success.restored_many', { count });
                 this._showToast(restoredMsg);
               } else {
                 // Keep only failed entities selected to make retry easier.
-                this._selected = undoResult.failed;
+                this._setSelected(undoResult.failed);
                 this._showToast(localize(this.hass, 'toast.error.undo_failed'));
               }
             }
@@ -592,7 +595,7 @@ export class AutomationPauseCard extends LitElement {
         },
       });
 
-      this._selected = [];
+      this._setSelected([]);
       this._disableAtDate = '';
       this._disableAtTime = '';
       this._resumeAtDate = '';
@@ -722,11 +725,22 @@ export class AutomationPauseCard extends LitElement {
     }
   }
 
+  private _setSelected(selected: string[]): void {
+    this._cardStore.setSelection(selected);
+    this._selected = this._cardStore.getState().selected;
+  }
+
+  private _setDurationState(duration: ParsedDuration, input: string): void {
+    this._cardStore.setDuration(duration, input);
+    const state = this._cardStore.getState();
+    this._duration = state.durationMs;
+    this._customDuration = state.customDuration;
+    this._customDurationInput = state.customDurationInput;
+  }
+
   private _handleDurationChange(e: CustomEvent<{ minutes: number; duration: ParsedDuration; input: string; showCustomInput?: boolean }>): void {
-    const { minutes, duration, input, showCustomInput } = e.detail;
-    this._duration = minutes * TIME_MS.MINUTE;
-    this._customDuration = duration;
-    this._customDurationInput = input;
+    const { duration, input, showCustomInput } = e.detail;
+    this._setDurationState(duration, input);
     if (showCustomInput !== undefined) {
       this._showCustomInput = showCustomInput;
     }
@@ -776,7 +790,7 @@ export class AutomationPauseCard extends LitElement {
   }
 
   private _handleSelectionChange(e: CustomEvent<{ selected: string[] }>): void {
-    this._selected = e.detail.selected;
+    this._setSelected(e.detail.selected);
   }
 
   private _handleGuardrailCancel(): void {

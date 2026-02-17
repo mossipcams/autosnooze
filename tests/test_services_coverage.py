@@ -9,6 +9,10 @@ from datetime import datetime, timedelta, timezone
 from homeassistant.const import ATTR_ENTITY_ID
 from homeassistant.exceptions import ServiceValidationError
 from unittest.mock import AsyncMock, MagicMock, patch
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from custom_components.autosnooze.models import AutomationPauseData
 
 import pytest
 
@@ -527,6 +531,205 @@ class TestUnloadGuards:
         get_by_area.assert_not_called()
         validate_guardrails.assert_not_called()
         pause_automations.assert_not_called()
+
+
+class TestServiceHandlerContracts:
+    """Service handler contract tests for call inputs and side effects."""
+
+    def _register_handlers(self) -> tuple[MagicMock, "AutomationPauseData", dict[str, object]]:
+        from custom_components.autosnooze.models import AutomationPauseData
+        from custom_components.autosnooze.services import register_services
+
+        mock_hass = MagicMock()
+        handlers: dict[str, object] = {}
+        mock_hass.services.async_register = lambda _domain, name, handler, schema=None: handlers.setdefault(
+            name, handler
+        )
+        data = AutomationPauseData(store=MagicMock())
+        register_services(mock_hass, data)
+        return mock_hass, data, handlers
+
+    @pytest.mark.asyncio
+    async def test_pause_handler_forwards_contract_fields(self) -> None:
+        """pause forwards full payload and guardrail confirm flag."""
+        mock_hass, data, handlers = self._register_handlers()
+        pause_handler = handlers["pause"]
+
+        disable_at = datetime(2030, 1, 1, 10, 0, tzinfo=UTC)
+        resume_at = datetime(2030, 1, 1, 12, 0, tzinfo=UTC)
+        call = MagicMock()
+        call.data = {
+            ATTR_ENTITY_ID: ["automation.a", "automation.b"],
+            "days": 1,
+            "hours": 2,
+            "minutes": 3,
+            "disable_at": disable_at,
+            "resume_at": resume_at,
+            "confirm": True,
+        }
+
+        with (
+            patch("custom_components.autosnooze.services._validate_guardrails") as validate_guardrails,
+            patch(
+                "custom_components.autosnooze.services.async_pause_automations",
+                new_callable=AsyncMock,
+            ) as pause_automations,
+        ):
+            await pause_handler(call)
+
+        validate_guardrails.assert_called_once_with(
+            mock_hass,
+            ["automation.a", "automation.b"],
+            confirm=True,
+        )
+        pause_automations.assert_called_once_with(
+            mock_hass,
+            data,
+            ["automation.a", "automation.b"],
+            1,
+            2,
+            3,
+            disable_at,
+            resume_at,
+        )
+
+    @pytest.mark.asyncio
+    async def test_pause_handler_calls_pause_automations_directly(self) -> None:
+        """pause service entrypoint should call pause implementation directly."""
+        mock_hass, data, handlers = self._register_handlers()
+        pause_handler = handlers["pause"]
+
+        disable_at = datetime(2030, 1, 1, 10, 0, tzinfo=UTC)
+        resume_at = datetime(2030, 1, 1, 12, 0, tzinfo=UTC)
+        call = MagicMock()
+        call.data = {
+            ATTR_ENTITY_ID: ["automation.a"],
+            "days": 1,
+            "hours": 2,
+            "minutes": 3,
+            "disable_at": disable_at,
+            "resume_at": resume_at,
+            "confirm": False,
+        }
+
+        with (
+            patch("custom_components.autosnooze.services._validate_guardrails") as validate_guardrails,
+            patch(
+                "custom_components.autosnooze.services.async_pause_automations",
+                new_callable=AsyncMock,
+            ) as pause_automations,
+        ):
+            await pause_handler(call)
+
+        validate_guardrails.assert_called_once_with(mock_hass, ["automation.a"], confirm=False)
+        pause_automations.assert_called_once_with(
+            mock_hass,
+            data,
+            ["automation.a"],
+            1,
+            2,
+            3,
+            disable_at,
+            resume_at,
+        )
+
+    @pytest.mark.asyncio
+    async def test_cancel_handler_filters_unknown_and_batches_valid(self) -> None:
+        """cancel should only batch-resume paused automations."""
+        mock_hass, data, handlers = self._register_handlers()
+        cancel_handler = handlers["cancel"]
+
+        now = datetime.now(UTC)
+        data.paused["automation.exists"] = MagicMock(
+            entity_id="automation.exists",
+            friendly_name="Exists",
+            resume_at=now + timedelta(hours=1),
+            paused_at=now,
+        )
+
+        call = MagicMock()
+        call.data = {ATTR_ENTITY_ID: ["automation.exists", "automation.unknown"]}
+
+        with patch("custom_components.autosnooze.services.async_resume_batch", new_callable=AsyncMock) as batch_resume:
+            await cancel_handler(call)
+
+        batch_resume.assert_called_once_with(mock_hass, data, ["automation.exists"])
+
+    @pytest.mark.asyncio
+    async def test_cancel_all_batches_every_paused_automation(self) -> None:
+        """cancel_all should wake all paused entities in one batch call."""
+        mock_hass, data, handlers = self._register_handlers()
+        cancel_all_handler = handlers["cancel_all"]
+
+        now = datetime.now(UTC)
+        data.paused["automation.a"] = MagicMock(entity_id="automation.a", resume_at=now, paused_at=now)
+        data.paused["automation.b"] = MagicMock(entity_id="automation.b", resume_at=now, paused_at=now)
+
+        with patch("custom_components.autosnooze.services.async_resume_batch", new_callable=AsyncMock) as batch_resume:
+            await cancel_all_handler(MagicMock())
+
+        batch_resume.assert_called_once()
+        assert set(batch_resume.call_args.args[2]) == {"automation.a", "automation.b"}
+
+    @pytest.mark.asyncio
+    async def test_cancel_scheduled_filters_unknown_and_batches_valid(self) -> None:
+        """cancel_scheduled should only cancel known scheduled entities."""
+        mock_hass, data, handlers = self._register_handlers()
+        cancel_scheduled_handler = handlers["cancel_scheduled"]
+
+        now = datetime.now(UTC)
+        data.scheduled["automation.scheduled"] = MagicMock(
+            entity_id="automation.scheduled",
+            disable_at=now + timedelta(minutes=5),
+            resume_at=now + timedelta(hours=1),
+        )
+
+        call = MagicMock()
+        call.data = {ATTR_ENTITY_ID: ["automation.scheduled", "automation.unknown"]}
+
+        with patch(
+            "custom_components.autosnooze.services.async_cancel_scheduled_batch",
+            new_callable=AsyncMock,
+        ) as batch_cancel:
+            await cancel_scheduled_handler(call)
+
+        batch_cancel.assert_called_once_with(mock_hass, data, ["automation.scheduled"])
+
+    @pytest.mark.asyncio
+    async def test_adjust_handler_rejects_zero_delta(self) -> None:
+        """adjust should fail fast when no delta is provided."""
+        _mock_hass, _data, handlers = self._register_handlers()
+        adjust_handler = handlers["adjust"]
+
+        call = MagicMock()
+        call.data = {ATTR_ENTITY_ID: ["automation.a"], "days": 0, "hours": 0, "minutes": 0}
+
+        with pytest.raises(ServiceValidationError) as exc_info:
+            await adjust_handler(call)
+
+        assert exc_info.value.translation_key == "invalid_adjustment"
+
+    @pytest.mark.asyncio
+    async def test_adjust_handler_forwards_timedelta_batch_call(self) -> None:
+        """adjust should pass entity ids and a computed delta to batch adjust."""
+        mock_hass, data, handlers = self._register_handlers()
+        adjust_handler = handlers["adjust"]
+
+        call = MagicMock()
+        call.data = {ATTR_ENTITY_ID: ["automation.a", "automation.b"], "hours": 1, "minutes": -30}
+
+        with patch(
+            "custom_components.autosnooze.services.async_adjust_snooze_batch",
+            new_callable=AsyncMock,
+        ) as batch_adjust:
+            await adjust_handler(call)
+
+        batch_adjust.assert_called_once_with(
+            mock_hass,
+            data,
+            ["automation.a", "automation.b"],
+            timedelta(hours=1, minutes=-30),
+        )
 
 
 class TestSaveFailurePropagation:

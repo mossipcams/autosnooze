@@ -98,7 +98,7 @@ async def _async_ensure_labels_exist(hass: HomeAssistant) -> None:
 async def async_setup_entry(hass: HomeAssistant, entry: AutomationPauseConfigEntry) -> bool:
     """Set up AutoSnooze from a config entry."""
     store = Store[dict[str, Any]](hass, STORAGE_VERSION, f"{DOMAIN}.storage")
-    data = AutomationPauseData(store=store)
+    data = AutomationPauseData(store=store, hass=hass)
     entry.runtime_data = data
 
     # Register static path to serve the JS file (required for both methods)

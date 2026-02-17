@@ -6,6 +6,7 @@ import asyncio
 from collections.abc import Callable
 from datetime import datetime, timedelta
 import logging
+from time import perf_counter
 from typing import Any
 
 from homeassistant.const import ATTR_ENTITY_ID, ATTR_FRIENDLY_NAME
@@ -24,6 +25,7 @@ from .const import (
     SCHEDULED_DISABLE_RETRY_DELAY,
     TRANSIENT_ERRORS,
 )
+from .logging_utils import _log_command, _raise_save_failed
 from .models import (
     AutomationPauseData,
     PausedAutomation,
@@ -32,15 +34,6 @@ from .models import (
 )
 
 _LOGGER = logging.getLogger(__name__)
-
-
-def _raise_save_failed() -> None:
-    """Raise a translated service error for persistence failures."""
-    raise ServiceValidationError(
-        "Failed to persist autosnooze state",
-        translation_domain=DOMAIN,
-        translation_key="save_failed",
-    )
 
 
 async def async_set_automation_state(hass: HomeAssistant, entity_id: str, *, enabled: bool) -> bool:
@@ -142,43 +135,51 @@ async def async_resume_batch(hass: HomeAssistant, data: AutomationPauseData, ent
 
     DEF-011 FIX: Batch operations to reduce disk I/O.
     """
-    # Check if integration is unloaded to prevent post-unload operations
-    if data.unloaded:
-        return
-    if not entity_ids:
-        return
+    started_at = perf_counter()
+    outcome = "success"
+    try:
+        # Check if integration is unloaded to prevent post-unload operations
+        if data.unloaded:
+            return
+        if not entity_ids:
+            return
 
-    failed = 0
-    woke = 0
-    async with data.lock:
-        for entity_id in entity_ids:
-            paused = data.paused.get(entity_id)
-            if paused is None:
-                continue
+        failed = 0
+        woke = 0
+        async with data.lock:
+            for entity_id in entity_ids:
+                paused = data.paused.get(entity_id)
+                if paused is None:
+                    continue
 
-            if await async_set_automation_state(hass, entity_id, enabled=True):
-                cancel_timer(data, entity_id)
-                data.paused.pop(entity_id, None)
-                woke += 1
-            else:
-                if paused.resume_retries >= MAX_RESUME_RETRIES:
+                if await async_set_automation_state(hass, entity_id, enabled=True):
                     cancel_timer(data, entity_id)
                     data.paused.pop(entity_id, None)
-                    _LOGGER.error("Giving up waking %s after %d retries", entity_id, paused.resume_retries)
+                    woke += 1
                 else:
-                    failed += 1
-                    paused.resume_retries += 1
-                    retry_at = dt_util.utcnow() + RESUME_RETRY_DELAY
-                    paused.resume_at = retry_at
-                    schedule_resume(hass, data, entity_id, retry_at)
-        # Single save after all operations
-        if not await async_save(data):
-            _raise_save_failed()
-    data.notify()
-    if failed:
-        _LOGGER.warning("Woke %d automations, %d failed and were rescheduled", woke, failed)
-    else:
-        _LOGGER.info("Woke %d automations", woke)
+                    if paused.resume_retries >= MAX_RESUME_RETRIES:
+                        cancel_timer(data, entity_id)
+                        data.paused.pop(entity_id, None)
+                        _LOGGER.error("Giving up waking %s after %d retries", entity_id, paused.resume_retries)
+                    else:
+                        failed += 1
+                        paused.resume_retries += 1
+                        retry_at = dt_util.utcnow() + RESUME_RETRY_DELAY
+                        paused.resume_at = retry_at
+                        schedule_resume(hass, data, entity_id, retry_at)
+            # Single save after all operations
+            if not await async_save(data):
+                _raise_save_failed()
+        data.notify()
+        if failed:
+            _LOGGER.warning("Woke %d automations, %d failed and were rescheduled", woke, failed)
+        else:
+            _LOGGER.info("Woke %d automations", woke)
+    except Exception:
+        outcome = "error"
+        raise
+    finally:
+        _log_command("cancel", outcome, started_at)
 
 
 async def async_adjust_snooze(
@@ -226,43 +227,51 @@ async def async_adjust_snooze_batch(
     delta: timedelta,
 ) -> None:
     """Adjust the resume time of multiple paused automations with single save."""
-    if data.unloaded:
-        return
-    if not entity_ids:
-        return
+    started_at = perf_counter()
+    outcome = "success"
+    try:
+        if data.unloaded:
+            return
+        if not entity_ids:
+            return
 
-    now = dt_util.utcnow()
-    updates: list[tuple[str, PausedAutomation, datetime]] = []
+        now = dt_util.utcnow()
+        updates: list[tuple[str, PausedAutomation, datetime]] = []
 
-    async with data.lock:
-        for entity_id in entity_ids:
-            paused = data.paused.get(entity_id)
-            if paused is None:
-                _LOGGER.warning("Cannot adjust %s: not currently snoozed", entity_id)
-                continue
+        async with data.lock:
+            for entity_id in entity_ids:
+                paused = data.paused.get(entity_id)
+                if paused is None:
+                    _LOGGER.warning("Cannot adjust %s: not currently snoozed", entity_id)
+                    continue
 
-            new_resume_at = paused.resume_at + delta
+                new_resume_at = paused.resume_at + delta
 
-            if new_resume_at <= now + MIN_ADJUST_BUFFER:
-                raise ServiceValidationError(
-                    "Adjusted time must be at least 1 minute in the future",
-                    translation_domain=DOMAIN,
-                    translation_key="adjust_time_too_short",
-                )
+                if new_resume_at <= now + MIN_ADJUST_BUFFER:
+                    raise ServiceValidationError(
+                        "Adjusted time must be at least 1 minute in the future",
+                        translation_domain=DOMAIN,
+                        translation_key="adjust_time_too_short",
+                    )
 
-            updates.append((entity_id, paused, new_resume_at))
+                updates.append((entity_id, paused, new_resume_at))
 
-        for entity_id, paused, new_resume_at in updates:
-            paused.resume_at = new_resume_at
-            paused.days = 0
-            paused.hours = 0
-            paused.minutes = 0
+            for entity_id, paused, new_resume_at in updates:
+                paused.resume_at = new_resume_at
+                paused.days = 0
+                paused.hours = 0
+                paused.minutes = 0
 
-            schedule_resume(hass, data, entity_id, new_resume_at)
-        if not await async_save(data):
-            _raise_save_failed()
-    data.notify()
-    _LOGGER.info("Adjusted snooze for %d automations", len(entity_ids))
+                schedule_resume(hass, data, entity_id, new_resume_at)
+            if not await async_save(data):
+                _raise_save_failed()
+        data.notify()
+        _LOGGER.info("Adjusted snooze for %d automations", len(entity_ids))
+    except Exception:
+        outcome = "error"
+        raise
+    finally:
+        _log_command("adjust", outcome, started_at)
 
 
 def schedule_disable(
@@ -279,7 +288,9 @@ def schedule_disable(
         # Check if integration is unloaded to prevent post-unload operations
         if data.unloaded:
             return
-        hass.async_create_task(async_execute_scheduled_disable(hass, data, entity_id, scheduled.resume_at))
+        current = data.scheduled.get(entity_id)
+        resume_at = current.resume_at if current is not None else scheduled.resume_at
+        hass.async_create_task(async_execute_scheduled_disable(hass, data, entity_id, resume_at))
 
     data.scheduled_timers[entity_id] = async_track_point_in_time(hass, on_disable_timer, scheduled.disable_at)
 
@@ -376,21 +387,29 @@ async def async_cancel_scheduled_batch(hass: HomeAssistant, data: AutomationPaus
     Similar to async_resume_batch (DEF-011 fix), this batches operations
     to reduce disk I/O when cancelling multiple scheduled snoozes.
     """
-    # Check if integration is unloaded to prevent post-unload operations
-    if data.unloaded:
-        return
-    if not entity_ids:
-        return
+    started_at = perf_counter()
+    outcome = "success"
+    try:
+        # Check if integration is unloaded to prevent post-unload operations
+        if data.unloaded:
+            return
+        if not entity_ids:
+            return
 
-    async with data.lock:
-        for entity_id in entity_ids:
-            cancel_scheduled_timer(data, entity_id)
-            data.scheduled.pop(entity_id, None)
-        # Single save after all operations
-        if not await async_save(data):
-            _raise_save_failed()
-    data.notify()
-    _LOGGER.info("Cancelled %d scheduled snoozes", len(entity_ids))
+        async with data.lock:
+            for entity_id in entity_ids:
+                cancel_scheduled_timer(data, entity_id)
+                data.scheduled.pop(entity_id, None)
+            # Single save after all operations
+            if not await async_save(data):
+                _raise_save_failed()
+        data.notify()
+        _LOGGER.info("Cancelled %d scheduled snoozes", len(entity_ids))
+    except Exception:
+        outcome = "error"
+        raise
+    finally:
+        _log_command("cancel_scheduled", outcome, started_at)
 
 
 async def async_save(data: AutomationPauseData) -> bool:

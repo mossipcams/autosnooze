@@ -604,6 +604,42 @@ class TestScheduleDisable:
         mock_track.assert_called_once()
         assert data.scheduled_timers["automation.test"] == new_unsub
 
+    def test_disable_callback_uses_latest_scheduled_resume_at(self) -> None:
+        """Timer callback should use the latest scheduled resume time from state."""
+        mock_hass = MagicMock()
+        mock_hass.async_create_task = MagicMock(side_effect=lambda coro: coro.close())
+        data = AutomationPauseData()
+        now = datetime.now(UTC)
+        original = ScheduledSnooze(
+            entity_id="automation.test",
+            friendly_name="Test",
+            disable_at=now + timedelta(minutes=30),
+            resume_at=now + timedelta(hours=2),
+        )
+        updated = ScheduledSnooze(
+            entity_id="automation.test",
+            friendly_name="Test",
+            disable_at=now + timedelta(minutes=30),
+            resume_at=now + timedelta(hours=3),
+        )
+        data.scheduled["automation.test"] = original
+
+        with (
+            patch("custom_components.autosnooze.coordinator.async_track_point_in_time") as mock_track,
+            patch(
+                "custom_components.autosnooze.coordinator.async_execute_scheduled_disable", new_callable=AsyncMock
+            ) as execute_disable,
+        ):
+            mock_track.return_value = MagicMock()
+            schedule_disable(mock_hass, data, "automation.test", original)
+            callback = mock_track.call_args.args[1]
+
+            # Simulate state refresh/replacement before timer fires.
+            data.scheduled["automation.test"] = updated
+            callback(now)
+
+        execute_disable.assert_called_once_with(mock_hass, data, "automation.test", updated.resume_at)
+
 
 # =============================================================================
 # Automation State Management
