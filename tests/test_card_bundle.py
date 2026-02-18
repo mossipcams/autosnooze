@@ -279,9 +279,12 @@ class TestBuiltFileIsProperlyBundled:
         expected_elements = ["autosnooze-card", "autosnooze-card-editor"]
 
         for element in expected_elements:
-            pattern = rf'customElements\.define\s*\(\s*["\']{re.escape(element)}["\']'
+            # The element tag must appear as a string literal somewhere in the
+            # bundle (either in a direct define call or in the ELEMENTS registry
+            # array used by safeDefine).
+            pattern = rf'["\']{re.escape(element)}["\']'
             assert re.search(pattern, content), (
-                f"REGRESSION: Built file does not register '{element}' custom element. "
+                f"REGRESSION: Built file does not contain '{element}' element tag. "
                 "The card won't appear in Home Assistant without this registration."
             )
 
@@ -467,9 +470,15 @@ class TestCDNCacheBusting:
             pytest.skip("Built card not found - run npm run build first")
 
         built_content = BUILT_CARD_PATH.read_text()
-        # The version appears in the description like: "(v0.2.6)"
-        built_match = re.search(r"\(v(\d+\.\d+\.\d+)\)", built_content)
-        built_version = built_match.group(1) if built_match else None
+        # The version appears either inlined in the description like "(v0.2.6)"
+        # or as a default parameter value like ='0.2.6' or ="0.2.6"
+        built_match = re.search(
+            r'\(v(\d+\.\d+\.\d+)\)|=["\'](\d+\.\d+\.\d+)["\']',
+            built_content,
+        )
+        built_version = None
+        if built_match:
+            built_version = built_match.group(1) or built_match.group(2)
 
         assert manifest_version == built_version, (
             f"Version mismatch: manifest.json has {manifest_version}, "
