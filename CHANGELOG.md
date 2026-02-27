@@ -10,6 +10,10 @@
 * implement architecture remediation plan ([#299](https://github.com/mossipcams/autosnooze/issues/299)) ([e996875](https://github.com/mossipcams/autosnooze/commit/e996875eb2600b26f9c1d9ce97b83b77d97bf19b))
 * major architectural improvements and contract hardening ([#301](https://github.com/mossipcams/autosnooze/issues/301)) ([bc591f4](https://github.com/mossipcams/autosnooze/commit/bc591f4e471d2577809079cdb6cc6aac368e3ac4))
 
+### Bug Fixes
+
+* dependency cleanup and selection UX polish (includes CI/security dependency fixes and removal of redundant "Deselect All" action) ([#308](https://github.com/mossipcams/autosnooze/issues/308)) ([87597c9](https://github.com/mossipcams/autosnooze/commit/87597c9cee66119efb2cd177ddf75196adb574fa))
+
 ## [0.2.13](https://github.com/mossipcams/autosnooze/compare/v0.2.12...v0.2.13) (2026-02-10)
 
 
