@@ -273,6 +273,16 @@ export const automationListStyles = css`
       outline: 2px solid var(--primary-color);
       outline-offset: 2px;
     }
+    .clear-selection-btn:hover {
+      background: var(--secondary-background-color);
+      color: var(--primary-text-color);
+      border-color: var(--divider-color);
+    }
+    .clear-selection-btn:active {
+      background: var(--primary-color);
+      color: var(--text-primary-color);
+      border-color: var(--primary-color);
+    }
 
     /* Mobile Responsive Styles */
     @media (max-width: 480px) {

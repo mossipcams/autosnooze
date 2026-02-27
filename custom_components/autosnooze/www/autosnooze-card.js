@@ -1696,6 +1696,16 @@ function e(e,t,a,o){var i,s=arguments.length,r=s<3?t:null===o?o=Object.getOwnPro
       outline: 2px solid var(--primary-color);
       outline-offset: 2px;
     }
+    .clear-selection-btn:hover {
+      background: var(--secondary-background-color);
+      color: var(--primary-text-color);
+      border-color: var(--divider-color);
+    }
+    .clear-selection-btn:active {
+      background: var(--primary-color);
+      color: var(--text-primary-color);
+      border-color: var(--primary-color);
+    }
 
     /* Mobile Responsive Styles */
     @media (max-width: 480px) {
@@ -1978,7 +1988,7 @@ function e(e,t,a,o){var i,s=arguments.length,r=s<3?t:null===o?o=Object.getOwnPro
                   </div>
                 </button>
               `):""}
-      `})}render(){const e=this._getFilteredAutomations(),t=this.labelRegistryUnavailable,a=this._searchInput.length>0||this._search.length>0;return G`
+      `})}render(){const e=this._getFilteredAutomations(),t=this.labelRegistryUnavailable,a=this._searchInput.length>0||this._search.length>0,o=e.length>0&&e.every(e=>this.selected.includes(e.id));return G`
       <div class="filter-tabs" role="tablist" aria-label="${be(this.hass,"a11y.filter_tabs")}">
         <button
           type="button"
@@ -2056,15 +2066,17 @@ function e(e,t,a,o){var i,s=arguments.length,r=s<3?t:null===o?o=Object.getOwnPro
       ${e.length>0?G`
             <div class="selection-actions" role="toolbar" aria-label="${be(this.hass,"a11y.selection_actions")}">
               <span role="status" aria-live="polite">${be(this.hass,"selection.count",{selected:this.selected.length,total:e.length})}</span>
-              <button
-                type="button"
-                class="select-all-btn"
-                @click=${()=>this._selectAllVisible()}
-                aria-label="${be(this.hass,"a11y.select_all")}"
-              >
-                ${be(this.hass,"button.select_all")}
-              </button>
-              ${this.selected.length>0?G`<button type="button" class="select-all-btn" @click=${()=>this._clearSelection()} aria-label="${be(this.hass,"a11y.clear_selection")}">${be(this.hass,"button.clear")}</button>`:""}
+              ${o?"":G`
+                    <button
+                      type="button"
+                      class="select-all-btn"
+                      @click=${()=>this._selectAllVisible()}
+                      aria-label="${be(this.hass,"a11y.select_all")}"
+                    >
+                      ${be(this.hass,"button.select_all")}
+                    </button>
+                  `}
+              ${this.selected.length>0?G`<button type="button" class="select-all-btn clear-selection-btn" @click=${()=>this._clearSelection()} aria-label="${be(this.hass,"a11y.clear_selection")}">${be(this.hass,"button.clear")}</button>`:""}
             </div>
           `:""}
 
