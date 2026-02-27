@@ -462,10 +462,22 @@ describe('AutoSnooze Card Main Component', () => {
       expect(card._selected.length).toBe(2);
     });
 
-    test('_selectAllVisible deselects all if all already selected', () => {
+    test('_selectAllVisible keeps all selected if all already selected', () => {
       card._selected = ['automation.test_automation', 'automation.living_room'];
       queryAutomationList(card)._selectAllVisible();
-      expect(card._selected.length).toBe(0);
+      expect(card._selected.length).toBe(2);
+    });
+
+    test('does not render a "Deselect All" button after selecting all', async () => {
+      const list = queryAutomationList(card);
+      list._selectAllVisible();
+      await card.updateComplete;
+      await list.updateComplete;
+
+      const labels = Array.from(list.shadowRoot.querySelectorAll('.selection-actions button'))
+        .map((button) => button.textContent.trim());
+
+      expect(labels).not.toContain('Deselect All');
     });
 
     test('_clearSelection clears all selections', () => {
