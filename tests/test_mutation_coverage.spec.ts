@@ -553,11 +553,11 @@ describe('Conditional Logic - Mutation Killing', () => {
       expect(card._selected.length).toBeGreaterThan(0);
     });
 
-    test('deselects all when all selected', () => {
+    test('keeps all selected when all selected', () => {
       const automations = queryAutomationList(card)._getFilteredAutomations();
       card._selected = automations.map((a) => a.id);
       queryAutomationList(card)._selectAllVisible();
-      expect(card._selected.length).toBe(0);
+      expect(card._selected.length).toBe(automations.length);
     });
 
     test('selects remaining when some selected', () => {
