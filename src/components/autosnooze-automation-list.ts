@@ -100,14 +100,7 @@ export class AutoSnoozeAutomationList extends LitElement {
   private _selectAllVisible(): void {
     const filtered = this._getFilteredAutomations();
     const allIds = filtered.map((a) => a.id);
-    const allSelected = allIds.every((id) => this.selected.includes(id));
-    let newSelected: string[];
-
-    if (allSelected) {
-      newSelected = this.selected.filter((id) => !allIds.includes(id));
-    } else {
-      newSelected = [...new Set([...this.selected, ...allIds])];
-    }
+    const newSelected = [...new Set([...this.selected, ...allIds])];
     this._fireSelectionChange(newSelected);
   }
 
@@ -405,13 +398,9 @@ export class AutoSnoozeAutomationList extends LitElement {
                 type="button"
                 class="select-all-btn"
                 @click=${() => this._selectAllVisible()}
-                aria-label="${filtered.every((a) => this.selected.includes(a.id))
-                  ? localize(this.hass, 'a11y.deselect_all')
-                  : localize(this.hass, 'a11y.select_all')}"
+                aria-label="${localize(this.hass, 'a11y.select_all')}"
               >
-                ${filtered.every((a) => this.selected.includes(a.id))
-                  ? localize(this.hass, 'button.deselect_all')
-                  : localize(this.hass, 'button.select_all')}
+                ${localize(this.hass, 'button.select_all')}
               </button>
               ${this.selected.length > 0
                 ? html`<button type="button" class="select-all-btn" @click=${() => this._clearSelection()} aria-label="${localize(this.hass, 'a11y.clear_selection')}">${localize(this.hass, 'button.clear')}</button>`

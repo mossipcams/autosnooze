@@ -279,10 +279,10 @@ describe('_selectAllVisible', () => {
     expect(card._selected.length).toBe(2);
   });
 
-  test('deselects all when all selected', () => {
+  test('keeps all selected when all selected', () => {
     card._selected = ['automation.a', 'automation.b'];
     queryAutomationList(card)._selectAllVisible();
-    expect(card._selected.length).toBe(0);
+    expect(card._selected.length).toBe(2);
   });
 
   test('selects remaining when some selected', () => {
