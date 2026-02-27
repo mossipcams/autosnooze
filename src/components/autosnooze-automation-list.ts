@@ -45,6 +45,7 @@ export class AutoSnoozeAutomationList extends LitElement {
 
   @state() _filterTab: FilterTab = 'all';
   @state() _search: string = '';
+  @state() _searchInput: string = '';
   @state() _expandedGroups: Record<string, boolean> = {};
 
   private _searchTimeout: number | null = null;
@@ -191,6 +192,7 @@ export class AutoSnoozeAutomationList extends LitElement {
   _handleSearchInput(e: Event): void {
     const target = e.target as HTMLInputElement;
     const value = target.value;
+    this._searchInput = value;
 
     if (this._searchTimeout !== null) {
       clearTimeout(this._searchTimeout);
@@ -200,6 +202,22 @@ export class AutoSnoozeAutomationList extends LitElement {
       this._search = value;
       this._searchTimeout = null;
     }, UI_TIMING.SEARCH_DEBOUNCE_MS);
+  }
+
+  private _clearSearch(): void {
+    if (this._searchTimeout !== null) {
+      clearTimeout(this._searchTimeout);
+      this._searchTimeout = null;
+    }
+    this._searchInput = '';
+    this._search = '';
+  }
+
+  private _handleSearchKeydown(e: KeyboardEvent): void {
+    if (e.key !== 'Escape') return;
+    if (!this._searchInput && !this._search) return;
+    e.preventDefault();
+    this._clearSearch();
   }
 
   private _renderSelectionList(): TemplateResult | TemplateResult[] {
@@ -299,6 +317,7 @@ export class AutoSnoozeAutomationList extends LitElement {
   render(): TemplateResult {
     const filtered = this._getFilteredAutomations();
     const showRegistryWarning = this.labelRegistryUnavailable;
+    const hasSearchValue = this._searchInput.length > 0 || this._search.length > 0;
     return html`
       <div class="filter-tabs" role="tablist" aria-label="${localize(this.hass, 'a11y.filter_tabs')}">
         <button
@@ -351,10 +370,23 @@ export class AutoSnoozeAutomationList extends LitElement {
         <input
           type="search"
           placeholder="${localize(this.hass, 'search.placeholder')}"
-          .value=${this._search}
+          .value=${this._searchInput || this._search}
           @input=${(e: Event) => this._handleSearchInput(e)}
+          @keydown=${(e: KeyboardEvent) => this._handleSearchKeydown(e)}
           aria-label="${localize(this.hass, 'a11y.search')}"
         />
+        ${hasSearchValue
+          ? html`
+              <button
+                type="button"
+                class="search-clear-btn"
+                @click=${() => this._clearSearch()}
+                aria-label="${localize(this.hass, 'a11y.clear_selection')}"
+              >
+                ${localize(this.hass, 'button.clear')}
+              </button>
+            `
+          : ''}
       </div>
 
       ${showRegistryWarning

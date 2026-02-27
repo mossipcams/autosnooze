@@ -898,6 +898,21 @@ describe('AutoSnooze Card Main Component', () => {
   });
 
   describe('Search Input Handling', () => {
+    test('shows clear search button when search text is pending', async () => {
+      vi.useFakeTimers();
+      const list = queryAutomationList(card);
+      await list.updateComplete;
+
+      const searchInput = list.shadowRoot.querySelector('.search-box input');
+      searchInput.value = 'living';
+      searchInput.dispatchEvent(new Event('input', { bubbles: true }));
+      await list.updateComplete;
+
+      expect(list.shadowRoot.querySelector('.search-clear-btn')).not.toBeNull();
+
+      vi.useRealTimers();
+    });
+
     test('_handleSearchInput debounces search updates', async () => {
       vi.useFakeTimers();
 
@@ -907,6 +922,57 @@ describe('AutoSnooze Card Main Component', () => {
       expect(queryAutomationList(card)._search).toBe('');
       vi.advanceTimersByTime(350);
       expect(queryAutomationList(card)._search).toBe('test');
+
+      vi.useRealTimers();
+    });
+
+    test('clicking clear search cancels debounce and resets search state', async () => {
+      vi.useFakeTimers();
+      const list = queryAutomationList(card);
+      await list.updateComplete;
+
+      const searchInput = list.shadowRoot.querySelector('.search-box input');
+      searchInput.value = 'kitchen';
+      searchInput.dispatchEvent(new Event('input', { bubbles: true }));
+      await list.updateComplete;
+      expect(list._searchTimeout).not.toBeNull();
+
+      const clearButton = list.shadowRoot.querySelector('.search-clear-btn');
+      clearButton.click();
+      await list.updateComplete;
+
+      expect(searchInput.value).toBe('');
+      expect(list._search).toBe('');
+      expect(list._searchInput).toBe('');
+      expect(list._searchTimeout).toBeNull();
+
+      vi.advanceTimersByTime(350);
+      expect(list._search).toBe('');
+
+      vi.useRealTimers();
+    });
+
+    test('pressing Escape clears pending search and removes clear button', async () => {
+      vi.useFakeTimers();
+      const list = queryAutomationList(card);
+      await list.updateComplete;
+
+      const searchInput = list.shadowRoot.querySelector('.search-box input');
+      searchInput.value = 'garage';
+      searchInput.dispatchEvent(new Event('input', { bubbles: true }));
+      await list.updateComplete;
+      expect(list._searchTimeout).not.toBeNull();
+
+      searchInput.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+      await list.updateComplete;
+
+      expect(list._search).toBe('');
+      expect(list._searchInput).toBe('');
+      expect(list._searchTimeout).toBeNull();
+      expect(list.shadowRoot.querySelector('.search-clear-btn')).toBeNull();
+
+      vi.advanceTimersByTime(350);
+      expect(list._search).toBe('');
 
       vi.useRealTimers();
     });

@@ -61,10 +61,11 @@ export const automationListStyles = css`
     /* Search */
     .search-box {
       margin-bottom: 12px;
+      position: relative;
     }
     .search-box input {
       width: 100%;
-      padding: 10px 12px;
+      padding: 10px 78px 10px 12px;
       border: 1px solid var(--divider-color);
       border-radius: 8px;
       background: var(--card-background-color);
@@ -72,6 +73,28 @@ export const automationListStyles = css`
       box-sizing: border-box;
       font-size: 0.95em;
       min-height: 44px;
+    }
+    .search-clear-btn {
+      position: absolute;
+      top: 50%;
+      right: 8px;
+      transform: translateY(-50%);
+      padding: 4px 10px;
+      border: 1px solid var(--divider-color);
+      border-radius: 6px;
+      background: var(--card-background-color);
+      color: var(--primary-text-color);
+      cursor: pointer;
+      font-size: 0.8em;
+      line-height: 1;
+      min-height: 30px;
+    }
+    .search-clear-btn:hover {
+      background: var(--secondary-background-color);
+    }
+    .search-clear-btn:focus-visible {
+      outline: 2px solid var(--primary-color);
+      outline-offset: 2px;
     }
     .search-box input:focus {
       outline: none;
@@ -312,7 +335,7 @@ export const automationListStyles = css`
       }
 
       .search-box input {
-        padding: 13px 14px;
+        padding: 13px 78px 13px 14px;
         font-size: 0.9em;
         min-height: 46px;
         border-radius: 12px;
@@ -330,6 +353,12 @@ export const automationListStyles = css`
       .search-box input::placeholder {
         color: var(--secondary-text-color);
         opacity: 0.6;
+      }
+
+      .search-clear-btn {
+        right: 10px;
+        min-height: 32px;
+        border-radius: 8px;
       }
 
       /* --- Selection Actions: Refined toolbar --- */
