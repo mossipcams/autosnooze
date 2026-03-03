@@ -311,6 +311,8 @@ export class AutoSnoozeAutomationList extends LitElement {
     const filtered = this._getFilteredAutomations();
     const showRegistryWarning = this.labelRegistryUnavailable;
     const hasSearchValue = this._searchInput.length > 0 || this._search.length > 0;
+    const allVisibleSelected =
+      filtered.length > 0 && filtered.every((a) => this.selected.includes(a.id));
     return html`
       <div class="filter-tabs" role="tablist" aria-label="${localize(this.hass, 'a11y.filter_tabs')}">
         <button
@@ -394,16 +396,20 @@ export class AutoSnoozeAutomationList extends LitElement {
         ? html`
             <div class="selection-actions" role="toolbar" aria-label="${localize(this.hass, 'a11y.selection_actions')}">
               <span role="status" aria-live="polite">${localize(this.hass, 'selection.count', { selected: this.selected.length, total: filtered.length })}</span>
-              <button
-                type="button"
-                class="select-all-btn"
-                @click=${() => this._selectAllVisible()}
-                aria-label="${localize(this.hass, 'a11y.select_all')}"
-              >
-                ${localize(this.hass, 'button.select_all')}
-              </button>
+              ${!allVisibleSelected
+                ? html`
+                    <button
+                      type="button"
+                      class="select-all-btn"
+                      @click=${() => this._selectAllVisible()}
+                      aria-label="${localize(this.hass, 'a11y.select_all')}"
+                    >
+                      ${localize(this.hass, 'button.select_all')}
+                    </button>
+                  `
+                : ''}
               ${this.selected.length > 0
-                ? html`<button type="button" class="select-all-btn" @click=${() => this._clearSelection()} aria-label="${localize(this.hass, 'a11y.clear_selection')}">${localize(this.hass, 'button.clear')}</button>`
+                ? html`<button type="button" class="select-all-btn clear-selection-btn" @click=${() => this._clearSelection()} aria-label="${localize(this.hass, 'a11y.clear_selection')}">${localize(this.hass, 'button.clear')}</button>`
                 : ''}
             </div>
           `
