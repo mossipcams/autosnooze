@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.15](https://github.com/mossipcams/autosnooze/compare/v0.2.14...v0.2.15) (2026-03-10)
+
+
+### Bug Fixes
+
+* **ui:** hide select-all when fully selected and neutralize clear hover ([#309](https://github.com/mossipcams/autosnooze/issues/309)) ([c48788d](https://github.com/mossipcams/autosnooze/commit/c48788d188969380799caff56170989fd5b39420))
+
 ## [0.2.14](https://github.com/mossipcams/autosnooze/compare/v0.2.13...v0.2.14) (2026-02-27)
 
 
