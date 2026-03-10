@@ -28,10 +28,14 @@
   ],
   "author": "",
   "license": "MIT",
+  "engines": {
+    "node": ">=20.19.0"
+  },
   "dependencies": {
     "lit": "^3.3.2"
   },
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
     "@playwright/test": "^1.58.2",
     "@rollup/plugin-json": "^6.1.0",
     "@rollup/plugin-node-resolve": "^16.0.3",
@@ -44,7 +48,8 @@
     "@typescript-eslint/eslint-plugin": "^8.57.0",
     "@typescript-eslint/parser": "^8.57.0",
     "@vitest/coverage-istanbul": "^4.0.18",
-    "eslint": "^8.57.0",
+    "eslint": "^10.0.2",
+    "globals": "^16.4.0",
     "husky": "^9.0.0",
     "jsdom": "^25.0.1",
     "lint-staged": "^16.3.1",
