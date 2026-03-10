@@ -189,21 +189,21 @@ jobs:
 
       # === Artifacts ===
       - name: Upload built artifact
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v4
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v4
         with:
           name: autosnooze-card
           path: custom_components/autosnooze/www/autosnooze-card.js
           retention-days: 7
 
       - name: Upload Python coverage report
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v4
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v4
         with:
           name: python-coverage
           path: coverage.xml
           retention-days: 7
 
       - name: Upload JavaScript coverage report
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v4
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v4
         with:
           name: js-coverage
           path: coverage/
