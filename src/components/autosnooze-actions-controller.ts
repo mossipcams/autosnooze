@@ -13,7 +13,7 @@ import {
   wakeAutomation,
 } from '../services/index.js';
 
-export interface UndoActionResult {
+interface UndoActionResult {
   succeeded: string[];
   failed: string[];
 }

@@ -73,12 +73,6 @@ export interface HomeAssistant {
   ): Promise<void>;
 }
 
-export interface AutoSnoozeSensorAttributes {
-  paused: Record<string, PausedAutomationAttribute>;
-  scheduled: Record<string, ScheduledSnoozeAttribute>;
-  [key: string]: unknown;
-}
-
 export interface PausedAutomationAttribute {
   friendly_name: string;
   resume_at: string;

@@ -85,7 +85,7 @@ export function getAutomations(
 /**
  * Check if an automation has a specific label.
  */
-export function hasLabel(
+function hasLabel(
   automation: AutomationItem,
   targetLabel: string,
   labelRegistry: Record<string, HassLabel>

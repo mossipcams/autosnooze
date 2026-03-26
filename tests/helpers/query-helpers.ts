@@ -10,7 +10,7 @@ import type { AutomationItem } from '../../src/types/automation.js';
 /**
  * Compute automation items from card state (hass, entity registry, etc).
  */
-export function computeAutomations(card: any): AutomationItem[] {
+function computeAutomations(card: any): AutomationItem[] {
   const states = card.hass?.states || {};
   const entityReg = card._entityRegistry || {};
   const hassEntities = card.hass?.entities || {};
@@ -107,12 +107,4 @@ export function queryDurationSelector(card: any): any {
 export function queryInDurationSelector(card: any, selector: string): any {
   const ds = queryDurationSelector(card);
   return ds?.shadowRoot?.querySelector(selector);
-}
-
-/**
- * querySelectorAll inside the duration-selector child component's shadow DOM.
- */
-export function queryAllInDurationSelector(card: any, selector: string): any {
-  const ds = queryDurationSelector(card);
-  return ds?.shadowRoot?.querySelectorAll(selector) || [];
 }

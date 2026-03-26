@@ -8,8 +8,8 @@ import { LitElement, html, TemplateResult } from 'lit';
 import { property, state } from 'lit/decorators.js';
 import { automationListStyles } from '../styles/automation-list.styles.js';
 import { localize } from '../localization/localize.js';
-import { hapticFeedback } from '../utils/index.js';
 import { UI_TIMING, EXCLUDE_LABEL, INCLUDE_LABEL } from '../constants/index.js';
+import { hapticFeedback } from '../utils/haptic.js';
 import {
   filterAutomations,
   groupAutomationsBy,
