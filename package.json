@@ -78,7 +78,9 @@
     "@oxc-parser/binding-darwin-arm64": "0.120.0",
     "@oxc-parser/binding-linux-x64-gnu": "0.120.0",
     "@oxc-resolver/binding-darwin-arm64": "11.19.1",
-    "@oxc-resolver/binding-linux-x64-gnu": "11.19.1"
+    "@oxc-resolver/binding-linux-x64-gnu": "11.19.1",
+    "@rollup/rollup-darwin-arm64": "4.59.0",
+    "@rollup/rollup-linux-x64-gnu": "4.59.0"
   },
   "lint-staged": {
     "src/**/*.ts": [
