@@ -7,10 +7,10 @@
 import { LitElement, html } from 'lit';
 import { property } from 'lit/decorators.js';
 import { localize } from '../localization/localize.js';
-import { formatCountdown } from '../utils/index.js';
 import { TIME_MS } from '../constants/index.js';
 import { startCountdownSync, stopCountdownSync } from '../services/countdown-sync.js';
 import type { CountdownState } from '../utils/countdown-timer.js';
+import { formatCountdown } from '../utils/time-formatting.js';
 import { adjustModalStyles } from '../styles/adjust-modal.styles.js';
 import type { HomeAssistant } from '../types/hass.js';
 import type { PropertyValues } from 'lit';

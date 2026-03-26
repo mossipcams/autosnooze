@@ -1,0 +1,20 @@
+{
+  "$schema": "./node_modules/knip/schema.json",
+  "entry": [
+    "src/index.ts"
+  ],
+  "project": [
+    "src/**/*.ts"
+  ],
+  "include": [
+    "dependencies",
+    "unlisted",
+    "unresolved",
+    "binaries"
+  ],
+  "ignoreDependencies": [
+    "lit"
+  ],
+  "node": false,
+  "treatConfigHintsAsErrors": true
+}
