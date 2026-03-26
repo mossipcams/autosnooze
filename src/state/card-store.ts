@@ -3,11 +3,11 @@
  */
 
 import { TIME_MS } from '../constants/index.js';
-import { durationToMinutes } from '../utils/index.js';
+import { durationToMinutes } from '../utils/duration-parsing.js';
 import type { ParsedDuration } from '../types/automation.js';
 import type { FilterTab } from '../types/card.js';
 
-export interface CardStoreState {
+interface CardStoreState {
   selected: string[];
   filterTab: FilterTab;
   search: string;
@@ -18,7 +18,7 @@ export interface CardStoreState {
 
 const DEFAULT_DURATION: ParsedDuration = { days: 0, hours: 0, minutes: 30 };
 
-export class CardStore {
+class CardStore {
   private _state: CardStoreState = {
     selected: [],
     filterTab: 'all',

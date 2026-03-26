@@ -2,12 +2,12 @@
  * Datetime utilities for AutoSnooze card.
  */
 
-export interface DateTimeParts {
+interface DateTimeParts {
   date: string; // YYYY-MM-DD
   time: string; // HH:MM
 }
 
-export interface DateOption {
+interface DateOption {
   value: string; // YYYY-MM-DD
   label: string; // Human-readable label
 }
@@ -77,4 +77,3 @@ export function generateDateOptions(daysAhead: number = 365, locale?: string): D
 
   return options;
 }
-

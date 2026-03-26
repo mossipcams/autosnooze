@@ -17,23 +17,20 @@ import {
   DEFAULT_SNOOZE_MINUTES,
 } from '../constants/index.js';
 import {
-  formatDateTime,
-  formatDuration,
-  isDurationValid,
-  durationToMinutes,
-  getCurrentDateTime,
-  combineDateTime,
-  hapticFeedback,
-  getErrorMessage,
-} from '../utils/index.js';
-import {
   fetchLabelRegistry,
   fetchCategoryRegistry,
   fetchEntityRegistry,
+} from '../services/registry.js';
+import {
   saveLastDuration,
   loadLastDuration,
   type LastDurationData,
-} from '../services/index.js';
+} from '../services/storage.js';
+import { formatDateTime, formatDuration } from '../utils/time-formatting.js';
+import { isDurationValid, durationToMinutes } from '../utils/duration-parsing.js';
+import { getCurrentDateTime, combineDateTime } from '../utils/datetime.js';
+import { hapticFeedback } from '../utils/haptic.js';
+import { getErrorMessage } from '../utils/errors.js';
 import {
   runAdjustAction,
   runCancelScheduledAction,

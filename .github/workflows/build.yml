@@ -13,7 +13,7 @@ on:
       - 'rollup.config.mjs'
       - 'requirements_test.txt'
       - 'pyproject.toml'
-      - '.eslintrc.json'
+      - 'eslint.config.mjs'
       - 'tsconfig.json'
       - 'tsconfig.test.json'
   pull_request:
@@ -105,12 +105,21 @@ jobs:
         uses: actions/cache@cdf6c1fa76f9f475f3d7449005a359c84ca0f306 # v4
         with:
           path: .eslintcache
-          key: eslint-${{ runner.os }}-${{ hashFiles('package-lock.json', '.eslintrc.json') }}
+          key: eslint-${{ runner.os }}-${{ hashFiles('package-lock.json', 'eslint.config.mjs') }}
           restore-keys: |
             eslint-${{ runner.os }}-
 
       - name: Run ESLint (TypeScript/JavaScript linter)
         run: npm run lint -- --cache --cache-location .eslintcache
+
+      - name: Run dependency-cruiser
+        run: npm run lint:deps
+
+      - name: Run knip
+        run: npm run lint:unused
+
+      - name: Run knip (production)
+        run: npm run lint:unused:prod
 
       - name: Run TypeScript type checking
         run: npm run typecheck

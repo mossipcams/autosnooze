@@ -9,13 +9,14 @@ import { localize } from '../localization/localize.js';
 import {
   formatDurationShort,
   formatDuration,
+} from '../utils/time-formatting.js';
+import {
   parseDurationInput,
   isDurationValid,
   durationToMinutes,
   minutesToDuration,
-  generateDateOptions,
-  combineDateTime,
-} from '../utils/index.js';
+} from '../utils/duration-parsing.js';
+import { generateDateOptions, combineDateTime } from '../utils/datetime.js';
 import { DEFAULT_DURATIONS } from '../constants/index.js';
 import type { ParsedDuration } from '../types/automation.js';
 import type { LastDurationData } from '../services/storage.js';

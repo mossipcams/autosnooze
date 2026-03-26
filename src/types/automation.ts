@@ -25,17 +25,6 @@ export interface PausedAutomation {
 }
 
 /**
- * Represents a scheduled future snooze.
- * Matches Python ScheduledSnooze dataclass.
- */
-export interface ScheduledSnooze {
-  entity_id: string;
-  friendly_name: string;
-  disable_at: string; // ISO datetime string
-  resume_at: string; // ISO datetime string
-}
-
-/**
  * Frontend representation of an automation entity.
  */
 export interface AutomationItem {
@@ -88,28 +77,4 @@ export interface PauseServiceParams extends ServiceData {
   disable_at?: string;
   resume_at?: string;
   confirm?: boolean;
-}
-
-/**
- * Service call parameters for pause by area.
- */
-export interface PauseByAreaParams extends ServiceData {
-  area_id: string | string[];
-  days?: number;
-  hours?: number;
-  minutes?: number;
-  disable_at?: string;
-  resume_at?: string;
-}
-
-/**
- * Service call parameters for pause by label.
- */
-export interface PauseByLabelParams extends ServiceData {
-  label_id: string | string[];
-  days?: number;
-  hours?: number;
-  minutes?: number;
-  disable_at?: string;
-  resume_at?: string;
 }
