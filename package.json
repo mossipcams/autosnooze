@@ -76,7 +76,9 @@
   },
   "optionalDependencies": {
     "@oxc-parser/binding-darwin-arm64": "0.120.0",
-    "@oxc-parser/binding-linux-x64-gnu": "0.120.0"
+    "@oxc-parser/binding-linux-x64-gnu": "0.120.0",
+    "@oxc-resolver/binding-darwin-arm64": "11.19.1",
+    "@oxc-resolver/binding-linux-x64-gnu": "11.19.1"
   },
   "lint-staged": {
     "src/**/*.ts": [
