@@ -53,7 +53,7 @@ jobs:
 
       # === Python Linting ===
       - name: Cache ruff
-        uses: actions/cache@cdf6c1fa76f9f475f3d7449005a359c84ca0f306 # v4
+        uses: actions/cache@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v4
         with:
           path: ~/.cache/ruff
           key: ruff-${{ runner.os }}-${{ hashFiles('requirements_test.txt') }}
@@ -67,7 +67,7 @@ jobs:
         run: ruff format --check --diff custom_components/ tests/
 
       - name: Cache Pyright
-        uses: actions/cache@cdf6c1fa76f9f475f3d7449005a359c84ca0f306 # v4
+        uses: actions/cache@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v4
         with:
           path: ~/.cache/pyright
           key: pyright-${{ runner.os }}-${{ hashFiles('pyproject.toml') }}
@@ -102,7 +102,7 @@ jobs:
 
       # === TypeScript/JavaScript Linting ===
       - name: Cache ESLint
-        uses: actions/cache@cdf6c1fa76f9f475f3d7449005a359c84ca0f306 # v4
+        uses: actions/cache@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v4
         with:
           path: .eslintcache
           key: eslint-${{ runner.os }}-${{ hashFiles('package-lock.json', 'eslint.config.mjs') }}
