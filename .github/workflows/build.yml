@@ -10,6 +10,7 @@ on:
       - 'custom_components/**'
       - 'package.json'
       - 'package-lock.json'
+      - '.jscpd.json'
       - 'rollup.config.mjs'
       - 'requirements_test.txt'
       - 'pyproject.toml'
@@ -114,6 +115,9 @@ jobs:
 
       - name: Run dependency-cruiser
         run: npm run lint:deps
+
+      - name: Run jscpd
+        run: npm run lint:duplicates
 
       - name: Run knip
         run: npm run lint:unused
