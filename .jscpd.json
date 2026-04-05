@@ -1,0 +1,20 @@
+{
+  "absolute": true,
+  "threshold": 0,
+  "minLines": 10,
+  "minTokens": 80,
+  "mode": "strict",
+  "gitignore": true,
+  "reporters": [
+    "console"
+  ],
+  "pattern": "**/*.ts",
+  "ignore": [
+    "**/*.d.ts",
+    "**/*.spec.ts",
+    "**/*.test.ts",
+    "**/index.ts",
+    "src/styles/**",
+    "src/localization/translations/**"
+  ]
+}
