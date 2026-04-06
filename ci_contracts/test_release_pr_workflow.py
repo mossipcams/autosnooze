@@ -16,6 +16,10 @@ def test_release_workflow_refreshes_generated_card_artifact_for_release_prs() ->
     content = RELEASE_WORKFLOW_PATH.read_text()
 
     required_snippets = [
+        "workflow_dispatch:",
+        "push:",
+        "branches:",
+        "- main",
         "id: release",
         "steps.release.outputs.prs_created",
         "steps.release.outputs.pr",
