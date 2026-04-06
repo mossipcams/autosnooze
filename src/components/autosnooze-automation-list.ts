@@ -17,7 +17,7 @@ import {
   getAreaName,
   getLabelName,
   getCategoryName,
-} from '../state/automations.js';
+} from '../features/automation-list/index.js';
 import type { HomeAssistant, HassLabel, HassCategory } from '../types/hass.js';
 import type { AutomationItem } from '../types/automation.js';
 import type { FilterTab } from '../types/card.js';

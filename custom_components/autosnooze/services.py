@@ -28,6 +28,10 @@ from .const import (
     PAUSE_BY_LABEL_SCHEMA,
     PAUSE_SCHEMA,
 )
+from .application.pause import async_handle_pause_service
+from .application.resume import async_handle_cancel_all_service, async_handle_cancel_service
+from .application.scheduled import async_handle_cancel_scheduled_service
+from .application.adjust import async_handle_adjust_service
 from .logging_utils import _log_command, _raise_save_failed
 from .coordinator import (
     async_adjust_snooze,
@@ -260,46 +264,15 @@ def register_services(hass: HomeAssistant, data: AutomationPauseData) -> None:
 
     async def handle_pause(call: ServiceCall) -> None:
         """Handle snooze service call."""
-        if data.unloaded:
-            return
-
-        entity_ids = call.data[ATTR_ENTITY_ID]
-        confirm = call.data.get("confirm", False)
-        days = call.data.get("days", 0)
-        hours = call.data.get("hours", 0)
-        minutes = call.data.get("minutes", 0)
-        # Ensure datetimes from service calls are UTC-aware
-        disable_at = ensure_utc_aware(call.data.get("disable_at"))
-        resume_at_dt = ensure_utc_aware(call.data.get("resume_at"))
-        _validate_guardrails(hass, entity_ids, confirm=confirm)
-
-        await async_pause_automations(hass, data, entity_ids, days, hours, minutes, disable_at, resume_at_dt)
+        await async_handle_pause_service(hass, data, call)
 
     async def handle_cancel(call: ServiceCall) -> None:
         """Handle wake service call (FR-10: Early Wake Up)."""
-        if data.unloaded:
-            return
-
-        # DEF-011 FIX: Use batch resume for efficiency
-        entity_ids = call.data[ATTR_ENTITY_ID]
-        valid_ids = []
-        for entity_id in entity_ids:
-            if entity_id not in data.paused:
-                _LOGGER.warning("Automation %s is not snoozed", entity_id)
-                continue
-            valid_ids.append(entity_id)
-        if valid_ids:
-            await async_resume_batch(hass, data, valid_ids)
+        await async_handle_cancel_service(hass, data, call)
 
     async def handle_cancel_all(_call: ServiceCall) -> None:
         """Handle wake all service call."""
-        if data.unloaded:
-            return
-
-        # DEF-011 FIX: Use batch resume for single disk write
-        entity_ids = list(data.paused.keys())
-        if entity_ids:
-            await async_resume_batch(hass, data, entity_ids)
+        await async_handle_cancel_all_service(hass, data)
 
     async def _handle_pause_by_filter(
         call: ServiceCall,
@@ -348,38 +321,11 @@ def register_services(hass: HomeAssistant, data: AutomationPauseData) -> None:
 
     async def handle_cancel_scheduled(call: ServiceCall) -> None:
         """Handle cancel scheduled snooze service call."""
-        if data.unloaded:
-            return
-
-        entity_ids = call.data[ATTR_ENTITY_ID]
-        valid_ids = []
-        for entity_id in entity_ids:
-            if entity_id not in data.scheduled:
-                _LOGGER.warning("Automation %s has no scheduled snooze", entity_id)
-                continue
-            valid_ids.append(entity_id)
-        if valid_ids:
-            await async_cancel_scheduled_batch(hass, data, valid_ids)
+        await async_handle_cancel_scheduled_service(hass, data, call)
 
     async def handle_adjust(call: ServiceCall) -> None:
         """Handle adjust snooze service call."""
-        if data.unloaded:
-            return
-
-        entity_ids = call.data[ATTR_ENTITY_ID]
-        days = call.data.get("days", 0)
-        hours = call.data.get("hours", 0)
-        minutes = call.data.get("minutes", 0)
-
-        delta = timedelta(days=days, hours=hours, minutes=minutes)
-        if delta == timedelta():
-            raise ServiceValidationError(
-                "Adjustment must be non-zero",
-                translation_domain=DOMAIN,
-                translation_key="invalid_adjustment",
-            )
-
-        await async_adjust_snooze_batch(hass, data, entity_ids, delta)
+        await async_handle_adjust_service(hass, data, call)
 
     hass.services.async_register(DOMAIN, "pause", handle_pause, schema=PAUSE_SCHEMA)
     hass.services.async_register(DOMAIN, "cancel", handle_cancel, schema=CANCEL_SCHEMA)

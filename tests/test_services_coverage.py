@@ -650,7 +650,10 @@ class TestServiceHandlerContracts:
         call = MagicMock()
         call.data = {ATTR_ENTITY_ID: ["automation.exists", "automation.unknown"]}
 
-        with patch("custom_components.autosnooze.services.async_resume_batch", new_callable=AsyncMock) as batch_resume:
+        with patch(
+            "custom_components.autosnooze.application.resume.async_resume_batch",
+            new_callable=AsyncMock,
+        ) as batch_resume:
             await cancel_handler(call)
 
         batch_resume.assert_called_once_with(mock_hass, data, ["automation.exists"])
@@ -665,7 +668,10 @@ class TestServiceHandlerContracts:
         data.paused["automation.a"] = MagicMock(entity_id="automation.a", resume_at=now, paused_at=now)
         data.paused["automation.b"] = MagicMock(entity_id="automation.b", resume_at=now, paused_at=now)
 
-        with patch("custom_components.autosnooze.services.async_resume_batch", new_callable=AsyncMock) as batch_resume:
+        with patch(
+            "custom_components.autosnooze.application.resume.async_resume_batch",
+            new_callable=AsyncMock,
+        ) as batch_resume:
             await cancel_all_handler(MagicMock())
 
         batch_resume.assert_called_once()
@@ -688,7 +694,7 @@ class TestServiceHandlerContracts:
         call.data = {ATTR_ENTITY_ID: ["automation.scheduled", "automation.unknown"]}
 
         with patch(
-            "custom_components.autosnooze.services.async_cancel_scheduled_batch",
+            "custom_components.autosnooze.application.scheduled.async_cancel_scheduled_batch",
             new_callable=AsyncMock,
         ) as batch_cancel:
             await cancel_scheduled_handler(call)
@@ -719,7 +725,7 @@ class TestServiceHandlerContracts:
         call.data = {ATTR_ENTITY_ID: ["automation.a", "automation.b"], "hours": 1, "minutes": -30}
 
         with patch(
-            "custom_components.autosnooze.services.async_adjust_snooze_batch",
+            "custom_components.autosnooze.application.adjust.async_adjust_snooze_batch",
             new_callable=AsyncMock,
         ) as batch_adjust:
             await adjust_handler(call)

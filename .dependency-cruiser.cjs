@@ -56,6 +56,29 @@ module.exports = {
       },
     },
     {
+      name: 'no-cross-feature-imports',
+      severity: 'error',
+      comment: 'Feature slices should not depend directly on one another.',
+      from: {
+        path: '^src/features/',
+      },
+      to: {
+        path: '^src/features/',
+      },
+    },
+    {
+      name: 'components-no-direct-services-or-state',
+      severity: 'warn',
+      comment: 'Components should prefer feature modules over direct service/state imports as slices are extracted.',
+      from: {
+        path: '^src/components/',
+        pathNot: '^src/components/autosnooze-(card|automation-list|duration-selector|active-pauses)\\.ts$',
+      },
+      to: {
+        path: '^src/(services|state)/',
+      },
+    },
+    {
       name: 'state-no-ui-or-service-dependencies',
       severity: 'error',
       comment: 'State helpers should remain framework-agnostic and not depend on UI, styles, localization, or services.',

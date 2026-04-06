@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import asyncio
-from collections.abc import Callable
 from datetime import datetime, timedelta
 import logging
 from time import perf_counter
@@ -11,26 +10,34 @@ from typing import Any
 
 from homeassistant.const import ATTR_ENTITY_ID, ATTR_FRIENDLY_NAME
 from homeassistant.exceptions import ServiceValidationError
-from homeassistant.core import HomeAssistant, callback
+from homeassistant.core import HomeAssistant
 from homeassistant.helpers.event import async_track_point_in_time
 from homeassistant.util import dt as dt_util
 
 from .const import (
     DOMAIN,
     MAX_RESUME_RETRIES,
-    MAX_SAVE_RETRIES,
     MIN_ADJUST_BUFFER,
     RESUME_RETRY_DELAY,
-    SAVE_RETRY_DELAYS,
     SCHEDULED_DISABLE_RETRY_DELAY,
-    TRANSIENT_ERRORS,
 )
+from .infrastructure.storage import async_save as infrastructure_async_save
 from .logging_utils import _log_command, _raise_save_failed
 from .models import (
     AutomationPauseData,
     PausedAutomation,
     ScheduledSnooze,
-    parse_datetime_utc,
+)
+from .runtime.restore import (
+    async_load_stored as runtime_async_load_stored,
+    validate_stored_data as runtime_validate_stored_data,
+    validate_stored_entry as runtime_validate_stored_entry,
+)
+from .runtime.timers import (
+    cancel_scheduled_timer as runtime_cancel_scheduled_timer,
+    cancel_timer as runtime_cancel_timer,
+    schedule_disable as runtime_schedule_disable,
+    schedule_resume as runtime_schedule_resume,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -63,20 +70,14 @@ def get_friendly_name(hass: HomeAssistant, entity_id: str) -> str:
     return entity_id
 
 
-def _cancel_timer_from_dict(timers: dict[str, Callable[[], None]], entity_id: str) -> None:
-    """Cancel and remove timer from given dict if exists."""
-    if unsub := timers.pop(entity_id, None):
-        unsub()
-
-
 def cancel_timer(data: AutomationPauseData, entity_id: str) -> None:
     """Cancel timer for entity if exists."""
-    _cancel_timer_from_dict(data.timers, entity_id)
+    runtime_cancel_timer(data, entity_id)
 
 
 def cancel_scheduled_timer(data: AutomationPauseData, entity_id: str) -> None:
     """Cancel scheduled timer for entity if exists."""
-    _cancel_timer_from_dict(data.scheduled_timers, entity_id)
+    runtime_cancel_scheduled_timer(data, entity_id)
 
 
 def schedule_resume(
@@ -86,16 +87,13 @@ def schedule_resume(
     resume_at: datetime,
 ) -> None:
     """Schedule automation to resume at specified time (FR-06: Auto-Re-enable)."""
-    cancel_timer(data, entity_id)
-
-    @callback
-    def on_timer(_now: datetime) -> None:
-        # Check if integration is unloaded to prevent post-unload operations
-        if data.unloaded:
-            return
-        hass.async_create_task(async_resume(hass, data, entity_id))
-
-    data.timers[entity_id] = async_track_point_in_time(hass, on_timer, resume_at)
+    runtime_schedule_resume(
+        hass,
+        data,
+        entity_id,
+        resume_at,
+        track_point_in_time=async_track_point_in_time,
+    )
 
 
 async def async_resume(hass: HomeAssistant, data: AutomationPauseData, entity_id: str) -> None:
@@ -281,18 +279,13 @@ def schedule_disable(
     scheduled: ScheduledSnooze,
 ) -> None:
     """Schedule automation to be disabled at a future time."""
-    cancel_scheduled_timer(data, entity_id)
-
-    @callback
-    def on_disable_timer(_now: datetime) -> None:
-        # Check if integration is unloaded to prevent post-unload operations
-        if data.unloaded:
-            return
-        current = data.scheduled.get(entity_id)
-        resume_at = current.resume_at if current is not None else scheduled.resume_at
-        hass.async_create_task(async_execute_scheduled_disable(hass, data, entity_id, resume_at))
-
-    data.scheduled_timers[entity_id] = async_track_point_in_time(hass, on_disable_timer, scheduled.disable_at)
+    runtime_schedule_disable(
+        hass,
+        data,
+        entity_id,
+        scheduled,
+        track_point_in_time=async_track_point_in_time,
+    )
 
 
 async def async_execute_scheduled_disable(
@@ -418,42 +411,7 @@ async def async_save(data: AutomationPauseData) -> bool:
     Returns:
         True if save succeeded, False if all retries exhausted.
     """
-    if data.store is None:
-        return True  # Nothing to save, consider success
-
-    save_data = {
-        "paused": data.get_paused_dict(),
-        "scheduled": data.get_scheduled_dict(),
-    }
-
-    last_error = None
-    for attempt in range(MAX_SAVE_RETRIES + 1):  # Initial + retries
-        try:
-            await data.store.async_save(save_data)
-            return True
-        except TRANSIENT_ERRORS as err:
-            last_error = err
-            if attempt < MAX_SAVE_RETRIES:
-                delay = SAVE_RETRY_DELAYS[attempt]
-                _LOGGER.warning(
-                    "Save attempt %d failed, retrying in %.1fs: %s",
-                    attempt + 1,
-                    delay,
-                    err,
-                )
-                await asyncio.sleep(delay)
-        except Exception as err:
-            # Non-transient error - don't retry
-            _LOGGER.error("Failed to save data: %s", err)
-            return False
-
-    # All retries exhausted
-    _LOGGER.error(
-        "Failed to save data after %d attempts: %s",
-        MAX_SAVE_RETRIES + 1,
-        last_error,
-    )
-    return False
+    return await infrastructure_async_save(data, sleep=asyncio.sleep)
 
 
 def validate_stored_entry(
@@ -471,76 +429,7 @@ def validate_stored_entry(
     Returns:
         True if valid, False if invalid.
     """
-    # Validate entity ID format
-    if not entity_id.startswith("automation."):
-        _LOGGER.warning(
-            "Invalid entity_id %s: not an automation entity",
-            entity_id,
-        )
-        return False
-
-    # Validate data is a dict
-    if not isinstance(entry_data, dict):
-        _LOGGER.warning(
-            "Invalid data for %s: expected dict, got %s",
-            entity_id,
-            type(entry_data).__name__,
-        )
-        return False
-
-    # Validate required fields exist
-    if entry_type == "paused":
-        required = ["resume_at", "paused_at"]
-    else:  # scheduled
-        required = ["disable_at", "resume_at"]
-
-    for field_name in required:
-        if field_name not in entry_data:
-            _LOGGER.warning(
-                "Invalid data for %s: missing required field '%s'",
-                entity_id,
-                field_name,
-            )
-            return False
-
-    # Validate datetime fields
-    for field_name in required:
-        try:
-            parse_datetime_utc(entry_data[field_name])
-        except (ValueError, TypeError) as err:
-            _LOGGER.warning(
-                "Invalid data for %s: invalid datetime in '%s': %s",
-                entity_id,
-                field_name,
-                err,
-            )
-            return False
-
-    # Validate numeric fields are non-negative (for paused entries)
-    if entry_type == "paused":
-        for field_name in ["days", "hours", "minutes"]:
-            value = entry_data.get(field_name, 0)
-            if not isinstance(value, (int, float)) or value < 0:
-                _LOGGER.warning(
-                    "Invalid data for %s: %s must be non-negative, got %s",
-                    entity_id,
-                    field_name,
-                    value,
-                )
-                return False
-
-    # Validate scheduled entry has disable_at < resume_at
-    if entry_type == "scheduled":
-        disable_at = parse_datetime_utc(entry_data["disable_at"])
-        resume_at = parse_datetime_utc(entry_data["resume_at"])
-        if resume_at <= disable_at:
-            _LOGGER.warning(
-                "Invalid scheduled snooze for %s: resume_at must be after disable_at",
-                entity_id,
-            )
-            return False
-
-    return True
+    return runtime_validate_stored_entry(entity_id, entry_data, entry_type)
 
 
 def validate_stored_data(stored: Any) -> dict[str, Any]:
@@ -548,155 +437,9 @@ def validate_stored_data(stored: Any) -> dict[str, Any]:
 
     Returns validated data with invalid entries removed.
     """
-    # Handle completely invalid storage
-    if not isinstance(stored, dict):
-        _LOGGER.error(
-            "Corrupted storage: expected dict, got %s",
-            type(stored).__name__,
-        )
-        return {"paused": {}, "scheduled": {}}
-
-    result: dict[str, Any] = {"paused": {}, "scheduled": {}}
-    invalid_count = 0
-
-    # Validate paused entries
-    paused = stored.get("paused", {})
-    if isinstance(paused, dict):
-        for entity_id, entry_data in paused.items():
-            if validate_stored_entry(entity_id, entry_data, "paused"):
-                result["paused"][entity_id] = entry_data
-            else:
-                invalid_count += 1
-    else:
-        _LOGGER.warning(
-            "Invalid 'paused' schema: expected dict, got %s",
-            type(paused).__name__,
-        )
-
-    # Validate scheduled entries
-    scheduled = stored.get("scheduled", {})
-    if isinstance(scheduled, dict):
-        for entity_id, entry_data in scheduled.items():
-            if validate_stored_entry(entity_id, entry_data, "scheduled"):
-                result["scheduled"][entity_id] = entry_data
-            else:
-                invalid_count += 1
-    else:
-        _LOGGER.warning(
-            "Invalid 'scheduled' schema: expected dict, got %s",
-            type(scheduled).__name__,
-        )
-
-    if invalid_count > 0:
-        _LOGGER.info(
-            "Skipped %d invalid entries during storage load",
-            invalid_count,
-        )
-
-    return result
+    return runtime_validate_stored_data(stored)
 
 
 async def async_load_stored(hass: HomeAssistant, data: AutomationPauseData) -> None:
     """Load and restore snoozed automations from storage (FR-07: Persistence)."""
-    if data.store is None:
-        return
-
-    try:
-        stored = await data.store.async_load()
-    except Exception as err:
-        _LOGGER.error("Failed to load stored data: %s", err)
-        return
-
-    if not stored:
-        return
-
-    # Validate stored data before processing
-    validated = validate_stored_data(stored)
-
-    now = dt_util.utcnow()
-    expired: list[str] = []
-    expired_scheduled: list[str] = []
-
-    async with data.lock:
-        # Load paused automations
-        for entity_id, info in validated.get("paused", {}).items():
-            try:
-                # DEF-015 NOTE: This existence check is an optimization to avoid unnecessary
-                # service calls. If entity is deleted between check and disable call (TOCTOU),
-                # async_set_automation_state handles it gracefully by returning False.
-                if hass.states.get(entity_id) is None:
-                    _LOGGER.info("Cleaning up deleted automation from storage: %s", entity_id)
-                    expired.append(entity_id)
-                    continue
-
-                paused = PausedAutomation.from_dict(entity_id, info)
-                if paused.resume_at <= now:
-                    expired.append(entity_id)
-                else:
-                    # Try to disable first - only track if disable succeeds
-                    if await async_set_automation_state(hass, entity_id, enabled=False):
-                        data.paused[entity_id] = paused
-                        schedule_resume(hass, data, entity_id, paused.resume_at)
-                    else:
-                        # DEF-012 FIX: Clean up storage entries that can't be restored
-                        _LOGGER.warning(
-                            "Failed to restore paused state for %s, removing from storage",
-                            entity_id,
-                        )
-                        expired.append(entity_id)
-            except (KeyError, ValueError) as err:
-                _LOGGER.warning("Invalid stored data for %s: %s", entity_id, err)
-                expired.append(entity_id)
-
-        # Load scheduled snoozes
-        for entity_id, info in validated.get("scheduled", {}).items():
-            try:
-                # Check if automation still exists - clean up deleted automations
-                if hass.states.get(entity_id) is None:
-                    _LOGGER.info(
-                        "Cleaning up deleted automation from scheduled storage: %s",
-                        entity_id,
-                    )
-                    expired_scheduled.append(entity_id)
-                    continue
-
-                scheduled = ScheduledSnooze.from_dict(entity_id, info)
-                if scheduled.disable_at <= now:
-                    # Should have already disabled, check if resume is also past
-                    if scheduled.resume_at <= now:
-                        expired_scheduled.append(entity_id)
-                    else:
-                        # Disable now and schedule resume - only track if disable succeeds
-                        if await async_set_automation_state(hass, entity_id, enabled=False):
-                            paused = PausedAutomation(
-                                entity_id=entity_id,
-                                friendly_name=scheduled.friendly_name,
-                                resume_at=scheduled.resume_at,
-                                paused_at=now,
-                                disable_at=scheduled.disable_at,
-                            )
-                            data.paused[entity_id] = paused
-                            schedule_resume(hass, data, entity_id, scheduled.resume_at)
-                        else:
-                            # DEF-012 FIX: Clean up storage entries that can't be restored
-                            _LOGGER.warning(
-                                "Failed to execute scheduled disable for %s, removing from storage",
-                                entity_id,
-                            )
-                            expired_scheduled.append(entity_id)
-                else:
-                    data.scheduled[entity_id] = scheduled
-                    schedule_disable(hass, data, entity_id, scheduled)
-            except (KeyError, ValueError) as err:
-                _LOGGER.warning("Invalid scheduled data for %s: %s", entity_id, err)
-                expired_scheduled.append(entity_id)
-
-        # FR-06: Auto-Re-enable expired automations
-        for entity_id in expired:
-            await async_set_automation_state(hass, entity_id, enabled=True)
-
-        if expired or expired_scheduled:
-            await async_save(data)
-
-    # Notify listeners to update UI with loaded state
-    data.notify()
+    await runtime_async_load_stored(hass, data)

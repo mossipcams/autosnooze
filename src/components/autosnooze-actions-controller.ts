@@ -6,28 +6,26 @@
 import type { HomeAssistant } from '../types/hass.js';
 import type { PauseServiceParams } from '../types/automation.js';
 import {
+  runUndoFeature,
+  runWakeAllFeature,
+  runWakeFeature,
+} from '../features/resume/index.js';
+import {
   adjustSnooze,
   cancelScheduled,
   pauseAutomations,
-  wakeAll,
-  wakeAutomation,
-} from '../services/index.js';
-
-interface UndoActionResult {
-  succeeded: string[];
-  failed: string[];
-}
+} from '../services/snooze.js';
 
 export async function runPauseAction(hass: HomeAssistant, params: PauseServiceParams): Promise<void> {
   await pauseAutomations(hass, params);
 }
 
 export async function runWakeAction(hass: HomeAssistant, entityId: string): Promise<void> {
-  await wakeAutomation(hass, entityId);
+  await runWakeFeature(hass, entityId);
 }
 
 export async function runWakeAllAction(hass: HomeAssistant): Promise<void> {
-  await wakeAll(hass);
+  await runWakeAllFeature(hass);
 }
 
 export async function runCancelScheduledAction(hass: HomeAssistant, entityId: string): Promise<void> {
@@ -46,28 +44,6 @@ export async function runUndoAction(
   hass: HomeAssistant,
   entityIds: string[],
   options: { wasScheduleMode: boolean; hadDisableAt: boolean }
-): Promise<UndoActionResult> {
-  const undoCall = options.wasScheduleMode && options.hadDisableAt
-    ? (entityId: string) => cancelScheduled(hass, entityId)
-    : (entityId: string) => wakeAutomation(hass, entityId);
-
-  const settled = await Promise.allSettled(entityIds.map((entityId) => undoCall(entityId)));
-
-  const succeeded: string[] = [];
-  const failed: string[] = [];
-
-  settled.forEach((result, index) => {
-    const entityId = entityIds[index];
-    if (!entityId) {
-      return;
-    }
-
-    if (result.status === 'fulfilled') {
-      succeeded.push(entityId);
-    } else {
-      failed.push(entityId);
-    }
-  });
-
-  return { succeeded, failed };
+): Promise<{ succeeded: string[]; failed: string[] }> {
+  return runUndoFeature(hass, entityIds, options);
 }
