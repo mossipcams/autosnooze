@@ -2,7 +2,7 @@
   "absolute": true,
   "threshold": 0,
   "minLines": 10,
-  "minTokens": 80,
+  "minTokens": 60,
   "mode": "strict",
   "gitignore": true,
   "reporters": [
@@ -13,7 +13,7 @@
     "**/*.d.ts",
     "**/*.spec.ts",
     "**/*.test.ts",
-    "**/index.ts",
+    "src/index.ts",
     "src/styles/**",
     "src/localization/translations/**"
   ]
