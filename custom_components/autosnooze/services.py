@@ -28,6 +28,10 @@ from .const import (
     PAUSE_BY_LABEL_SCHEMA,
     PAUSE_SCHEMA,
 )
+from .application.pause import async_handle_pause_service
+from .application.resume import async_handle_cancel_all_service, async_handle_cancel_service
+from .application.scheduled import async_handle_cancel_scheduled_service
+from .application.adjust import async_handle_adjust_service
 from .logging_utils import _log_command, _raise_save_failed
 from .coordinator import (
     async_adjust_snooze,
@@ -197,53 +201,65 @@ async def async_pause_automations(
             resume_at = now + timedelta(days=days, hours=hours, minutes=minutes)
             use_scheduled = False
 
-        # Use lock to prevent concurrent state modifications
-        async with data.lock:
-            for entity_id in entity_ids:
-                # Validation already done above (DEF-010 fix)
-                friendly_name = get_friendly_name(hass, entity_id)
+        scheduled_entries: list[ScheduledSnooze] = []
+        paused_entries: list[PausedAutomation] = []
 
-                if use_scheduled:
-                    # Schedule future disable (disable_at is guaranteed non-None when use_scheduled is True)
-                    assert disable_at is not None
-                    scheduled = ScheduledSnooze(
+        for entity_id in entity_ids:
+            # Validation already done above (DEF-010 fix)
+            friendly_name = get_friendly_name(hass, entity_id)
+
+            if use_scheduled:
+                # Schedule future disable (disable_at is guaranteed non-None when use_scheduled is True)
+                assert disable_at is not None
+                scheduled_entries.append(
+                    ScheduledSnooze(
                         entity_id=entity_id,
                         friendly_name=friendly_name,
                         disable_at=disable_at,
                         resume_at=resume_at,
                     )
-                    data.scheduled[entity_id] = scheduled
-                    schedule_disable(hass, data, entity_id, scheduled)
-                    _LOGGER.info(
-                        "Scheduled snooze for %s: disable at %s, resume at %s",
-                        entity_id,
-                        disable_at,
-                        resume_at,
-                    )
-                else:
-                    # Immediate disable
-                    if not await async_set_automation_state(hass, entity_id, enabled=False):
-                        continue
+                )
+                continue
 
-                    # If using date-based scheduling (resume_at_dt provided), store disable_at
-                    # to indicate this was a schedule-mode snooze (for UI display)
-                    schedule_mode_disable_at = (
-                        disable_at if disable_at is not None else (now if resume_at_dt is not None else None)
-                    )
+            # Immediate disable happens outside the lock so slow HA service calls
+            # do not block unrelated operations from observing or mutating state.
+            if not await async_set_automation_state(hass, entity_id, enabled=False):
+                continue
 
-                    data.paused[entity_id] = PausedAutomation(
-                        entity_id=entity_id,
-                        friendly_name=friendly_name,
-                        resume_at=resume_at,
-                        paused_at=now,
-                        days=days,
-                        hours=hours,
-                        minutes=minutes,
-                        disable_at=schedule_mode_disable_at,
-                    )
+            # If using date-based scheduling (resume_at_dt provided), store disable_at
+            # to indicate this was a schedule-mode snooze (for UI display)
+            schedule_mode_disable_at = (
+                disable_at if disable_at is not None else (now if resume_at_dt is not None else None)
+            )
+            paused_entries.append(
+                PausedAutomation(
+                    entity_id=entity_id,
+                    friendly_name=friendly_name,
+                    resume_at=resume_at,
+                    paused_at=now,
+                    days=days,
+                    hours=hours,
+                    minutes=minutes,
+                    disable_at=schedule_mode_disable_at,
+                )
+            )
 
-                    schedule_resume(hass, data, entity_id, resume_at)
-                    _LOGGER.info("Snoozed %s until %s", entity_id, resume_at)
+        # Use lock only while mutating in-memory state and persisting it.
+        async with data.lock:
+            for scheduled in scheduled_entries:
+                data.scheduled[scheduled.entity_id] = scheduled
+                schedule_disable(hass, data, scheduled.entity_id, scheduled)
+                _LOGGER.info(
+                    "Scheduled snooze for %s: disable at %s, resume at %s",
+                    scheduled.entity_id,
+                    scheduled.disable_at,
+                    scheduled.resume_at,
+                )
+
+            for paused in paused_entries:
+                data.paused[paused.entity_id] = paused
+                schedule_resume(hass, data, paused.entity_id, paused.resume_at)
+                _LOGGER.info("Snoozed %s until %s", paused.entity_id, paused.resume_at)
 
             if not await async_save(data):
                 _raise_save_failed()
@@ -260,46 +276,15 @@ def register_services(hass: HomeAssistant, data: AutomationPauseData) -> None:
 
     async def handle_pause(call: ServiceCall) -> None:
         """Handle snooze service call."""
-        if data.unloaded:
-            return
-
-        entity_ids = call.data[ATTR_ENTITY_ID]
-        confirm = call.data.get("confirm", False)
-        days = call.data.get("days", 0)
-        hours = call.data.get("hours", 0)
-        minutes = call.data.get("minutes", 0)
-        # Ensure datetimes from service calls are UTC-aware
-        disable_at = ensure_utc_aware(call.data.get("disable_at"))
-        resume_at_dt = ensure_utc_aware(call.data.get("resume_at"))
-        _validate_guardrails(hass, entity_ids, confirm=confirm)
-
-        await async_pause_automations(hass, data, entity_ids, days, hours, minutes, disable_at, resume_at_dt)
+        await async_handle_pause_service(hass, data, call)
 
     async def handle_cancel(call: ServiceCall) -> None:
         """Handle wake service call (FR-10: Early Wake Up)."""
-        if data.unloaded:
-            return
-
-        # DEF-011 FIX: Use batch resume for efficiency
-        entity_ids = call.data[ATTR_ENTITY_ID]
-        valid_ids = []
-        for entity_id in entity_ids:
-            if entity_id not in data.paused:
-                _LOGGER.warning("Automation %s is not snoozed", entity_id)
-                continue
-            valid_ids.append(entity_id)
-        if valid_ids:
-            await async_resume_batch(hass, data, valid_ids)
+        await async_handle_cancel_service(hass, data, call)
 
     async def handle_cancel_all(_call: ServiceCall) -> None:
         """Handle wake all service call."""
-        if data.unloaded:
-            return
-
-        # DEF-011 FIX: Use batch resume for single disk write
-        entity_ids = list(data.paused.keys())
-        if entity_ids:
-            await async_resume_batch(hass, data, entity_ids)
+        await async_handle_cancel_all_service(hass, data)
 
     async def _handle_pause_by_filter(
         call: ServiceCall,
@@ -348,38 +333,11 @@ def register_services(hass: HomeAssistant, data: AutomationPauseData) -> None:
 
     async def handle_cancel_scheduled(call: ServiceCall) -> None:
         """Handle cancel scheduled snooze service call."""
-        if data.unloaded:
-            return
-
-        entity_ids = call.data[ATTR_ENTITY_ID]
-        valid_ids = []
-        for entity_id in entity_ids:
-            if entity_id not in data.scheduled:
-                _LOGGER.warning("Automation %s has no scheduled snooze", entity_id)
-                continue
-            valid_ids.append(entity_id)
-        if valid_ids:
-            await async_cancel_scheduled_batch(hass, data, valid_ids)
+        await async_handle_cancel_scheduled_service(hass, data, call)
 
     async def handle_adjust(call: ServiceCall) -> None:
         """Handle adjust snooze service call."""
-        if data.unloaded:
-            return
-
-        entity_ids = call.data[ATTR_ENTITY_ID]
-        days = call.data.get("days", 0)
-        hours = call.data.get("hours", 0)
-        minutes = call.data.get("minutes", 0)
-
-        delta = timedelta(days=days, hours=hours, minutes=minutes)
-        if delta == timedelta():
-            raise ServiceValidationError(
-                "Adjustment must be non-zero",
-                translation_domain=DOMAIN,
-                translation_key="invalid_adjustment",
-            )
-
-        await async_adjust_snooze_batch(hass, data, entity_ids, delta)
+        await async_handle_adjust_service(hass, data, call)
 
     hass.services.async_register(DOMAIN, "pause", handle_pause, schema=PAUSE_SCHEMA)
     hass.services.async_register(DOMAIN, "cancel", handle_cancel, schema=CANCEL_SCHEMA)

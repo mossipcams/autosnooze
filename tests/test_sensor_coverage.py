@@ -91,10 +91,10 @@ class TestAutoSnoozeCountSensor:
         """Test extra_state_attributes when no data."""
         attrs = sensor.extra_state_attributes
 
-        assert "paused_automations" in attrs
-        assert "scheduled_snoozes" in attrs
-        assert attrs["paused_automations"] == {}
-        assert attrs["scheduled_snoozes"] == {}
+        assert "paused" in attrs
+        assert "scheduled" in attrs
+        assert attrs["paused"] == {}
+        assert attrs["scheduled"] == {}
 
     def test_extra_state_attributes_with_data(self, sensor: AutoSnoozeCountSensor, data: AutomationPauseData) -> None:
         """Test extra_state_attributes with paused and scheduled data."""
@@ -114,10 +114,10 @@ class TestAutoSnoozeCountSensor:
 
         attrs = sensor.extra_state_attributes
 
-        assert "automation.test1" in attrs["paused_automations"]
-        assert "automation.test2" in attrs["scheduled_snoozes"]
-        assert attrs["paused_automations"]["automation.test1"]["friendly_name"] == "Test 1"
-        assert attrs["scheduled_snoozes"]["automation.test2"]["friendly_name"] == "Test 2"
+        assert "automation.test1" in attrs["paused"]
+        assert "automation.test2" in attrs["scheduled"]
+        assert attrs["paused"]["automation.test1"]["friendly_name"] == "Test 1"
+        assert attrs["scheduled"]["automation.test2"]["friendly_name"] == "Test 2"
 
     @pytest.mark.asyncio
     async def test_async_added_to_hass_registers_listener(

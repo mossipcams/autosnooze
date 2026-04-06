@@ -2762,6 +2762,41 @@ describe('shouldUpdate optimization', () => {
     expect(card.shouldUpdate(changedProps)).toBe(false);
   });
 
+  test('shouldUpdate avoids fingerprint scans when only non-automation state changes', () => {
+    const sensor = { state: '0', attributes: { paused_automations: {}, scheduled_snoozes: {} } };
+    const automation = { state: 'on', attributes: { friendly_name: 'Test 1' } };
+    const entities = {};
+    const areas = {};
+    const oldHass = {
+      states: {
+        'automation.test1': automation,
+        'sensor.autosnooze_snoozed_automations': sensor,
+        'light.kitchen': { state: 'off' },
+      },
+      entities,
+      areas,
+    };
+    const newHass = {
+      states: {
+        'automation.test1': automation,
+        'sensor.autosnooze_snoozed_automations': sensor,
+        'light.kitchen': { state: 'on' },
+      },
+      entities,
+      areas,
+    };
+    card.hass = newHass;
+
+    const fingerprintSpy = vi.spyOn(card, '_getAutomationStateFingerprint');
+    const changedProps = new Map();
+    changedProps.set('hass', oldHass);
+
+    const result = card.shouldUpdate(changedProps);
+
+    expect(result).toBe(false);
+    expect(fingerprintSpy).not.toHaveBeenCalled();
+  });
+
   test('shouldUpdate avoids automation fingerprint scans when states reference is unchanged', () => {
     const sharedStates = {
       'automation.test1': { state: 'on', attributes: { friendly_name: 'Test 1' } },

@@ -5,6 +5,7 @@ These tests focus on the automation filtering and pause logic.
 
 from __future__ import annotations
 
+import asyncio
 from datetime import datetime, timedelta, timezone
 from homeassistant.const import ATTR_ENTITY_ID
 from homeassistant.exceptions import ServiceValidationError
@@ -386,6 +387,44 @@ class TestAsyncPauseAutomations:
 
         listener.assert_called()
 
+    @pytest.mark.asyncio
+    async def test_releases_lock_before_waiting_on_turn_off_service(self) -> None:
+        """Pause should not hold data.lock while awaiting automation turn-off."""
+        from custom_components.autosnooze.services import async_pause_automations
+        from custom_components.autosnooze.models import AutomationPauseData
+
+        mock_hass = MagicMock()
+        mock_hass.states.get.return_value = MagicMock(attributes={"friendly_name": "Test"})
+        mock_store = MagicMock()
+        mock_store.async_save = AsyncMock()
+        data = AutomationPauseData(store=mock_store)
+
+        service_started = asyncio.Event()
+        allow_service_finish = asyncio.Event()
+
+        async def slow_turn_off(*_args, **_kwargs) -> bool:
+            service_started.set()
+            await allow_service_finish.wait()
+            return True
+
+        with patch("custom_components.autosnooze.services.async_set_automation_state", side_effect=slow_turn_off):
+            pause_task = asyncio.create_task(async_pause_automations(mock_hass, data, ["automation.test"], hours=1))
+
+            await asyncio.wait_for(service_started.wait(), timeout=1)
+
+            acquired_while_pause_in_flight = False
+            try:
+                await asyncio.wait_for(data.lock.acquire(), timeout=0.05)
+                acquired_while_pause_in_flight = True
+            finally:
+                if acquired_while_pause_in_flight:
+                    data.lock.release()
+
+            allow_service_finish.set()
+            await pause_task
+
+        assert acquired_while_pause_in_flight is True
+
 
 class TestContainsGuardrailTerm:
     """Tests for _contains_guardrail_term function."""
@@ -650,7 +689,10 @@ class TestServiceHandlerContracts:
         call = MagicMock()
         call.data = {ATTR_ENTITY_ID: ["automation.exists", "automation.unknown"]}
 
-        with patch("custom_components.autosnooze.services.async_resume_batch", new_callable=AsyncMock) as batch_resume:
+        with patch(
+            "custom_components.autosnooze.application.resume.async_resume_batch",
+            new_callable=AsyncMock,
+        ) as batch_resume:
             await cancel_handler(call)
 
         batch_resume.assert_called_once_with(mock_hass, data, ["automation.exists"])
@@ -665,7 +707,10 @@ class TestServiceHandlerContracts:
         data.paused["automation.a"] = MagicMock(entity_id="automation.a", resume_at=now, paused_at=now)
         data.paused["automation.b"] = MagicMock(entity_id="automation.b", resume_at=now, paused_at=now)
 
-        with patch("custom_components.autosnooze.services.async_resume_batch", new_callable=AsyncMock) as batch_resume:
+        with patch(
+            "custom_components.autosnooze.application.resume.async_resume_batch",
+            new_callable=AsyncMock,
+        ) as batch_resume:
             await cancel_all_handler(MagicMock())
 
         batch_resume.assert_called_once()
@@ -688,7 +733,7 @@ class TestServiceHandlerContracts:
         call.data = {ATTR_ENTITY_ID: ["automation.scheduled", "automation.unknown"]}
 
         with patch(
-            "custom_components.autosnooze.services.async_cancel_scheduled_batch",
+            "custom_components.autosnooze.application.scheduled.async_cancel_scheduled_batch",
             new_callable=AsyncMock,
         ) as batch_cancel:
             await cancel_scheduled_handler(call)
@@ -719,7 +764,7 @@ class TestServiceHandlerContracts:
         call.data = {ATTR_ENTITY_ID: ["automation.a", "automation.b"], "hours": 1, "minutes": -30}
 
         with patch(
-            "custom_components.autosnooze.services.async_adjust_snooze_batch",
+            "custom_components.autosnooze.application.adjust.async_adjust_snooze_batch",
             new_callable=AsyncMock,
         ) as batch_adjust:
             await adjust_handler(call)

@@ -5,7 +5,7 @@
 
 import { beforeEach, describe, expect, test, vi } from 'vitest';
 
-vi.mock('../src/services/index.js', () => ({
+vi.mock('../src/services/snooze.js', () => ({
   pauseAutomations: vi.fn(),
   wakeAutomation: vi.fn(),
   wakeAll: vi.fn(),
@@ -27,7 +27,7 @@ import {
   pauseAutomations,
   wakeAll,
   wakeAutomation,
-} from '../src/services/index.js';
+} from '../src/services/snooze.js';
 
 describe('Actions Controller', () => {
   beforeEach(() => {

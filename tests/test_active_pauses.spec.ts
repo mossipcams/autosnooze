@@ -131,6 +131,60 @@ describe('AutoSnoozeActivePauses Component', () => {
     vi.useRealTimers();
   });
 
+  it('should repaint wake-all button state immediately after first tap', async () => {
+    vi.useFakeTimers();
+    const { AutoSnoozeActivePauses } = await import('../src/components/autosnooze-active-pauses.js');
+    if (!customElements.get('autosnooze-active-pauses')) {
+      customElements.define('autosnooze-active-pauses', AutoSnoozeActivePauses);
+    }
+
+    const el = new AutoSnoozeActivePauses();
+    const futureDate = new Date(Date.now() + 3600000).toISOString();
+    el.pausedCount = 2;
+    el.pauseGroups = [{
+      resumeAt: futureDate,
+      automations: [
+        {
+          entity_id: 'automation.test_1',
+          friendly_name: 'Test Auto 1',
+          resume_at: futureDate,
+          paused_at: new Date().toISOString(),
+          days: 0,
+          hours: 1,
+          minutes: 0,
+        },
+        {
+          entity_id: 'automation.test_2',
+          friendly_name: 'Test Auto 2',
+          resume_at: futureDate,
+          paused_at: new Date().toISOString(),
+          days: 0,
+          hours: 1,
+          minutes: 0,
+        },
+      ],
+    }];
+
+    document.body.appendChild(el);
+    await el.updateComplete;
+
+    const wakeAll = el.shadowRoot?.querySelector<HTMLButtonElement>('.wake-all');
+    expect(wakeAll).not.toBeNull();
+    expect(wakeAll?.classList.contains('pending')).toBe(false);
+    const initialLabel = wakeAll?.textContent?.trim();
+
+    wakeAll?.click();
+    await el.updateComplete;
+
+    const updatedWakeAll = el.shadowRoot?.querySelector<HTMLButtonElement>('.wake-all');
+    expect(updatedWakeAll?.classList.contains('pending')).toBe(true);
+    expect(updatedWakeAll?.textContent?.trim()).not.toBe(initialLabel);
+    expect(updatedWakeAll?.textContent?.trim()).toBe('Confirm Resume All');
+
+    document.body.removeChild(el);
+    vi.useRealTimers();
+  });
+
   it('should clear timers on disconnectedCallback', async () => {
     vi.useFakeTimers();
     const { AutoSnoozeActivePauses } = await import('../src/components/autosnooze-active-pauses.js');

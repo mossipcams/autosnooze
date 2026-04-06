@@ -17,8 +17,66 @@ jobs:
   release-please:
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    outputs:
+      pr: ${{ steps.release.outputs.pr }}
+      prs_created: ${{ steps.release.outputs.prs_created }}
     steps:
-      - uses: googleapis/release-please-action@16a9c90856f42705d54a6fda1823352bdc62cf38 # v4
+      - id: release
+        uses: googleapis/release-please-action@16a9c90856f42705d54a6fda1823352bdc62cf38 # v4
         with:
           config-file: .github/release-please-config.json
           manifest-file: .github/.release-please-manifest.json
+
+  refresh-release-pr-artifacts:
+    needs: release-please
+    if: ${{ needs.release-please.outputs.prs_created == 'true' && needs.release-please.outputs.pr != '' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+    steps:
+      - name: Parse release PR metadata
+        id: pr
+        env:
+          RELEASE_PLEASE_PR: ${{ needs.release-please.outputs.pr }}
+        run: |
+          branch="$(printf '%s' "$RELEASE_PLEASE_PR" | jq -r '.headBranchName // empty')"
+          if [ -z "$branch" ]; then
+            echo "Unable to determine headBranchName from Release Please output"
+            exit 1
+          fi
+
+          echo "branch=$branch" >> "$GITHUB_OUTPUT"
+
+      - name: Checkout release PR branch
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v4
+        with:
+          fetch-depth: 0
+          ref: ${{ steps.pr.outputs.branch }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
+        with:
+          node-version: '20.19.0'
+          cache: 'npm'
+
+      - name: Install npm dependencies
+        run: npm ci
+
+      - name: Rebuild generated card artifact
+        run: npm run build
+
+      - name: Commit refreshed generated card artifact
+        env:
+          BRANCH_NAME: ${{ steps.pr.outputs.branch }}
+        run: |
+          if git diff --quiet -- custom_components/autosnooze/www/autosnooze-card.js custom_components/autosnooze/www/autosnooze-card.js.map; then
+            echo "Generated artifact already up to date."
+            exit 0
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add custom_components/autosnooze/www/autosnooze-card.js custom_components/autosnooze/www/autosnooze-card.js.map
+          git commit -m "build: refresh generated card artifact for release PR"
+          git push origin "HEAD:$BRANCH_NAME"
