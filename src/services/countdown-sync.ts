@@ -9,10 +9,10 @@ const DRIFT_RESYNC_THRESHOLD_MS = 50;
 
 function scheduleResync(state: CountdownState, onTick: () => void): void {
   const msUntilNextSecond = 1000 - (Date.now() % 1000);
-  state.syncTimeout = window.setTimeout(() => {
+  state.syncTimeout = globalThis.setTimeout(() => {
     state.syncTimeout = null;
     onTick();
-    state.interval = window.setInterval(() => {
+    state.interval = globalThis.setInterval(() => {
       onTick();
       const driftMs = Date.now() % 1000;
       if (driftMs > DRIFT_RESYNC_THRESHOLD_MS) {
@@ -32,11 +32,11 @@ export function startCountdownSync(onTick: () => void): CountdownState {
 
 export function stopCountdownSync(state: CountdownState): void {
   if (state.interval !== null) {
-    clearInterval(state.interval);
+    globalThis.clearInterval(state.interval);
     state.interval = null;
   }
   if (state.syncTimeout !== null) {
-    clearTimeout(state.syncTimeout);
+    globalThis.clearTimeout(state.syncTimeout);
     state.syncTimeout = null;
   }
 }
