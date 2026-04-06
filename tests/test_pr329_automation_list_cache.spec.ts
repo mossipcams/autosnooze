@@ -1,4 +1,4 @@
-// @ts-nocheck
+// @ts-nocheck: exercises private Lit element internals in a regression test
 import { afterEach, beforeEach, describe, expect, test } from 'vitest';
 
 import '../src/index.ts';
