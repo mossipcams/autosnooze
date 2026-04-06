@@ -3,6 +3,6 @@
  */
 
 export interface CountdownState {
-  interval: number | null;
-  syncTimeout: number | null;
+  interval: ReturnType<typeof globalThis.setInterval> | null;
+  syncTimeout: ReturnType<typeof globalThis.setTimeout> | null;
 }

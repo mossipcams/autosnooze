@@ -67,6 +67,17 @@ module.exports = {
       },
     },
     {
+      name: 'features-no-component-dependencies',
+      severity: 'error',
+      comment: 'Feature slices should depend on lower layers, not component orchestration.',
+      from: {
+        path: '^src/features/',
+      },
+      to: {
+        path: '^src/components/',
+      },
+    },
+    {
       name: 'components-no-direct-services-or-state',
       severity: 'warn',
       comment: 'Components should prefer feature modules over direct service/state imports as slices are extracted.',
