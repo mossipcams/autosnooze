@@ -201,53 +201,65 @@ async def async_pause_automations(
             resume_at = now + timedelta(days=days, hours=hours, minutes=minutes)
             use_scheduled = False
 
-        # Use lock to prevent concurrent state modifications
-        async with data.lock:
-            for entity_id in entity_ids:
-                # Validation already done above (DEF-010 fix)
-                friendly_name = get_friendly_name(hass, entity_id)
+        scheduled_entries: list[ScheduledSnooze] = []
+        paused_entries: list[PausedAutomation] = []
 
-                if use_scheduled:
-                    # Schedule future disable (disable_at is guaranteed non-None when use_scheduled is True)
-                    assert disable_at is not None
-                    scheduled = ScheduledSnooze(
+        for entity_id in entity_ids:
+            # Validation already done above (DEF-010 fix)
+            friendly_name = get_friendly_name(hass, entity_id)
+
+            if use_scheduled:
+                # Schedule future disable (disable_at is guaranteed non-None when use_scheduled is True)
+                assert disable_at is not None
+                scheduled_entries.append(
+                    ScheduledSnooze(
                         entity_id=entity_id,
                         friendly_name=friendly_name,
                         disable_at=disable_at,
                         resume_at=resume_at,
                     )
-                    data.scheduled[entity_id] = scheduled
-                    schedule_disable(hass, data, entity_id, scheduled)
-                    _LOGGER.info(
-                        "Scheduled snooze for %s: disable at %s, resume at %s",
-                        entity_id,
-                        disable_at,
-                        resume_at,
-                    )
-                else:
-                    # Immediate disable
-                    if not await async_set_automation_state(hass, entity_id, enabled=False):
-                        continue
+                )
+                continue
 
-                    # If using date-based scheduling (resume_at_dt provided), store disable_at
-                    # to indicate this was a schedule-mode snooze (for UI display)
-                    schedule_mode_disable_at = (
-                        disable_at if disable_at is not None else (now if resume_at_dt is not None else None)
-                    )
+            # Immediate disable happens outside the lock so slow HA service calls
+            # do not block unrelated operations from observing or mutating state.
+            if not await async_set_automation_state(hass, entity_id, enabled=False):
+                continue
 
-                    data.paused[entity_id] = PausedAutomation(
-                        entity_id=entity_id,
-                        friendly_name=friendly_name,
-                        resume_at=resume_at,
-                        paused_at=now,
-                        days=days,
-                        hours=hours,
-                        minutes=minutes,
-                        disable_at=schedule_mode_disable_at,
-                    )
+            # If using date-based scheduling (resume_at_dt provided), store disable_at
+            # to indicate this was a schedule-mode snooze (for UI display)
+            schedule_mode_disable_at = (
+                disable_at if disable_at is not None else (now if resume_at_dt is not None else None)
+            )
+            paused_entries.append(
+                PausedAutomation(
+                    entity_id=entity_id,
+                    friendly_name=friendly_name,
+                    resume_at=resume_at,
+                    paused_at=now,
+                    days=days,
+                    hours=hours,
+                    minutes=minutes,
+                    disable_at=schedule_mode_disable_at,
+                )
+            )
 
-                    schedule_resume(hass, data, entity_id, resume_at)
-                    _LOGGER.info("Snoozed %s until %s", entity_id, resume_at)
+        # Use lock only while mutating in-memory state and persisting it.
+        async with data.lock:
+            for scheduled in scheduled_entries:
+                data.scheduled[scheduled.entity_id] = scheduled
+                schedule_disable(hass, data, scheduled.entity_id, scheduled)
+                _LOGGER.info(
+                    "Scheduled snooze for %s: disable at %s, resume at %s",
+                    scheduled.entity_id,
+                    scheduled.disable_at,
+                    scheduled.resume_at,
+                )
+
+            for paused in paused_entries:
+                data.paused[paused.entity_id] = paused
+                schedule_resume(hass, data, paused.entity_id, paused.resume_at)
+                _LOGGER.info("Snoozed %s until %s", paused.entity_id, paused.resume_at)
 
             if not await async_save(data):
                 _raise_save_failed()

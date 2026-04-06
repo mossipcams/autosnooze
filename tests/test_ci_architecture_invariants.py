@@ -43,3 +43,16 @@ def test_repository_adapter_module_is_not_present() -> None:
 def test_scheduler_adapter_module_is_not_present() -> None:
     scheduler_path = Path(__file__).parent.parent / "custom_components" / "autosnooze" / "scheduler.py"
     assert not scheduler_path.exists()
+
+
+def test_mutation_frontend_tests_import_source_entrypoint() -> None:
+    tests_root = Path(__file__).parent
+    targeted_files = [
+        tests_root / "test_mutation_coverage.spec.ts",
+        tests_root / "test_mutation_operators.spec.ts",
+    ]
+
+    for path in targeted_files:
+        source = path.read_text(encoding="utf-8")
+        assert "../src/index.js" in source
+        assert "../custom_components/autosnooze/www/autosnooze-card.js" not in source

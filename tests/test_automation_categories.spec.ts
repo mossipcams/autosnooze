@@ -10,7 +10,7 @@
  */
 
 import { vi } from 'vitest';
-import '../custom_components/autosnooze/www/autosnooze-card.js';
+import '../src/index.js';
 import { queryAutomationList } from './helpers/query-helpers.js';
 
 describe('Categories Feature', () => {
@@ -221,6 +221,15 @@ describe('Categories Feature', () => {
       const listItems = list.shadowRoot.querySelectorAll('.list-item');
       // Should have rendered some interactive elements for the automations
       expect(listItems.length).toBeGreaterThan(0);
+    });
+
+    test('reuses filtered automations during a categories render', async () => {
+      const list = queryAutomationList(card);
+      const filteredSpy = vi.spyOn(list, '_getFilteredAutomations');
+      list._filterTab = 'categories';
+      await list.updateComplete;
+
+      expect(filteredSpy).toHaveBeenCalledTimes(1);
     });
   });
 });

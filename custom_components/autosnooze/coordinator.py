@@ -101,10 +101,11 @@ async def async_resume(hass: HomeAssistant, data: AutomationPauseData, entity_id
     # Check if integration is unloaded to prevent post-unload operations
     if data.unloaded:
         return
-    woke_successfully = False
+    # Perform the HA service call outside the state lock so a slow wake request
+    # does not block unrelated pause/resume operations.
+    woke_successfully = await async_set_automation_state(hass, entity_id, enabled=True)
     async with data.lock:
         paused = data.paused.get(entity_id)
-        woke_successfully = await async_set_automation_state(hass, entity_id, enabled=True)
         if woke_successfully:
             cancel_timer(data, entity_id)
             data.paused.pop(entity_id, None)
@@ -142,15 +143,24 @@ async def async_resume_batch(hass: HomeAssistant, data: AutomationPauseData, ent
         if not entity_ids:
             return
 
+        async with data.lock:
+            candidate_ids = [entity_id for entity_id in entity_ids if entity_id in data.paused]
+
+        results: dict[str, bool] = {}
+        for entity_id in candidate_ids:
+            # Keep HA service calls outside the state lock to avoid serializing
+            # unrelated operations behind slow wake requests.
+            results[entity_id] = await async_set_automation_state(hass, entity_id, enabled=True)
+
         failed = 0
         woke = 0
         async with data.lock:
-            for entity_id in entity_ids:
+            for entity_id in candidate_ids:
                 paused = data.paused.get(entity_id)
                 if paused is None:
                     continue
 
-                if await async_set_automation_state(hass, entity_id, enabled=True):
+                if results.get(entity_id) is True:
                     cancel_timer(data, entity_id)
                     data.paused.pop(entity_id, None)
                     woke += 1

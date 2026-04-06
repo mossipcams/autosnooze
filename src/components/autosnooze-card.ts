@@ -168,9 +168,7 @@ export class AutomationPauseCard extends LitElement {
       return false;
     }
 
-    const oldFingerprint = this._getAutomationStateFingerprint(oldStates);
-    const newFingerprint = this._getAutomationStateFingerprint(newStates);
-    return oldFingerprint !== newFingerprint;
+    return this._haveAutomationStatesChanged(oldStates, newStates);
   }
 
   updated(changedProps: PropertyValues): void {
@@ -328,6 +326,34 @@ export class AutomationPauseCard extends LitElement {
     this._lastAutomationFingerprintStates = states;
     this._lastAutomationFingerprint = fingerprint;
     return fingerprint;
+  }
+
+  private _haveAutomationStatesChanged(oldStates: HassEntities, newStates: HassEntities): boolean {
+    let oldAutomationCount = 0;
+
+    for (const [entityId, oldState] of Object.entries(oldStates)) {
+      if (!entityId.startsWith('automation.')) {
+        continue;
+      }
+
+      oldAutomationCount += 1;
+      if (!(entityId in newStates)) {
+        return true;
+      }
+
+      if (newStates[entityId] !== oldState) {
+        return true;
+      }
+    }
+
+    let newAutomationCount = 0;
+    for (const entityId of Object.keys(newStates)) {
+      if (entityId.startsWith('automation.')) {
+        newAutomationCount += 1;
+      }
+    }
+
+    return oldAutomationCount !== newAutomationCount;
   }
 
   private _getPaused(): Record<string, PausedAutomationAttribute> {

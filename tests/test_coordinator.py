@@ -6,6 +6,7 @@ Tests validation, save logic, scheduling, timers, and resume operations.
 
 from __future__ import annotations
 
+import asyncio
 from datetime import datetime, timedelta, timezone
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -950,6 +951,48 @@ class TestAsyncResume:
         assert "automation.test" in data.paused
         mock_schedule_resume.assert_called_once()
         mock_store.async_save.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_releases_lock_before_waiting_on_turn_on_service(self) -> None:
+        """Resume should not hold data.lock while awaiting automation turn-on."""
+        mock_hass = MagicMock()
+        mock_store = MagicMock()
+        mock_store.async_save = AsyncMock()
+        data = AutomationPauseData(store=mock_store)
+
+        now = datetime.now(UTC)
+        data.paused["automation.test"] = PausedAutomation(
+            entity_id="automation.test",
+            friendly_name="Test",
+            resume_at=now,
+            paused_at=now - timedelta(hours=1),
+        )
+
+        service_started = asyncio.Event()
+        allow_service_finish = asyncio.Event()
+
+        async def slow_turn_on(*_args, **_kwargs) -> bool:
+            service_started.set()
+            await allow_service_finish.wait()
+            return True
+
+        with patch("custom_components.autosnooze.coordinator.async_set_automation_state", side_effect=slow_turn_on):
+            resume_task = asyncio.create_task(async_resume(mock_hass, data, "automation.test"))
+
+            await asyncio.wait_for(service_started.wait(), timeout=1)
+
+            acquired_while_resume_in_flight = False
+            try:
+                await asyncio.wait_for(data.lock.acquire(), timeout=0.05)
+                acquired_while_resume_in_flight = True
+            finally:
+                if acquired_while_resume_in_flight:
+                    data.lock.release()
+
+            allow_service_finish.set()
+            await resume_task
+
+        assert acquired_while_resume_in_flight is True
 
 
 class TestAsyncResumeBatch:

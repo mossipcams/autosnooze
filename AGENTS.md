@@ -16,7 +16,17 @@ For any code change, follow this sequence:
 For each task after approval:
 1. Write failing test -> run it -> show failure
 2. Write minimal implementation -> run test -> show pass
-3. Continue through the remaining approved tasks until finished unless a blocker or high-risk decision requires a pause
+3. Ask: "Task N done. Continue?" and wait for approval before moving on
+
+## Architecture
+
+All implementation, refactoring, and reviews must follow `architecture.md`.
+
+- Treat `architecture.md` as the source of truth for module boundaries and dependency direction.
+- Keep the repo aligned with the modular-monolith and slice architecture introduced in PR #329.
+- Do not place orchestration in UI components when it belongs in feature or application modules.
+- Do not introduce upward imports that violate the preferred layer flow described in `architecture.md`.
+- Any intentional boundary exception should be treated as temporary and called out explicitly in the plan or review.
 
 ## Rules
 - Never implement without a failing test first

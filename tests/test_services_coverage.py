@@ -5,6 +5,7 @@ These tests focus on the automation filtering and pause logic.
 
 from __future__ import annotations
 
+import asyncio
 from datetime import datetime, timedelta, timezone
 from homeassistant.const import ATTR_ENTITY_ID
 from homeassistant.exceptions import ServiceValidationError
@@ -385,6 +386,44 @@ class TestAsyncPauseAutomations:
             )
 
         listener.assert_called()
+
+    @pytest.mark.asyncio
+    async def test_releases_lock_before_waiting_on_turn_off_service(self) -> None:
+        """Pause should not hold data.lock while awaiting automation turn-off."""
+        from custom_components.autosnooze.services import async_pause_automations
+        from custom_components.autosnooze.models import AutomationPauseData
+
+        mock_hass = MagicMock()
+        mock_hass.states.get.return_value = MagicMock(attributes={"friendly_name": "Test"})
+        mock_store = MagicMock()
+        mock_store.async_save = AsyncMock()
+        data = AutomationPauseData(store=mock_store)
+
+        service_started = asyncio.Event()
+        allow_service_finish = asyncio.Event()
+
+        async def slow_turn_off(*_args, **_kwargs) -> bool:
+            service_started.set()
+            await allow_service_finish.wait()
+            return True
+
+        with patch("custom_components.autosnooze.services.async_set_automation_state", side_effect=slow_turn_off):
+            pause_task = asyncio.create_task(async_pause_automations(mock_hass, data, ["automation.test"], hours=1))
+
+            await asyncio.wait_for(service_started.wait(), timeout=1)
+
+            acquired_while_pause_in_flight = False
+            try:
+                await asyncio.wait_for(data.lock.acquire(), timeout=0.05)
+                acquired_while_pause_in_flight = True
+            finally:
+                if acquired_while_pause_in_flight:
+                    data.lock.release()
+
+            allow_service_finish.set()
+            await pause_task
+
+        assert acquired_while_pause_in_flight is True
 
 
 class TestContainsGuardrailTerm:

@@ -5,7 +5,7 @@
  */
 
 import { LitElement, html } from 'lit';
-import { property } from 'lit/decorators.js';
+import { property, state } from 'lit/decorators.js';
 import { localize } from '../localization/localize.js';
 import { UI_TIMING } from '../constants/index.js';
 import { startCountdownSync, stopCountdownSync } from '../services/countdown-sync.js';
@@ -29,7 +29,7 @@ export class AutoSnoozeActivePauses extends LitElement {
   @property({ type: Number })
   pausedCount: number = 0;
 
-  _wakeAllPending: boolean = false;
+  @state() private _wakeAllPending: boolean = false;
 
   private _wakeAllTimeout: number | null = null;
   private _countdownState: CountdownState = { interval: null, syncTimeout: null };
