@@ -81,11 +81,7 @@ class AutoSnoozeCountSensor(SensorEntity):
 
         return {
             "schema_version": SENSOR_SCHEMA_VERSION,
-            # Normalized contract roots.
             "paused": paused,
             "scheduled": scheduled,
-            # Backward-compatible aliases for existing frontend clients.
-            "paused_automations": paused,
-            "scheduled_snoozes": scheduled,
             "duration_presets": presets,
         }

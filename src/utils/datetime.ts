@@ -2,31 +2,9 @@
  * Datetime utilities for AutoSnooze card.
  */
 
-interface DateTimeParts {
-  date: string; // YYYY-MM-DD
-  time: string; // HH:MM
-}
-
 interface DateOption {
   value: string; // YYYY-MM-DD
   label: string; // Human-readable label
-}
-
-/**
- * Get current date and time as separate parts.
- */
-export function getCurrentDateTime(): DateTimeParts {
-  const now = new Date();
-  const year = now.getFullYear();
-  const month = String(now.getMonth() + 1).padStart(2, '0');
-  const day = String(now.getDate()).padStart(2, '0');
-  const hours = String(now.getHours()).padStart(2, '0');
-  const minutes = String(now.getMinutes()).padStart(2, '0');
-
-  return {
-    date: `${year}-${month}-${day}`,
-    time: `${hours}:${minutes}`,
-  };
 }
 
 /**

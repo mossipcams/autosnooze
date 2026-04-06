@@ -25,8 +25,8 @@ def _assert_iso_datetime(value: str) -> None:
     assert parsed.tzinfo is not None
 
 
-def test_sensor_contract_exposes_paused_and_scheduled_roots() -> None:
-    """Sensor payload includes normalized roots plus backward-compatible aliases."""
+def test_sensor_contract_exposes_only_normalized_roots() -> None:
+    """Sensor payload publishes the versioned normalized roots only."""
     now = datetime.now(UTC)
     data = AutomationPauseData()
     data.paused["automation.kitchen"] = PausedAutomation(
@@ -50,10 +50,8 @@ def test_sensor_contract_exposes_paused_and_scheduled_roots() -> None:
     assert "paused" in attrs
     assert "scheduled" in attrs
     assert attrs["schema_version"] == SENSOR_SCHEMA_VERSION
-    assert "paused_automations" in attrs
-    assert "scheduled_snoozes" in attrs
-    assert attrs["paused"] == attrs["paused_automations"]
-    assert attrs["scheduled"] == attrs["scheduled_snoozes"]
+    assert "paused_automations" not in attrs
+    assert "scheduled_snoozes" not in attrs
 
 
 def test_sensor_contract_datetime_fields_are_iso8601() -> None:

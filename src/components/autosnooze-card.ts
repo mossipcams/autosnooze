@@ -8,7 +8,7 @@ import { property, state } from 'lit/decorators.js';
 import { localize } from '../localization/localize.js';
 import type { HomeAssistant, HassLabel, HassCategory, HassEntityRegistryEntry, HassEntities, PausedAutomationAttribute, ScheduledSnoozeAttribute } from '../types/hass.js';
 import type { AutoSnoozeCardConfig, HapticFeedbackType } from '../types/card.js';
-import type { AutomationItem, ParsedDuration, PauseGroup, PauseServiceParams } from '../types/automation.js';
+import type { AutomationItem, ParsedDuration, PauseGroup } from '../types/automation.js';
 import { cardStyles } from '../styles/card.styles.js';
 import { sharedPausedStyles } from '../styles/shared.styles.js';
 import {
@@ -22,26 +22,32 @@ import {
   fetchEntityRegistry,
 } from '../services/registry.js';
 import {
-  saveLastDuration,
   loadLastDuration,
   type LastDurationData,
 } from '../services/storage.js';
-import { formatDateTime, formatDuration } from '../utils/time-formatting.js';
-import { isDurationValid, durationToMinutes } from '../utils/duration-parsing.js';
-import { getCurrentDateTime, combineDateTime } from '../utils/datetime.js';
+import { formatDateTime } from '../utils/time-formatting.js';
+import { isDurationValid } from '../utils/duration-parsing.js';
 import { hapticFeedback } from '../utils/haptic.js';
 import { getErrorMessage } from '../utils/errors.js';
+import { runPauseFeature } from '../features/pause/index.js';
 import {
-  runAdjustAction,
-  runCancelScheduledAction,
-  runPauseAction,
-  runUndoAction,
-  runWakeAction,
-  runWakeAllAction,
-} from './autosnooze-actions-controller.js';
+  runUndoFeature,
+  runWakeAllFeature,
+  runWakeFeature,
+} from '../features/resume/index.js';
+import {
+  runAdjustFeature,
+  runCancelScheduledFeature,
+  validateScheduledPauseInput,
+} from '../features/scheduled-snooze/index.js';
+import {
+  createAdjustModalState,
+  createClosedAdjustModalState,
+  createScheduleModeState,
+} from '../features/card-shell/index.js';
 import {
   getAutomations,
-} from '../state/automations.js';
+} from '../features/automation-list/index.js';
 import {
   getPaused,
   getScheduled,
@@ -162,9 +168,7 @@ export class AutomationPauseCard extends LitElement {
       return false;
     }
 
-    const oldFingerprint = this._getAutomationStateFingerprint(oldStates);
-    const newFingerprint = this._getAutomationStateFingerprint(newStates);
-    return oldFingerprint !== newFingerprint;
+    return this._haveAutomationStatesChanged(oldStates, newStates);
   }
 
   updated(changedProps: PropertyValues): void {
@@ -324,6 +328,34 @@ export class AutomationPauseCard extends LitElement {
     return fingerprint;
   }
 
+  private _haveAutomationStatesChanged(oldStates: HassEntities, newStates: HassEntities): boolean {
+    let oldAutomationCount = 0;
+
+    for (const [entityId, oldState] of Object.entries(oldStates)) {
+      if (!entityId.startsWith('automation.')) {
+        continue;
+      }
+
+      oldAutomationCount += 1;
+      if (!(entityId in newStates)) {
+        return true;
+      }
+
+      if (newStates[entityId] !== oldState) {
+        return true;
+      }
+    }
+
+    let newAutomationCount = 0;
+    for (const entityId of Object.keys(newStates)) {
+      if (entityId.startsWith('automation.')) {
+        newAutomationCount += 1;
+      }
+    }
+
+    return oldAutomationCount !== newAutomationCount;
+  }
+
   private _getPaused(): Record<string, PausedAutomationAttribute> {
     if (!this.hass) return {};
     return getPaused(this.hass);
@@ -420,37 +452,6 @@ export class AutomationPauseCard extends LitElement {
     }, UI_TIMING.TOAST_DURATION_MS);
   }
 
-  private async _callPauseWithGuardrailConfirm(params: PauseServiceParams, forceConfirm: boolean = false): Promise<boolean> {
-    if (!this.hass) return false;
-    if (forceConfirm) {
-      await runPauseAction(this.hass, { ...params, confirm: true });
-      return true;
-    }
-
-    try {
-      await runPauseAction(this.hass, params);
-      return true;
-    } catch (error) {
-      const serviceError = error as { translation_key?: string; data?: { translation_key?: string } };
-      const translationKey = serviceError?.translation_key ?? serviceError?.data?.translation_key;
-      if (translationKey === 'confirm_required') {
-        this._guardrailConfirmOpen = true;
-        return false;
-      }
-      throw error;
-    }
-  }
-
-  private async _pauseAndEnsureCardReady(params: PauseServiceParams, forceConfirm: boolean = false): Promise<boolean> {
-    const didPause = await this._callPauseWithGuardrailConfirm(params, forceConfirm);
-    if (!didPause || !this.isConnected || !this.shadowRoot) {
-      this._loading = false;
-      return false;
-    }
-
-    return true;
-  }
-
   private async _snooze(forceConfirm: boolean = false): Promise<void> {
     if (this._selected.length === 0 || this._loading) return;
 
@@ -460,30 +461,22 @@ export class AutomationPauseCard extends LitElement {
         return;
       }
 
-      const disableAt = this._hasDisableAt()
-        ? combineDateTime(this._disableAtDate, this._disableAtTime)
-        : null;
-      const resumeAt = combineDateTime(this._resumeAtDate, this._resumeAtTime);
+      const scheduleValidation = validateScheduledPauseInput({
+        disableAtDate: this._disableAtDate,
+        disableAtTime: this._disableAtTime,
+        resumeAtDate: this._resumeAtDate,
+        resumeAtTime: this._resumeAtTime,
+        nowMs: Date.now() + UI_TIMING.TIME_VALIDATION_BUFFER_MS,
+      });
 
-      if (!resumeAt) {
-        this._showToast(localize(this.hass, 'toast.error.invalid_datetime'));
+      if (scheduleValidation.status === 'error') {
+        const message = scheduleValidation.message === 'Resume time is required'
+          ? localize(this.hass, 'toast.error.invalid_datetime')
+          : scheduleValidation.message === 'Resume time must be in the future'
+            ? localize(this.hass, 'toast.error.resume_time_past')
+            : localize(this.hass, 'toast.error.snooze_before_resume');
+        this._showToast(message);
         return;
-      }
-
-      const nowWithBuffer = Date.now() + UI_TIMING.TIME_VALIDATION_BUFFER_MS;
-      const resumeTime = new Date(resumeAt).getTime();
-
-      if (resumeTime <= nowWithBuffer) {
-        this._showToast(localize(this.hass, 'toast.error.resume_time_past'));
-        return;
-      }
-
-      if (disableAt) {
-        const disableTime = new Date(disableAt).getTime();
-        if (disableTime >= resumeTime) {
-          this._showToast(localize(this.hass, 'toast.error.snooze_before_resume'));
-          return;
-        }
       }
     } else {
       if (this._duration === 0) return;
@@ -501,70 +494,46 @@ export class AutomationPauseCard extends LitElement {
       const snoozedEntities = [...this._selected];
       const wasScheduleMode = this._scheduleMode;
       const hadDisableAt = this._hasDisableAt();
-      let toastMessage: string;
+      const pauseResult = await runPauseFeature({
+        hass: this.hass,
+        selected: this._selected,
+        scheduleMode: this._scheduleMode,
+        customDuration: this._customDuration,
+        disableAtDate: this._disableAtDate,
+        disableAtTime: this._disableAtTime,
+        resumeAtDate: this._resumeAtDate,
+        resumeAtTime: this._resumeAtTime,
+        forceConfirm,
+      });
 
-      if (this._scheduleMode) {
-        const disableAt = this._hasDisableAt()
-          ? combineDateTime(this._disableAtDate, this._disableAtTime)
-          : null;
-        const resumeAt = combineDateTime(this._resumeAtDate, this._resumeAtTime);
+      if (pauseResult.status === 'confirm_required') {
+        this._guardrailConfirmOpen = true;
+        this._loading = false;
+        return;
+      }
 
-        if (!resumeAt) {
-          this._loading = false;
-          return;
-        }
+      if (pauseResult.status === 'aborted') {
+        this._loading = false;
+        return;
+      }
 
-        const didPause = await this._pauseAndEnsureCardReady({
-          entity_id: this._selected,
-          resume_at: resumeAt,
-          ...(disableAt && { disable_at: disableAt }),
-        }, forceConfirm);
-        if (!didPause) {
-          return;
-        }
+      if (pauseResult.lastDuration) {
+        this._lastDuration = pauseResult.lastDuration;
+      }
 
-        if (disableAt) {
-          toastMessage = count === 1
-            ? localize(this.hass, 'toast.success.scheduled_one')
-            : localize(this.hass, 'toast.success.scheduled_many', { count });
-        } else {
-          const formattedTime = this._formatDateTime(resumeAt);
-          toastMessage = count === 1
-            ? localize(this.hass, 'toast.success.snoozed_until_one', { time: formattedTime })
-            : localize(this.hass, 'toast.success.snoozed_until_many', { count, time: formattedTime });
-        }
-      } else {
-        const { days, hours, minutes } = this._customDuration;
-
-        const didPause = await this._pauseAndEnsureCardReady({
-          entity_id: this._selected,
-          days,
-          hours,
-          minutes,
-        }, forceConfirm);
-        if (!didPause) {
-          return;
-        }
-
-        const durationText = formatDuration(days, hours, minutes);
-        toastMessage = count === 1
-          ? localize(this.hass, 'toast.success.snoozed_for_one', { duration: durationText })
-          : localize(this.hass, 'toast.success.snoozed_for_many', { count, duration: durationText });
-
-        // Save last used duration for quick re-use
-        const totalMinutes = durationToMinutes(this._customDuration);
-        saveLastDuration(this._customDuration, totalMinutes);
-        this._lastDuration = { minutes: totalMinutes, duration: this._customDuration, timestamp: Date.now() };
+      if (!this.isConnected || !this.shadowRoot) {
+        this._loading = false;
+        return;
       }
 
       this._hapticFeedback('success');
 
-      this._showToast(toastMessage, {
+      this._showToast(pauseResult.toastMessage, {
         showUndo: true,
         onUndo: async () => {
           try {
             if (!this.hass) return;
-            const undoResult = await runUndoAction(this.hass, snoozedEntities, {
+            const undoResult = await runUndoFeature(this.hass, snoozedEntities, {
               wasScheduleMode,
               hadDisableAt,
             });
@@ -608,7 +577,7 @@ export class AutomationPauseCard extends LitElement {
   private async _wake(entityId: string): Promise<void> {
     if (!this.hass) return;
     try {
-      await runWakeAction(this.hass, entityId);
+      await runWakeFeature(this.hass, entityId);
       this._hapticFeedback('success');
       if (this.isConnected && this.shadowRoot) {
         this._showToast(localize(this.hass, 'toast.success.resumed'));
@@ -629,7 +598,7 @@ export class AutomationPauseCard extends LitElement {
   private async _handleWakeAllEvent(): Promise<void> {
     if (!this.hass) return;
     try {
-      await runWakeAllAction(this.hass);
+      await runWakeAllFeature(this.hass);
       this._hapticFeedback('success');
       if (this.isConnected && this.shadowRoot) {
         this._showToast(localize(this.hass, 'toast.success.resumed_all'));
@@ -645,42 +614,43 @@ export class AutomationPauseCard extends LitElement {
 
 
   private _handleAdjustAutomationEvent(e: CustomEvent<{ entityId: string; friendlyName: string; resumeAt: string }>): void {
-    this._adjustModalOpen = true;
-    this._adjustModalEntityId = e.detail.entityId;
-    this._adjustModalFriendlyName = e.detail.friendlyName;
-    this._adjustModalResumeAt = e.detail.resumeAt;
-    this._adjustModalEntityIds = [];
-    this._adjustModalFriendlyNames = [];
+    const state = createAdjustModalState({
+      entityId: e.detail.entityId,
+      friendlyName: e.detail.friendlyName,
+      resumeAt: e.detail.resumeAt,
+    });
+    this._adjustModalOpen = state.adjustModalOpen;
+    this._adjustModalEntityId = state.adjustModalEntityId;
+    this._adjustModalFriendlyName = state.adjustModalFriendlyName;
+    this._adjustModalResumeAt = state.adjustModalResumeAt;
+    this._adjustModalEntityIds = state.adjustModalEntityIds;
+    this._adjustModalFriendlyNames = state.adjustModalFriendlyNames;
   }
 
   private _handleAdjustGroupEvent(
     e: CustomEvent<{ entityIds: string[]; friendlyNames: string[]; resumeAt: string }>
   ): void {
-    this._adjustModalOpen = true;
-    this._adjustModalEntityIds = e.detail.entityIds;
-    this._adjustModalFriendlyNames = e.detail.friendlyNames;
-    this._adjustModalEntityId = '';
-    this._adjustModalFriendlyName = '';
-    this._adjustModalResumeAt = e.detail.resumeAt;
+    const state = createAdjustModalState({
+      entityIds: e.detail.entityIds,
+      friendlyNames: e.detail.friendlyNames,
+      resumeAt: e.detail.resumeAt,
+    });
+    this._adjustModalOpen = state.adjustModalOpen;
+    this._adjustModalEntityIds = state.adjustModalEntityIds;
+    this._adjustModalFriendlyNames = state.adjustModalFriendlyNames;
+    this._adjustModalEntityId = state.adjustModalEntityId;
+    this._adjustModalFriendlyName = state.adjustModalFriendlyName;
+    this._adjustModalResumeAt = state.adjustModalResumeAt;
   }
 
   private async _handleAdjustTimeEvent(
     e: CustomEvent<{ entityId?: string; entityIds?: string[]; days?: number; hours?: number; minutes?: number }>
   ): Promise<void> {
     if (!this.hass) return;
-    const { entityId, entityIds, ...params } = e.detail;
-    const target = entityIds || entityId || '';
     try {
-      await runAdjustAction(this.hass, target, params);
+      const adjustResult = await runAdjustFeature(this.hass, e.detail, this._adjustModalResumeAt);
       this._hapticFeedback('success');
-
-      // Optimistic UI update: compute new resumeAt locally
-      const deltaMs =
-        ((params.days || 0) * TIME_MS.DAY) +
-        ((params.hours || 0) * TIME_MS.HOUR) +
-        ((params.minutes || 0) * TIME_MS.MINUTE);
-      const currentResumeAt = new Date(this._adjustModalResumeAt).getTime();
-      this._adjustModalResumeAt = new Date(currentResumeAt + deltaMs).toISOString();
+      this._adjustModalResumeAt = adjustResult.nextResumeAt;
 
       if (this.isConnected && this.shadowRoot) {
         this._showToast(localize(this.hass, 'toast.success.adjusted'));
@@ -695,18 +665,19 @@ export class AutomationPauseCard extends LitElement {
   }
 
   private _handleCloseModalEvent(): void {
-    this._adjustModalOpen = false;
-    this._adjustModalEntityId = '';
-    this._adjustModalFriendlyName = '';
-    this._adjustModalResumeAt = '';
-    this._adjustModalEntityIds = [];
-    this._adjustModalFriendlyNames = [];
+    const state = createClosedAdjustModalState();
+    this._adjustModalOpen = state.adjustModalOpen;
+    this._adjustModalEntityId = state.adjustModalEntityId;
+    this._adjustModalFriendlyName = state.adjustModalFriendlyName;
+    this._adjustModalResumeAt = state.adjustModalResumeAt;
+    this._adjustModalEntityIds = state.adjustModalEntityIds;
+    this._adjustModalFriendlyNames = state.adjustModalFriendlyNames;
   }
 
   private async _cancelScheduled(entityId: string): Promise<void> {
     if (!this.hass) return;
     try {
-      await runCancelScheduledAction(this.hass, entityId);
+      await runCancelScheduledFeature(this.hass, entityId);
       this._hapticFeedback('success');
       if (this.isConnected && this.shadowRoot) {
         this._showToast(localize(this.hass, 'toast.success.cancelled'));
@@ -742,24 +713,19 @@ export class AutomationPauseCard extends LitElement {
   }
 
   private _handleScheduleModeChange(e: CustomEvent<{ enabled: boolean }>): void {
-    this._scheduleMode = e.detail.enabled;
-    if (e.detail.enabled) {
-      const now = new Date();
-      const { date, time } = getCurrentDateTime();
-      const resumeMinutes = this._lastDuration?.minutes ?? DEFAULT_SNOOZE_MINUTES;
-      const resumeDate = new Date(now.getTime() + (resumeMinutes * TIME_MS.MINUTE));
-
-      const resumeYear = resumeDate.getFullYear();
-      const resumeMonth = String(resumeDate.getMonth() + 1).padStart(2, '0');
-      const resumeDay = String(resumeDate.getDate()).padStart(2, '0');
-      const resumeHours = String(resumeDate.getHours()).padStart(2, '0');
-      const resumeMins = String(resumeDate.getMinutes()).padStart(2, '0');
-
-      this._disableAtDate = date;
-      this._disableAtTime = time;
-      this._resumeAtDate = `${resumeYear}-${resumeMonth}-${resumeDay}`;
-      this._resumeAtTime = `${resumeHours}:${resumeMins}`;
+    const scheduleState = createScheduleModeState({
+      enabled: e.detail.enabled,
+      now: new Date(),
+      resumeMinutes: this._lastDuration?.minutes ?? DEFAULT_SNOOZE_MINUTES,
+    });
+    this._scheduleMode = scheduleState.scheduleMode;
+    if (!e.detail.enabled) {
+      return;
     }
+    this._disableAtDate = scheduleState.disableAtDate;
+    this._disableAtTime = scheduleState.disableAtTime;
+    this._resumeAtDate = scheduleState.resumeAtDate;
+    this._resumeAtTime = scheduleState.resumeAtTime;
   }
 
   private _handleScheduleFieldChange(e: CustomEvent<{ field: string; value: string }>): void {

@@ -11,6 +11,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers import label_registry as lr
 from homeassistant.helpers.storage import Store
 
+from .application.setup import async_setup_integration_entry
 from .const import (
     CARD_PATH,
     CARD_URL,
@@ -97,44 +98,19 @@ async def _async_ensure_labels_exist(hass: HomeAssistant) -> None:
 
 async def async_setup_entry(hass: HomeAssistant, entry: AutomationPauseConfigEntry) -> bool:
     """Set up AutoSnooze from a config entry."""
-    store = Store[dict[str, Any]](hass, STORAGE_VERSION, f"{DOMAIN}.storage")
-    data = AutomationPauseData(store=store, hass=hass)
-    entry.runtime_data = data
-
-    # Register static path to serve the JS file (required for both methods)
-    await _async_register_static_path(hass)
-
-    # Register as Lovelace resource ONLY (like HACS cards do)
-    # This is how working HACS cards register - they don't use add_extra_js_url
-    # Using add_extra_js_url was causing iOS refresh issues
-    # FR-07: Persistence - Load stored data on restart
-    # IMPORTANT: Must wait for HA to be fully started before loading stored data,
-    # otherwise automation entities may not exist yet and will be incorrectly
-    # cleaned up as "deleted". This matches the pattern used for Lovelace registration.
-    if hass.is_running:
-        await _async_register_lovelace_resource(hass)
-        await _async_ensure_labels_exist(hass)
-        await async_load_stored(hass, data)
-    else:
-
-        async def _register_when_started(_event: Any) -> None:
-            # Check if we were unloaded before HA fully started
-            if data.unloaded:
-                return
-            await _async_register_lovelace_resource(hass)
-            await _async_ensure_labels_exist(hass)
-            await async_load_stored(hass, data)
-
-        # Store the unsub function so we can cancel on early unload
-        data.startup_listener_unsub = hass.bus.async_listen_once("homeassistant_started", _register_when_started)
-
-    # Register services
-    register_services(hass, data)
-
-    await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
-
-    entry.async_on_unload(entry.add_update_listener(_async_options_update_listener))
-    return True
+    return await async_setup_integration_entry(
+        hass,
+        entry,
+        register_static_path=_async_register_static_path,
+        register_lovelace_resource=_async_register_lovelace_resource,
+        ensure_labels_exist=_async_ensure_labels_exist,
+        load_stored=async_load_stored,
+        register_services=register_services,
+        storage_factory=lambda: Store[dict[str, Any]](hass, STORAGE_VERSION, f"{DOMAIN}.storage"),
+        platforms=PLATFORMS,
+        update_listener=_async_options_update_listener,
+        data_factory=lambda store, runtime_hass: AutomationPauseData(store=store, hass=runtime_hass),
+    )
 
 
 async def _async_register_static_path(hass: HomeAssistant) -> None:
