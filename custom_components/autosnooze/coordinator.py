@@ -144,7 +144,7 @@ async def async_resume_batch(hass: HomeAssistant, data: AutomationPauseData, ent
             return
 
         async with data.lock:
-            candidate_ids = [entity_id for entity_id in entity_ids if entity_id in data.paused]
+            candidate_ids = list(dict.fromkeys(entity_id for entity_id in entity_ids if entity_id in data.paused))
 
         results: dict[str, bool] = {}
         for entity_id in candidate_ids:

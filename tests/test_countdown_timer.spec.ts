@@ -65,4 +65,28 @@ describe('Countdown Sync Service', () => {
     vi.advanceTimersByTime(5000);
     expect(onTick).toHaveBeenCalledTimes(1);
   });
+
+  test('uses global timers when window is unavailable during a deferred tick', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2030-01-01T00:00:00.250Z'));
+    const onTick = vi.fn();
+
+    const state = startCountdownSync(onTick);
+
+    const originalWindow = globalThis.window;
+    // Simulate the jsdom teardown edge that CI surfaced during suite shutdown.
+    Reflect.deleteProperty(globalThis, 'window');
+
+    try {
+      expect(() => vi.advanceTimersByTime(750)).not.toThrow();
+      expect(onTick).toHaveBeenCalledTimes(1);
+      stopCountdownSync(state);
+    } finally {
+      Object.defineProperty(globalThis, 'window', {
+        configurable: true,
+        value: originalWindow,
+        writable: true,
+      });
+    }
+  });
 });
