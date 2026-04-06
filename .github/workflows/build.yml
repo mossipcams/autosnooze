@@ -45,7 +45,7 @@ jobs:
           cache-dependency-path: 'requirements_test.txt'
 
       - name: Install Python dependencies
-        uses: nick-fields/retry@ce71cc2ab81d554ebbe88c79ab5975992d79ba08 # v3
+        uses: nick-fields/retry@ad984534de44a9489a53aefd81eb77f87c70dc60 # v4.0.0
         with:
           timeout_minutes: 5
           max_attempts: 3
@@ -86,7 +86,7 @@ jobs:
           cache: 'npm'
 
       - name: Install npm dependencies
-        uses: nick-fields/retry@ce71cc2ab81d554ebbe88c79ab5975992d79ba08 # v3
+        uses: nick-fields/retry@ad984534de44a9489a53aefd81eb77f87c70dc60 # v4.0.0
         with:
           timeout_minutes: 5
           max_attempts: 3
@@ -94,7 +94,7 @@ jobs:
           command: npm ci
 
       - name: Audit npm dependencies
-        uses: nick-fields/retry@ce71cc2ab81d554ebbe88c79ab5975992d79ba08 # v3
+        uses: nick-fields/retry@ad984534de44a9489a53aefd81eb77f87c70dc60 # v4.0.0
         with:
           timeout_minutes: 2
           max_attempts: 3
