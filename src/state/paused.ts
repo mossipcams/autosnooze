@@ -53,9 +53,9 @@ export function parsePausedContract(attributes: unknown): ParsedPausedContract {
 
   // Unversioned transitional contract: accept normalized keys if present.
   if (schemaVersion === undefined) {
-    const paused = asPausedMap(root.paused);
-    const scheduled = asScheduledMap(root.scheduled);
-    if (paused && scheduled) {
+    const paused = asPausedMap(root.paused) ?? asPausedMap(root.paused_automations) ?? {};
+    const scheduled = asScheduledMap(root.scheduled) ?? asScheduledMap(root.scheduled_snoozes) ?? {};
+    if (Object.keys(paused).length > 0 || Object.keys(scheduled).length > 0) {
       return { paused, scheduled };
     }
   }

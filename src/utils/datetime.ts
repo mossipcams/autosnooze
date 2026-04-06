@@ -14,6 +14,16 @@ interface DateOption {
 export function combineDateTime(date: string, time: string): string | null {
   if (!date || !time) return null;
   const localDate = new Date(`${date}T${time}`);
+  if (Number.isNaN(localDate.getTime())) {
+    return null;
+  }
+
+  const parsedDate = `${localDate.getFullYear()}-${String(localDate.getMonth() + 1).padStart(2, '0')}-${String(localDate.getDate()).padStart(2, '0')}`;
+  const parsedTime = `${String(localDate.getHours()).padStart(2, '0')}:${String(localDate.getMinutes()).padStart(2, '0')}`;
+  if (parsedDate !== date || parsedTime !== time) {
+    return null;
+  }
+
   const tzOffsetMinutes = localDate.getTimezoneOffset();
   const offsetSign = tzOffsetMinutes <= 0 ? '+' : '-';
   const absMinutes = Math.abs(tzOffsetMinutes);

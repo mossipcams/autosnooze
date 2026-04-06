@@ -262,6 +262,46 @@ export class AutoSnoozeCard extends BasePage {
     );
   }
 
+  async waitForScheduledAutomation(name: string, timeout: number = DEFAULT_WAIT_TIMEOUT): Promise<void> {
+    const escapedName = name.replace(/'/g, "\\'");
+    await this.page.waitForFunction(
+      `
+      (() => {
+        ${findAutosnoozeCard}
+        const card = findAutosnoozeCard();
+        const items = deepQueryAll(card, '.scheduled-item');
+        for (const item of items || []) {
+          if (item.textContent?.includes('${escapedName}')) {
+            return true;
+          }
+        }
+        return false;
+      })()
+      `,
+      { timeout }
+    );
+  }
+
+  async waitForScheduledAutomationGone(name: string, timeout: number = DEFAULT_WAIT_TIMEOUT): Promise<void> {
+    const escapedName = name.replace(/'/g, "\\'");
+    await this.page.waitForFunction(
+      `
+      (() => {
+        ${findAutosnoozeCard}
+        const card = findAutosnoozeCard();
+        const items = deepQueryAll(card, '.scheduled-item');
+        for (const item of items || []) {
+          if (item.textContent?.includes('${escapedName}')) {
+            return false;
+          }
+        }
+        return true;
+      })()
+      `,
+      { timeout }
+    );
+  }
+
   // Selection methods
   async selectAutomation(name: string): Promise<void> {
     await this.page.evaluate(
@@ -682,6 +722,20 @@ export class AutoSnoozeCard extends BasePage {
     );
   }
 
+  async getPausedAutomationTexts(): Promise<string[]> {
+    return await this.page.evaluate(
+      `
+      (() => {
+        ${findAutosnoozeCard}
+        const card = findAutosnoozeCard();
+        return deepQueryAll(card, '.paused-item')
+          .map((item) => item.textContent?.trim() ?? '')
+          .filter(Boolean);
+      })()
+      `
+    );
+  }
+
   async getScheduledCount(): Promise<number> {
     return await this.page.evaluate(
       `
@@ -689,6 +743,20 @@ export class AutoSnoozeCard extends BasePage {
         ${findAutosnoozeCard}
         const card = findAutosnoozeCard();
         return deepQueryAll(card, '.scheduled-item').length ?? 0;
+      })()
+      `
+    );
+  }
+
+  async getScheduledAutomationTexts(): Promise<string[]> {
+    return await this.page.evaluate(
+      `
+      (() => {
+        ${findAutosnoozeCard}
+        const card = findAutosnoozeCard();
+        return deepQueryAll(card, '.scheduled-item')
+          .map((item) => item.textContent?.trim() ?? '')
+          .filter(Boolean);
       })()
       `
     );
