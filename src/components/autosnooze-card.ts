@@ -441,6 +441,16 @@ export class AutomationPauseCard extends LitElement {
     }
   }
 
+  private async _pauseAndEnsureCardReady(params: PauseServiceParams, forceConfirm: boolean = false): Promise<boolean> {
+    const didPause = await this._callPauseWithGuardrailConfirm(params, forceConfirm);
+    if (!didPause || !this.isConnected || !this.shadowRoot) {
+      this._loading = false;
+      return false;
+    }
+
+    return true;
+  }
+
   private async _snooze(forceConfirm: boolean = false): Promise<void> {
     if (this._selected.length === 0 || this._loading) return;
 
@@ -504,18 +514,12 @@ export class AutomationPauseCard extends LitElement {
           return;
         }
 
-        const didPause = await this._callPauseWithGuardrailConfirm({
+        const didPause = await this._pauseAndEnsureCardReady({
           entity_id: this._selected,
           resume_at: resumeAt,
           ...(disableAt && { disable_at: disableAt }),
         }, forceConfirm);
         if (!didPause) {
-          this._loading = false;
-          return;
-        }
-
-        if (!this.isConnected || !this.shadowRoot) {
-          this._loading = false;
           return;
         }
 
@@ -532,19 +536,13 @@ export class AutomationPauseCard extends LitElement {
       } else {
         const { days, hours, minutes } = this._customDuration;
 
-        const didPause = await this._callPauseWithGuardrailConfirm({
+        const didPause = await this._pauseAndEnsureCardReady({
           entity_id: this._selected,
           days,
           hours,
           minutes,
         }, forceConfirm);
         if (!didPause) {
-          this._loading = false;
-          return;
-        }
-
-        if (!this.isConnected || !this.shadowRoot) {
-          this._loading = false;
           return;
         }
 
