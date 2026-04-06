@@ -53,8 +53,8 @@ async def test_resume_batch_deduplicates_entity_ids_before_wake_calls() -> None:
 
 
 @pytest.mark.asyncio
-async def test_resume_batch_is_noop_for_unknown_entity_ids() -> None:
-    """Unknown batch ids should not wake, save, or notify when nothing changes."""
+async def test_resume_batch_skips_wake_calls_for_unknown_entity_ids() -> None:
+    """Unknown batch ids should not trigger wake calls."""
     data = AutomationPauseData(store=MagicMock())
     data.notify = MagicMock()
 
@@ -71,8 +71,8 @@ async def test_resume_batch_is_noop_for_unknown_entity_ids() -> None:
         await async_resume_batch(MagicMock(), data, ["automation.missing"])
 
     set_state.assert_not_awaited()
-    save_state.assert_not_awaited()
-    data.notify.assert_not_called()
+    save_state.assert_awaited_once_with(data)
+    data.notify.assert_called_once_with()
 
 
 @pytest.mark.asyncio
