@@ -132,11 +132,11 @@ export class AutoSnoozeAutomationList extends LitElement {
     return getCategoryName(categoryId, this.categoryRegistry);
   }
 
-  private _getGroupedByArea(): [string, AutomationItem[]][] {
+  private _getGroupedByTab(filterTab: 'areas' | 'labels' | 'categories'): [string, AutomationItem[]][] {
     return buildAutomationListViewModel({
       automations: this.automations,
       search: this._search,
-      filterTab: 'areas',
+      filterTab,
       hass: this.hass,
       labelRegistry: this.labelRegistry,
       categoryRegistry: this.categoryRegistry,
@@ -144,34 +144,18 @@ export class AutoSnoozeAutomationList extends LitElement {
       emptyLabelLabel: localize(this.hass, 'group.unlabeled'),
       emptyCategoryLabel: localize(this.hass, 'group.uncategorized'),
     }).grouped;
+  }
+
+  private _getGroupedByArea(): [string, AutomationItem[]][] {
+    return this._getGroupedByTab('areas');
   }
 
   private _getGroupedByLabel(): [string, AutomationItem[]][] {
-    return buildAutomationListViewModel({
-      automations: this.automations,
-      search: this._search,
-      filterTab: 'labels',
-      hass: this.hass,
-      labelRegistry: this.labelRegistry,
-      categoryRegistry: this.categoryRegistry,
-      emptyAreaLabel: localize(this.hass, 'group.unassigned'),
-      emptyLabelLabel: localize(this.hass, 'group.unlabeled'),
-      emptyCategoryLabel: localize(this.hass, 'group.uncategorized'),
-    }).grouped;
+    return this._getGroupedByTab('labels');
   }
 
   private _getGroupedByCategory(): [string, AutomationItem[]][] {
-    return buildAutomationListViewModel({
-      automations: this.automations,
-      search: this._search,
-      filterTab: 'categories',
-      hass: this.hass,
-      labelRegistry: this.labelRegistry,
-      categoryRegistry: this.categoryRegistry,
-      emptyAreaLabel: localize(this.hass, 'group.unassigned'),
-      emptyLabelLabel: localize(this.hass, 'group.unlabeled'),
-      emptyCategoryLabel: localize(this.hass, 'group.uncategorized'),
-    }).grouped;
+    return this._getGroupedByTab('categories');
   }
 
   _getAreaCount(): number {
