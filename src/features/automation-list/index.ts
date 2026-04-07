@@ -201,21 +201,6 @@ export function groupAutomationsBy(
   );
 }
 
-export function getUniqueCount(
-  automations: AutomationItem[],
-  getValues: (auto: AutomationItem) => string[] | null
-): number {
-  const uniqueValues = new Set<string>();
-  automations.forEach((automation) => {
-    const values = getValues(automation);
-    if (!values) {
-      return;
-    }
-    values.forEach((value) => uniqueValues.add(value));
-  });
-  return uniqueValues.size;
-}
-
 export function buildAutomationListViewModel(
   input: BuildAutomationListViewModelInput
 ): AutomationListViewModel {
