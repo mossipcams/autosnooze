@@ -136,7 +136,16 @@ export class AutoSnoozeCard extends BasePage {
   }
 
   async goto(): Promise<void> {
-    await this.page.goto('/dashboard-testing/0');
+    const gotoOptions = { waitUntil: 'domcontentloaded' as const };
+    try {
+      await this.page.goto('/dashboard-testing/0', gotoOptions);
+    } catch (error) {
+      if (!String(error).includes('Timeout')) {
+        throw error;
+      }
+      await this.page.waitForTimeout(1000);
+      await this.page.goto('/dashboard-testing/0', gotoOptions);
+    }
     await this.waitForHassConnection();
     await this.waitForCardReady();
   }

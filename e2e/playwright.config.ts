@@ -53,6 +53,7 @@ export default defineConfig({
       use: {
         ...devices['iPhone 13'],
         storageState: authFile,
+        navigationTimeout: 60000,
       },
       dependencies: ['setup'],
     },

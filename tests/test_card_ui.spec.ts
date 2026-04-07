@@ -1199,11 +1199,15 @@ describe('Lifecycle Methods', () => {
     }
   });
 
-  test('child component starts countdown on connectedCallback', async () => {
+  test('child component starts countdown on connectedCallback when a live countdown is visible', async () => {
     vi.useFakeTimers();
 
     const ChildClass = customElements.get('autosnooze-active-pauses');
     const child = new ChildClass();
+    child.pauseGroups = [{
+      resumeAt: new Date(Date.now() + 3600000).toISOString(),
+      automations: [],
+    }];
     child.connectedCallback();
 
     expect(child._countdownState.syncTimeout).not.toBeNull();
@@ -2838,6 +2842,31 @@ describe('shouldUpdate optimization', () => {
     await card._fetchLabelRegistry();
 
     expect(card._labelsFetched).toBe(false);
+  });
+
+  test('_fetchLabelRegistry reuses in-flight request', async () => {
+    card._labelsFetched = false;
+    card._labelRegistry = {};
+    let resolveFetch;
+    const pendingFetch = new Promise((resolve) => {
+      resolveFetch = resolve;
+    });
+    card.hass.connection = {
+      sendMessagePromise: vi.fn().mockReturnValue(pendingFetch),
+    };
+
+    const firstFetch = card._fetchLabelRegistry();
+    const secondFetch = card._fetchLabelRegistry();
+
+    expect(card.hass.connection.sendMessagePromise).toHaveBeenCalledTimes(1);
+
+    resolveFetch([
+      { label_id: 'label.test', name: 'Test Label' },
+    ]);
+
+    await Promise.all([firstFetch, secondFetch]);
+    expect(card._labelsFetched).toBe(true);
+    expect(card._labelRegistry['label.test']?.name).toBe('Test Label');
   });
 
   test('updated does not bypass label retry backoff when retry timer is active', () => {

@@ -212,13 +212,17 @@ describe('AutoSnoozeActivePauses Component', () => {
     vi.useRealTimers();
   });
 
-  it('should start synchronized countdown on connectedCallback', async () => {
+  it('should start synchronized countdown on connectedCallback when a live countdown is visible', async () => {
     vi.useFakeTimers();
     const { AutoSnoozeActivePauses } = await import('../src/components/autosnooze-active-pauses.js');
     if (!customElements.get('autosnooze-active-pauses')) {
       customElements.define('autosnooze-active-pauses', AutoSnoozeActivePauses);
     }
     const el = new AutoSnoozeActivePauses();
+    el.pauseGroups = [{
+      resumeAt: new Date(Date.now() + 3600000).toISOString(),
+      automations: [],
+    }];
 
     const internal = el as unknown as {
       _countdownState: { interval: number | null; syncTimeout: number | null };
@@ -234,6 +238,32 @@ describe('AutoSnoozeActivePauses Component', () => {
     el.disconnectedCallback();
   });
 
+  it('does not start synchronized countdown when all groups render static resume times', async () => {
+    vi.useFakeTimers();
+    const { AutoSnoozeActivePauses } = await import('../src/components/autosnooze-active-pauses.js');
+    if (!customElements.get('autosnooze-active-pauses')) {
+      customElements.define('autosnooze-active-pauses', AutoSnoozeActivePauses);
+    }
+    const el = new AutoSnoozeActivePauses();
+    el.pauseGroups = [{
+      resumeAt: new Date(Date.now() + 3600000).toISOString(),
+      disableAt: new Date().toISOString(),
+      automations: [],
+    }];
+
+    const internal = el as unknown as {
+      _countdownState: { interval: number | null; syncTimeout: number | null };
+    };
+
+    el.connectedCallback();
+
+    expect(internal._countdownState.interval).toBeNull();
+    expect(internal._countdownState.syncTimeout).toBeNull();
+
+    vi.useRealTimers();
+    el.disconnectedCallback();
+  });
+
   it('should set interval after sync timeout fires', async () => {
     vi.useFakeTimers();
     const { AutoSnoozeActivePauses } = await import('../src/components/autosnooze-active-pauses.js');
@@ -241,6 +271,10 @@ describe('AutoSnoozeActivePauses Component', () => {
       customElements.define('autosnooze-active-pauses', AutoSnoozeActivePauses);
     }
     const el = new AutoSnoozeActivePauses();
+    el.pauseGroups = [{
+      resumeAt: new Date(Date.now() + 3600000).toISOString(),
+      automations: [],
+    }];
     const internal = el as unknown as {
       _countdownState: { interval: number | null; syncTimeout: number | null };
     };

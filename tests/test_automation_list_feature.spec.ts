@@ -1,6 +1,7 @@
 // @ts-nocheck -- focused tests for automation list read-model feature
 import { describe, expect, test } from 'vitest';
 import {
+  buildAutomationListViewModel,
   filterAutomations,
   getAutomations,
   groupAutomationsBy,
@@ -87,5 +88,48 @@ describe('Automation List Feature', () => {
       ['Alpha', [{ id: 'automation.a', name: 'A', area_id: null, category_id: null, labels: [] }]],
       ['Unassigned', [{ id: 'automation.b', name: 'B', area_id: null, category_id: null, labels: [] }]],
     ]);
+  });
+
+  test('builds filtered results, counts, and label grouping from one input snapshot', () => {
+    const automations = [
+      { id: 'automation.kitchen', name: 'Kitchen', area_id: 'kitchen', category_id: 'lighting', labels: ['include', 'party'] },
+      { id: 'automation.porch', name: 'Porch', area_id: 'outdoor', category_id: 'lighting', labels: ['exclude'] },
+      { id: 'automation.alarm', name: 'Alarm', area_id: null, category_id: 'security', labels: ['urgent'] },
+    ];
+
+    const viewModel = buildAutomationListViewModel({
+      automations,
+      search: 'k',
+      filterTab: 'labels',
+      hass: createMockHass({
+        areas: {
+          kitchen: { name: 'Kitchen' },
+          outdoor: { name: 'Outdoor' },
+        },
+      }),
+      labelRegistry: {
+        include: { label_id: 'include', name: 'autosnooze_include' },
+        exclude: { label_id: 'exclude', name: 'autosnooze_exclude' },
+        party: { label_id: 'party', name: 'Party' },
+        urgent: { label_id: 'urgent', name: 'Urgent' },
+      },
+      categoryRegistry: {
+        lighting: { category_id: 'lighting', name: 'Lighting' },
+        security: { category_id: 'security', name: 'Security' },
+      },
+      emptyAreaLabel: 'Unassigned',
+      emptyLabelLabel: 'Unlabeled',
+      emptyCategoryLabel: 'Uncategorized',
+    });
+
+    expect(viewModel.filtered).toEqual([
+      { id: 'automation.kitchen', name: 'Kitchen', area_id: 'kitchen', category_id: 'lighting', labels: ['include', 'party'] },
+    ]);
+    expect(viewModel.grouped).toEqual([
+      ['Party', [{ id: 'automation.kitchen', name: 'Kitchen', area_id: 'kitchen', category_id: 'lighting', labels: ['include', 'party'] }]],
+    ]);
+    expect(viewModel.areaCount).toBe(2);
+    expect(viewModel.labelCount).toBe(2);
+    expect(viewModel.categoryCount).toBe(2);
   });
 });
