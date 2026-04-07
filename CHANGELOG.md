@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.2.16](https://github.com/mossipcams/autosnooze/compare/v0.2.15...v0.2.16) (2026-04-07)
+
+
+### Bug Fixes
+
+* **ci:** allow manual release-please dispatch ([#337](https://github.com/mossipcams/autosnooze/issues/337)) ([bc1d48f](https://github.com/mossipcams/autosnooze/commit/bc1d48fbe1b6ff7c0a341cd89a8867dbd2c52a59))
+* **ci:** remove redundant knip entry ([bc96446](https://github.com/mossipcams/autosnooze/commit/bc964460a566a560d0c118d153ebe799261f742b))
+* cover and correct modular refactor regressions ([#339](https://github.com/mossipcams/autosnooze/issues/339)) ([e73c254](https://github.com/mossipcams/autosnooze/commit/e73c254005622f36ee3fa34a41d2f69b6e6ba25f))
+* keep automation list grouping spec CI-safe ([f10dbf6](https://github.com/mossipcams/autosnooze/commit/f10dbf639c816d23859218a69a58dc568a7be5a7))
+* remove dead automation list helper export ([5d074ae](https://github.com/mossipcams/autosnooze/commit/5d074aeae8b3c84ddee05e41842df8beaee10fdc))
+* remove duplicate automation list grouping ([9eed1f8](https://github.com/mossipcams/autosnooze/commit/9eed1f8f4e3f494d744b2a23c5a5355f1dd9b5bc))
+* restore active pauses cleanup bootstrap ([098cf99](https://github.com/mossipcams/autosnooze/commit/098cf99c5ebf8ab32628802be475e3be651fbd5d))
+
+
+### Performance Improvements
+
+* speed up card load and action flows ([86be364](https://github.com/mossipcams/autosnooze/commit/86be36447d22173ba8e4873959b61f1ff904a5c7))
+
 ## [0.2.15](https://github.com/mossipcams/autosnooze/compare/v0.2.14...v0.2.15) (2026-03-10)
 
 
