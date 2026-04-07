@@ -2,40 +2,32 @@
 
 [![HACS Custom](https://img.shields.io/badge/HACS-Custom-41BDF5.svg?style=flat-square)](https://github.com/hacs/integration)
 [![GitHub Release](https://img.shields.io/github/release/mossipcams/autosnooze.svg?style=flat-square)](https://github.com/mossipcams/autosnooze/releases)
-![GitHub all releases](https://img.shields.io/github/downloads/mossipcams/autosnooze/total.svg?style=flat-square)
 [![Build Status](https://img.shields.io/github/actions/workflow/status/mossipcams/autosnooze/build.yml?branch=main&style=flat-square)](https://github.com/mossipcams/autosnooze/actions)
 [![Home Assistant](https://img.shields.io/badge/Home%20Assistant-2024.1+-blue.svg?style=flat-square)](https://www.home-assistant.io/)
 
-
-**Temporarily pause Home Assistant automations with automatic re-enabling.**
+Temporarily pause Home Assistant automations with automatic re-enabling. Snooze an automation, it comes back on its own. No more forgotten disabled automations cluttering your setup.
 
 ![AutoSnooze Demo](https://raw.githubusercontent.com/mossipcams/autosnooze/main/docs/images/autosnooze.gif)
 
 -----
 
-## The Problem
+## Why?
 
-Your motion lights keep turning off during dinner. Your wake-up routine fires while you’re on vacation. You disable automations for maintenance and forget which ones.
-
-## The Solution
-
-Snooze automations for a set duration. They re-enable automatically when the timer expires. No more forgotten disabled automations.
+Motion lights keep turning off during dinner. Wake-up routines fire while you're on vacation. You disable something for maintenance and forget about it for three months. AutoSnooze lets you pause automations with a timer so they always come back.
 
 -----
 
-## Features
+## What it does
 
-|Feature             |Description                                        |
-|--------------------|---------------------------------------------------|
-|**Smart Filtering** |Filter by Area, Label, or search by name           |
-|**Preset Durations**|Quick-tap 30m, 1h, 4h, 1 day, or custom            |
-|**Live Countdown**  |Real-time timers show exactly when automations wake|
-|**Restart Survival**|Timers persist through reboots and power outages   |
-|**Quick Wake**      |Cancel individual snoozes or wake all at once      |
-|**Schedule Mode**   |Snooze until a specific date/time                  |
-|**Adjust Snooze**   |Extend or shorten active snoozes on the fly        |
-|**Critical Guards** |Auto-detects critical automations, requires confirm|
-|**Status Sensor**   |Track snoozed count in automations and dashboards  |
+- **Filter by Area, Label, or name** to find automations fast
+- **Preset durations** — 30m, 1h, 4h, 1 day, or custom
+- **Live countdown timers** on every snoozed automation
+- **Survives restarts** — timers persist through reboots and power outages
+- **Wake early** — cancel individual snoozes or wake everything at once
+- **Schedule mode** — snooze until a specific date/time
+- **Adjust on the fly** — extend or shorten active snoozes
+- **Critical guards** — auto-detects security/safety automations and asks for confirmation
+- **Sensor entity** — `sensor.autosnooze_snoozed_automations` for use in other automations and dashboards
 
 -----
 
@@ -53,11 +45,11 @@ Snooze automations for a set duration. They re-enable automatically when the tim
 1. Open HACS in Home Assistant
 1. Click the 3-dot menu → **Custom repositories**
 1. Add `https://github.com/mossipcams/autosnooze` as type **Integration**
-1. Search for “AutoSnooze” and click **Download**
+1. Search for "AutoSnooze" and click **Download**
 1. Restart Home Assistant
 1. Go to **Settings → Devices & Services → Add Integration → AutoSnooze**
 
-The dashboard card is automatically registered when the integration loads. Just add the card to your dashboard and you’re ready to go.
+The dashboard card registers itself when the integration loads — just add it to your dashboard.
 
 -----
 
@@ -70,61 +62,41 @@ type: custom:autosnooze-card
 title: AutoSnooze
 ```
 
-### Card Options
-
-|Option |Type  |Default     |Description      |
-|-------|------|------------|-----------------|
-|`title`|string|`AutoSnooze`|Card header title|
+The only option is `title` (string, defaults to `AutoSnooze`).
 
 ### Filtering with Labels
 
-Control which automations appear in the card using Home Assistant labels:
+You can control which automations show up in the card using HA labels:
 
-|Label|Behavior|
-|-----|--------|
-|`autosnooze_include`|**Whitelist mode**: Only automations with this label are shown|
-|`autosnooze_exclude`|**Blacklist mode**: Automations with this label are hidden|
-|`autosnooze_confirm`|**Confirm mode**: Requires explicit confirmation before snoozing|
+- **`autosnooze_include`** — Whitelist mode. If any automation has this label, only those automations appear.
+- **`autosnooze_exclude`** — Blacklist mode. Hides automations with this label.
+- **`autosnooze_confirm`** — Requires confirmation before snoozing.
 
-**How it works:**
-- If **any** automation has the `autosnooze_include` label, the card switches to whitelist mode and only shows automations with that label
-- Otherwise, the card shows all automations except those with `autosnooze_exclude`
+If no automations have `autosnooze_include`, the card shows everything except `autosnooze_exclude` ones.
 
-**To set up:**
-1. Go to **Settings → Labels** and create `autosnooze_include` or `autosnooze_exclude`
-2. Edit an automation and assign the label under **Labels**
-
-This is useful for hiding automations you never want to snooze or limiting the card to only show specific automations.
+To set up, go to **Settings → Labels**, create the label, then assign it to automations.
 
 ### Critical Automation Guardrails
 
-AutoSnooze automatically detects critical automations and requires confirmation before snoozing them. This applies to automations whose entity ID or friendly name contains keywords like:
+AutoSnooze auto-detects critical automations based on keywords in their entity ID or name:
 
 > alarm, security, siren, lock, smoke, carbon monoxide, co2, leak, flood, fire, gas
 
-You can also manually require confirmation for any automation by adding the `autosnooze_confirm` label.
-
-When a critical or confirm-labeled automation is selected, the card prompts for confirmation before proceeding. For service calls, pass `confirm: true` to acknowledge.
+These require confirmation before snoozing. You can also manually flag any automation with the `autosnooze_confirm` label. For service calls, pass `confirm: true` to acknowledge.
 
 -----
 
-## Usage Examples
+## Usage
 
-### Dinner Party
-
-> “Pause dining room motion lights for 4 hours”
+Pause your dining room motion lights during a dinner party:
 
 **Areas** → Dining Room → Select automations → **4h** → **Snooze**
 
-### Vacation Mode
+Pause a wake-up routine for vacation:
 
-> “Pause wake-up routine for a week”
+**Search** "wake up" → Select → **Custom** → 7 days → **Snooze**
 
-**Search** “wake up” → Select → **Custom** → 7 days → **Snooze**
-
-### Sensor Maintenance
-
-> “Pause all security automations while fixing sensors”
+Pause security automations while fixing sensors:
 
 **Labels** → Security → Select all → **1h** → **Snooze**
 
@@ -157,7 +129,7 @@ data:
 
 ### `autosnooze.cancel`
 
-Wake a specific snoozed automation.
+Wake a snoozed automation early.
 
 ```yaml
 service: autosnooze.cancel
@@ -175,7 +147,7 @@ service: autosnooze.cancel_all
 
 ### `autosnooze.pause_by_area`
 
-Snooze all automations in specified areas.
+Snooze all automations in an area.
 
 ```yaml
 service: autosnooze.pause_by_area
@@ -188,7 +160,7 @@ data:
 
 ### `autosnooze.pause_by_label`
 
-Snooze all automations with specified labels.
+Snooze all automations with a label.
 
 ```yaml
 service: autosnooze.pause_by_label
@@ -232,16 +204,9 @@ data:
 
 ## Sensor
 
-Track snoozed automations programmatically:
+`sensor.autosnooze_snoozed_automations` — state is the count of currently snoozed automations, attributes have the details.
 
-```yaml
-sensor.autosnooze_snoozed_automations
-```
-
-- **State**: Count of currently snoozed automations
-- **Attributes**: Details of each snoozed automation
-
-### Example: Conditional Automation
+Use it in conditions:
 
 ```yaml
 condition:
@@ -250,7 +215,7 @@ condition:
     below: 1
 ```
 
-### Example: Dashboard Badge
+Or as a dashboard badge:
 
 ```yaml
 type: entity
@@ -265,15 +230,13 @@ icon: mdi:sleep
 
 ### Card not appearing
 
-The card should register automatically. If it doesn’t:
+The card should register automatically. If it doesn't:
 
 1. Clear browser cache and hard refresh (`Ctrl+Shift+R`)
 1. Check **Settings → Dashboards → Resources** for the autosnooze entry
-1. If missing, manually add the resource:
-- URL: `/autosnooze-card.js`
-- Type: **JavaScript module**
+1. If missing, manually add `/autosnooze-card.js` as a **JavaScript module**
 
-**For YAML mode dashboards:** The automatic registration only works with storage mode (UI-managed) dashboards. If you use YAML mode for Lovelace, add the resource manually to your `configuration.yaml`:
+**YAML mode dashboards** need the resource added manually:
 
 ```yaml
 lovelace:
@@ -283,36 +246,30 @@ lovelace:
       type: module
 ```
 
-Or add it directly to your dashboard YAML file under `resources:`.
-
 ### Automations not re-enabling
 
 1. Check **Developer Tools → States** for the sensor state
-1. Verify Home Assistant hasn’t restarted during the snooze
-1. Check logs for errors: **Settings → System → Logs**
+1. Verify Home Assistant hasn't restarted during the snooze
+1. Check logs: **Settings → System → Logs**
 
-### Card shows “Integration not found”
+### Card shows "Integration not found"
 
-Ensure the AutoSnooze integration is configured in **Settings → Devices & Services**.
+Make sure AutoSnooze is configured in **Settings → Devices & Services**.
 
 -----
 
 ## Requirements
 
 - Home Assistant **2024.1** or newer
-- Areas and Labels configured (optional, enables filtering features)
+- Areas and Labels configured (optional, for filtering)
 
 -----
 
 ## Contributing
 
-Contributions are welcome! Please:
-
-1. Fork the repository
-1. Create a feature branch (`git checkout -b feature/amazing-feature`)
+1. Fork the repo
+1. Create a feature branch
 1. Run tests (`npm test && pytest tests/`)
-1. Commit changes (`git commit -m 'Add amazing feature'`)
-1. Push to branch (`git push origin feature/amazing-feature`)
 1. Open a Pull Request
 
 -----
