@@ -64,8 +64,24 @@ export class AutoSnoozeActivePauses extends LitElement {
     return this.pauseGroups.some((group) => !group.disableAt);
   }
 
+  private _scheduleCountdownBootstrap(): void {
+    this._countdownState = {
+      interval: null,
+      syncTimeout: globalThis.setTimeout(() => {
+        this._countdownState.syncTimeout = null;
+        if (this._hasLiveCountdowns()) {
+          this._countdownState = startCountdownSync(() => this._updateCountdownIfNeeded());
+        }
+      }, 0),
+    };
+  }
+
   private _syncCountdownLifecycle(): void {
     stopCountdownSync(this._countdownState);
+    if (this.pauseGroups.length === 0) {
+      this._scheduleCountdownBootstrap();
+      return;
+    }
     if (!this._hasLiveCountdowns()) {
       this._countdownState = { interval: null, syncTimeout: null };
       return;
