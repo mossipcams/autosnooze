@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.17](https://github.com/mossipcams/autosnooze/compare/v0.2.16...v0.2.17) (2026-04-07)
+
+
+### Bug Fixes
+
+* simplify and tighten README copy ([#343](https://github.com/mossipcams/autosnooze/issues/343)) ([28a87de](https://github.com/mossipcams/autosnooze/commit/28a87de352b408f4b904c6bcf679a3f614815a4a))
+
 ## [0.2.16](https://github.com/mossipcams/autosnooze/compare/v0.2.15...v0.2.16) (2026-04-07)
 
 
