@@ -151,3 +151,10 @@ export async function runPauseFeature(input: RunPauseFeatureInput): Promise<RunP
     toastMessage: built.toastMessage,
   };
 }
+
+export async function runPauseActionFeature(
+  hass: HomeAssistant,
+  params: PauseServiceParams,
+): Promise<void> {
+  await pauseAutomations(hass, params);
+}

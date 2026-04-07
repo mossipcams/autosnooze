@@ -8,7 +8,7 @@ import { LitElement, html } from 'lit';
 import { property } from 'lit/decorators.js';
 import { localize } from '../localization/localize.js';
 import { TIME_MS } from '../constants/index.js';
-import { startCountdownSync, stopCountdownSync } from '../services/countdown-sync.js';
+import { startCardShellCountdown, stopCardShellCountdown } from '../features/card-shell/index.js';
 import type { CountdownState } from '../utils/countdown-timer.js';
 import { formatCountdown } from '../utils/time-formatting.js';
 import { adjustModalStyles } from '../styles/adjust-modal.styles.js';
@@ -87,12 +87,12 @@ export class AutoSnoozeAdjustModal extends LitElement {
   }
 
   _startSynchronizedCountdown(): void {
-    stopCountdownSync(this._countdownState);
-    this._countdownState = startCountdownSync(() => this.requestUpdate());
+    stopCardShellCountdown(this._countdownState);
+    this._countdownState = startCardShellCountdown(() => this.requestUpdate());
   }
 
   _stopCountdown(): void {
-    stopCountdownSync(this._countdownState);
+    stopCardShellCountdown(this._countdownState);
   }
 
   _isDecrementDisabled(thresholdMs: number): boolean {
