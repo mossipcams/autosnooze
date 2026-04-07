@@ -1,7 +1,6 @@
 {
   "$schema": "./node_modules/knip/schema.json",
   "entry": [
-    "src/index.ts",
     "e2e/global-setup.ts",
     "e2e/fixtures/auth.setup.ts"
   ],
