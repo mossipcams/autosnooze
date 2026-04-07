@@ -4,7 +4,7 @@
  * Fires custom events for wake/wake-all actions (parent handles services).
  */
 
-import { LitElement, html } from 'lit';
+import { LitElement, html, type PropertyValues } from 'lit';
 import { property, state } from 'lit/decorators.js';
 import { localize } from '../localization/localize.js';
 import { UI_TIMING } from '../constants/index.js';
@@ -36,9 +36,13 @@ export class AutoSnoozeActivePauses extends LitElement {
 
   connectedCallback(): void {
     super.connectedCallback();
+    this._syncCountdownLifecycle();
+  }
 
-    stopCountdownSync(this._countdownState);
-    this._countdownState = startCountdownSync(() => this._updateCountdownIfNeeded());
+  updated(changedProps: PropertyValues): void {
+    if (changedProps.has('pauseGroups')) {
+      this._syncCountdownLifecycle();
+    }
   }
 
   disconnectedCallback(): void {
@@ -54,6 +58,19 @@ export class AutoSnoozeActivePauses extends LitElement {
     if (this.pauseGroups.length > 0) {
       this.requestUpdate();
     }
+  }
+
+  private _hasLiveCountdowns(): boolean {
+    return this.pauseGroups.some((group) => !group.disableAt);
+  }
+
+  private _syncCountdownLifecycle(): void {
+    stopCountdownSync(this._countdownState);
+    if (!this._hasLiveCountdowns()) {
+      this._countdownState = { interval: null, syncTimeout: null };
+      return;
+    }
+    this._countdownState = startCountdownSync(() => this._updateCountdownIfNeeded());
   }
 
   _handleWakeAll(): void {

@@ -223,13 +223,13 @@ describe('Categories Feature', () => {
       expect(listItems.length).toBeGreaterThan(0);
     });
 
-    test('reuses filtered automations during a categories render', async () => {
+    test('reuses derived list view model during a categories render', async () => {
       const list = queryAutomationList(card);
-      const filteredSpy = vi.spyOn(list, '_getFilteredAutomations');
+      const viewModelSpy = vi.spyOn(list, '_getViewModel');
       list._filterTab = 'categories';
       await list.updateComplete;
 
-      expect(filteredSpy).toHaveBeenCalledTimes(1);
+      expect(viewModelSpy).toHaveBeenCalledTimes(1);
     });
   });
 });
@@ -291,6 +291,26 @@ describe('Entity Registry Fetch', () => {
     expect(card._entityRegistry['light.test']).toBeUndefined();
     expect(card._entityRegistry['switch.test']).toBeUndefined();
   });
+
+  test('_fetchEntityRegistry reuses in-flight request', async () => {
+    let resolveFetch;
+    const pendingFetch = new Promise((resolve) => {
+      resolveFetch = resolve;
+    });
+    card.hass.connection.sendMessagePromise.mockReturnValueOnce(pendingFetch);
+
+    const firstFetch = card._fetchEntityRegistry();
+    const secondFetch = card._fetchEntityRegistry();
+
+    expect(card.hass.connection.sendMessagePromise).toHaveBeenCalledTimes(1);
+
+    resolveFetch([
+      { entity_id: 'automation.test', categories: { automation: 'cat_test' }, labels: [] },
+    ]);
+
+    await Promise.all([firstFetch, secondFetch]);
+    expect(card._entityRegistryFetched).toBe(true);
+  });
 });
 
 describe('Category Registry Fetch', () => {
@@ -343,6 +363,26 @@ describe('Category Registry Fetch', () => {
 
     await card._fetchCategoryRegistry();
 
+    expect(card._categoriesFetched).toBe(true);
+  });
+
+  test('_fetchCategoryRegistry reuses in-flight request', async () => {
+    let resolveFetch;
+    const pendingFetch = new Promise((resolve) => {
+      resolveFetch = resolve;
+    });
+    card.hass.connection.sendMessagePromise.mockReturnValueOnce(pendingFetch);
+
+    const firstFetch = card._fetchCategoryRegistry();
+    const secondFetch = card._fetchCategoryRegistry();
+
+    expect(card.hass.connection.sendMessagePromise).toHaveBeenCalledTimes(1);
+
+    resolveFetch([
+      { category_id: 'cat_lighting', name: 'Lighting' },
+    ]);
+
+    await Promise.all([firstFetch, secondFetch]);
     expect(card._categoriesFetched).toBe(true);
   });
 });

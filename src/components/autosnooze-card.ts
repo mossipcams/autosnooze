@@ -49,9 +49,7 @@ import {
   getAutomations,
 } from '../features/automation-list/index.js';
 import {
-  getPaused,
-  getScheduled,
-  getPausedGroupedByResumeTime,
+  getPausedSnapshot,
   SENSOR_ENTITY_ID,
 } from '../state/paused.js';
 import { createCardStore } from '../state/card-store.js';
@@ -97,6 +95,9 @@ export class AutomationPauseCard extends LitElement {
   private _labelsFetched: boolean = false;
   private _categoriesFetched: boolean = false;
   private _entityRegistryFetched: boolean = false;
+  private _labelRegistryFetchPromise: Promise<void> | null = null;
+  private _categoryRegistryFetchPromise: Promise<void> | null = null;
+  private _entityRegistryFetchPromise: Promise<void> | null = null;
   private _lastAutomationFingerprintStates: HassEntities | null = null;
   private _lastAutomationFingerprint: string = '';
   private _lastHassStates: HassEntities | null = null;
@@ -119,8 +120,9 @@ export class AutomationPauseCard extends LitElement {
   }
 
   getCardSize(): number {
-    const paused = this._getPaused();
-    const scheduled = this._getScheduled();
+    const snapshot = this._getPausedSnapshot();
+    const paused = snapshot.paused;
+    const scheduled = snapshot.scheduled;
     return 4 + Object.keys(paused).length + Object.keys(scheduled).length;
   }
 
@@ -242,47 +244,86 @@ export class AutomationPauseCard extends LitElement {
 
   private async _fetchLabelRegistry(): Promise<void> {
     if (this._labelsFetched || !this.hass?.connection) return;
-    const labels = await fetchLabelRegistry(this.hass);
-    if (labels === null) {
-      this._labelsFetched = false;
-      this._labelRegistryUnavailable = true;
-      if (this._labelRegistryRetryTimeout === null) {
-        const delay = this._labelRegistryRetryDelayMs;
-        this._labelRegistryRetryTimeout = window.setTimeout(() => {
-          this._labelRegistryRetryTimeout = null;
-          if (!this.isConnected) return;
-          void this._fetchLabelRegistry();
-        }, delay);
-        this._labelRegistryRetryDelayMs = Math.min(
-          this._labelRegistryRetryDelayMs * 2,
-          UI_TIMING.REGISTRY_RETRY_MAX_MS,
-        );
-      }
+    if (this._labelRegistryFetchPromise) {
+      await this._labelRegistryFetchPromise;
       return;
     }
 
-    this._labelRegistry = labels;
-    this._labelsFetched = true;
-    this._labelRegistryUnavailable = false;
-    this._automationsCacheVersion++;
-    this._labelRegistryRetryDelayMs = UI_TIMING.REGISTRY_RETRY_MIN_MS;
-    if (this._labelRegistryRetryTimeout !== null) {
-      clearTimeout(this._labelRegistryRetryTimeout);
-      this._labelRegistryRetryTimeout = null;
+    this._labelRegistryFetchPromise = (async () => {
+      const labels = await fetchLabelRegistry(this.hass!);
+      if (labels === null) {
+        this._labelsFetched = false;
+        this._labelRegistryUnavailable = true;
+        if (this._labelRegistryRetryTimeout === null) {
+          const delay = this._labelRegistryRetryDelayMs;
+          this._labelRegistryRetryTimeout = window.setTimeout(() => {
+            this._labelRegistryRetryTimeout = null;
+            if (!this.isConnected) return;
+            void this._fetchLabelRegistry();
+          }, delay);
+          this._labelRegistryRetryDelayMs = Math.min(
+            this._labelRegistryRetryDelayMs * 2,
+            UI_TIMING.REGISTRY_RETRY_MAX_MS,
+          );
+        }
+        return;
+      }
+
+      this._labelRegistry = labels;
+      this._labelsFetched = true;
+      this._labelRegistryUnavailable = false;
+      this._automationsCacheVersion++;
+      this._labelRegistryRetryDelayMs = UI_TIMING.REGISTRY_RETRY_MIN_MS;
+      if (this._labelRegistryRetryTimeout !== null) {
+        clearTimeout(this._labelRegistryRetryTimeout);
+        this._labelRegistryRetryTimeout = null;
+      }
+    })();
+
+    try {
+      await this._labelRegistryFetchPromise;
+    } finally {
+      this._labelRegistryFetchPromise = null;
     }
   }
 
   private async _fetchCategoryRegistry(): Promise<void> {
     if (this._categoriesFetched || !this.hass?.connection) return;
-    this._categoryRegistry = await fetchCategoryRegistry(this.hass);
-    this._categoriesFetched = true;
+    if (this._categoryRegistryFetchPromise) {
+      await this._categoryRegistryFetchPromise;
+      return;
+    }
+
+    this._categoryRegistryFetchPromise = (async () => {
+      this._categoryRegistry = await fetchCategoryRegistry(this.hass!);
+      this._categoriesFetched = true;
+    })();
+
+    try {
+      await this._categoryRegistryFetchPromise;
+    } finally {
+      this._categoryRegistryFetchPromise = null;
+    }
   }
 
   private async _fetchEntityRegistry(): Promise<void> {
     if (this._entityRegistryFetched || !this.hass?.connection) return;
-    this._entityRegistry = await fetchEntityRegistry(this.hass);
-    this._entityRegistryFetched = true;
-    this._automationsCacheVersion++;
+    if (this._entityRegistryFetchPromise) {
+      await this._entityRegistryFetchPromise;
+      return;
+    }
+
+    this._entityRegistryFetchPromise = (async () => {
+      this._entityRegistry = await fetchEntityRegistry(this.hass!);
+      this._entityRegistryFetched = true;
+      this._automationsCacheVersion++;
+    })();
+
+    try {
+      await this._entityRegistryFetchPromise;
+    } finally {
+      this._entityRegistryFetchPromise = null;
+    }
   }
 
   private _getAutomations(): AutomationItem[] {
@@ -357,18 +398,30 @@ export class AutomationPauseCard extends LitElement {
   }
 
   private _getPaused(): Record<string, PausedAutomationAttribute> {
-    if (!this.hass) return {};
-    return getPaused(this.hass);
+    return this._getPausedSnapshot().paused;
   }
 
   private _getPausedGroupedByResumeTime(): PauseGroup[] {
-    if (!this.hass) return [];
-    return getPausedGroupedByResumeTime(this.hass);
+    return this._getPausedSnapshot().groups;
   }
 
   private _getScheduled(): Record<string, ScheduledSnoozeAttribute> {
-    if (!this.hass) return {};
-    return getScheduled(this.hass);
+    return this._getPausedSnapshot().scheduled;
+  }
+
+  private _getPausedSnapshot(): {
+    paused: Record<string, PausedAutomationAttribute>;
+    scheduled: Record<string, ScheduledSnoozeAttribute>;
+    groups: PauseGroup[];
+  } {
+    if (!this.hass) {
+      return {
+        paused: {},
+        scheduled: {},
+        groups: [],
+      };
+    }
+    return getPausedSnapshot(this.hass);
   }
 
   private _isSnoozeSensorAvailable(): boolean {
@@ -803,9 +856,10 @@ export class AutomationPauseCard extends LitElement {
       return html``;
     }
 
-    const paused = this._getPaused();
+    const pausedSnapshot = this._getPausedSnapshot();
+    const paused = pausedSnapshot.paused;
     const pausedCount = Object.keys(paused).length;
-    const scheduled = this._getScheduled();
+    const scheduled = pausedSnapshot.scheduled;
     const scheduledCount = Object.keys(scheduled).length;
     const automations = this._getAutomations();
     const sensorAvailable = this._isSnoozeSensorAvailable();
@@ -899,7 +953,7 @@ export class AutomationPauseCard extends LitElement {
         ${pausedCount > 0
           ? html`<autosnooze-active-pauses
               .hass=${this.hass}
-              .pauseGroups=${this._getPausedGroupedByResumeTime()}
+              .pauseGroups=${pausedSnapshot.groups}
               .pausedCount=${pausedCount}
               @wake-automation=${this._handleWakeEvent}
               @wake-all=${this._handleWakeAllEvent}

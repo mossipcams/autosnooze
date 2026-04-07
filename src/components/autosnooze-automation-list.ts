@@ -8,27 +8,18 @@ import { LitElement, html, TemplateResult } from 'lit';
 import { property, state } from 'lit/decorators.js';
 import { automationListStyles } from '../styles/automation-list.styles.js';
 import { localize } from '../localization/localize.js';
-import { UI_TIMING, EXCLUDE_LABEL, INCLUDE_LABEL } from '../constants/index.js';
+import { UI_TIMING } from '../constants/index.js';
 import { hapticFeedback } from '../utils/haptic.js';
 import {
-  filterAutomations,
-  groupAutomationsBy,
-  getUniqueCount,
+  buildAutomationListViewModel,
   getAreaName,
   getLabelName,
   getCategoryName,
+  type AutomationListViewModel,
 } from '../features/automation-list/index.js';
 import type { HomeAssistant, HassLabel, HassCategory } from '../types/hass.js';
 import type { AutomationItem } from '../types/automation.js';
 import type { FilterTab } from '../types/card.js';
-
-interface AutomationListViewModel {
-  filtered: AutomationItem[];
-  grouped: [string, AutomationItem[]][];
-  areaCount: number;
-  labelCount: number;
-  categoryCount: number;
-}
 
 export class AutoSnoozeAutomationList extends LitElement {
   static styles = automationListStyles;
@@ -125,11 +116,7 @@ export class AutoSnoozeAutomationList extends LitElement {
   }
 
   _getFilteredAutomations(): AutomationItem[] {
-    return filterAutomations(
-      this.automations,
-      this._search,
-      this.labelRegistry,
-    );
+    return this._getViewModel().filtered;
   }
 
   private _getAreaName(areaId: string | null): string {
@@ -146,56 +133,57 @@ export class AutoSnoozeAutomationList extends LitElement {
   }
 
   private _getGroupedByArea(): [string, AutomationItem[]][] {
-    const automations = this._getFilteredAutomations();
-    return groupAutomationsBy(
-      automations,
-      (auto) => auto.area_id ? [this._getAreaName(auto.area_id)] : null,
-      localize(this.hass, 'group.unassigned')
-    );
+    return buildAutomationListViewModel({
+      automations: this.automations,
+      search: this._search,
+      filterTab: 'areas',
+      hass: this.hass,
+      labelRegistry: this.labelRegistry,
+      categoryRegistry: this.categoryRegistry,
+      emptyAreaLabel: localize(this.hass, 'group.unassigned'),
+      emptyLabelLabel: localize(this.hass, 'group.unlabeled'),
+      emptyCategoryLabel: localize(this.hass, 'group.uncategorized'),
+    }).grouped;
   }
 
   private _getGroupedByLabel(): [string, AutomationItem[]][] {
-    const automations = this._getFilteredAutomations();
-    const hiddenLabels = [EXCLUDE_LABEL.toLowerCase(), INCLUDE_LABEL.toLowerCase()];
-    return groupAutomationsBy(
-      automations,
-      (auto) => {
-        if (!auto.labels?.length) return null;
-        const visibleLabels = auto.labels
-          .map((id) => this._getLabelName(id))
-          .filter((name) => !hiddenLabels.includes(name.toLowerCase()));
-        return visibleLabels.length > 0 ? visibleLabels : null;
-      },
-      localize(this.hass, 'group.unlabeled')
-    );
+    return buildAutomationListViewModel({
+      automations: this.automations,
+      search: this._search,
+      filterTab: 'labels',
+      hass: this.hass,
+      labelRegistry: this.labelRegistry,
+      categoryRegistry: this.categoryRegistry,
+      emptyAreaLabel: localize(this.hass, 'group.unassigned'),
+      emptyLabelLabel: localize(this.hass, 'group.unlabeled'),
+      emptyCategoryLabel: localize(this.hass, 'group.uncategorized'),
+    }).grouped;
   }
 
   private _getGroupedByCategory(): [string, AutomationItem[]][] {
-    const automations = this._getFilteredAutomations();
-    return groupAutomationsBy(
-      automations,
-      (auto) => auto.category_id ? [this._getCategoryName(auto.category_id)] : null,
-      localize(this.hass, 'group.uncategorized')
-    );
+    return buildAutomationListViewModel({
+      automations: this.automations,
+      search: this._search,
+      filterTab: 'categories',
+      hass: this.hass,
+      labelRegistry: this.labelRegistry,
+      categoryRegistry: this.categoryRegistry,
+      emptyAreaLabel: localize(this.hass, 'group.unassigned'),
+      emptyLabelLabel: localize(this.hass, 'group.unlabeled'),
+      emptyCategoryLabel: localize(this.hass, 'group.uncategorized'),
+    }).grouped;
   }
 
   _getAreaCount(): number {
-    return getUniqueCount(this.automations, (auto) => auto.area_id ? [auto.area_id] : null);
+    return this._getViewModel().areaCount;
   }
 
   _getLabelCount(): number {
-    const hiddenLabels = [EXCLUDE_LABEL.toLowerCase(), INCLUDE_LABEL.toLowerCase()];
-    return getUniqueCount(this.automations, (auto) => {
-      if (!auto.labels?.length) return null;
-      const visibleLabels = auto.labels.filter(
-        (id) => !hiddenLabels.includes(this._getLabelName(id).toLowerCase())
-      );
-      return visibleLabels.length > 0 ? visibleLabels : null;
-    });
+    return this._getViewModel().labelCount;
   }
 
   _getCategoryCount(): number {
-    return getUniqueCount(this.automations, (auto) => auto.category_id ? [auto.category_id] : null);
+    return this._getViewModel().categoryCount;
   }
 
   private _getViewModel(): AutomationListViewModel {
@@ -212,42 +200,17 @@ export class AutoSnoozeAutomationList extends LitElement {
       return cache.result;
     }
 
-    const filtered = this._getFilteredAutomations();
-    const grouped =
-      this._filterTab === 'areas'
-        ? groupAutomationsBy(
-            filtered,
-            (auto) => auto.area_id ? [this._getAreaName(auto.area_id)] : null,
-            localize(this.hass, 'group.unassigned')
-          )
-        : this._filterTab === 'categories'
-          ? groupAutomationsBy(
-              filtered,
-              (auto) => auto.category_id ? [this._getCategoryName(auto.category_id)] : null,
-              localize(this.hass, 'group.uncategorized')
-            )
-          : this._filterTab === 'labels'
-            ? groupAutomationsBy(
-                filtered,
-                (auto) => {
-                  if (!auto.labels?.length) return null;
-                  const hiddenLabels = [EXCLUDE_LABEL.toLowerCase(), INCLUDE_LABEL.toLowerCase()];
-                  const visibleLabels = auto.labels
-                    .map((id) => this._getLabelName(id))
-                    .filter((name) => !hiddenLabels.includes(name.toLowerCase()));
-                  return visibleLabels.length > 0 ? visibleLabels : null;
-                },
-                localize(this.hass, 'group.unlabeled')
-              )
-            : [];
-
-    const result: AutomationListViewModel = {
-      filtered,
-      grouped,
-      areaCount: this._getAreaCount(),
-      labelCount: this._getLabelCount(),
-      categoryCount: this._getCategoryCount(),
-    };
+    const result = buildAutomationListViewModel({
+      automations: this.automations,
+      search: this._search,
+      filterTab: this._filterTab,
+      hass: this.hass,
+      labelRegistry: this.labelRegistry,
+      categoryRegistry: this.categoryRegistry,
+      emptyAreaLabel: localize(this.hass, 'group.unassigned'),
+      emptyLabelLabel: localize(this.hass, 'group.unlabeled'),
+      emptyCategoryLabel: localize(this.hass, 'group.uncategorized'),
+    });
 
     this._viewModelCache = {
       automations: this.automations,
@@ -293,7 +256,10 @@ export class AutoSnoozeAutomationList extends LitElement {
     this._clearSearch();
   }
 
-  private _renderSelectionList(viewModel: AutomationListViewModel): TemplateResult | TemplateResult[] {
+  private _renderSelectionList(
+    viewModel: AutomationListViewModel,
+    selectedIds: Set<string>
+  ): TemplateResult | TemplateResult[] {
     const { filtered, grouped } = viewModel;
 
     if (this._filterTab === 'all') {
@@ -303,14 +269,14 @@ export class AutoSnoozeAutomationList extends LitElement {
       return filtered.map((a) => html`
         <button
           type="button"
-          class="list-item ${this.selected.includes(a.id) ? 'selected' : ''}"
+          class="list-item ${selectedIds.has(a.id) ? 'selected' : ''}"
           @click=${() => this._toggleSelection(a.id)}
           role="option"
-          aria-selected=${this.selected.includes(a.id)}
+          aria-selected=${selectedIds.has(a.id)}
         >
           <input
             type="checkbox"
-            .checked=${this.selected.includes(a.id)}
+            .checked=${selectedIds.has(a.id)}
             @click=${(e: Event) => e.stopPropagation()}
             @change=${() => this._toggleSelection(a.id)}
             aria-label="${localize(this.hass, 'a11y.select_automation', { name: a.name })}"
@@ -329,8 +295,8 @@ export class AutoSnoozeAutomationList extends LitElement {
 
     return grouped.map(([groupName, items]) => {
       const expanded = this._expandedGroups[groupName] !== false;
-      const groupSelected = items.every((i) => this.selected.includes(i.id));
-      const someSelected = items.some((i) => this.selected.includes(i.id)) && !groupSelected;
+      const groupSelected = items.every((i) => selectedIds.has(i.id));
+      const someSelected = items.some((i) => selectedIds.has(i.id)) && !groupSelected;
 
       return html`
         <button
@@ -357,14 +323,14 @@ export class AutoSnoozeAutomationList extends LitElement {
           ? items.map((a) => html`
                 <button
                   type="button"
-                  class="list-item ${this.selected.includes(a.id) ? 'selected' : ''}"
+                  class="list-item ${selectedIds.has(a.id) ? 'selected' : ''}"
                   @click=${() => this._toggleSelection(a.id)}
                   role="option"
-                  aria-selected=${this.selected.includes(a.id)}
+                  aria-selected=${selectedIds.has(a.id)}
                 >
                   <input
                     type="checkbox"
-                    .checked=${this.selected.includes(a.id)}
+                    .checked=${selectedIds.has(a.id)}
                     @click=${(e: Event) => e.stopPropagation()}
                     @change=${() => this._toggleSelection(a.id)}
                     aria-label="${localize(this.hass, 'a11y.select_automation', { name: a.name })}"
@@ -383,10 +349,11 @@ export class AutoSnoozeAutomationList extends LitElement {
   render(): TemplateResult {
     const viewModel = this._getViewModel();
     const { filtered } = viewModel;
+    const selectedIds = new Set(this.selected);
     const showRegistryWarning = this.labelRegistryUnavailable;
     const hasSearchValue = this._searchInput.length > 0 || this._search.length > 0;
     const allVisibleSelected =
-      filtered.length > 0 && filtered.every((a) => this.selected.includes(a.id));
+      filtered.length > 0 && filtered.every((a) => selectedIds.has(a.id));
     return html`
       <div class="filter-tabs" role="tablist" aria-label="${localize(this.hass, 'a11y.filter_tabs')}">
         <button
@@ -490,7 +457,7 @@ export class AutoSnoozeAutomationList extends LitElement {
         : ''}
 
       <div class="selection-list" id="selection-list" role="listbox" aria-label="${localize(this.hass, 'a11y.automations_list')}" aria-multiselectable="true">
-        ${this._renderSelectionList(viewModel)}
+        ${this._renderSelectionList(viewModel, selectedIds)}
       </div>
     `;
   }

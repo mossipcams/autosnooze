@@ -8,6 +8,7 @@ import {
   SENSOR_ENTITY_ID,
   PAUSED_CONTRACT_VERSION,
   getPaused,
+  getPausedGroupedByResumeTime,
   getScheduled,
   parsePausedContract,
 } from '../src/state/paused.js';
@@ -97,5 +98,80 @@ describe('Paused Contract Parser', () => {
 
     expect(getPaused(hass)['automation.a']?.friendly_name).toBe('A');
     expect(getScheduled(hass)['automation.b']?.friendly_name).toBe('B');
+  });
+
+  test('reuses paused and scheduled snapshots for the same sensor attributes object', () => {
+    const attributes = {
+      schema_version: SENSOR_SCHEMA_VERSION,
+      paused: {
+        'automation.a': pausedEntry({ friendly_name: 'A' }),
+      },
+      scheduled: {
+        'automation.b': scheduledEntry({ friendly_name: 'B' }),
+      },
+    };
+    const hass = createMockHass({
+      states: {
+        [SENSOR_ENTITY_ID]: {
+          entity_id: SENSOR_ENTITY_ID,
+          state: '0',
+          attributes,
+        },
+      },
+    });
+
+    const pausedFirst = getPaused(hass);
+    const pausedSecond = getPaused(hass);
+    const scheduledFirst = getScheduled(hass);
+    const scheduledSecond = getScheduled(hass);
+    const groupsFirst = getPausedGroupedByResumeTime(hass);
+    const groupsSecond = getPausedGroupedByResumeTime(hass);
+
+    expect(pausedSecond).toBe(pausedFirst);
+    expect(scheduledSecond).toBe(scheduledFirst);
+    expect(groupsSecond).toBe(groupsFirst);
+  });
+
+  test('invalidates memoized snapshot when sensor attributes object changes', () => {
+    const hass = createMockHass({
+      states: {
+        [SENSOR_ENTITY_ID]: {
+          entity_id: SENSOR_ENTITY_ID,
+          state: '0',
+          attributes: {
+            schema_version: SENSOR_SCHEMA_VERSION,
+            paused: {
+              'automation.a': pausedEntry({ friendly_name: 'A' }),
+            },
+            scheduled: {},
+          },
+        },
+      },
+    });
+
+    const firstPaused = getPaused(hass);
+    const firstGroups = getPausedGroupedByResumeTime(hass);
+
+    hass.states[SENSOR_ENTITY_ID] = {
+      ...hass.states[SENSOR_ENTITY_ID],
+      attributes: {
+        schema_version: SENSOR_SCHEMA_VERSION,
+        paused: {
+          'automation.c': pausedEntry({ friendly_name: 'C' }),
+        },
+        scheduled: {
+          'automation.d': scheduledEntry({ friendly_name: 'D' }),
+        },
+      },
+    };
+
+    const secondPaused = getPaused(hass);
+    const secondScheduled = getScheduled(hass);
+    const secondGroups = getPausedGroupedByResumeTime(hass);
+
+    expect(secondPaused).not.toBe(firstPaused);
+    expect(secondGroups).not.toBe(firstGroups);
+    expect(secondPaused['automation.c']?.friendly_name).toBe('C');
+    expect(secondScheduled['automation.d']?.friendly_name).toBe('D');
   });
 });
