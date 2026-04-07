@@ -79,8 +79,8 @@ module.exports = {
     },
     {
       name: 'components-no-direct-services-or-state',
-      severity: 'warn',
-      comment: 'Components should prefer feature modules over direct service/state imports as slices are extracted.',
+      severity: 'error',
+      comment: 'Components must depend on feature modules instead of importing service/state runtime layers directly.',
       from: {
         path: '^src/components/',
         pathNot: '^src/components/autosnooze-(card|automation-list|duration-selector|active-pauses)\\.ts$',
