@@ -2,6 +2,9 @@
  * Card shell helpers for local UI state transitions.
  */
 
+import { startCountdownSync, stopCountdownSync } from '../../services/countdown-sync.js';
+import type { CountdownState } from '../../utils/countdown-timer.js';
+
 interface AdjustModalState {
   adjustModalOpen: boolean;
   adjustModalEntityId: string;
@@ -81,4 +84,12 @@ export function createClosedAdjustModalState(): AdjustModalState {
     adjustModalEntityIds: [],
     adjustModalFriendlyNames: [],
   };
+}
+
+export function startCardShellCountdown(onTick: () => void): CountdownState {
+  return startCountdownSync(onTick);
+}
+
+export function stopCardShellCountdown(state: CountdownState): void {
+  stopCountdownSync(state);
 }

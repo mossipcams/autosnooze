@@ -5,19 +5,19 @@
 
 import type { HomeAssistant } from '../types/hass.js';
 import type { PauseServiceParams } from '../types/automation.js';
+import { runPauseActionFeature } from '../features/pause/index.js';
 import {
   runUndoFeature,
   runWakeAllFeature,
   runWakeFeature,
 } from '../features/resume/index.js';
 import {
-  adjustSnooze,
-  cancelScheduled,
-  pauseAutomations,
-} from '../services/snooze.js';
+  runAdjustActionFeature,
+  runCancelScheduledActionFeature,
+} from '../features/scheduled-snooze/index.js';
 
 export async function runPauseAction(hass: HomeAssistant, params: PauseServiceParams): Promise<void> {
-  await pauseAutomations(hass, params);
+  await runPauseActionFeature(hass, params);
 }
 
 export async function runWakeAction(hass: HomeAssistant, entityId: string): Promise<void> {
@@ -29,7 +29,7 @@ export async function runWakeAllAction(hass: HomeAssistant): Promise<void> {
 }
 
 export async function runCancelScheduledAction(hass: HomeAssistant, entityId: string): Promise<void> {
-  await cancelScheduled(hass, entityId);
+  await runCancelScheduledActionFeature(hass, entityId);
 }
 
 export async function runAdjustAction(
@@ -37,7 +37,7 @@ export async function runAdjustAction(
   entityId: string | string[],
   params: { days?: number; hours?: number; minutes?: number }
 ): Promise<void> {
-  await adjustSnooze(hass, entityId, params);
+  await runAdjustActionFeature(hass, entityId, params);
 }
 
 export async function runUndoAction(

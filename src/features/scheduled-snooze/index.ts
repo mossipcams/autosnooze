@@ -62,6 +62,13 @@ export async function runCancelScheduledFeature(hass: HomeAssistant, entityId: s
   await cancelScheduled(hass, entityId);
 }
 
+export async function runCancelScheduledActionFeature(
+  hass: HomeAssistant,
+  entityId: string,
+): Promise<void> {
+  await cancelScheduled(hass, entityId);
+}
+
 export async function runAdjustFeature(
   hass: HomeAssistant,
   detail: { entityId?: string; entityIds?: string[]; days?: number; hours?: number; minutes?: number },
@@ -79,4 +86,12 @@ export async function runAdjustFeature(
 
   const nextResumeAt = new Date(new Date(currentResumeAt).getTime() + deltaMs).toISOString();
   return { nextResumeAt };
+}
+
+export async function runAdjustActionFeature(
+  hass: HomeAssistant,
+  entityId: string | string[],
+  params: { days?: number; hours?: number; minutes?: number },
+): Promise<void> {
+  await adjustSnooze(hass, entityId, params);
 }
