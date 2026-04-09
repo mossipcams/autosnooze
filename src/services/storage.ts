@@ -81,3 +81,47 @@ export function clearLastDuration(): void {
     // Ignore errors
   }
 }
+
+const RECENT_SNOOZES_KEY = 'autosnooze_recent_snoozes';
+const RECENT_MAX_ENTRIES = 10;
+const RECENT_EXPIRATION_MS = 30 * 24 * 60 * 60 * 1000;
+
+interface RecentSnoozeEntry {
+  id: string;
+  timestamp: number;
+}
+
+export function saveRecentSnoozes(ids: string[]): void {
+  try {
+    const now = Date.now();
+    const existing = loadRecentSnoozeEntries();
+    const newEntries: RecentSnoozeEntry[] = ids.map((id) => ({ id, timestamp: now }));
+    const newIds = new Set(ids);
+    const merged = [
+      ...newEntries,
+      ...existing.filter((e) => !newIds.has(e.id)),
+    ].slice(0, RECENT_MAX_ENTRIES);
+    localStorage.setItem(RECENT_SNOOZES_KEY, JSON.stringify(merged));
+  } catch {
+    // localStorage may be unavailable
+  }
+}
+
+export function loadRecentSnoozes(): string[] {
+  return loadRecentSnoozeEntries().map((e) => e.id);
+}
+
+function loadRecentSnoozeEntries(): RecentSnoozeEntry[] {
+  try {
+    const stored = localStorage.getItem(RECENT_SNOOZES_KEY);
+    if (!stored) return [];
+    const entries = JSON.parse(stored) as RecentSnoozeEntry[];
+    if (!Array.isArray(entries)) return [];
+    const cutoff = Date.now() - RECENT_EXPIRATION_MS;
+    return entries.filter(
+      (e) => typeof e.id === 'string' && typeof e.timestamp === 'number' && e.timestamp > cutoff
+    );
+  } catch {
+    return [];
+  }
+}

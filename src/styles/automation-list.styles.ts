@@ -59,9 +59,17 @@ export const automationListStyles = css`
     }
 
     /* Search */
-    .search-box {
+    .search-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
       margin-bottom: 12px;
+      flex-wrap: wrap;
+    }
+    .search-box {
       position: relative;
+      flex: 1 1 260px;
+      min-width: 220px;
     }
     .search-box input {
       width: 100%;
@@ -190,6 +198,17 @@ export const automationListStyles = css`
       vertical-align: middle;
     }
 
+    /* Recent Group Header */
+    .recent-group-header {
+      padding: 8px 12px;
+      font-size: 0.8em;
+      font-weight: 600;
+      color: var(--secondary-text-color);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      border-bottom: 1px solid var(--divider-color);
+    }
+
     /* Group Headers */
     .group-header {
       display: flex;
@@ -241,16 +260,18 @@ export const automationListStyles = css`
     .selection-actions {
       display: flex;
       gap: 8px;
-      margin-bottom: 8px;
       padding: 8px 12px;
       background: var(--secondary-background-color);
       border-radius: 8px;
       align-items: center;
       font-size: 0.9em;
+      flex: 0 1 auto;
+      flex-wrap: wrap;
     }
     .selection-actions span {
-      flex: 1;
+      flex: 0 1 auto;
       color: var(--secondary-text-color);
+      white-space: nowrap;
     }
     .select-all-btn {
       padding: 4px 12px;
@@ -341,6 +362,12 @@ export const automationListStyles = css`
 
       /* --- Search: Refined input with subtle depth --- */
       .search-box {
+        flex: 1 1 100%;
+        min-width: 0;
+      }
+
+      .search-row {
+        gap: 10px;
         margin-bottom: 14px;
       }
 
@@ -373,10 +400,9 @@ export const automationListStyles = css`
 
       /* --- Selection Actions: Refined toolbar --- */
       .selection-actions {
-        padding: 10px 14px;
-        margin-bottom: 12px;
-        font-size: 0.85em;
-        gap: 10px;
+        padding: 6px 8px;
+        font-size: 0.76em;
+        gap: 8px;
         background: linear-gradient(
           135deg,
           color-mix(in srgb, var(--secondary-background-color) 90%, var(--primary-color)) 0%,
@@ -384,6 +410,7 @@ export const automationListStyles = css`
         );
         border-radius: 10px;
         border: 1px solid color-mix(in srgb, var(--divider-color) 40%, transparent);
+        width: 100%;
       }
 
       .selection-actions span {
@@ -393,10 +420,10 @@ export const automationListStyles = css`
       }
 
       .select-all-btn {
-        padding: 8px 14px;
-        font-size: 0.82em;
+        padding: 7px 9px;
+        font-size: 0.78em;
         font-weight: 600;
-        min-height: 38px;
+        min-height: 34px;
         border-radius: 8px;
         border: 1.5px solid color-mix(in srgb, var(--primary-color) 40%, var(--divider-color));
         background: var(--card-background-color);

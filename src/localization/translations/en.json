@@ -2,7 +2,8 @@
   "group": {
     "unassigned": "Unassigned",
     "unlabeled": "Unlabeled",
-    "uncategorized": "Uncategorized"
+    "uncategorized": "Uncategorized",
+    "recent": "Recent"
   },
   "button": {
     "undo": "Undo",
