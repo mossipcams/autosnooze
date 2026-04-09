@@ -42,6 +42,9 @@ export class AutoSnoozeAutomationList extends LitElement {
   @property({ attribute: false })
   categoryRegistry: Record<string, HassCategory> = {};
 
+  @property({ attribute: false })
+  recentSnoozeIds: string[] = [];
+
   @state() _filterTab: FilterTab = 'all';
   @state() _search: string = '';
   @state() _searchInput: string = '';
@@ -250,7 +253,11 @@ export class AutoSnoozeAutomationList extends LitElement {
       if (filtered.length === 0) {
         return html`<div class="list-empty" role="status">${localize(this.hass, 'list.empty')}</div>`;
       }
-      return filtered.map((a) => html`
+      const recentIds = new Set(this.recentSnoozeIds);
+      const hasVisibleRecent = filtered.some((item) => recentIds.has(item.id));
+      return html`
+        ${hasVisibleRecent ? html`<div class="recent-group-header">${localize(this.hass, 'group.recent')}</div>` : ''}
+        ${[...filtered].sort((a, b) => (recentIds.has(b.id) ? 1 : 0) - (recentIds.has(a.id) ? 1 : 0)).map((a) => html`
         <button
           type="button"
           class="list-item ${selectedIds.has(a.id) ? 'selected' : ''}"
@@ -270,7 +277,8 @@ export class AutoSnoozeAutomationList extends LitElement {
             <div class="list-item-name">${a.name}</div>
           </div>
         </button>
-      `);
+      `)}
+      `;
     }
 
     if (grouped.length === 0) {
@@ -386,25 +394,50 @@ export class AutoSnoozeAutomationList extends LitElement {
         </button>
       </div>
 
-      <div class="search-box">
-        <input
-          type="search"
-          placeholder="${localize(this.hass, 'search.placeholder')}"
-          .value=${this._searchInput || this._search}
-          @input=${(e: Event) => this._handleSearchInput(e)}
-          @keydown=${(e: KeyboardEvent) => this._handleSearchKeydown(e)}
-          aria-label="${localize(this.hass, 'a11y.search')}"
-        />
-        ${hasSearchValue
+      <div class="search-row">
+        <div class="search-box">
+          <input
+            type="search"
+            placeholder="${localize(this.hass, 'search.placeholder')}"
+            .value=${this._searchInput || this._search}
+            @input=${(e: Event) => this._handleSearchInput(e)}
+            @keydown=${(e: KeyboardEvent) => this._handleSearchKeydown(e)}
+            aria-label="${localize(this.hass, 'a11y.search')}"
+          />
+          ${hasSearchValue
+            ? html`
+                <button
+                  type="button"
+                  class="search-clear-btn"
+                  @click=${() => this._clearSearch()}
+                  aria-label="${localize(this.hass, 'a11y.clear_selection')}"
+                >
+                  ${localize(this.hass, 'button.clear')}
+                </button>
+              `
+            : ''}
+        </div>
+
+        ${filtered.length > 0
           ? html`
-              <button
-                type="button"
-                class="search-clear-btn"
-                @click=${() => this._clearSearch()}
-                aria-label="${localize(this.hass, 'a11y.clear_selection')}"
-              >
-                ${localize(this.hass, 'button.clear')}
-              </button>
+              <div class="selection-actions" role="toolbar" aria-label="${localize(this.hass, 'a11y.selection_actions')}">
+                <span role="status" aria-live="polite">${localize(this.hass, 'selection.count', { selected: this.selected.length, total: filtered.length })}</span>
+                ${!allVisibleSelected
+                  ? html`
+                      <button
+                        type="button"
+                        class="select-all-btn"
+                        @click=${() => this._selectAllVisible()}
+                        aria-label="${localize(this.hass, 'a11y.select_all')}"
+                      >
+                        ${localize(this.hass, 'button.select_all')}
+                      </button>
+                    `
+                  : ''}
+                ${this.selected.length > 0
+                  ? html`<button type="button" class="select-all-btn clear-selection-btn" @click=${() => this._clearSelection()} aria-label="${localize(this.hass, 'a11y.clear_selection')}">${localize(this.hass, 'button.clear')}</button>`
+                  : ''}
+              </div>
             `
           : ''}
       </div>
@@ -413,29 +446,6 @@ export class AutoSnoozeAutomationList extends LitElement {
         ? html`
             <div class="registry-warning" role="status">
               ${localize(this.hass, 'list.label_registry_warning')}
-            </div>
-          `
-        : ''}
-
-      ${filtered.length > 0
-        ? html`
-            <div class="selection-actions" role="toolbar" aria-label="${localize(this.hass, 'a11y.selection_actions')}">
-              <span role="status" aria-live="polite">${localize(this.hass, 'selection.count', { selected: this.selected.length, total: filtered.length })}</span>
-              ${!allVisibleSelected
-                ? html`
-                    <button
-                      type="button"
-                      class="select-all-btn"
-                      @click=${() => this._selectAllVisible()}
-                      aria-label="${localize(this.hass, 'a11y.select_all')}"
-                    >
-                      ${localize(this.hass, 'button.select_all')}
-                    </button>
-                  `
-                : ''}
-              ${this.selected.length > 0
-                ? html`<button type="button" class="select-all-btn clear-selection-btn" @click=${() => this._clearSelection()} aria-label="${localize(this.hass, 'a11y.clear_selection')}">${localize(this.hass, 'button.clear')}</button>`
-                : ''}
             </div>
           `
         : ''}
