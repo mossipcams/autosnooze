@@ -256,11 +256,16 @@ export class AutoSnoozeAutomationList extends LitElement {
       const recentIds = new Set(this.recentSnoozeIds);
       const hasVisibleRecent = filtered.some((item) => recentIds.has(item.id));
       return html`
-        ${hasVisibleRecent ? html`<div class="recent-group-header">${localize(this.hass, 'group.recent')}</div>` : ''}
+        ${hasVisibleRecent ? html`
+          <div class="recent-group-header">
+            <ha-icon icon="mdi:history" aria-hidden="true"></ha-icon>
+            <span>${localize(this.hass, 'group.recent')}</span>
+          </div>
+        ` : ''}
         ${[...filtered].sort((a, b) => (recentIds.has(b.id) ? 1 : 0) - (recentIds.has(a.id) ? 1 : 0)).map((a) => html`
         <button
           type="button"
-          class="list-item ${selectedIds.has(a.id) ? 'selected' : ''}"
+          class="list-item ${selectedIds.has(a.id) ? 'selected' : ''} ${recentIds.has(a.id) ? 'is-recent' : ''}"
           @click=${() => this._toggleSelection(a.id)}
           role="option"
           aria-selected=${selectedIds.has(a.id)}
