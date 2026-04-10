@@ -1,7 +1,3 @@
-/**
- * Polish tests for the search row (search input, selection count, select-all button).
- * These describe visual refinements layered on top of the existing search-row layout.
- */
 import { describe, expect, test } from 'vitest';
 import { automationListStyles } from '../styles/automation-list.styles.js';
 

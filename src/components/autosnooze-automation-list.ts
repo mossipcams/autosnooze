@@ -254,18 +254,23 @@ export class AutoSnoozeAutomationList extends LitElement {
         return html`<div class="list-empty" role="status">${localize(this.hass, 'list.empty')}</div>`;
       }
       const recentIds = new Set(this.recentSnoozeIds);
-      const hasVisibleRecent = filtered.some((item) => recentIds.has(item.id));
+      const recentItems: AutomationItem[] = [];
+      const otherItems: AutomationItem[] = [];
+      for (const item of filtered) {
+        (recentIds.has(item.id) ? recentItems : otherItems).push(item);
+      }
+      const ordered = recentItems.concat(otherItems);
       return html`
-        ${hasVisibleRecent ? html`
+        ${recentItems.length > 0 ? html`
           <div class="recent-group-header">
             <ha-icon icon="mdi:history" aria-hidden="true"></ha-icon>
             <span>${localize(this.hass, 'group.recent')}</span>
           </div>
         ` : ''}
-        ${[...filtered].sort((a, b) => (recentIds.has(b.id) ? 1 : 0) - (recentIds.has(a.id) ? 1 : 0)).map((a) => html`
+        ${ordered.map((a, index) => html`
         <button
           type="button"
-          class="list-item ${selectedIds.has(a.id) ? 'selected' : ''} ${recentIds.has(a.id) ? 'is-recent' : ''}"
+          class="list-item ${selectedIds.has(a.id) ? 'selected' : ''} ${index < recentItems.length ? 'is-recent' : ''}"
           @click=${() => this._toggleSelection(a.id)}
           role="option"
           aria-selected=${selectedIds.has(a.id)}

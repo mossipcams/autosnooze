@@ -1,7 +1,3 @@
-/**
- * Polish tests for the "Recent" group header and recent list items.
- * These describe the visual refinements layered on top of the base recent-group feature.
- */
 import { describe, expect, test } from 'vitest';
 import { AutoSnoozeAutomationList } from '../components/autosnooze-automation-list.js';
 import { automationListStyles } from '../styles/automation-list.styles.js';
