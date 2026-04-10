@@ -34,6 +34,7 @@ describe('Search and selection actions on same row', () => {
     expect(searchRow!.querySelector('input[type="search"]')).not.toBeNull();
     expect(searchRow!.querySelector('[role="status"]')).not.toBeNull();
     expect(searchRow!.querySelector('.select-all-btn')).not.toBeNull();
+    expect(searchRow!.querySelector('.selection-actions')).toBeNull();
 
     document.body.removeChild(el);
   });
@@ -60,25 +61,64 @@ describe('Search and selection actions on same row', () => {
 
     const searchRow = el.shadowRoot!.querySelector('.search-row');
     const status = searchRow?.querySelector('[role="status"]');
+    const directChildren = Array.from(searchRow?.children ?? []).map((child) => child.className);
 
     expect(searchRow).not.toBeNull();
     expect(status).not.toBeNull();
+    expect(status?.classList.contains('selection-count')).toBe(true);
     expect(status?.textContent).toContain('1');
     expect(status?.textContent).toContain('2');
+    expect(directChildren).toContain('search-box');
+    expect(directChildren).toContain('selection-count');
+    expect(searchRow!.querySelector('.select-all-btn')).not.toBeNull();
     expect(searchRow!.querySelector('.clear-selection-btn')).not.toBeNull();
 
     document.body.removeChild(el);
   });
 
-  test('mobile styles allow the search row to wrap when actions need more space', () => {
+  test('mobile styles keep the full search row on one line', () => {
     const cssText = automationListStyles.cssText;
 
     expect(cssText).toContain('@media (max-width: 480px)');
     expect(cssText).toContain('.search-row');
-    expect(cssText).not.toContain('flex-wrap: nowrap');
     expect(cssText).toContain('.search-box');
-    expect(cssText).toContain('flex: 1 1 100%');
-    expect(cssText).toContain('width: 100%');
+    expect(cssText).toContain('flex-wrap: nowrap');
+    expect(cssText).toContain('flex: 1 1 0');
     expect(cssText).not.toContain('min-width: max-content');
+  });
+
+  test('desktop styles keep the search field visually compact', () => {
+    const cssText = automationListStyles.cssText;
+
+    expect(cssText).toContain('.search-box');
+    expect(cssText).toContain('flex: 1 1 0');
+    expect(cssText).toContain('max-width: 240px');
+    expect(cssText).toContain('.search-box input');
+    expect(cssText).toContain('padding: 8px 72px 8px 12px');
+    expect(cssText).toContain('min-height: 40px');
+  });
+
+  test('search row styles keep the selected count as inline helper text', () => {
+    const cssText = automationListStyles.cssText;
+
+    expect(cssText).toContain('.search-row');
+    expect(cssText).toContain('align-items: center');
+    expect(cssText).toContain('row-gap: 8px');
+    expect(cssText).toContain('.selection-count');
+    expect(cssText).toContain('margin-left: auto');
+    expect(cssText).toContain('padding: 0');
+    expect(cssText).toContain('background: transparent');
+    expect(cssText).toContain('font-size: 0.84em');
+    expect(cssText).toContain('.select-all-btn');
+    expect(cssText).toContain('min-height: 28px');
+  });
+
+  test('search row widths prioritize keeping select-all inline', () => {
+    const cssText = automationListStyles.cssText;
+
+    expect(cssText).toContain('flex-wrap: nowrap');
+    expect(cssText).toContain('max-width: 240px');
+    expect(cssText).toContain('margin-left: auto');
+    expect(cssText).toContain('min-width: 0');
   });
 });

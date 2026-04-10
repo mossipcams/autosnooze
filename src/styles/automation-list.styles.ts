@@ -62,25 +62,28 @@ export const automationListStyles = css`
     .search-row {
       display: flex;
       align-items: center;
-      gap: 12px;
+      gap: 8px;
+      row-gap: 8px;
       margin-bottom: 12px;
-      flex-wrap: wrap;
+      flex-wrap: nowrap;
+      min-width: 0;
     }
     .search-box {
       position: relative;
-      flex: 1 1 260px;
-      min-width: 220px;
+      flex: 1 1 0;
+      min-width: 0;
+      max-width: 240px;
     }
     .search-box input {
       width: 100%;
-      padding: 10px 78px 10px 12px;
+      padding: 8px 72px 8px 12px;
       border: 1px solid var(--divider-color);
       border-radius: 8px;
       background: var(--card-background-color);
       color: var(--primary-text-color);
       box-sizing: border-box;
       font-size: 0.95em;
-      min-height: 44px;
+      min-height: 40px;
     }
     .search-clear-btn {
       position: absolute;
@@ -256,34 +259,30 @@ export const automationListStyles = css`
       font-size: 0.8em;
     }
 
-    /* Selection Actions */
-    .selection-actions {
-      display: flex;
-      gap: 8px;
-      padding: 8px 12px;
-      background: var(--secondary-background-color);
-      border-radius: 8px;
+    .selection-count {
+      display: inline-flex;
       align-items: center;
-      font-size: 0.9em;
-      flex: 0 1 auto;
-      flex-wrap: wrap;
-    }
-    .selection-actions span {
-      flex: 0 1 auto;
+      min-height: 32px;
+      margin-left: auto;
+      padding: 0;
+      background: transparent;
       color: var(--secondary-text-color);
       white-space: nowrap;
+      line-height: 1.2;
+      font-size: 0.84em;
     }
     .select-all-btn {
-      padding: 4px 12px;
+      padding: 0 8px;
       border: 1px solid var(--divider-color);
       border-radius: 6px;
       background: var(--card-background-color);
       color: var(--primary-text-color);
       cursor: pointer;
-      font-size: 0.85em;
+      font-size: 0.78em;
       transition: all 0.2s;
-      min-height: 44px;
+      min-height: 28px;
       box-sizing: border-box;
+      white-space: nowrap;
     }
     .select-all-btn:hover {
       background: var(--primary-color);
@@ -362,20 +361,22 @@ export const automationListStyles = css`
 
       /* --- Search: Refined input with subtle depth --- */
       .search-box {
-        flex: 1 1 100%;
+        flex: 1 1 0;
         min-width: 0;
+        max-width: none;
       }
 
       .search-row {
-        gap: 10px;
+        gap: 6px;
         margin-bottom: 14px;
+        flex-wrap: nowrap;
       }
 
       .search-box input {
-        padding: 13px 78px 13px 14px;
-        font-size: 0.9em;
-        min-height: 46px;
-        border-radius: 12px;
+        padding: 9px 56px 9px 10px;
+        font-size: 0.82em;
+        min-height: 34px;
+        border-radius: 10px;
         border: 1.5px solid color-mix(in srgb, var(--divider-color) 70%, transparent);
         background: var(--card-background-color);
         box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.04);
@@ -393,38 +394,29 @@ export const automationListStyles = css`
       }
 
       .search-clear-btn {
-        right: 10px;
-        min-height: 32px;
-        border-radius: 8px;
+        right: 6px;
+        min-height: 24px;
+        padding: 2px 6px;
+        border-radius: 6px;
+        font-size: 0.72em;
       }
 
-      /* --- Selection Actions: Refined toolbar --- */
-      .selection-actions {
-        padding: 6px 8px;
-        font-size: 0.76em;
-        gap: 8px;
-        background: linear-gradient(
-          135deg,
-          color-mix(in srgb, var(--secondary-background-color) 90%, var(--primary-color)) 0%,
-          var(--secondary-background-color) 100%
-        );
-        border-radius: 10px;
-        border: 1px solid color-mix(in srgb, var(--divider-color) 40%, transparent);
-        width: 100%;
-      }
-
-      .selection-actions span {
+      .selection-count {
         font-weight: 500;
         color: var(--primary-text-color);
         opacity: 0.8;
+        width: auto;
+        min-height: 28px;
+        margin-left: 0;
+        font-size: 0.72em;
       }
 
       .select-all-btn {
-        padding: 7px 9px;
-        font-size: 0.78em;
+        padding: 0 6px;
+        font-size: 0.68em;
         font-weight: 600;
-        min-height: 34px;
-        border-radius: 8px;
+        min-height: 28px;
+        border-radius: 6px;
         border: 1.5px solid color-mix(in srgb, var(--primary-color) 40%, var(--divider-color));
         background: var(--card-background-color);
         transition: all 0.15s ease;
