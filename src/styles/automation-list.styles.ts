@@ -84,6 +84,7 @@ export const automationListStyles = css`
       box-sizing: border-box;
       font-size: 0.95em;
       min-height: 40px;
+      transition: border-color 0.15s ease, box-shadow 0.15s ease;
     }
     .search-clear-btn {
       position: absolute;
@@ -99,6 +100,7 @@ export const automationListStyles = css`
       font-size: 0.8em;
       line-height: 1;
       min-height: 30px;
+      transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
     }
     .search-clear-btn:hover {
       background: var(--secondary-background-color);
@@ -110,6 +112,7 @@ export const automationListStyles = css`
     .search-box input:focus {
       outline: none;
       border-color: var(--primary-color);
+      box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary-color) 15%, transparent);
     }
     .registry-warning {
       margin-bottom: 10px;
@@ -203,13 +206,26 @@ export const automationListStyles = css`
 
     /* Recent Group Header */
     .recent-group-header {
+      display: flex;
+      align-items: center;
+      gap: 6px;
       padding: 8px 12px;
       font-size: 0.8em;
       font-weight: 600;
       color: var(--secondary-text-color);
       text-transform: uppercase;
       letter-spacing: 0.05em;
+      background: color-mix(in srgb, var(--primary-color) 6%, transparent);
       border-bottom: 1px solid var(--divider-color);
+    }
+    .recent-group-header ha-icon {
+      --mdc-icon-size: 14px;
+      color: var(--primary-color);
+      opacity: 0.85;
+      flex-shrink: 0;
+    }
+    .list-item.is-recent:not(:hover):not(.selected) {
+      background: color-mix(in srgb, var(--primary-color) 4%, transparent);
     }
 
     /* Group Headers */
@@ -270,6 +286,7 @@ export const automationListStyles = css`
       white-space: nowrap;
       line-height: 1.2;
       font-size: 0.84em;
+      font-variant-numeric: tabular-nums;
     }
     .select-all-btn {
       padding: 0 8px;
@@ -279,6 +296,7 @@ export const automationListStyles = css`
       color: var(--primary-text-color);
       cursor: pointer;
       font-size: 0.78em;
+      font-weight: 500;
       transition: all 0.2s;
       min-height: 28px;
       box-sizing: border-box;
