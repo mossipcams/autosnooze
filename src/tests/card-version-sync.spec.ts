@@ -3,8 +3,8 @@ import { describe, expect, test } from 'vitest';
 import {
   assertCardVersionSync,
   extractBundleCardVersion,
-  readCardVersionSnapshot,
 } from '../utils/version-sync.js';
+import { readCardVersionSnapshot } from './version-sync.js';
 
 describe('Card version sync', () => {
   test('extracts the default registration version from the built bundle', () => {
