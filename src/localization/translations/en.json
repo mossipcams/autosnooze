@@ -40,6 +40,7 @@
     "category_count": "{count} categories",
     "label_count": "{count} labels",
     "search": "Search automations by name",
+    "clear_search": "Clear search",
     "selection_actions": "Selection actions",
     "select_all": "Select all visible automations",
     "clear_selection": "Clear selection",

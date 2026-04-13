@@ -66,13 +66,11 @@ export const automationListStyles = css`
       row-gap: 8px;
       margin-bottom: 12px;
       flex-wrap: nowrap;
-      min-width: 0;
-    }
+      min-width: 0;\n      background: var(--secondary-background-color);\n      padding: 8px;\n      border-radius: 10px;\n    }
     .search-box {
       position: relative;
       flex: 1 1 0;
       min-width: 0;
-      max-width: 240px;
     }
     .search-box input {
       width: 100%;
@@ -290,7 +288,7 @@ export const automationListStyles = css`
     }
     .select-all-btn {
       padding: 0 8px;
-      border: 1px solid var(--divider-color);
+      border: 1px solid color-mix(in srgb, var(--primary-color) 50%, var(--divider-color));
       border-radius: 6px;
       background: var(--card-background-color);
       color: var(--primary-text-color);

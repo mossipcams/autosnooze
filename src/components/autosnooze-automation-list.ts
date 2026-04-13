@@ -420,7 +420,7 @@ export class AutoSnoozeAutomationList extends LitElement {
                   type="button"
                   class="search-clear-btn"
                   @click=${() => this._clearSearch()}
-                  aria-label="${localize(this.hass, 'a11y.clear_selection')}"
+                  aria-label="${localize(this.hass, 'a11y.clear_search')}"
                 >
                   ${localize(this.hass, 'button.clear')}
                 </button>
