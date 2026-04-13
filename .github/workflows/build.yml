@@ -54,7 +54,7 @@ jobs:
 
       # === Python Linting ===
       - name: Cache ruff
-        uses: actions/cache@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v4
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v4
         with:
           path: ~/.cache/ruff
           key: ruff-${{ runner.os }}-${{ hashFiles('requirements_test.txt') }}
@@ -68,7 +68,7 @@ jobs:
         run: ruff format --check --diff custom_components/ tests/
 
       - name: Cache Pyright
-        uses: actions/cache@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v4
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v4
         with:
           path: ~/.cache/pyright
           key: pyright-${{ runner.os }}-${{ hashFiles('pyproject.toml') }}
@@ -103,7 +103,7 @@ jobs:
 
       # === TypeScript/JavaScript Linting ===
       - name: Cache ESLint
-        uses: actions/cache@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v4
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v4
         with:
           path: .eslintcache
           key: eslint-${{ runner.os }}-${{ hashFiles('package-lock.json', 'eslint.config.mjs') }}
@@ -202,21 +202,21 @@ jobs:
 
       # === Artifacts ===
       - name: Upload built artifact
-        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v4
         with:
           name: autosnooze-card
           path: custom_components/autosnooze/www/autosnooze-card.js
           retention-days: 7
 
       - name: Upload Python coverage report
-        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v4
         with:
           name: python-coverage
           path: coverage.xml
           retention-days: 7
 
       - name: Upload JavaScript coverage report
-        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v4
         with:
           name: js-coverage
           path: coverage/
