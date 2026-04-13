@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.2.18](https://github.com/mossipcams/autosnooze/compare/v0.2.17...v0.2.18) (2026-04-13)
+
+
+### Features
+
+* improve automation list recents and selection layout ([2b307db](https://github.com/mossipcams/autosnooze/commit/2b307db9b16f1142d4dde7cd2bf3694008827190))
+
+
+### Bug Fixes
+
+* make dep-cruiser blocking for component boundaries ([185f212](https://github.com/mossipcams/autosnooze/commit/185f212bd8a1022c28750af4df8bc6068b521591))
+* polish automation search row layout ([c09f4e3](https://github.com/mossipcams/autosnooze/commit/c09f4e3d058fdce2312fa3a12aeaa68ccbcb82d0))
+* polish recent group header and search row visuals ([320db1b](https://github.com/mossipcams/autosnooze/commit/320db1ba08a73f24ab9ba0b8b496cd0709fd7233))
+* polish search bar row with toolbar styling and aria-label fix ([be8b294](https://github.com/mossipcams/autosnooze/commit/be8b294af56ae3bccdcfa35f936baf08980e1516))
+* satisfy knip for version sync helper ([f466224](https://github.com/mossipcams/autosnooze/commit/f466224fea7e01c470fc7bd3e28a1346add14cd0))
+
 ## [0.2.17](https://github.com/mossipcams/autosnooze/compare/v0.2.16...v0.2.17) (2026-04-07)
 
 
