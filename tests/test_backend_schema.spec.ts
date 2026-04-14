@@ -505,7 +505,7 @@ describe('Frontend Service Calls with Captured Responses', () => {
       expect(card._resumeAtTime).toBe('');
     });
 
-    test('handles not_automation error from backend and shows toast', async () => {
+    test('handles not_automation error from backend without rendering a duplicate card toast', async () => {
       const backendError = backendResponses.error_responses.not_automation.response;
       mockCallService.mockRejectedValueOnce(backendError);
 
@@ -517,13 +517,12 @@ describe('Frontend Service Calls with Captured Responses', () => {
       // Verify error was handled
       expect(card._loading).toBe(false);
 
-      // Check toast was shown with correct message
+      // Backend validation errors should not render a duplicate in-card toast.
       const toast = card.shadowRoot.querySelector('.toast');
-      expect(toast).not.toBeNull();
-      expect(toast.textContent).toContain('not automations');
+      expect(toast).toBeNull();
     });
 
-    test('handles invalid_duration error from backend', async () => {
+    test('handles invalid_duration error from backend without rendering a duplicate card toast', async () => {
       const backendError = backendResponses.error_responses.invalid_duration.response;
       mockCallService.mockRejectedValueOnce(backendError);
 
@@ -535,11 +534,10 @@ describe('Frontend Service Calls with Captured Responses', () => {
       expect(card._loading).toBe(false);
 
       const toast = card.shadowRoot.querySelector('.toast');
-      expect(toast).not.toBeNull();
-      expect(toast.textContent.toLowerCase()).toContain('duration');
+      expect(toast).toBeNull();
     });
 
-    test('handles resume_time_past error from backend', async () => {
+    test('handles resume_time_past error from backend without rendering a duplicate card toast', async () => {
       const backendError = backendResponses.error_responses.resume_time_past.response;
       mockCallService.mockRejectedValueOnce(backendError);
 
@@ -554,8 +552,7 @@ describe('Frontend Service Calls with Captured Responses', () => {
       expect(card._loading).toBe(false);
 
       const toast = card.shadowRoot.querySelector('.toast');
-      expect(toast).not.toBeNull();
-      expect(toast.textContent.toLowerCase()).toContain('future');
+      expect(toast).toBeNull();
     });
 
     test('does not call service when no automations selected', async () => {
