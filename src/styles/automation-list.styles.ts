@@ -71,7 +71,7 @@ export const automationListStyles = css`
       background: var(--card-background-color);
       color: var(--primary-text-color);
       box-sizing: border-box;
-      font-size: 0.95em;
+      font-size: 0.9em;
       min-height: 44px;
     }
     .search-clear-btn {
@@ -259,7 +259,6 @@ export const automationListStyles = css`
       background: var(--card-background-color);
       color: var(--primary-text-color);
       cursor: pointer;
-      font-size: 0.85em;
       transition: all 0.2s;
       min-height: 44px;
       box-sizing: border-box;
@@ -299,7 +298,7 @@ export const automationListStyles = css`
 
       .tab {
         padding: 8px 6px;
-        font-size: 0.82em;
+        font-size: 0.85em;
         font-weight: 500;
         border-radius: 11px;
         min-height: 40px;
@@ -394,7 +393,6 @@ export const automationListStyles = css`
 
       .select-all-btn {
         padding: 8px 14px;
-        font-size: 0.82em;
         font-weight: 600;
         min-height: 38px;
         border-radius: 8px;
