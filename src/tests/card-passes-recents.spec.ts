@@ -22,9 +22,13 @@ vi.mock('../services/registry.js', () => ({
   fetchEntityRegistry: vi.fn().mockResolvedValue([]),
 }));
 
-vi.mock('../features/pause/index.js', () => ({
-  runPauseFeature,
-}));
+vi.mock('../features/pause/index.js', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../features/pause/index.js')>();
+  return {
+    ...actual,
+    runPauseFeature,
+  };
+});
 
 import { AutomationPauseCard } from '../components/autosnooze-card.js';
 import type { HomeAssistant } from '../types/hass.js';
