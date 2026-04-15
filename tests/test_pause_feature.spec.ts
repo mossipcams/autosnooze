@@ -1,9 +1,13 @@
 // @ts-nocheck -- focused seam tests for pause feature delegation
 import { beforeEach, describe, expect, test, vi } from 'vitest';
 
-vi.mock('../src/features/pause/index.js', () => ({
-  runPauseFeature: vi.fn(),
-}));
+vi.mock('../src/features/pause/index.js', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../src/features/pause/index.js')>();
+  return {
+    ...actual,
+    runPauseFeature: vi.fn(),
+  };
+});
 
 import '../src/index.ts';
 import { runPauseFeature } from '../src/features/pause/index.js';
