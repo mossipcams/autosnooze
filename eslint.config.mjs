@@ -74,6 +74,14 @@ export default [
     },
   },
   {
+    files: ["src/tests/**/*.ts"],
+    languageOptions: {
+      parserOptions: {
+        project: ["./tsconfig.test.json"],
+      },
+    },
+  },
+  {
     files: ["tests/**/*.ts"],
     languageOptions: {
       parserOptions: {

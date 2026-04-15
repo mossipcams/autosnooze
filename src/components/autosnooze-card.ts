@@ -23,6 +23,7 @@ import {
 } from '../services/registry.js';
 import {
   loadLastDuration,
+  loadRecentSnoozes,
   type LastDurationData,
 } from '../services/storage.js';
 import { formatDateTime } from '../utils/time-formatting.js';
@@ -84,6 +85,7 @@ export class AutomationPauseCard extends LitElement {
   @state() private _automationsCache: AutomationItem[] | null = null;
   @state() private _automationsCacheVersion: number = 0;
   @state() private _lastDuration: LastDurationData | null = null;
+  @state() _recentSnoozeIds: string[] = [];
   @state() private _adjustModalOpen: boolean = false;
   @state() private _adjustModalEntityId: string = '';
   @state() private _adjustModalFriendlyName: string = '';
@@ -223,6 +225,7 @@ export class AutomationPauseCard extends LitElement {
     this._fetchCategoryRegistry();
     this._fetchEntityRegistry();
     this._lastDuration = loadLastDuration();
+    this._refreshRecentSnoozeIds();
   }
 
   disconnectedCallback(): void {
@@ -324,6 +327,10 @@ export class AutomationPauseCard extends LitElement {
     } finally {
       this._entityRegistryFetchPromise = null;
     }
+  }
+
+  private _refreshRecentSnoozeIds(): void {
+    this._recentSnoozeIds = loadRecentSnoozes();
   }
 
   private _getAutomations(): AutomationItem[] {
@@ -573,6 +580,8 @@ export class AutomationPauseCard extends LitElement {
       if (pauseResult.lastDuration) {
         this._lastDuration = pauseResult.lastDuration;
       }
+
+      this._refreshRecentSnoozeIds();
 
       if (!this.isConnected || !this.shadowRoot) {
         this._loading = false;
@@ -892,6 +901,7 @@ export class AutomationPauseCard extends LitElement {
             .labelRegistry=${this._labelRegistry}
             .labelRegistryUnavailable=${this._labelRegistryUnavailable}
             .categoryRegistry=${this._categoryRegistry}
+            .recentSnoozeIds=${this._recentSnoozeIds}
             @selection-change=${this._handleSelectionChange}
           ></autosnooze-automation-list>
 
