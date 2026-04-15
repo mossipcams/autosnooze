@@ -6,11 +6,26 @@
 import { localize } from '../../localization/localize.js';
 import { saveLastDuration, saveRecentSnoozes, type LastDurationData } from '../../services/storage.js';
 import { pauseAutomations } from '../../services/snooze.js';
-import type { ParsedDuration, PauseServiceParams } from '../../types/automation.js';
-import type { HomeAssistant } from '../../types/hass.js';
+import type { AutomationItem, ParsedDuration, PauseServiceParams } from '../../types/automation.js';
+import type { HassLabel, HomeAssistant } from '../../types/hass.js';
 import { combineDateTime } from '../../utils/datetime.js';
 import { durationToMinutes } from '../../utils/duration-parsing.js';
 import { formatDateTime, formatDuration } from '../../utils/time-formatting.js';
+
+const CONFIRM_LABEL = 'autosnooze_confirm';
+const CRITICAL_AUTOMATION_TERMS = [
+  'alarm',
+  'security',
+  'siren',
+  'lock',
+  'smoke',
+  'carbon monoxide',
+  'co2',
+  'leak',
+  'flood',
+  'fire',
+  'gas',
+] as const;
 
 interface RunPauseFeatureInput {
   hass: HomeAssistant;
@@ -45,6 +60,38 @@ type DurationPauseBuild = SchedulePauseBuild & {
 function getConfirmTranslationKey(error: unknown): string | undefined {
   const serviceError = error as { translation_key?: string; data?: { translation_key?: string } };
   return serviceError?.translation_key ?? serviceError?.data?.translation_key;
+}
+
+function hasConfirmLabel(
+  labels: string[],
+  labelRegistry: Record<string, HassLabel>
+): boolean {
+  return labels.some((labelId) => labelId === CONFIRM_LABEL || labelRegistry[labelId]?.name === CONFIRM_LABEL);
+}
+
+function containsCriticalTerm(value: string): boolean {
+  return CRITICAL_AUTOMATION_TERMS.some((term) => {
+    const escaped = term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    return new RegExp(`(?<![a-z0-9])${escaped}(?![a-z0-9])`, 'i').test(value);
+  });
+}
+
+export function requiresPauseConfirmation(input: {
+  selected: string[];
+  automations: AutomationItem[];
+  labelRegistry: Record<string, HassLabel>;
+}): boolean {
+  const selectedIds = new Set(input.selected);
+
+  return input.automations.some((automation) => {
+    if (!selectedIds.has(automation.id)) {
+      return false;
+    }
+
+    return hasConfirmLabel(automation.labels, input.labelRegistry)
+      || containsCriticalTerm(automation.id)
+      || containsCriticalTerm(automation.name);
+  });
 }
 
 function buildSchedulePauseRequest(input: RunPauseFeatureInput): SchedulePauseBuild | null {

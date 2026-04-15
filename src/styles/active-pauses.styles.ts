@@ -192,10 +192,10 @@ export const activePausesStyles = css`
         padding: 8px 14px;
         font-size: 0.82em;
         font-weight: 600;
-        min-height: 36px;
+        min-height: 44px;
         flex-shrink: 0;
         align-self: center;
-        border-radius: 10px;
+        border-radius: 8px;
         border: 1.5px solid color-mix(in srgb, #4caf50 60%, var(--divider-color));
         background: var(--card-background-color);
         color: #4caf50;
