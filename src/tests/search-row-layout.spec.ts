@@ -107,7 +107,7 @@ describe('Search and selection actions on same row', () => {
     expect(cssText).toContain('margin-left: auto');
     expect(cssText).toContain('padding: 0');
     expect(cssText).toContain('background: transparent');
-    expect(cssText).toContain('font-size: 0.84em');
+    expect(cssText).toContain('font-size: 0.9em');
     expect(cssText).toContain('.select-all-btn');
     expect(cssText).toContain('min-height: 28px');
   });
