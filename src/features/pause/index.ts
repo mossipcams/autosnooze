@@ -4,7 +4,7 @@
  */
 
 import { localize } from '../../localization/localize.js';
-import { saveLastDuration, type LastDurationData } from '../../services/storage.js';
+import { saveLastDuration, saveRecentSnoozes, type LastDurationData } from '../../services/storage.js';
 import { pauseAutomations } from '../../services/snooze.js';
 import type { ParsedDuration, PauseServiceParams } from '../../types/automation.js';
 import type { HomeAssistant } from '../../types/hass.js';
@@ -137,6 +137,8 @@ export async function runPauseFeature(input: RunPauseFeatureInput): Promise<RunP
     throw error;
   }
 
+  saveRecentSnoozes(input.selected);
+
   if (hasLastDuration(built)) {
     saveLastDuration(built.lastDuration.duration, built.lastDuration.minutes);
     return {
@@ -150,4 +152,11 @@ export async function runPauseFeature(input: RunPauseFeatureInput): Promise<RunP
     status: 'submitted',
     toastMessage: built.toastMessage,
   };
+}
+
+export async function runPauseActionFeature(
+  hass: HomeAssistant,
+  params: PauseServiceParams,
+): Promise<void> {
+  await pauseAutomations(hass, params);
 }
