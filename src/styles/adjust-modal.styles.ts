@@ -173,7 +173,7 @@ export const adjustModalStyles = css`
     @media (max-width: 480px) {
       .modal-content {
         max-width: 100%;
-        border-radius: 20px;
+        border-radius: 16px;
       }
       .modal-header {
         padding: 18px 16px 14px;

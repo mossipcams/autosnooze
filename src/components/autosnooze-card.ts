@@ -29,8 +29,7 @@ import {
 import { formatDateTime } from '../utils/time-formatting.js';
 import { isDurationValid } from '../utils/duration-parsing.js';
 import { hapticFeedback } from '../utils/haptic.js';
-import { getErrorMessage } from '../utils/errors.js';
-import { runPauseFeature } from '../features/pause/index.js';
+import { requiresPauseConfirmation, runPauseFeature } from '../features/pause/index.js';
 import {
   runUndoFeature,
   runWakeAllFeature,
@@ -542,6 +541,15 @@ export class AutomationPauseCard extends LitElement {
       if (this._duration === 0) return;
     }
 
+    if (!forceConfirm && requiresPauseConfirmation({
+      selected: this._selected,
+      automations: this._getAutomations(),
+      labelRegistry: this._labelRegistry,
+    })) {
+      this._guardrailConfirmOpen = true;
+      return;
+    }
+
     this._loading = true;
     this._guardrailConfirmOpen = false;
     try {
@@ -629,9 +637,6 @@ export class AutomationPauseCard extends LitElement {
     } catch (e) {
       console.error('Snooze failed:', e);
       this._hapticFeedback('failure');
-      if (this.isConnected && this.shadowRoot) {
-        this._showToast(getErrorMessage(e as Error, 'Failed to snooze automations'));
-      }
     }
     this._loading = false;
   }
@@ -647,9 +652,6 @@ export class AutomationPauseCard extends LitElement {
     } catch (e) {
       console.error('Wake failed:', e);
       this._hapticFeedback('failure');
-      if (this.isConnected && this.shadowRoot) {
-        this._showToast(getErrorMessage(e as Error, localize(this.hass, 'toast.error.resume_failed')));
-      }
     }
   }
 
@@ -668,9 +670,6 @@ export class AutomationPauseCard extends LitElement {
     } catch (e) {
       console.error('Wake all failed:', e);
       this._hapticFeedback('failure');
-      if (this.isConnected && this.shadowRoot) {
-        this._showToast(getErrorMessage(e as Error, localize(this.hass, 'toast.error.resume_all_failed')));
-      }
     }
   }
 
@@ -720,9 +719,6 @@ export class AutomationPauseCard extends LitElement {
     } catch (e) {
       console.error('Adjust failed:', e);
       this._hapticFeedback('failure');
-      if (this.isConnected && this.shadowRoot) {
-        this._showToast(getErrorMessage(e as Error, localize(this.hass, 'toast.error.adjust_failed')));
-      }
     }
   }
 
@@ -747,9 +743,6 @@ export class AutomationPauseCard extends LitElement {
     } catch (e) {
       console.error('Cancel scheduled failed:', e);
       this._hapticFeedback('failure');
-      if (this.isConnected && this.shadowRoot) {
-        this._showToast(getErrorMessage(e as Error, localize(this.hass, 'toast.error.cancel_failed')));
-      }
     }
   }
 

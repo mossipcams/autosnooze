@@ -332,7 +332,7 @@ export const automationListStyles = css`
         margin-bottom: 14px;
         padding: 3px;
         background: color-mix(in srgb, var(--secondary-background-color) 80%, var(--divider-color));
-        border-radius: 14px;
+        border-radius: 12px;
         border-bottom: none;
         padding-bottom: 3px;
       }
@@ -341,7 +341,7 @@ export const automationListStyles = css`
         padding: 8px 6px;
         font-size: 0.85em;
         font-weight: 500;
-        border-radius: 11px;
+        border-radius: 10px;
         min-height: 40px;
         flex: 1 1 0;
         justify-content: center;
@@ -421,6 +421,21 @@ export const automationListStyles = css`
         font-size: 0.85em;
       }
 
+      /* --- Selection Actions: Refined toolbar --- */
+      .selection-actions {
+        padding: 10px 14px;
+        margin-bottom: 12px;
+        font-size: 0.85em;
+        gap: 10px;
+        background: linear-gradient(
+          135deg,
+          color-mix(in srgb, var(--secondary-background-color) 90%, var(--primary-color)) 0%,
+          var(--secondary-background-color) 100%
+        );
+        border-radius: 8px;
+        border: 1px solid color-mix(in srgb, var(--divider-color) 40%, transparent);
+      }
+
       .selection-count {
         font-weight: 500;
         color: var(--primary-text-color);
@@ -451,7 +466,7 @@ export const automationListStyles = css`
       .selection-list {
         max-height: min(200px, 35dvh);
         margin-bottom: 16px;
-        border-radius: 14px;
+        border-radius: 12px;
         border: 1.5px solid color-mix(in srgb, var(--divider-color) 60%, transparent);
         background: var(--card-background-color);
         box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);

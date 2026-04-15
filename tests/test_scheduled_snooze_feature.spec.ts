@@ -1,9 +1,13 @@
 // @ts-nocheck -- focused seam tests for scheduled snooze delegation
 import { beforeEach, describe, expect, test, vi } from 'vitest';
 
-vi.mock('../src/features/pause/index.js', () => ({
-  runPauseFeature: vi.fn(),
-}));
+vi.mock('../src/features/pause/index.js', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../src/features/pause/index.js')>();
+  return {
+    ...actual,
+    runPauseFeature: vi.fn(),
+  };
+});
 
 vi.mock('../src/features/scheduled-snooze/index.js', () => ({
   validateScheduledPauseInput: vi.fn(),

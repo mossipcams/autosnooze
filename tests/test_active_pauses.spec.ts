@@ -538,7 +538,7 @@ describe('Parent Card Integration', () => {
     document.body.removeChild(card);
   });
 
-  it('should show error toast and haptic on wake-all failure', async () => {
+  it('should avoid duplicate card toast and still trigger failure haptic on wake-all failure', async () => {
     await import('../src/index.js');
     const { AutomationPauseCard } = await import('../src/components/autosnooze-card.js');
     if (!customElements.get('autosnooze-card-wakeall-err-test')) {
@@ -567,7 +567,7 @@ describe('Parent Card Integration', () => {
     const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
     await internal._handleWakeAllEvent();
     expect(hapticSpy).toHaveBeenCalledWith('failure');
-    expect(toastSpy).toHaveBeenCalled();
+    expect(toastSpy).not.toHaveBeenCalled();
     hapticSpy.mockRestore();
     toastSpy.mockRestore();
     consoleSpy.mockRestore();

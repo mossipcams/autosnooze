@@ -126,18 +126,7 @@ export const durationSelectorStyles = css`
       }
     }
 
-    /* Mobile adjustments for badge */
-    @media (max-width: 400px) {
-      .last-duration-badge {
-        font-size: 0.8em;
-        padding: 8px 10px;
-        gap: 5px;
-      }
-
-      .last-duration-badge ha-icon {
-        --mdc-icon-size: 14px;
-      }
-    }
+    /* Mobile adjustments for badge - unified with main 480px breakpoint below */
 
     /* Duration Input */
     .custom-duration-input {
@@ -348,6 +337,16 @@ export const durationSelectorStyles = css`
         border-color: var(--primary-color);
       }
 
+      .last-duration-badge {
+        font-size: 0.8em;
+        padding: 8px 10px;
+        gap: 5px;
+      }
+
+      .last-duration-badge ha-icon {
+        --mdc-icon-size: 14px;
+      }
+
       .duration-input {
         padding: 13px 14px;
         font-size: 0.9em;
@@ -396,7 +395,7 @@ export const durationSelectorStyles = css`
         padding: 14px;
         gap: 14px;
         margin-bottom: 14px;
-        border-radius: 14px;
+        border-radius: 12px;
         background: linear-gradient(
           180deg,
           var(--secondary-background-color) 0%,
@@ -425,7 +424,7 @@ export const durationSelectorStyles = css`
         min-height: 46px;
         padding: 10px 12px;
         font-size: 0.9em;
-        border-radius: 10px;
+        border-radius: 8px;
         border: 1.5px solid color-mix(in srgb, var(--divider-color) 70%, transparent);
         background: var(--card-background-color);
       }
@@ -437,7 +436,7 @@ export const durationSelectorStyles = css`
         padding: 10px 10px;
         font-size: 0.9em;
         font-weight: 500;
-        border-radius: 10px;
+        border-radius: 8px;
         border: 1.5px solid color-mix(in srgb, var(--divider-color) 70%, transparent);
         background: var(--card-background-color);
       }
@@ -455,7 +454,7 @@ export const durationSelectorStyles = css`
       }
       .schedule-summary {
         font-size: 0.76em;
-        border-radius: 10px;
+        border-radius: 8px;
         padding: 9px 10px;
       }
     }
