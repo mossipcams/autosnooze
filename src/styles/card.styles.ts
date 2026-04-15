@@ -261,7 +261,7 @@ export const cardStyles = css`
         font-size: 1em;
         min-height: 56px;
         font-weight: 700;
-        border-radius: 14px;
+        border-radius: 12px;
         letter-spacing: 0.01em;
         background: linear-gradient(
           135deg,
@@ -276,11 +276,11 @@ export const cardStyles = css`
         -webkit-tap-highlight-color: transparent;
       }
       .guardrail-confirm {
-        border-radius: 14px;
+        border-radius: 12px;
         padding: 12px;
       }
       .guardrail-body {
-        font-size: 0.8em;
+        font-size: 0.85em;
       }
 
       .snooze-btn:hover:not(:disabled) {
@@ -320,10 +320,22 @@ export const cardStyles = css`
         margin-top: 2px;
       }
 
+      .scheduled-item .paused-info {
+        flex: 1;
+        min-width: 0;
+        overflow: hidden;
+      }
+
+      .scheduled-item .paused-name {
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
       /* --- Scheduled Section: Cool accent with depth --- */
       .scheduled-list {
         padding: 14px;
-        margin-top: 14px;
+        margin-top: 24px;
         border-radius: 16px;
         border: 2px solid #2196f3;
         background: linear-gradient(
@@ -370,9 +382,9 @@ export const cardStyles = css`
         padding: 10px 14px;
         font-size: 0.82em;
         font-weight: 600;
-        min-height: 40px;
+        min-height: 44px;
         flex-shrink: 0;
-        border-radius: 10px;
+        border-radius: 8px;
         border: 1.5px solid color-mix(in srgb, #f44336 60%, var(--divider-color));
         background: var(--card-background-color);
         color: #f44336;
@@ -398,7 +410,7 @@ export const cardStyles = css`
         font-size: 0.9em;
         font-weight: 500;
         max-width: calc(100vw - 32px);
-        border-radius: 14px;
+        border-radius: 12px;
         box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2),
                     0 4px 12px rgba(0, 0, 0, 0.15);
         backdrop-filter: blur(8px);
@@ -411,7 +423,7 @@ export const cardStyles = css`
 
       .toast-undo-btn {
         padding: 8px 14px;
-        min-height: 36px;
+        min-height: 44px;
         font-size: 0.85em;
         font-weight: 600;
         border-radius: 8px;
