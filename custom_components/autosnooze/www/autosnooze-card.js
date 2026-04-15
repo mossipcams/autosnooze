@@ -1501,7 +1501,11 @@ function e(e,t,a,o){var i,s=arguments.length,r=s<3?t:null===o?o=Object.getOwnPro
       row-gap: 8px;
       margin-bottom: 12px;
       flex-wrap: nowrap;
-      min-width: 0;\n      background: var(--secondary-background-color);\n      padding: 8px;\n      border-radius: 10px;\n    }
+      min-width: 0;
+      background: var(--secondary-background-color);
+      padding: 8px;
+      border-radius: 10px;
+    }
     .search-box {
       position: relative;
       flex: 1 1 0;
@@ -1515,7 +1519,7 @@ function e(e,t,a,o){var i,s=arguments.length,r=s<3?t:null===o?o=Object.getOwnPro
       background: var(--card-background-color);
       color: var(--primary-text-color);
       box-sizing: border-box;
-      font-size: 0.95em;
+      font-size: 0.9em;
       min-height: 40px;
       transition: border-color 0.15s ease, box-shadow 0.15s ease;
     }
@@ -1718,7 +1722,7 @@ function e(e,t,a,o){var i,s=arguments.length,r=s<3?t:null===o?o=Object.getOwnPro
       color: var(--secondary-text-color);
       white-space: nowrap;
       line-height: 1.2;
-      font-size: 0.84em;
+      font-size: 0.9em;
       font-variant-numeric: tabular-nums;
     }
     .select-all-btn {
@@ -1728,7 +1732,7 @@ function e(e,t,a,o){var i,s=arguments.length,r=s<3?t:null===o?o=Object.getOwnPro
       background: var(--card-background-color);
       color: var(--primary-text-color);
       cursor: pointer;
-      font-size: 0.78em;
+      font-size: 0.9em;
       font-weight: 500;
       transition: all 0.2s;
       min-height: 28px;
@@ -1770,7 +1774,7 @@ function e(e,t,a,o){var i,s=arguments.length,r=s<3?t:null===o?o=Object.getOwnPro
 
       .tab {
         padding: 8px 6px;
-        font-size: 0.82em;
+        font-size: 0.85em;
         font-weight: 500;
         border-radius: 10px;
         min-height: 40px;
@@ -1825,7 +1829,7 @@ function e(e,t,a,o){var i,s=arguments.length,r=s<3?t:null===o?o=Object.getOwnPro
 
       .search-box input {
         padding: 9px 56px 9px 10px;
-        font-size: 0.82em;
+        font-size: 0.85em;
         min-height: 34px;
         border-radius: 10px;
         border: 1.5px solid color-mix(in srgb, var(--divider-color) 70%, transparent);
@@ -1849,7 +1853,7 @@ function e(e,t,a,o){var i,s=arguments.length,r=s<3?t:null===o?o=Object.getOwnPro
         min-height: 24px;
         padding: 2px 6px;
         border-radius: 6px;
-        font-size: 0.72em;
+        font-size: 0.85em;
       }
 
       /* --- Selection Actions: Refined toolbar --- */
@@ -1874,12 +1878,12 @@ function e(e,t,a,o){var i,s=arguments.length,r=s<3?t:null===o?o=Object.getOwnPro
         width: auto;
         min-height: 28px;
         margin-left: 0;
-        font-size: 0.72em;
+        font-size: 0.85em;
       }
 
       .select-all-btn {
         padding: 0 6px;
-        font-size: 0.68em;
+        font-size: 0.85em;
         font-weight: 600;
         min-height: 28px;
         border-radius: 6px;
