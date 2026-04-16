@@ -2,6 +2,8 @@
 
 [![HACS Custom](https://img.shields.io/badge/HACS-Custom-41BDF5.svg?style=flat-square)](https://github.com/hacs/integration)
 [![GitHub Release](https://img.shields.io/github/release/mossipcams/autosnooze.svg?style=flat-square)](https://github.com/mossipcams/autosnooze/releases)
+[![GitHub Stars](https://img.shields.io/github/stars/mossipcams/autosnooze?style=flat-square)](https://github.com/mossipcams/autosnooze/stargazers)
+[![HA Analytics](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fanalytics.home-assistant.io%2Fcustom_integrations.json&query=%24.autosnooze.total&suffix=%20installs&label=Active%20Installs&style=flat-square&color=41BDF5)](https://analytics.home-assistant.io)
 [![Build Status](https://img.shields.io/github/actions/workflow/status/mossipcams/autosnooze/build.yml?branch=main&style=flat-square)](https://github.com/mossipcams/autosnooze/actions)
 [![Home Assistant](https://img.shields.io/badge/Home%20Assistant-2024.1+-blue.svg?style=flat-square)](https://www.home-assistant.io/)
 
