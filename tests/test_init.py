@@ -585,60 +585,62 @@ class TestAsyncRegisterLovelaceResource:
 
 
 class TestLovelaceResourceSafety:
-    """Regression tests verifying source code patterns for safe Lovelace registration."""
+    """Regression tests verifying safe Lovelace registration behavior."""
 
-    def test_uses_namespace_prefix_pattern(self) -> None:
-        """Verify resource matching uses namespace prefix like HACS."""
-        from pathlib import Path
+    @pytest.fixture
+    def mock_hass_with_lovelace(self) -> tuple[MagicMock, MagicMock]:
+        """Create mock hass and Lovelace resources."""
+        resources = MagicMock()
+        resources.async_items.return_value = []
+        resources.async_create_item = AsyncMock()
+        resources.async_update_item = AsyncMock()
+        resources.async_delete_item = AsyncMock()
 
-        init_path = Path(__file__).parent.parent / "custom_components" / "autosnooze" / "__init__.py"
-        assert init_path.exists()
-        source = init_path.read_text()
+        lovelace_data = MagicMock()
+        lovelace_data.resources = resources
+        lovelace_data.mode = "storage"
 
-        func_match = source.find("async def _async_register_lovelace_resource")
-        assert func_match != -1
+        hass = MagicMock()
+        hass.data = {"lovelace": lovelace_data}
+        return hass, resources
 
-        next_func = source.find("\nasync def ", func_match + 1)
-        if next_func == -1:
-            next_func = len(source)
+    @pytest.mark.asyncio
+    async def test_uses_namespace_prefix_pattern(self, mock_hass_with_lovelace: tuple[MagicMock, MagicMock]) -> None:
+        """Verify only the AutoSnooze namespace is matched for updates."""
+        hass, resources = mock_hass_with_lovelace
+        resources.async_items.return_value = [
+            {"id": "other-1", "url": "/local/autosnooze-card.js", "res_type": "module"},
+            {"id": "auto-1", "url": "/autosnooze-card.js?v=0.0.1", "res_type": "module"},
+        ]
 
-        func_body = source[func_match:next_func]
+        await _async_register_lovelace_resource(hass)
 
-        assert "startswith" in func_body
-        assert "CARD_URL" in func_body
+        resources.async_update_item.assert_called_once_with(
+            "auto-1",
+            {"url": CARD_URL_VERSIONED, "res_type": "module"},
+        )
+        resources.async_create_item.assert_not_called()
 
-    def test_never_deletes_resources(self) -> None:
-        """Verify source code doesn't call async_delete_item."""
-        from pathlib import Path
+    @pytest.mark.asyncio
+    async def test_never_deletes_resources(self, mock_hass_with_lovelace: tuple[MagicMock, MagicMock]) -> None:
+        """Verify registration never deletes Lovelace resources."""
+        hass, resources = mock_hass_with_lovelace
+        resources.async_items.return_value = [
+            {"id": "auto-1", "url": "/autosnooze-card.js?v=0.0.1", "res_type": "module"}
+        ]
 
-        init_path = Path(__file__).parent.parent / "custom_components" / "autosnooze" / "__init__.py"
-        source = init_path.read_text()
+        await _async_register_lovelace_resource(hass)
 
-        func_match = source.find("async def _async_register_lovelace_resource")
-        next_func = source.find("\nasync def ", func_match + 1)
-        if next_func == -1:
-            next_func = len(source)
+        resources.async_delete_item.assert_not_called()
 
-        func_body = source[func_match:next_func]
+    @pytest.mark.asyncio
+    async def test_uses_resource_manager_api(self, mock_hass_with_lovelace: tuple[MagicMock, MagicMock]) -> None:
+        """Verify resource registration creates a Lovelace module resource."""
+        hass, resources = mock_hass_with_lovelace
 
-        assert "async_delete_item" not in func_body
+        await _async_register_lovelace_resource(hass)
 
-    def test_uses_resource_manager_api(self) -> None:
-        """Verify resource registration uses lovelace resource manager API."""
-        from pathlib import Path
-
-        init_path = Path(__file__).parent.parent / "custom_components" / "autosnooze" / "__init__.py"
-        source = init_path.read_text()
-
-        func_match = source.find("async def _async_register_lovelace_resource")
-        next_func = source.find("\nasync def ", func_match + 1)
-        if next_func == -1:
-            next_func = len(source)
-
-        func_body = source[func_match:next_func]
-
-        assert "async_create_item" in func_body
-        assert '"res_type": "module"' in func_body
+        resources.async_create_item.assert_called_once_with({"url": CARD_URL_VERSIONED, "res_type": "module"})
 
 
 # =============================================================================

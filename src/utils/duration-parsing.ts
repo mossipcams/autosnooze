@@ -45,6 +45,7 @@ export function parseDurationInput(input: string): ParsedDuration | null {
 
   // If no units found, try parsing as plain minutes
   if (!hasValidUnit) {
+    if (!/^\d+(?:\.\d+)?$/.test(cleaned)) return null;
     const plainNum = parseFloat(cleaned);
     if (!isNaN(plainNum) && plainNum > 0) {
       totalMinutes = plainNum;
