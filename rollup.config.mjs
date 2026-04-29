@@ -7,12 +7,26 @@ import { readFileSync } from 'fs';
 
 const pkg = JSON.parse(readFileSync('./package.json', 'utf-8'));
 
+const mapSourcePath = (sourcePath) => {
+  const normalized = sourcePath.replaceAll('\\', '/');
+  const srcMarker = '/src/';
+  const srcIndex = normalized.lastIndexOf(srcMarker);
+  if (srcIndex !== -1) {
+    return `../../../src/${normalized.slice(srcIndex + srcMarker.length)}`;
+  }
+  if (normalized.startsWith('src/')) {
+    return `../../../${normalized}`;
+  }
+  return normalized;
+};
+
 export default {
   input: 'src/index.ts',
   output: {
     file: 'custom_components/autosnooze/www/autosnooze-card.js',
     format: 'es',
     sourcemap: true,
+    sourcemapPathTransform: mapSourcePath,
     inlineDynamicImports: true,
   },
   plugins: [

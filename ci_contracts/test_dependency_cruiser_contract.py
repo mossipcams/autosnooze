@@ -31,7 +31,16 @@ def test_build_workflow_runs_dependency_cruiser() -> None:
 
     assert "Run dependency-cruiser" in workflow, "build workflow must name the dependency-cruiser step"
     assert "npm run lint:deps" in workflow, "build workflow must execute lint:deps"
-    assert "npm run lint:unused:prod" in workflow, "build workflow should pair dependency rules with production unused-code checks"
+    assert "npm run lint:unused:prod" in workflow, (
+        "build workflow should pair dependency rules with production unused-code checks"
+    )
+
+
+def test_build_workflow_runs_ci_contracts() -> None:
+    """The main build workflow must execute repository quality contracts."""
+    workflow = BUILD_WORKFLOW_PATH.read_text()
+
+    assert "pytest ci_contracts -q" in workflow, "build workflow must run ci_contracts"
 
 
 def test_dependency_cruiser_forbids_component_runtime_shortcuts() -> None:
@@ -43,4 +52,17 @@ def test_dependency_cruiser_forbids_component_runtime_shortcuts() -> None:
 
     assert "severity: 'error'" in rule_block, (
         "components-no-direct-services-or-state must stay at error severity so dep-cruiser blocks violations"
+    )
+
+
+def test_component_runtime_shortcut_rule_has_no_broad_component_exceptions() -> None:
+    """Component runtime boundaries should apply to every UI component."""
+    config = DEPENDENCY_CRUISER_PATH.read_text()
+    rule_start = config.index("name: 'components-no-direct-services-or-state'")
+    next_rule_start = config.index("name: 'state-no-ui-or-service-dependencies'", rule_start)
+    rule_block = config[rule_start:next_rule_start]
+
+    assert "pathNot:" not in rule_block, (
+        "components-no-direct-services-or-state should not exempt main UI components; "
+        "runtime service/state access belongs behind feature slice modules"
     )

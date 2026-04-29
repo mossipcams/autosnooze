@@ -68,9 +68,9 @@ async def test_startup_recovery_restores_future_entries_and_skips_expired() -> N
     with (
         pytest.MonkeyPatch.context() as mp,
     ):
-        mp.setattr("custom_components.autosnooze.coordinator.async_track_point_in_time", fake_track)
+        mp.setattr("custom_components.autosnooze.runtime.ports.async_track_point_in_time", fake_track)
         mp.setattr(
-            "custom_components.autosnooze.coordinator.async_set_automation_state",
+            "custom_components.autosnooze.runtime.ports.async_set_automation_state",
             AsyncMock(return_value=True),
         )
         await async_load_stored(hass, data)
@@ -104,9 +104,9 @@ async def test_startup_recovery_replay_reregistration_is_idempotent() -> None:
     with (
         pytest.MonkeyPatch.context() as mp,
     ):
-        mp.setattr("custom_components.autosnooze.coordinator.async_track_point_in_time", fake_track)
+        mp.setattr("custom_components.autosnooze.runtime.ports.async_track_point_in_time", fake_track)
         mp.setattr(
-            "custom_components.autosnooze.coordinator.async_set_automation_state",
+            "custom_components.autosnooze.runtime.ports.async_set_automation_state",
             AsyncMock(return_value=True),
         )
         await async_load_stored(hass, data)
