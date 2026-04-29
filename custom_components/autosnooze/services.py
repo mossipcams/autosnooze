@@ -3,53 +3,33 @@
 from __future__ import annotations
 
 from collections.abc import Callable
-from datetime import datetime, timedelta
 import logging
-import re
-from time import perf_counter
 from typing import Any
 
-from homeassistant.const import ATTR_ENTITY_ID
 from homeassistant.core import HomeAssistant, ServiceCall
-from homeassistant.exceptions import ServiceValidationError
-from collections.abc import Mapping
 
 from homeassistant.helpers import entity_registry as er
-from homeassistant.helpers import label_registry as lr
-from homeassistant.util import dt as dt_util
 
 from .const import (
     ADJUST_SCHEMA,
     CANCEL_SCHEMA,
-    CRITICAL_AUTOMATION_TERMS,
     DOMAIN,
-    LABEL_CONFIRM_NAME,
     PAUSE_BY_AREA_SCHEMA,
     PAUSE_BY_LABEL_SCHEMA,
     PAUSE_SCHEMA,
 )
-from .application.pause import async_handle_pause_service
+from .application.pause import (
+    _contains_guardrail_term,
+    _is_critical_automation,
+    _validate_guardrails,
+    async_handle_pause_service,
+    async_pause_automations,
+)
 from .application.resume import async_handle_cancel_all_service, async_handle_cancel_service
 from .application.scheduled import async_handle_cancel_scheduled_service
 from .application.adjust import async_handle_adjust_service
-from .logging_utils import _log_command, _raise_save_failed
-from .coordinator import (
-    async_adjust_snooze,
-    async_adjust_snooze_batch,
-    async_cancel_scheduled,
-    async_cancel_scheduled_batch,
-    async_resume,
-    async_resume_batch,
-    async_save,
-    async_set_automation_state,
-    get_friendly_name,
-    schedule_disable,
-    schedule_resume,
-)
 from .models import (
     AutomationPauseData,
-    PausedAutomation,
-    ScheduledSnooze,
     ensure_utc_aware,
 )
 
@@ -77,198 +57,6 @@ def get_automations_by_area(hass: HomeAssistant, area_ids: list[str]) -> list[st
 def get_automations_by_label(hass: HomeAssistant, label_ids: list[str]) -> list[str]:
     """Get all automation entity IDs with the specified labels."""
     return _get_automations_by_filter(hass, lambda e: e.labels and any(label in label_ids for label in e.labels))
-
-
-def _entity_has_label_name(
-    entity: Any,
-    label_name: str,
-    labels_by_id: Mapping[str, Any],
-) -> bool:
-    """Check whether entity has a label by id or name."""
-    labels = entity.labels or set()
-    for label_id in labels:
-        if label_id == label_name:
-            return True
-        label = labels_by_id.get(label_id)
-        if label and getattr(label, "name", None) == label_name:
-            return True
-    return False
-
-
-def _validate_guardrails(hass: HomeAssistant, entity_ids: list[str], confirm: bool = False) -> None:
-    """Validate confirm label guardrails for pause operations."""
-    entity_reg = er.async_get(hass)
-    label_reg = lr.async_get(hass)
-    labels_by_id = label_reg.labels if label_reg is not None else {}
-    requires_confirm: list[str] = []
-
-    for entity_id in entity_ids:
-        entry = entity_reg.async_get(entity_id)
-        state = hass.states.get(entity_id)
-        friendly_name = state.attributes.get("friendly_name", "") if state is not None else ""
-        has_confirm_label = entry is not None and _entity_has_label_name(entry, LABEL_CONFIRM_NAME, labels_by_id)
-        if has_confirm_label or _is_critical_automation(entity_id, friendly_name):
-            requires_confirm.append(entity_id)
-
-    if requires_confirm and not confirm:
-        raise ServiceValidationError(
-            "One or more selected automations require confirmation before snoozing",
-            translation_domain=DOMAIN,
-            translation_key="confirm_required",
-            translation_placeholders={"entity_id": ", ".join(sorted(requires_confirm))},
-        )
-
-
-def _contains_guardrail_term(text: str, term: str) -> bool:
-    """Check whether a term appears as a token/phrase in text."""
-    escaped = re.escape(term.lower())
-    return re.search(rf"(?<![a-z0-9]){escaped}(?![a-z0-9])", text.lower()) is not None
-
-
-def _is_critical_automation(entity_id: str, friendly_name: str) -> bool:
-    """Detect whether automation appears to control critical infrastructure."""
-    targets = [entity_id, friendly_name]
-    return any(_contains_guardrail_term(target, term) for target in targets for term in CRITICAL_AUTOMATION_TERMS)
-
-
-async def async_pause_automations(
-    hass: HomeAssistant,
-    data: AutomationPauseData,
-    entity_ids: list[str],
-    days: int = 0,
-    hours: int = 0,
-    minutes: int = 0,
-    disable_at: datetime | None = None,
-    resume_at_dt: datetime | None = None,
-) -> None:
-    """Pause automations with duration or dates."""
-    started_at = perf_counter()
-    outcome = "success"
-    try:
-        if data.unloaded:
-            return
-
-        # Early return if no entities provided (avoids unnecessary save/notify)
-        if not entity_ids:
-            return
-
-        # DEF-010 FIX: Validate ALL entity IDs upfront before any state changes
-        # This ensures atomic behavior - either all validations pass or none are processed
-        for entity_id in entity_ids:
-            if not entity_id.startswith("automation."):
-                raise ServiceValidationError(
-                    f"{entity_id} is not an automation",
-                    translation_domain=DOMAIN,
-                    translation_key="not_automation",
-                    translation_placeholders={"entity_id": entity_id},
-                )
-
-        now = dt_util.utcnow()
-
-        # Ensure incoming datetimes are UTC-aware to prevent comparison errors
-        # with dt_util.utcnow() which is always offset-aware
-        disable_at = ensure_utc_aware(disable_at)
-        resume_at_dt = ensure_utc_aware(resume_at_dt)
-
-        # Validate date-based scheduling constraints
-        if resume_at_dt is not None:
-            if resume_at_dt <= now:
-                raise ServiceValidationError(
-                    "Resume time must be in the future",
-                    translation_domain=DOMAIN,
-                    translation_key="resume_time_past",
-                )
-            if disable_at is not None and disable_at >= resume_at_dt:
-                raise ServiceValidationError(
-                    "Disable time must be before resume time",
-                    translation_domain=DOMAIN,
-                    translation_key="disable_after_resume",
-                )
-
-        # Determine if using date-based or duration-based scheduling
-        if resume_at_dt is not None:
-            # Date-based scheduling
-            resume_at = resume_at_dt
-            use_scheduled = disable_at is not None and disable_at > now
-        else:
-            # Duration-based scheduling
-            if days == 0 and hours == 0 and minutes == 0:
-                raise ServiceValidationError(
-                    "Duration must be greater than zero",
-                    translation_domain=DOMAIN,
-                    translation_key="invalid_duration",
-                )
-            resume_at = now + timedelta(days=days, hours=hours, minutes=minutes)
-            use_scheduled = False
-
-        scheduled_entries: list[ScheduledSnooze] = []
-        paused_entries: list[PausedAutomation] = []
-
-        for entity_id in entity_ids:
-            # Validation already done above (DEF-010 fix)
-            friendly_name = get_friendly_name(hass, entity_id)
-
-            if use_scheduled:
-                # Schedule future disable (disable_at is guaranteed non-None when use_scheduled is True)
-                assert disable_at is not None
-                scheduled_entries.append(
-                    ScheduledSnooze(
-                        entity_id=entity_id,
-                        friendly_name=friendly_name,
-                        disable_at=disable_at,
-                        resume_at=resume_at,
-                    )
-                )
-                continue
-
-            # Immediate disable happens outside the lock so slow HA service calls
-            # do not block unrelated operations from observing or mutating state.
-            if not await async_set_automation_state(hass, entity_id, enabled=False):
-                continue
-
-            # If using date-based scheduling (resume_at_dt provided), store disable_at
-            # to indicate this was a schedule-mode snooze (for UI display)
-            schedule_mode_disable_at = (
-                disable_at if disable_at is not None else (now if resume_at_dt is not None else None)
-            )
-            paused_entries.append(
-                PausedAutomation(
-                    entity_id=entity_id,
-                    friendly_name=friendly_name,
-                    resume_at=resume_at,
-                    paused_at=now,
-                    days=days,
-                    hours=hours,
-                    minutes=minutes,
-                    disable_at=schedule_mode_disable_at,
-                )
-            )
-
-        # Use lock only while mutating in-memory state and persisting it.
-        async with data.lock:
-            for scheduled in scheduled_entries:
-                data.scheduled[scheduled.entity_id] = scheduled
-                schedule_disable(hass, data, scheduled.entity_id, scheduled)
-                _LOGGER.info(
-                    "Scheduled snooze for %s: disable at %s, resume at %s",
-                    scheduled.entity_id,
-                    scheduled.disable_at,
-                    scheduled.resume_at,
-                )
-
-            for paused in paused_entries:
-                data.paused[paused.entity_id] = paused
-                schedule_resume(hass, data, paused.entity_id, paused.resume_at)
-                _LOGGER.info("Snoozed %s until %s", paused.entity_id, paused.resume_at)
-
-            if not await async_save(data):
-                _raise_save_failed()
-        data.notify()
-    except Exception:
-        outcome = "error"
-        raise
-    finally:
-        _log_command("pause", outcome, started_at)
 
 
 def register_services(hass: HomeAssistant, data: AutomationPauseData) -> None:

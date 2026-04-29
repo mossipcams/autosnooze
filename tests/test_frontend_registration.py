@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import ast
 import asyncio
+import inspect
 import os
 from pathlib import Path
 from typing import Any
@@ -89,39 +90,39 @@ class TestLovelaceResourcesOnlyRegistration:
         # Find the static path registration
         assert "cache_headers=False" in source, "Static path must use cache_headers=False to prevent iOS caching issues"
 
-    def test_async_setup_entry_calls_static_path(self) -> None:
+    @pytest.mark.asyncio
+    async def test_async_setup_entry_calls_static_path(self) -> None:
         """Verify async_setup_entry registers static path."""
-        source = get_init_source()
+        from custom_components.autosnooze import _async_register_static_path, async_setup_entry
 
-        # Find async_setup_entry
-        func_start = source.find("async def async_setup_entry")
-        assert func_start != -1, "async_setup_entry not found"
+        hass = MagicMock()
+        entry = MagicMock()
 
-        next_func = source.find("\nasync def ", func_start + 1)
-        if next_func == -1:
-            next_func = len(source)
+        with patch(
+            "custom_components.autosnooze.async_setup_integration_entry",
+            AsyncMock(return_value=True),
+        ) as setup_entry:
+            result = await async_setup_entry(hass, entry)
 
-        func_body = source[func_start:next_func]
+        assert result is True
+        assert setup_entry.await_args.kwargs["register_static_path"] is _async_register_static_path
 
-        assert "_async_register_static_path" in func_body, "async_setup_entry must call _async_register_static_path"
-
-    def test_async_setup_entry_registers_lovelace_resource(self) -> None:
+    @pytest.mark.asyncio
+    async def test_async_setup_entry_registers_lovelace_resource(self) -> None:
         """Verify async_setup_entry registers Lovelace resource."""
-        source = get_init_source()
+        from custom_components.autosnooze import _async_register_lovelace_resource, async_setup_entry
 
-        # Find async_setup_entry
-        func_start = source.find("async def async_setup_entry")
-        assert func_start != -1, "async_setup_entry not found"
+        hass = MagicMock()
+        entry = MagicMock()
 
-        next_func = source.find("\nasync def ", func_start + 1)
-        if next_func == -1:
-            next_func = len(source)
+        with patch(
+            "custom_components.autosnooze.async_setup_integration_entry",
+            AsyncMock(return_value=True),
+        ) as setup_entry:
+            result = await async_setup_entry(hass, entry)
 
-        func_body = source[func_start:next_func]
-
-        assert "_async_register_lovelace_resource" in func_body, (
-            "async_setup_entry must call _async_register_lovelace_resource"
-        )
+        assert result is True
+        assert setup_entry.await_args.kwargs["register_lovelace_resource"] is _async_register_lovelace_resource
 
 
 class TestStaticPathRegistrationBehavior:
@@ -670,61 +671,100 @@ class TestRetryMechanism:
     MAX_RETRIES = 3
     RETRY_DELAY = 2  # seconds
 
-    def test_source_has_retry_constants(self) -> None:
-        """Verify retry constants are defined in source."""
-        source = get_init_source()
+    def test_retry_constants_are_exposed(self) -> None:
+        """Verify retry constants are defined."""
+        from custom_components.autosnooze import LOVELACE_REGISTER_MAX_RETRIES, LOVELACE_REGISTER_RETRY_DELAY
 
-        assert "LOVELACE_REGISTER_MAX_RETRIES" in source, "Must define max retries constant"
-        assert "LOVELACE_REGISTER_RETRY_DELAY" in source, "Must define retry delay constant"
+        assert LOVELACE_REGISTER_MAX_RETRIES == self.MAX_RETRIES
+        assert LOVELACE_REGISTER_RETRY_DELAY == self.RETRY_DELAY
 
-    def test_source_has_retry_parameter(self) -> None:
+    def test_lovelace_resource_registration_accepts_retry_count(self) -> None:
         """Verify _async_register_lovelace_resource accepts retry_count parameter."""
-        source = get_init_source()
+        from custom_components.autosnooze import _async_register_lovelace_resource
 
-        # Find the function signature
-        assert "retry_count: int = 0" in source, "_async_register_lovelace_resource must accept retry_count parameter"
+        retry_count = inspect.signature(_async_register_lovelace_resource).parameters["retry_count"]
+        assert retry_count.default == 0
 
-    def test_source_has_retry_logic_for_no_lovelace_data(self) -> None:
-        """Verify retry logic exists for when lovelace_data is None."""
-        source = get_init_source()
+    @pytest.mark.asyncio
+    async def test_retries_when_lovelace_data_is_missing(self) -> None:
+        """Verify registration retries when lovelace_data is initially missing."""
+        from custom_components.autosnooze import _async_register_lovelace_resource
 
-        # Should check retry count and recurse
-        assert "retry_count < LOVELACE_REGISTER_MAX_RETRIES" in source, "Must check retry count before retrying"
-        assert "await asyncio.sleep" in source, "Must sleep before retrying"
-        assert "await _async_register_lovelace_resource(hass, retry_count + 1)" in source, (
-            "Must recurse with incremented retry count"
-        )
+        resources = MagicMock()
+        resources.async_items = MagicMock(return_value=[])
+        resources.async_create_item = AsyncMock()
 
-    def test_source_has_retry_logic_for_no_resources(self) -> None:
-        """Verify retry logic exists for when resources is None."""
-        source = get_init_source()
+        lovelace_data = MagicMock()
+        lovelace_data.mode = "storage"
+        lovelace_data.resources = resources
 
-        # Find the section where resources is None
-        func_start = source.find("async def _async_register_lovelace_resource")
-        assert func_start != -1
+        hass = MagicMock()
+        hass.data.get = MagicMock(side_effect=[None, lovelace_data])
 
-        func_body = source[func_start:]
+        with patch("custom_components.autosnooze.asyncio.sleep", new_callable=AsyncMock) as mock_sleep:
+            await _async_register_lovelace_resource(hass)
 
-        # Should have two calls to the retry helper - one for lovelace_data, one for resources
-        # The retry logic is now in _async_retry_or_fail helper function
-        retry_helper_calls = func_body.count("_async_retry_or_fail")
-        assert retry_helper_calls >= 2, "Must have retry logic for both lovelace_data and resources being None"
+        mock_sleep.assert_called_once()
+        resources.async_create_item.assert_called_once()
 
-        # Verify the helper function contains the actual retry check
-        assert "retry_count < LOVELACE_REGISTER_MAX_RETRIES" in source, "Helper must check retry count"
+    @pytest.mark.asyncio
+    async def test_retries_when_lovelace_resources_are_missing(self) -> None:
+        """Verify registration retries when Lovelace resources are initially missing."""
+        from custom_components.autosnooze import _async_register_lovelace_resource
 
-    def test_source_logs_retry_attempts(self) -> None:
+        resources = MagicMock()
+        resources.async_items = MagicMock(return_value=[])
+        resources.async_create_item = AsyncMock()
+
+        lovelace_without_resources = MagicMock()
+        lovelace_without_resources.mode = "storage"
+        lovelace_without_resources.resources = None
+        lovelace_without_resources.get = MagicMock(return_value=None)
+
+        lovelace_with_resources = MagicMock()
+        lovelace_with_resources.mode = "storage"
+        lovelace_with_resources.resources = resources
+
+        hass = MagicMock()
+        hass.data.get = MagicMock(side_effect=[lovelace_without_resources, lovelace_with_resources])
+
+        with patch("custom_components.autosnooze.asyncio.sleep", new_callable=AsyncMock) as mock_sleep:
+            await _async_register_lovelace_resource(hass)
+
+        mock_sleep.assert_called_once()
+        resources.async_create_item.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_retry_helper_logs_retry_attempts(self) -> None:
         """Verify retry attempts are logged for debugging."""
-        source = get_init_source()
+        from custom_components.autosnooze import _async_retry_or_fail
 
-        assert "retrying in" in source.lower(), "Must log retry attempts"
-        assert "attempt" in source.lower(), "Must log attempt count"
+        with (
+            patch("custom_components.autosnooze.asyncio.sleep", new_callable=AsyncMock),
+            patch("custom_components.autosnooze._LOGGER") as mock_logger,
+        ):
+            await _async_retry_or_fail(0, "Lovelace not initialized yet")
 
-    def test_source_warns_after_exhausting_retries(self) -> None:
+        log_message = mock_logger.debug.call_args[0][0]
+        assert "retrying in" in log_message
+        assert "attempt" in log_message
+
+    @pytest.mark.asyncio
+    async def test_warns_after_exhausting_retries(self) -> None:
         """Verify warning is logged after all retries exhausted."""
-        source = get_init_source()
+        from custom_components.autosnooze import _async_register_lovelace_resource
 
-        assert "after %d retries" in source or "after retries" in source.lower(), "Must warn after exhausting retries"
+        hass = MagicMock()
+        hass.data = {}
+
+        with (
+            patch("custom_components.autosnooze.asyncio.sleep", new_callable=AsyncMock),
+            patch("custom_components.autosnooze._LOGGER") as mock_logger,
+        ):
+            await _async_register_lovelace_resource(hass, retry_count=self.MAX_RETRIES)
+
+        warning_message = mock_logger.warning.call_args[0][0]
+        assert "after %d retries" in warning_message
 
     @pytest.mark.asyncio
     async def test_retry_helper_returns_true_when_retries_available(self) -> None:
@@ -915,21 +955,13 @@ class TestDocumentationAndComments:
 
     def test_has_cache_headers_documentation(self) -> None:
         """Verify cache_headers=False is documented."""
-        source = get_init_source()
+        from custom_components.autosnooze import _async_register_static_path
 
-        # Find the static path function
-        func_start = source.find("async def _async_register_static_path")
-        assert func_start != -1, "_async_register_static_path not found"
-
-        next_func = source.find("\nasync def ", func_start + 1)
-        if next_func == -1:
-            next_func = len(source)
-
-        func_body = source[func_start:next_func]
+        doc = inspect.getdoc(_async_register_static_path) or ""
 
         # Should have a comment or docstring about cache headers
         has_cache_doc = any(
-            keyword in func_body.lower()
+            keyword in doc.lower()
             for keyword in [
                 "cache",
                 "ios",

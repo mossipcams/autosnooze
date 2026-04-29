@@ -89,9 +89,10 @@ export class AutoSnoozeAutomationList extends LitElement {
   }
 
   private _toggleGroupExpansion(group: string): void {
+    const expanded = this._expandedGroups[group] !== false;
     this._expandedGroups = {
       ...this._expandedGroups,
-      [group]: !this._expandedGroups[group],
+      [group]: !expanded,
     };
   }
 

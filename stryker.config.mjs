@@ -7,7 +7,7 @@ export default {
     configFile: "vitest.config.mjs",
   },
   coverageAnalysis: "all",
-  mutate: ["src/**/*.ts", "!src/**/*.test.ts", "!src/**/*.spec.ts"],
+  mutate: ["src/**/*.ts", "!src/tests/**", "!src/**/*.test.ts", "!src/**/*.spec.ts"],
   thresholds: { high: 80, low: 60, break: 70 },
   concurrency: 8,
   timeoutMS: 10000,

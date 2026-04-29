@@ -92,6 +92,7 @@ def schedule_resume(
         data,
         entity_id,
         resume_at,
+        resume_callback=async_resume,
         track_point_in_time=async_track_point_in_time,
     )
 
@@ -101,14 +102,22 @@ async def async_resume(hass: HomeAssistant, data: AutomationPauseData, entity_id
     # Check if integration is unloaded to prevent post-unload operations
     if data.unloaded:
         return
+    async with data.lock:
+        expected_pause = data.paused.get(entity_id)
     # Perform the HA service call outside the state lock so a slow wake request
     # does not block unrelated pause/resume operations.
     woke_successfully = await async_set_automation_state(hass, entity_id, enabled=True)
+    re_disable_entity = False
     async with data.lock:
         paused = data.paused.get(entity_id)
+        if expected_pause is not None and paused is not expected_pause:
+            re_disable_entity = woke_successfully and paused is not None
+            paused = None
         if woke_successfully:
-            cancel_timer(data, entity_id)
-            data.paused.pop(entity_id, None)
+            if paused is not None or expected_pause is None:
+                cancel_timer(data, entity_id)
+                if paused is not None:
+                    data.paused.pop(entity_id, None)
         elif paused is not None:
             if paused.resume_retries >= MAX_RESUME_RETRIES:
                 cancel_timer(data, entity_id)
@@ -119,7 +128,11 @@ async def async_resume(hass: HomeAssistant, data: AutomationPauseData, entity_id
                 retry_at = dt_util.utcnow() + RESUME_RETRY_DELAY
                 paused.resume_at = retry_at
                 schedule_resume(hass, data, entity_id, retry_at)
-        await async_save(data)
+        if not await async_save(data):
+            _raise_save_failed()
+    if re_disable_entity:
+        if not await async_set_automation_state(hass, entity_id, enabled=False):
+            _LOGGER.warning("Failed to restore disabled state for stale resume of %s", entity_id)
     data.notify()
     if woke_successfully:
         _LOGGER.info("Woke automation: %s", entity_id)
@@ -144,7 +157,10 @@ async def async_resume_batch(hass: HomeAssistant, data: AutomationPauseData, ent
             return
 
         async with data.lock:
-            candidate_ids = list(dict.fromkeys(entity_id for entity_id in entity_ids if entity_id in data.paused))
+            candidates = {
+                entity_id: data.paused[entity_id] for entity_id in dict.fromkeys(entity_ids) if entity_id in data.paused
+            }
+            candidate_ids = list(candidates)
 
         results: dict[str, bool] = {}
         for entity_id in candidate_ids:
@@ -154,9 +170,14 @@ async def async_resume_batch(hass: HomeAssistant, data: AutomationPauseData, ent
 
         failed = 0
         woke = 0
+        re_disable_entities: list[str] = []
         async with data.lock:
             for entity_id in candidate_ids:
                 paused = data.paused.get(entity_id)
+                if paused is not candidates[entity_id]:
+                    if results.get(entity_id) is True and paused is not None:
+                        re_disable_entities.append(entity_id)
+                    continue
                 if paused is None:
                     continue
 
@@ -178,6 +199,9 @@ async def async_resume_batch(hass: HomeAssistant, data: AutomationPauseData, ent
             # Single save after all operations
             if not await async_save(data):
                 _raise_save_failed()
+        for entity_id in re_disable_entities:
+            if not await async_set_automation_state(hass, entity_id, enabled=False):
+                _LOGGER.warning("Failed to restore disabled state for stale resume of %s", entity_id)
         data.notify()
         if failed:
             _LOGGER.warning("Woke %d automations, %d failed and were rescheduled", woke, failed)
@@ -294,6 +318,7 @@ def schedule_disable(
         data,
         entity_id,
         scheduled,
+        disable_callback=async_execute_scheduled_disable,
         track_point_in_time=async_track_point_in_time,
     )
 
@@ -308,64 +333,89 @@ async def async_execute_scheduled_disable(
     # Check if integration is unloaded to prevent post-unload operations
     if data.unloaded:
         return
+
     async with data.lock:
         cancel_scheduled_timer(data, entity_id)
-        scheduled = data.scheduled.get(entity_id)
+        expected_scheduled = data.scheduled.get(entity_id)
 
-        # DEF-014 FIX: Check disable BEFORE popping scheduled entry
-        # This preserves the schedule for retry if disable fails
-        if not await async_set_automation_state(hass, entity_id, enabled=False):
-            now = dt_util.utcnow()
-            retry_at = now + SCHEDULED_DISABLE_RETRY_DELAY
+    # DEF-014 FIX: Check disable BEFORE popping scheduled entry.
+    # Keep the HA call outside the state lock so a slow service call does not
+    # block unrelated pause/resume operations.
+    disabled_successfully = await async_set_automation_state(hass, entity_id, enabled=False)
 
-            # If resume time has passed (or retry would run at/after resume), stop retrying.
-            if resume_at <= now or retry_at >= resume_at:
-                data.scheduled.pop(entity_id, None)
-                await async_save(data)
+    stale_after_disable = False
+    undo_stale_disable = False
+    async with data.lock:
+        current_scheduled = data.scheduled.get(entity_id)
+        stale_after_disable = (expected_scheduled is not None and current_scheduled is not expected_scheduled) or (
+            expected_scheduled is None and current_scheduled is not None
+        )
+        if stale_after_disable:
+            undo_stale_disable = disabled_successfully and entity_id not in data.paused
+        else:
+            scheduled = current_scheduled if expected_scheduled is None else expected_scheduled
+
+            if not disabled_successfully:
+                now = dt_util.utcnow()
+                retry_at = now + SCHEDULED_DISABLE_RETRY_DELAY
+
+                # If resume time has passed (or retry would run at/after resume), stop retrying.
+                if resume_at <= now or retry_at >= resume_at:
+                    data.scheduled.pop(entity_id, None)
+                    if not await async_save(data):
+                        _raise_save_failed()
+                    _LOGGER.warning(
+                        "Failed to execute scheduled disable for %s; skipping retry because resume time has passed",
+                        entity_id,
+                    )
+                    data.notify()
+                    return
+
+                if scheduled is None:
+                    scheduled = ScheduledSnooze(
+                        entity_id=entity_id,
+                        friendly_name=get_friendly_name(hass, entity_id),
+                        disable_at=retry_at,
+                        resume_at=resume_at,
+                    )
+                else:
+                    scheduled.disable_at = retry_at
+
+                data.scheduled[entity_id] = scheduled
+                schedule_disable(hass, data, entity_id, scheduled)
+                if not await async_save(data):
+                    _raise_save_failed()
                 _LOGGER.warning(
-                    "Failed to execute scheduled disable for %s; skipping retry because resume time has passed",
+                    "Failed to execute scheduled disable for %s, retrying at %s",
                     entity_id,
+                    retry_at,
                 )
                 data.notify()
                 return
 
-            if scheduled is None:
-                scheduled = ScheduledSnooze(
-                    entity_id=entity_id,
-                    friendly_name=get_friendly_name(hass, entity_id),
-                    disable_at=retry_at,
-                    resume_at=resume_at,
-                )
-            else:
-                scheduled.disable_at = retry_at
+            # Only pop after successful disable
+            scheduled = data.scheduled.pop(entity_id, None)
+            now = dt_util.utcnow()
+            friendly_name = scheduled.friendly_name if scheduled else get_friendly_name(hass, entity_id)
+            disable_at = scheduled.disable_at if scheduled else None
 
-            data.scheduled[entity_id] = scheduled
-            schedule_disable(hass, data, entity_id, scheduled)
-            await async_save(data)
-            _LOGGER.warning(
-                "Failed to execute scheduled disable for %s, retrying at %s",
-                entity_id,
-                retry_at,
+            data.paused[entity_id] = PausedAutomation(
+                entity_id=entity_id,
+                friendly_name=friendly_name,
+                resume_at=resume_at,
+                paused_at=now,
+                disable_at=disable_at,
             )
-            data.notify()
-            return
 
-        # Only pop after successful disable
-        scheduled = data.scheduled.pop(entity_id, None)
-        now = dt_util.utcnow()
-        friendly_name = scheduled.friendly_name if scheduled else get_friendly_name(hass, entity_id)
-        disable_at = scheduled.disable_at if scheduled else None
-
-        data.paused[entity_id] = PausedAutomation(
-            entity_id=entity_id,
-            friendly_name=friendly_name,
-            resume_at=resume_at,
-            paused_at=now,
-            disable_at=disable_at,
-        )
-
-        schedule_resume(hass, data, entity_id, resume_at)
-        await async_save(data)
+            schedule_resume(hass, data, entity_id, resume_at)
+            if not await async_save(data):
+                _raise_save_failed()
+    if undo_stale_disable:
+        if not await async_set_automation_state(hass, entity_id, enabled=True):
+            _LOGGER.warning("Failed to undo stale scheduled disable for %s", entity_id)
+        return
+    if stale_after_disable:
+        return
     data.notify()
     _LOGGER.info("Executed scheduled snooze for %s until %s", entity_id, resume_at)
 
@@ -452,4 +502,9 @@ def validate_stored_data(stored: Any) -> dict[str, Any]:
 
 async def async_load_stored(hass: HomeAssistant, data: AutomationPauseData) -> None:
     """Load and restore snoozed automations from storage (FR-07: Persistence)."""
-    await runtime_async_load_stored(hass, data)
+    await runtime_async_load_stored(
+        hass,
+        data,
+        resume_callback=async_resume,
+        disable_callback=async_execute_scheduled_disable,
+    )
