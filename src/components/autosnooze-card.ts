@@ -17,15 +17,20 @@ import {
   DEFAULT_SNOOZE_MINUTES,
 } from '../constants/index.js';
 import {
-  fetchLabelRegistry,
-  fetchCategoryRegistry,
-  fetchEntityRegistry,
-} from '../services/registry.js';
-import {
-  loadLastDuration,
-  loadRecentSnoozes,
+  createCardUiStore,
+  createAdjustModalState,
+  createClosedAdjustModalState,
+  fetchCardCategoryRegistry,
+  fetchCardEntityRegistry,
+  fetchCardLabelRegistry,
+  getCardPausedSnapshot,
+  isCardSnoozeSensorAvailable,
+  loadCardLastDuration,
+  loadCardRecentSnoozeIds,
+  SNOOZE_SENSOR_ENTITY_ID,
+  createScheduleModeState,
   type LastDurationData,
-} from '../services/storage.js';
+} from '../features/card-shell/index.js';
 import { formatDateTime } from '../utils/time-formatting.js';
 import { isDurationValid } from '../utils/duration-parsing.js';
 import { hapticFeedback } from '../utils/haptic.js';
@@ -41,18 +46,8 @@ import {
   validateScheduledPauseInput,
 } from '../features/scheduled-snooze/index.js';
 import {
-  createAdjustModalState,
-  createClosedAdjustModalState,
-  createScheduleModeState,
-} from '../features/card-shell/index.js';
-import {
   getAutomations,
 } from '../features/automation-list/index.js';
-import {
-  getPausedSnapshot,
-  SENSOR_ENTITY_ID,
-} from '../state/paused.js';
-import { createCardStore } from '../state/card-store.js';
 
 
 export class AutomationPauseCard extends LitElement {
@@ -64,7 +59,7 @@ export class AutomationPauseCard extends LitElement {
   @property({ attribute: false })
   config: AutoSnoozeCardConfig = {} as AutoSnoozeCardConfig;
 
-  private _cardStore = createCardStore();
+  private _cardStore = createCardUiStore();
 
   @state() private _selected: string[] = [];
   @state() private _duration: number = DEFAULT_SNOOZE_MINUTES * TIME_MS.MINUTE;
@@ -139,8 +134,8 @@ export class AutomationPauseCard extends LitElement {
       return true;
     }
 
-    const oldSensor = oldHass.states?.[SENSOR_ENTITY_ID];
-    const newSensor = newHass.states?.[SENSOR_ENTITY_ID];
+    const oldSensor = oldHass.states?.[SNOOZE_SENSOR_ENTITY_ID];
+    const newSensor = newHass.states?.[SNOOZE_SENSOR_ENTITY_ID];
     if (oldSensor !== newSensor) {
       return true;
     }
@@ -174,6 +169,13 @@ export class AutomationPauseCard extends LitElement {
     return this._haveAutomationStatesChanged(oldStates, newStates);
   }
 
+  willUpdate(changedProps: PropertyValues): void {
+    super.willUpdate(changedProps);
+    if (changedProps.has('hass')) {
+      this._syncAdjustModalWithPausedState();
+    }
+  }
+
   updated(changedProps: PropertyValues): void {
     super.updated(changedProps);
     if (changedProps.has('hass') && this.hass?.connection) {
@@ -187,32 +189,39 @@ export class AutomationPauseCard extends LitElement {
         this._fetchEntityRegistry();
       }
     }
-    if (changedProps.has('hass') && this._adjustModalOpen) {
-      const paused = this._getPaused();
+  }
 
-      if (this._adjustModalEntityIds.length > 0) {
-        // Group mode: close only when ALL entities are no longer paused
-        const anyStillPaused = this._adjustModalEntityIds.some(id => paused[id]);
-        if (!anyStillPaused) {
-          this._handleCloseModalEvent();
-        }
-        // Sync resumeAt from first still-paused entity (they share the same resumeAt)
-        const firstPaused = this._adjustModalEntityIds.find(id => paused[id]);
-        if (firstPaused) {
-          const pausedData = paused[firstPaused] as { resume_at?: string } | undefined;
-          if (pausedData?.resume_at && pausedData.resume_at !== this._adjustModalResumeAt) {
-            this._adjustModalResumeAt = pausedData.resume_at;
-          }
-        }
-      } else if (this._adjustModalEntityId) {
-        // Single mode: existing logic
-        const pausedData = paused[this._adjustModalEntityId] as { resume_at?: string } | undefined;
+  private _syncAdjustModalWithPausedState(): void {
+    if (!this._adjustModalOpen) {
+      return;
+    }
+
+    const paused = this._getPaused();
+
+    if (this._adjustModalEntityIds.length > 0) {
+      const anyStillPaused = this._adjustModalEntityIds.some(id => paused[id]);
+      if (!anyStillPaused) {
+        this._handleCloseModalEvent();
+        return;
+      }
+
+      const firstPaused = this._adjustModalEntityIds.find(id => paused[id]);
+      if (firstPaused) {
+        const pausedData = paused[firstPaused] as { resume_at?: string } | undefined;
         if (pausedData?.resume_at && pausedData.resume_at !== this._adjustModalResumeAt) {
           this._adjustModalResumeAt = pausedData.resume_at;
         }
-        if (!pausedData) {
-          this._handleCloseModalEvent();
-        }
+      }
+      return;
+    }
+
+    if (this._adjustModalEntityId) {
+      const pausedData = paused[this._adjustModalEntityId] as { resume_at?: string } | undefined;
+      if (pausedData?.resume_at && pausedData.resume_at !== this._adjustModalResumeAt) {
+        this._adjustModalResumeAt = pausedData.resume_at;
+      }
+      if (!pausedData) {
+        this._handleCloseModalEvent();
       }
     }
   }
@@ -223,7 +232,7 @@ export class AutomationPauseCard extends LitElement {
     this._fetchLabelRegistry();
     this._fetchCategoryRegistry();
     this._fetchEntityRegistry();
-    this._lastDuration = loadLastDuration();
+    this._lastDuration = loadCardLastDuration();
     this._refreshRecentSnoozeIds();
   }
 
@@ -252,7 +261,7 @@ export class AutomationPauseCard extends LitElement {
     }
 
     this._labelRegistryFetchPromise = (async () => {
-      const labels = await fetchLabelRegistry(this.hass!);
+      const labels = await fetchCardLabelRegistry(this.hass!);
       if (labels === null) {
         this._labelsFetched = false;
         this._labelRegistryUnavailable = true;
@@ -297,7 +306,7 @@ export class AutomationPauseCard extends LitElement {
     }
 
     this._categoryRegistryFetchPromise = (async () => {
-      this._categoryRegistry = await fetchCategoryRegistry(this.hass!);
+      this._categoryRegistry = await fetchCardCategoryRegistry(this.hass!);
       this._categoriesFetched = true;
     })();
 
@@ -316,7 +325,7 @@ export class AutomationPauseCard extends LitElement {
     }
 
     this._entityRegistryFetchPromise = (async () => {
-      this._entityRegistry = await fetchEntityRegistry(this.hass!);
+      this._entityRegistry = await fetchCardEntityRegistry(this.hass!);
       this._entityRegistryFetched = true;
       this._automationsCacheVersion++;
     })();
@@ -329,7 +338,7 @@ export class AutomationPauseCard extends LitElement {
   }
 
   private _refreshRecentSnoozeIds(): void {
-    this._recentSnoozeIds = loadRecentSnoozes();
+    this._recentSnoozeIds = loadCardRecentSnoozeIds();
   }
 
   private _getAutomations(): AutomationItem[] {
@@ -427,11 +436,11 @@ export class AutomationPauseCard extends LitElement {
         groups: [],
       };
     }
-    return getPausedSnapshot(this.hass);
+    return getCardPausedSnapshot(this.hass);
   }
 
   private _isSnoozeSensorAvailable(): boolean {
-    return Boolean(this.hass?.states?.[SENSOR_ENTITY_ID]);
+    return isCardSnoozeSensorAvailable(this.hass);
   }
 
   private _formatDateTime(isoString: string): string {

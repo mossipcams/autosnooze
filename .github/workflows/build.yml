@@ -7,6 +7,7 @@ on:
       - '.github/workflows/**'
       - 'src/**'
       - 'tests/**'
+      - 'ci_contracts/**'
       - 'custom_components/**'
       - 'package.json'
       - 'package-lock.json'
@@ -179,6 +180,9 @@ jobs:
           TZ: UTC
         # Python coverage threshold enforced via pyproject.toml (85% minimum)
 
+      - name: Run CI contract checks
+        run: pytest ci_contracts -q
+
       - name: Run backend schema contract checks
         run: pytest tests/test_sensor_contract.py tests/test_schema_version_contract.py -q
 
@@ -198,7 +202,7 @@ jobs:
           echo "Build verified: no bare imports found"
 
       - name: Verify generated card artifact is up to date
-        run: git diff --exit-code custom_components/autosnooze/www/autosnooze-card.js
+        run: git diff --exit-code custom_components/autosnooze/www/autosnooze-card.js custom_components/autosnooze/www/autosnooze-card.js.map
 
       # === Artifacts ===
       - name: Upload built artifact

@@ -19,9 +19,11 @@ import {
 import { generateDateOptions, combineDateTime } from '../utils/datetime.js';
 import { DEFAULT_DURATIONS } from '../constants/index.js';
 import type { ParsedDuration } from '../types/automation.js';
-import type { LastDurationData } from '../services/storage.js';
 import type { HomeAssistant } from '../types/hass.js';
-import { SENSOR_ENTITY_ID } from '../state/paused.js';
+import {
+  getConfiguredDurationPresets,
+  type LastDurationData,
+} from '../features/card-shell/index.js';
 
 export class AutoSnoozeDurationSelector extends LitElement {
   static styles = durationSelectorStyles;
@@ -57,13 +59,10 @@ export class AutoSnoozeDurationSelector extends LitElement {
   resumeAtTime: string = '';
 
   private _getBasePresets(): { label: string; minutes: number }[] {
-    const sensor = this.hass?.states?.[SENSOR_ENTITY_ID];
-    const configuredPresets = sensor?.attributes?.duration_presets as
-      | { label: string; minutes: number }[]
-      | undefined;
+    const configuredPresets = getConfiguredDurationPresets(this.hass);
 
     return configuredPresets?.length
-      ? configuredPresets
+      ? configuredPresets.filter((d): d is { label: string; minutes: number } => d.minutes !== null)
       : DEFAULT_DURATIONS.filter((d): d is { label: string; minutes: number } => d.minutes !== null);
   }
 

@@ -774,6 +774,7 @@ describe('Parent Card Integration', () => {
     internal._adjustModalEntityIds = ['automation.a', 'automation.b'];
     internal._adjustModalFriendlyNames = ['A', 'B'];
     internal._adjustModalResumeAt = futureDate;
+    const consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
     // Now update hass so that all group entities are unpaused
     card.hass = {
       ...card.hass,
@@ -790,6 +791,8 @@ describe('Parent Card Integration', () => {
     // Modal should auto-close
     expect(internal._adjustModalOpen).toBe(false);
     expect(internal._adjustModalEntityIds).toEqual([]);
+    expect(consoleWarnSpy.mock.calls.flat().join('\n')).not.toContain('change-in-update');
+    consoleWarnSpy.mockRestore();
     document.body.removeChild(card);
   });
 

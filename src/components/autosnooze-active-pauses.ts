@@ -8,7 +8,10 @@ import { LitElement, html, type PropertyValues } from 'lit';
 import { property, state } from 'lit/decorators.js';
 import { localize } from '../localization/localize.js';
 import { UI_TIMING } from '../constants/index.js';
-import { startCountdownSync, stopCountdownSync } from '../services/countdown-sync.js';
+import {
+  startCardShellCountdown,
+  stopCardShellCountdown,
+} from '../features/card-shell/index.js';
 import type { CountdownState } from '../utils/countdown-timer.js';
 import { formatCountdown, formatDateTime } from '../utils/time-formatting.js';
 import { hapticFeedback } from '../utils/haptic.js';
@@ -47,7 +50,7 @@ export class AutoSnoozeActivePauses extends LitElement {
 
   disconnectedCallback(): void {
     super.disconnectedCallback();
-    stopCountdownSync(this._countdownState);
+    stopCardShellCountdown(this._countdownState);
     if (this._wakeAllTimeout !== null) {
       clearTimeout(this._wakeAllTimeout);
       this._wakeAllTimeout = null;
@@ -70,14 +73,14 @@ export class AutoSnoozeActivePauses extends LitElement {
       syncTimeout: globalThis.setTimeout(() => {
         this._countdownState.syncTimeout = null;
         if (this._hasLiveCountdowns()) {
-          this._countdownState = startCountdownSync(() => this._updateCountdownIfNeeded());
+          this._countdownState = startCardShellCountdown(() => this._updateCountdownIfNeeded());
         }
       }, 0),
     };
   }
 
   private _syncCountdownLifecycle(): void {
-    stopCountdownSync(this._countdownState);
+    stopCardShellCountdown(this._countdownState);
     if (this.pauseGroups.length === 0) {
       this._scheduleCountdownBootstrap();
       return;
@@ -86,7 +89,7 @@ export class AutoSnoozeActivePauses extends LitElement {
       this._countdownState = { interval: null, syncTimeout: null };
       return;
     }
-    this._countdownState = startCountdownSync(() => this._updateCountdownIfNeeded());
+    this._countdownState = startCardShellCountdown(() => this._updateCountdownIfNeeded());
   }
 
   _handleWakeAll(): void {
