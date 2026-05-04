@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.2.19](https://github.com/mossipcams/autosnooze/compare/v0.2.18...v0.2.19) (2026-05-04)
+
+
+### Bug Fixes
+
+* harden autosnooze scheduling races ([e18d024](https://github.com/mossipcams/autosnooze/commit/e18d024589cda34708e44ef22a3b5181b4ee564e))
+* normalize inconsistent font sizes across automation list UI ([652a84d](https://github.com/mossipcams/autosnooze/commit/652a84d20eec241a71ff2945c215b5b02056612d))
+* polish mobile UX spacing, touch targets, and visual consistency ([200363e](https://github.com/mossipcams/autosnooze/commit/200363ea57a4e1c6ca3bffef206ff71000655b10))
+* reapply automation list font normalization ([b96bd24](https://github.com/mossipcams/autosnooze/commit/b96bd245616cea0728502973b230ae8d5456edf5))
+
 ## [0.2.18](https://github.com/mossipcams/autosnooze/compare/v0.2.17...v0.2.18) (2026-04-13)
 
 
