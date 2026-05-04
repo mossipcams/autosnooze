@@ -9,7 +9,8 @@ from homeassistant.core import HomeAssistant
 from homeassistant.util import dt as dt_util
 
 from ..infrastructure.storage import async_save
-from ..models import AutomationPauseData, PausedAutomation, ScheduledSnooze, parse_datetime_utc
+from ..models import PausedAutomation, ScheduledSnooze, parse_datetime_utc
+from .state import AutomationPauseData
 from .timers import ResumeCallback, ScheduledDisableCallback
 
 _LOGGER = logging.getLogger(__name__)

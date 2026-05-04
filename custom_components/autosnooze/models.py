@@ -7,10 +7,7 @@ from datetime import datetime, timezone
 from typing import Any, TypeAlias
 
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.helpers.dispatcher import async_dispatcher_send
 from homeassistant.util import dt as dt_util
-
-from .runtime.state import AutomationPauseData
 
 
 def parse_datetime_utc(dt_str: str) -> datetime:
@@ -140,4 +137,4 @@ class ScheduledSnooze:
         )
 
 
-AutomationPauseConfigEntry: TypeAlias = ConfigEntry[AutomationPauseData]
+AutomationPauseConfigEntry: TypeAlias = ConfigEntry[Any]

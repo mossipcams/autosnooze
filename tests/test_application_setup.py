@@ -11,7 +11,7 @@ import pytest
 async def test_application_setup_initializes_runtime_and_services() -> None:
     """Setup helper wires runtime data, services, and platform forwarding."""
     from custom_components.autosnooze.application.setup import async_setup_integration_entry
-    from custom_components.autosnooze.models import AutomationPauseData
+    from custom_components.autosnooze.runtime.state import AutomationPauseData
 
     hass = MagicMock()
     hass.is_running = True

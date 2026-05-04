@@ -11,10 +11,10 @@ from unittest.mock import MagicMock, AsyncMock
 import pytest
 
 from custom_components.autosnooze.models import (
-    AutomationPauseData,
     PausedAutomation,
     ScheduledSnooze,
 )
+from custom_components.autosnooze.runtime.state import AutomationPauseData
 from custom_components.autosnooze.sensor import AutoSnoozeCountSensor
 
 UTC = timezone.utc

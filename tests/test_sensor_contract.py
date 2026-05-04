@@ -4,7 +4,9 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
 
-from custom_components.autosnooze.models import AutomationPauseData, PausedAutomation, ScheduledSnooze
+from custom_components.autosnooze.runtime.state import AutomationPauseData
+
+from custom_components.autosnooze.models import PausedAutomation, ScheduledSnooze
 from custom_components.autosnooze.const import SENSOR_SCHEMA_VERSION
 from custom_components.autosnooze.sensor import AutoSnoozeCountSensor
 

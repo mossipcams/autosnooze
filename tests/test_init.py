@@ -31,8 +31,8 @@ from custom_components.autosnooze.const import (
 from custom_components.autosnooze.models import (
     PausedAutomation,
     ScheduledSnooze,
-    AutomationPauseData,
 )
+from custom_components.autosnooze.runtime.state import AutomationPauseData
 
 UTC = timezone.utc
 

@@ -13,8 +13,9 @@ from homeassistant.util import dt as dt_util
 
 from ..const import DOMAIN, MIN_ADJUST_BUFFER
 from ..logging_utils import _log_command, _raise_save_failed
-from ..models import AutomationPauseData, PausedAutomation
+from ..models import PausedAutomation
 from ..runtime.ports import async_save, schedule_resume
+from ..runtime.state import AutomationPauseData
 from .resume import async_resume
 
 _LOGGER = logging.getLogger(__name__)

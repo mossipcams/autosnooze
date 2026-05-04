@@ -9,8 +9,9 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from custom_components.autosnooze.coordinator import async_resume_batch
-from custom_components.autosnooze.models import AutomationPauseData, PausedAutomation
-from custom_components.autosnooze.services import async_pause_automations
+from custom_components.autosnooze.application.pause import async_pause_automations
+from custom_components.autosnooze.runtime.state import AutomationPauseData
+from custom_components.autosnooze.models import PausedAutomation
 
 UTC = timezone.utc
 

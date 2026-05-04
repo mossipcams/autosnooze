@@ -11,8 +11,8 @@ from homeassistant.util import dt as dt_util
 
 from ..const import MAX_RESUME_RETRIES, RESUME_RETRY_DELAY
 from ..logging_utils import _log_command, _raise_save_failed
-from ..models import AutomationPauseData
 from ..runtime.ports import async_save, async_set_automation_state, cancel_timer, schedule_resume
+from ..runtime.state import AutomationPauseData
 
 _LOGGER = logging.getLogger(__name__)
 

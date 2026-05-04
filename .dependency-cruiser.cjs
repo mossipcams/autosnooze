@@ -96,7 +96,18 @@ module.exports = {
         path: '^src/state/',
       },
       to: {
-        path: '^src/(components|services|styles|localization|registration|index)\\.',
+        path: '^src/(components|features|services|styles|localization|registration|index)(/|\\.)',
+      },
+    },
+    {
+      name: 'state-no-feature-dependencies',
+      severity: 'error',
+      comment: 'State helpers sit below feature slices and must not depend upward on feature facades.',
+      from: {
+        path: '^src/state/',
+      },
+      to: {
+        path: '^src/features/',
       },
     },
     {
@@ -107,7 +118,7 @@ module.exports = {
         path: '^src/services/',
       },
       to: {
-        path: '^src/(components|state|styles|localization|registration|index)\\.',
+        path: '^src/(components|features|state|styles|localization|registration|index)(/|\\.)',
       },
     },
     {
@@ -118,7 +129,7 @@ module.exports = {
         path: '^src/utils/',
       },
       to: {
-        path: '^src/(components|services|state|styles|localization|registration|index)\\.',
+        path: '^src/(components|features|services|state|styles|localization|registration|index)(/|\\.)',
       },
     },
     {
@@ -129,7 +140,7 @@ module.exports = {
         path: '^src/styles/',
       },
       to: {
-        path: '^src/(components|services|state|utils|localization|registration|index|constants|types)\\.',
+        path: '^src/(components|features|services|state|utils|localization|registration|index|constants|types)(/|\\.)',
       },
     },
     {
@@ -140,7 +151,7 @@ module.exports = {
         path: '^src/types/',
       },
       to: {
-        path: '^src/(components|services|state|styles|utils|localization|constants|registration|index)\\.',
+        path: '^src/(components|features|services|state|styles|utils|localization|constants|registration|index)(/|\\.)',
       },
     },
     {
@@ -151,7 +162,7 @@ module.exports = {
         path: '^src/constants/',
       },
       to: {
-        path: '^src/(components|services|state|styles|utils|localization|registration|index)\\.',
+        path: '^src/(components|features|services|state|styles|utils|localization|registration|index)(/|\\.)',
       },
     },
     {
@@ -162,7 +173,7 @@ module.exports = {
         path: '^src/localization/',
       },
       to: {
-        path: '^src/(components|services|state|styles|utils|constants|registration|index)\\.',
+        path: '^src/(components|features|services|state|styles|utils|constants|registration|index)(/|\\.)',
       },
     },
   ],
