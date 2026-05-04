@@ -35,10 +35,10 @@ from custom_components.autosnooze.coordinator import (
     validate_stored_entry,
 )
 from custom_components.autosnooze.models import (
-    AutomationPauseData,
     PausedAutomation,
     ScheduledSnooze,
 )
+from custom_components.autosnooze.runtime.state import AutomationPauseData
 
 UTC = timezone.utc
 

@@ -24,10 +24,10 @@ from .const import (
 from .infrastructure.storage import async_save as infrastructure_async_save
 from .logging_utils import _log_command, _raise_save_failed
 from .models import (
-    AutomationPauseData,
     PausedAutomation,
     ScheduledSnooze,
 )
+from .runtime.state import AutomationPauseData
 from .runtime.restore import (
     async_load_stored as runtime_async_load_stored,
     validate_stored_data as runtime_validate_stored_data,

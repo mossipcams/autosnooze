@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import asyncio
-import importlib
 import logging
 from collections.abc import Callable
 from dataclasses import dataclass, field
@@ -19,12 +18,6 @@ if TYPE_CHECKING:
     from ..models import PausedAutomation, ScheduledSnooze
 
 _LOGGER = logging.getLogger(__name__)
-
-
-def _get_dispatcher_send() -> Callable[[HomeAssistant, str], None]:
-    models_module = importlib.import_module("custom_components.autosnooze.models")
-    dispatcher_send = getattr(models_module, "async_dispatcher_send", async_dispatcher_send)
-    return dispatcher_send
 
 
 @dataclass
@@ -57,7 +50,7 @@ class AutomationPauseData:
         if self.unloaded:
             return
         if self.hass is not None:
-            _get_dispatcher_send()(self.hass, SIGNAL_STATE_CHANGED)
+            async_dispatcher_send(self.hass, SIGNAL_STATE_CHANGED)
         for listener in list(self.listeners):
             try:
                 listener()

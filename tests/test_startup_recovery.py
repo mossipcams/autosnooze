@@ -8,7 +8,7 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 
 from custom_components.autosnooze.coordinator import async_load_stored
-from custom_components.autosnooze.models import AutomationPauseData
+from custom_components.autosnooze.runtime.state import AutomationPauseData
 
 UTC = timezone.utc
 

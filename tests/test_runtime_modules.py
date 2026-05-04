@@ -22,7 +22,8 @@ def test_validate_stored_data_is_available_via_runtime_module() -> None:
 async def test_async_save_is_available_via_infrastructure_module() -> None:
     """Infrastructure storage module persists serialized paused/scheduled data."""
     from custom_components.autosnooze.infrastructure.storage import async_save
-    from custom_components.autosnooze.models import AutomationPauseData, PausedAutomation
+    from custom_components.autosnooze.runtime.state import AutomationPauseData
+    from custom_components.autosnooze.models import PausedAutomation
 
     now = datetime.now(UTC)
     store = MagicMock()
@@ -43,7 +44,7 @@ async def test_async_save_is_available_via_infrastructure_module() -> None:
 
 def test_schedule_resume_is_available_via_runtime_module() -> None:
     """Runtime timers module exposes the schedule helper."""
-    from custom_components.autosnooze.models import AutomationPauseData
+    from custom_components.autosnooze.runtime.state import AutomationPauseData
     from custom_components.autosnooze.runtime.timers import schedule_resume
 
     hass = MagicMock()
@@ -58,7 +59,7 @@ def test_schedule_resume_is_available_via_runtime_module() -> None:
 
 def test_runtime_resume_timer_uses_injected_callback() -> None:
     """Runtime resume timer schedules the injected workflow callback."""
-    from custom_components.autosnooze.models import AutomationPauseData
+    from custom_components.autosnooze.runtime.state import AutomationPauseData
     from custom_components.autosnooze.runtime.timers import schedule_resume
 
     hass = MagicMock()
@@ -95,7 +96,7 @@ def test_runtime_resume_timer_uses_injected_callback() -> None:
 
 def test_runtime_resume_timer_skips_when_unloaded_or_missing_callback() -> None:
     """Runtime resume timer safely noops without an active injected callback."""
-    from custom_components.autosnooze.models import AutomationPauseData
+    from custom_components.autosnooze.runtime.state import AutomationPauseData
     from custom_components.autosnooze.runtime.timers import schedule_resume
 
     hass = MagicMock()
@@ -124,7 +125,8 @@ def test_runtime_resume_timer_skips_when_unloaded_or_missing_callback() -> None:
 
 def test_runtime_disable_timer_skips_when_unloaded_or_missing_callback() -> None:
     """Runtime disable timer safely noops without an active injected callback."""
-    from custom_components.autosnooze.models import AutomationPauseData, ScheduledSnooze
+    from custom_components.autosnooze.runtime.state import AutomationPauseData
+    from custom_components.autosnooze.models import ScheduledSnooze
     from custom_components.autosnooze.runtime.timers import schedule_disable
 
     hass = MagicMock()

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 from datetime import datetime, timedelta
 import logging
 import re
@@ -17,6 +17,7 @@ from homeassistant.helpers import label_registry as lr
 from homeassistant.util import dt as dt_util
 
 from ..const import CRITICAL_AUTOMATION_TERMS, DOMAIN, LABEL_CONFIRM_NAME
+from ..runtime.state import AutomationPauseData
 from ..runtime.ports import (
     async_save,
     async_set_automation_state,
@@ -27,7 +28,7 @@ from ..runtime.ports import (
     schedule_resume,
 )
 from ..logging_utils import _log_command, _raise_save_failed
-from ..models import AutomationPauseData, PausedAutomation, ScheduledSnooze, ensure_utc_aware
+from ..models import PausedAutomation, ScheduledSnooze, ensure_utc_aware
 from .resume import async_resume
 from .scheduled import async_execute_scheduled_disable
 
@@ -84,6 +85,29 @@ def _is_critical_automation(entity_id: str, friendly_name: str) -> bool:
     """Detect whether automation appears to control critical infrastructure."""
     targets = [entity_id, friendly_name]
     return any(_contains_guardrail_term(target, term) for target in targets for term in CRITICAL_AUTOMATION_TERMS)
+
+
+def _get_automations_by_filter(
+    hass: HomeAssistant,
+    filter_fn: Callable[[Any], bool],
+) -> list[str]:
+    """Get all automation entity IDs matching a filter predicate."""
+    entity_reg = er.async_get(hass)
+    return [
+        entity.entity_id
+        for entity in entity_reg.entities.values()
+        if entity.domain == "automation" and filter_fn(entity)
+    ]
+
+
+def get_automations_by_area(hass: HomeAssistant, area_ids: list[str]) -> list[str]:
+    """Get all automation entity IDs in the specified areas."""
+    return _get_automations_by_filter(hass, lambda e: e.area_id in area_ids)
+
+
+def get_automations_by_label(hass: HomeAssistant, label_ids: list[str]) -> list[str]:
+    """Get all automation entity IDs with the specified labels."""
+    return _get_automations_by_filter(hass, lambda e: e.labels and any(label in label_ids for label in e.labels))
 
 
 async def async_pause_automations(
@@ -270,3 +294,65 @@ async def async_handle_pause_service(
 
     _validate_guardrails(hass, entity_ids, confirm=confirm)
     await async_pause_automations(hass, data, entity_ids, days, hours, minutes, disable_at, resume_at_dt)
+
+
+async def _handle_pause_by_filter(
+    hass: HomeAssistant,
+    data: AutomationPauseData,
+    call: ServiceCall,
+    filter_key: str,
+    get_automations_fn: Callable[[HomeAssistant, list[str]], list[str]],
+    not_found_msg: str,
+) -> None:
+    """Handle pause by area/label application flows."""
+    if data.unloaded:
+        return
+
+    filter_value = call.data[filter_key]
+    filter_ids = [filter_value] if isinstance(filter_value, str) else filter_value
+    days = call.data.get("days", 0)
+    hours = call.data.get("hours", 0)
+    minutes = call.data.get("minutes", 0)
+    disable_at = ensure_utc_aware(call.data.get("disable_at"))
+    resume_at_dt = ensure_utc_aware(call.data.get("resume_at"))
+    confirm = call.data.get("confirm", False)
+
+    entity_ids = get_automations_fn(hass, filter_ids)
+    if not entity_ids:
+        _LOGGER.warning(not_found_msg, filter_ids)
+        return
+
+    _validate_guardrails(hass, entity_ids, confirm=confirm)
+    await async_pause_automations(hass, data, entity_ids, days, hours, minutes, disable_at, resume_at_dt)
+
+
+async def async_handle_pause_by_area_service(
+    hass: HomeAssistant,
+    data: AutomationPauseData,
+    call: ServiceCall,
+) -> None:
+    """Handle pause by area service application flow."""
+    await _handle_pause_by_filter(
+        hass,
+        data,
+        call,
+        "area_id",
+        get_automations_by_area,
+        "No automations found in area(s): %s",
+    )
+
+
+async def async_handle_pause_by_label_service(
+    hass: HomeAssistant,
+    data: AutomationPauseData,
+    call: ServiceCall,
+) -> None:
+    """Handle pause by label service application flow."""
+    await _handle_pause_by_filter(
+        hass,
+        data,
+        call,
+        "label_id",
+        get_automations_by_label,
+        "No automations found with label(s): %s",
+    )

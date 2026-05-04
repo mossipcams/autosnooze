@@ -4,4 +4,4 @@
 
 export {
   formatRegistryId,
-} from '../features/automation-list/index.js';
+} from '../utils/registry-formatting.js';
