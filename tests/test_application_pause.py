@@ -15,7 +15,7 @@ UTC = timezone.utc
 async def test_handle_pause_service_forwards_full_contract_fields() -> None:
     """Pause application delegates guardrails and pause execution."""
     from custom_components.autosnooze.application.pause import async_handle_pause_service
-    from custom_components.autosnooze.models import AutomationPauseData
+    from custom_components.autosnooze.runtime.state import AutomationPauseData
 
     mock_hass = MagicMock()
     data = AutomationPauseData(store=MagicMock())
@@ -58,7 +58,7 @@ async def test_handle_pause_service_forwards_full_contract_fields() -> None:
 async def test_handle_pause_service_noops_when_unloaded() -> None:
     """Pause application exits early when integration is unloaded."""
     from custom_components.autosnooze.application.pause import async_handle_pause_service
-    from custom_components.autosnooze.models import AutomationPauseData
+    from custom_components.autosnooze.runtime.state import AutomationPauseData
 
     mock_hass = MagicMock()
     data = AutomationPauseData(store=MagicMock(), unloaded=True)

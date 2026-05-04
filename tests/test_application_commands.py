@@ -13,7 +13,7 @@ from homeassistant.const import ATTR_ENTITY_ID
 async def test_handle_cancel_service_filters_unknown_entities() -> None:
     """Cancel application batches only paused entities."""
     from custom_components.autosnooze.application.resume import async_handle_cancel_service
-    from custom_components.autosnooze.models import AutomationPauseData
+    from custom_components.autosnooze.runtime.state import AutomationPauseData
 
     hass = MagicMock()
     data = AutomationPauseData(store=MagicMock())
@@ -34,7 +34,7 @@ async def test_handle_cancel_service_filters_unknown_entities() -> None:
 async def test_handle_cancel_scheduled_service_filters_unknown_entities() -> None:
     """Scheduled cancel application batches only scheduled entities."""
     from custom_components.autosnooze.application.scheduled import async_handle_cancel_scheduled_service
-    from custom_components.autosnooze.models import AutomationPauseData
+    from custom_components.autosnooze.runtime.state import AutomationPauseData
 
     hass = MagicMock()
     data = AutomationPauseData(store=MagicMock())
@@ -55,7 +55,7 @@ async def test_handle_cancel_scheduled_service_filters_unknown_entities() -> Non
 async def test_handle_adjust_service_builds_delta_and_calls_batch_adjust() -> None:
     """Adjust application computes timedelta and delegates."""
     from custom_components.autosnooze.application.adjust import async_handle_adjust_service
-    from custom_components.autosnooze.models import AutomationPauseData
+    from custom_components.autosnooze.runtime.state import AutomationPauseData
 
     hass = MagicMock()
     data = AutomationPauseData(store=MagicMock())

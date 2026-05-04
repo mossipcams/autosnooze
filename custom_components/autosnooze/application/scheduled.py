@@ -12,7 +12,7 @@ from homeassistant.util import dt as dt_util
 
 from ..const import SCHEDULED_DISABLE_RETRY_DELAY
 from ..logging_utils import _log_command, _raise_save_failed
-from ..models import AutomationPauseData, PausedAutomation, ScheduledSnooze
+from ..models import PausedAutomation, ScheduledSnooze
 from ..runtime.ports import (
     async_save,
     async_set_automation_state,
@@ -21,6 +21,7 @@ from ..runtime.ports import (
     schedule_disable,
     schedule_resume,
 )
+from ..runtime.state import AutomationPauseData
 from .resume import async_resume
 
 _LOGGER = logging.getLogger(__name__)

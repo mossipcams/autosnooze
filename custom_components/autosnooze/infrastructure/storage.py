@@ -7,7 +7,7 @@ import logging
 from collections.abc import Awaitable, Callable
 
 from ..const import MAX_SAVE_RETRIES, SAVE_RETRY_DELAYS, TRANSIENT_ERRORS
-from ..models import AutomationPauseData
+from ..runtime.state import AutomationPauseData
 
 _LOGGER = logging.getLogger(__name__)
 

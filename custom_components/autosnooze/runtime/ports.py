@@ -11,7 +11,8 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.event import async_track_point_in_time
 
 from ..infrastructure.storage import async_save as infrastructure_async_save
-from ..models import AutomationPauseData, ScheduledSnooze
+from ..models import ScheduledSnooze
+from .state import AutomationPauseData
 from .timers import (
     ResumeCallback,
     ScheduledDisableCallback,

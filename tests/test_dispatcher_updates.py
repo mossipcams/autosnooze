@@ -7,7 +7,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from custom_components.autosnooze.models import AutomationPauseData
+from custom_components.autosnooze.runtime.state import AutomationPauseData
 from custom_components.autosnooze.sensor import AutoSnoozeCountSensor
 
 UTC = timezone.utc
@@ -37,7 +37,7 @@ async def test_dispatcher_updates_once_per_notify_and_unsubscribes_on_remove(mon
             callback()
 
     monkeypatch.setattr("custom_components.autosnooze.sensor.async_dispatcher_connect", fake_connect)
-    monkeypatch.setattr("custom_components.autosnooze.models.async_dispatcher_send", fake_send)
+    monkeypatch.setattr("custom_components.autosnooze.runtime.state.async_dispatcher_send", fake_send)
 
     data = AutomationPauseData(hass=MagicMock())
     entry = MockConfigEntry(data)

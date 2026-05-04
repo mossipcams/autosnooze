@@ -25,7 +25,8 @@ from .const import (
     VERSION,
 )
 from .coordinator import async_load_stored
-from .models import AutomationPauseConfigEntry, AutomationPauseData
+from .models import AutomationPauseConfigEntry
+from .runtime.state import AutomationPauseData
 from .services import register_services
 
 _LOGGER = logging.getLogger(__name__)

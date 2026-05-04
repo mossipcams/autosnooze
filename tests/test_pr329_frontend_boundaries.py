@@ -2,8 +2,11 @@
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 import re
+import subprocess
+from typing import Any
 
 
 ROOT = Path(__file__).parent.parent
@@ -18,28 +21,31 @@ def _imports_for(path: str) -> list[str]:
     return re.findall(r"""^import\s.+?\sfrom\s+['"](.+?)['"];?\s*$""", source, re.MULTILINE)
 
 
-def test_dependency_cruiser_forbids_feature_to_component_imports() -> None:
-    source = _read(".dependency-cruiser.cjs")
-    rule_pattern = re.compile(
-        r"""
-        name:\s*'features-no-component-dependencies'
-        .*?
-        severity:\s*'error'
-        .*?
-        from:\s*\{
-        .*?
-        path:\s*'\^src/features/'
-        .*?
-        \}
-        .*?
-        to:\s*\{
-        .*?
-        path:\s*'\^src/components/'
-        """,
-        re.DOTALL | re.VERBOSE,
+def _dependency_cruiser_rules() -> dict[str, dict[str, Any]]:
+    result = subprocess.run(
+        [
+            "node",
+            "-e",
+            "const config = require('./.dependency-cruiser.cjs'); console.log(JSON.stringify(config.forbidden));",
+        ],
+        check=True,
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
     )
+    return {rule["name"]: rule for rule in json.loads(result.stdout)}
 
-    assert rule_pattern.search(source) is not None
+
+def test_dependency_cruiser_forbids_feature_to_component_imports() -> None:
+    rules = _dependency_cruiser_rules()
+
+    assert rules["features-no-component-dependencies"] == {
+        "name": "features-no-component-dependencies",
+        "severity": "error",
+        "comment": "Feature slices should depend on lower layers, not component orchestration.",
+        "from": {"path": "^src/features/"},
+        "to": {"path": "^src/components/"},
+    }
 
 
 def test_scheduled_snooze_feature_does_not_import_component_layer() -> None:

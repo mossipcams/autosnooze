@@ -9,7 +9,8 @@ from typing import Any
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.event import async_track_point_in_time as ha_async_track_point_in_time
 
-from ..models import AutomationPauseData, ScheduledSnooze
+from ..models import ScheduledSnooze
+from .state import AutomationPauseData
 
 async_track_point_in_time = ha_async_track_point_in_time
 ResumeCallback = Callable[[HomeAssistant, AutomationPauseData, str], Coroutine[Any, Any, None]]

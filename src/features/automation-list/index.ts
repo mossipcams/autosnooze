@@ -6,6 +6,7 @@ import { EXCLUDE_LABEL, INCLUDE_LABEL } from '../../constants/index.js';
 import type { AutomationItem } from '../../types/automation.js';
 import type { FilterTab } from '../../types/card.js';
 import type { HassCategory, HassEntityRegistryEntry, HassLabel, HomeAssistant } from '../../types/hass.js';
+import { formatRegistryId } from '../../utils/registry-formatting.js';
 
 export interface AutomationListViewModel {
   filtered: AutomationItem[];
@@ -36,11 +37,7 @@ interface DecoratedAutomation {
   hasExcludeLabel: boolean;
 }
 
-export function formatRegistryId(id: string): string {
-  return id
-    .replace(/_/g, ' ')
-    .replace(/\b\w/g, (c) => c.toUpperCase());
-}
+export { formatRegistryId };
 
 export function getAreaName(areaId: string | null, hass: HomeAssistant, fallback: string = 'Unassigned'): string {
   if (!areaId) return fallback;

@@ -11,12 +11,12 @@ from unittest.mock import MagicMock
 import pytest
 
 from custom_components.autosnooze.models import (
-    AutomationPauseData,
     PausedAutomation,
     ScheduledSnooze,
     ensure_utc_aware,
     parse_datetime_utc,
 )
+from custom_components.autosnooze.runtime.state import AutomationPauseData
 
 UTC = timezone.utc
 
