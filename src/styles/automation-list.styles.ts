@@ -35,27 +35,28 @@ export const automationListStyles = css`
       box-sizing: border-box;
     }
     .tab:hover {
-      background: var(--primary-color);
-      color: var(--text-primary-color);
-      opacity: 0.8;
+      background: color-mix(in srgb, var(--primary-color) 12%, var(--card-background-color));
+      color: var(--primary-text-color);
     }
     .tab:focus-visible {
       outline: 2px solid var(--primary-color);
       outline-offset: 2px;
     }
     .tab.active {
-      background: var(--primary-color);
-      color: var(--text-primary-color);
+      background: color-mix(in srgb, var(--primary-color) 16%, var(--card-background-color));
+      color: var(--primary-text-color);
       border-color: var(--primary-color);
     }
     .tab-count {
-      background: rgba(0, 0, 0, 0.2);
+      background: color-mix(in srgb, var(--primary-color) 12%, var(--card-background-color));
+      color: var(--primary-text-color);
       padding: 2px 6px;
       border-radius: 10px;
       font-size: 0.8em;
     }
     .tab.active .tab-count {
-      background: rgba(255, 255, 255, 0.2);
+      background: color-mix(in srgb, var(--primary-color) 20%, var(--card-background-color));
+      color: var(--primary-text-color);
     }
 
     /* Search */
@@ -189,16 +190,18 @@ export const automationListStyles = css`
     .list-item-name {
       font-size: 0.95em;
       overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
+      overflow-wrap: anywhere;
+      white-space: normal;
+      word-break: break-word;
     }
     .list-item-meta {
       font-size: 0.8em;
       color: var(--secondary-text-color);
       margin-top: 2px;
       overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
+      overflow-wrap: anywhere;
+      white-space: normal;
+      word-break: break-word;
     }
     .list-item-meta ha-icon {
       --mdc-icon-size: 12px;
@@ -271,8 +274,8 @@ export const automationListStyles = css`
     .group-badge {
       margin-left: auto;
       padding: 2px 8px;
-      background: var(--primary-color);
-      color: var(--text-primary-color);
+      background: color-mix(in srgb, var(--primary-color) 16%, var(--card-background-color));
+      color: var(--primary-text-color);
       border-radius: 12px;
       font-size: 0.8em;
     }
@@ -284,7 +287,7 @@ export const automationListStyles = css`
       margin-left: auto;
       padding: 0;
       background: transparent;
-      color: var(--secondary-text-color);
+      color: var(--primary-text-color);
       white-space: nowrap;
       line-height: 1.2;
       font-size: 0.9em;
@@ -305,8 +308,8 @@ export const automationListStyles = css`
       white-space: nowrap;
     }
     .select-all-btn:hover {
-      background: var(--primary-color);
-      color: var(--text-primary-color);
+      background: color-mix(in srgb, var(--primary-color) 12%, var(--card-background-color));
+      color: var(--primary-text-color);
       border-color: var(--primary-color);
     }
     .select-all-btn:focus-visible {
@@ -319,8 +322,8 @@ export const automationListStyles = css`
       border-color: var(--divider-color);
     }
     .clear-selection-btn:active {
-      background: var(--primary-color);
-      color: var(--text-primary-color);
+      background: color-mix(in srgb, var(--primary-color) 12%, var(--card-background-color));
+      color: var(--primary-text-color);
       border-color: var(--primary-color);
     }
 
@@ -360,7 +363,7 @@ export const automationListStyles = css`
       .tab.active {
         background: var(--card-background-color);
         box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08), 0 1px 2px rgba(0, 0, 0, 0.06);
-        color: var(--primary-color);
+        color: var(--primary-text-color);
         font-weight: 600;
       }
 
@@ -375,8 +378,8 @@ export const automationListStyles = css`
       }
 
       .tab.active .tab-count {
-        background: color-mix(in srgb, var(--primary-color) 20%, transparent);
-        color: var(--primary-color);
+        background: color-mix(in srgb, var(--primary-color) 20%, var(--card-background-color));
+        color: var(--primary-text-color);
       }
 
       /* --- Search: Refined input with subtle depth --- */
@@ -458,7 +461,8 @@ export const automationListStyles = css`
       }
 
       .select-all-btn:hover {
-        background: var(--primary-color);
+        background: color-mix(in srgb, var(--primary-color) 12%, var(--card-background-color));
+        color: var(--primary-text-color);
         border-color: var(--primary-color);
       }
 
@@ -510,7 +514,7 @@ export const automationListStyles = css`
       .list-item-name {
         font-size: 0.9em;
         font-weight: 500;
-        letter-spacing: -0.01em;
+        letter-spacing: 0;
       }
 
       .list-item-meta {

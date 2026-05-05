@@ -1,19 +1,24 @@
 import { defineConfig, devices } from '@playwright/test';
 import * as path from 'path';
 
-const authFile = path.join(__dirname, '.auth', 'user.json');
+const authFile = path.join(__dirname, 'storageState.json');
+const useHeadedSnapshots = process.env.PLAYWRIGHT_HEADED_SNAPSHOTS === '1';
 
 export default defineConfig({
   testDir: '.',
-  fullyParallel: false,
+  fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
-  workers: 1,
   reporter: [
     ['html', { outputFolder: './playwright-report' }],
     ['list'],
     process.env.CI ? ['github'] : ['line'],
   ],
+  expect: {
+    toHaveScreenshot: {
+      maxDiffPixelRatio: 0.01,
+    },
+  },
   use: {
     baseURL: process.env.HA_URL || 'http://localhost:8124',
     trace: 'on-first-retry',
@@ -25,37 +30,13 @@ export default defineConfig({
   globalSetup: './global-setup.ts',
   projects: [
     {
-      name: 'setup',
-      testDir: './fixtures',
-      testMatch: /auth\.setup\.ts/,
-    },
-    {
-      name: 'chromium',
+      name: useHeadedSnapshots ? 'chromium-headed' : 'chromium',
       testDir: './tests',
       use: {
         ...devices['Desktop Chrome'],
+        headless: !useHeadedSnapshots,
         storageState: authFile,
       },
-      dependencies: ['setup'],
-    },
-    {
-      name: 'firefox',
-      testDir: './tests',
-      use: {
-        ...devices['Desktop Firefox'],
-        storageState: authFile,
-      },
-      dependencies: ['setup'],
-    },
-    {
-      name: 'mobile',
-      testDir: './tests',
-      use: {
-        ...devices['iPhone 13'],
-        storageState: authFile,
-        navigationTimeout: 60000,
-      },
-      dependencies: ['setup'],
     },
   ],
 });

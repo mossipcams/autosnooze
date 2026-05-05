@@ -1,54 +1,61 @@
 # E2E Testing Guide
 
-## Prerequisites
+## Existing HA Dashboard
 
-1. **Home Assistant Instance**: Must be running at `http://localhost:8124`
-2. **AutoSnooze Integration**: Must be installed in the HA instance
-3. **Test User**: Create a user with the following credentials:
-   - Username: `test`
-   - Password: `12345`
+These tests target an existing Home Assistant instance and the existing dashboard at `/dashboard-testing/0`. The repo does not provision Docker, `configuration.yaml`, or dashboard YAML fixtures for this worktree.
 
-## Running Tests
+Required setup:
 
-### With Environment Variables
-
-```bash
-export HA_USERNAME=test
-export HA_PASSWORD=12345
-npm run e2e           # Run all tests (headless)
-npm run e2e:ui        # Run with Playwright UI
-npm run e2e:headed    # Run with visible browser
-npm run e2e:debug     # Debug mode
-npm run e2e:report    # View HTML report
-```
-
-### Inline Environment Variables
-
-```bash
-HA_USERNAME=test HA_PASSWORD=12345 npm run e2e
-```
-
-## Test Structure
-
-- `e2e/tests/` - All test files
-- `e2e/pages/` - Page object models
-- `e2e/fixtures/` - Test fixtures and setup
-- `e2e/.auth/` - Stored authentication state
+- Home Assistant is reachable at `HA_URL` or `http://localhost:8124`.
+- AutoSnooze is installed and exposes `/autosnooze-card.js`.
+- The dashboard at `/dashboard-testing/0` contains `custom:autosnooze-card`.
+- The HA user can view the dashboard; editor/picker specs also require dashboard edit permission.
+- Existing test automations such as `Living Room Motion Lights` and `Kitchen Motion Lights` are available for the non-visual functional E2E specs.
 
 ## Authentication
 
-Authentication is handled automatically:
-1. The `auth.setup.ts` fixture runs once before all tests
-2. Authentication state is saved to `.auth/user.json`
-3. All subsequent tests reuse this authentication state
+`global-setup.ts` logs in through the HA login form with `HA_USERNAME` and `HA_PASSWORD`, then writes `e2e/storageState.json`. The storage state is reused by the Chromium project until it expires; delete `e2e/storageState.json` to force a fresh login.
 
-If authentication fails, delete `.auth/user.json` and rerun tests.
+```bash
+export HA_URL=http://localhost:8124
+export HA_USERNAME=test
+export HA_PASSWORD=12345
+```
 
-## Test Configuration
+## Running Tests
 
-Tests run on 3 browsers:
-- **Chromium** (Desktop Chrome)
-- **Firefox** (Desktop Firefox)
-- **Mobile** (iPhone 13)
+```bash
+npm run e2e
+npm run e2e:visual
+npm run e2e:critical
+npm run e2e:ui
+npm run e2e:headed
+npm run e2e:debug
+npm run e2e:report
+```
 
-All tests run sequentially (1 worker) to avoid race conditions.
+`npm run e2e:critical` runs tests tagged `@critical`. `.husky/pre-push` runs this command before PR creation/push so the standard critical path catches card registration, resource loading, console/page errors, layout integrity, and the default loaded-card visual baseline.
+
+## Visual Snapshots
+
+Visual specs are tagged `@visual` and live in `e2e/tests/*.visual.spec.ts`. Update snapshots only for intentional visual changes:
+
+```bash
+npm run e2e:visual -- --update-snapshots
+```
+
+Commit the generated `*-snapshots` directories. `test-results/` and `playwright-report/` are ignored; snapshot directories are not ignored.
+
+The visual matrix uses built-in light/dark CSS custom-property fixtures and a community-style fixture. Set `HA_COMMUNITY_THEME` when the existing HA instance has a named community theme you want documented in local runs.
+
+## Test Structure
+
+- `e2e/tests/` - Playwright specs, including visual specs named `<area>.visual.spec.ts`
+- `e2e/helpers/ha.ts` - HA shadow-DOM, resource, theme, and state helpers
+- `e2e/helpers/visual.ts` - layout-integrity assertions, snapshot stabilization, masks
+- `e2e/helpers/fixtures.ts` - viewport, theme, config variant, and authenticated-page fixtures
+- `e2e/pages/` - Page object models for existing functional E2E tests
+
+## Browser Project
+
+The visual configuration runs Chromium only with `fullyParallel: true`, `trace: 'on-first-retry'`, `screenshot: 'only-on-failure'`, `video: 'retain-on-failure'`, and `toHaveScreenshot.maxDiffPixelRatio: 0.01`.

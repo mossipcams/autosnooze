@@ -15,6 +15,10 @@
     "src/types/**/*.ts": [
       "types"
     ],
+    "e2e/helpers/**/*.ts": [
+      "exports",
+      "types"
+    ],
     "tests/helpers/**/*.ts": [
       "exports",
       "types"
