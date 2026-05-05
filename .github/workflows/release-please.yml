@@ -105,6 +105,7 @@ jobs:
         run: |
           pr_json="$(
             gh pr list \
+              --repo "$GITHUB_REPOSITORY" \
               --state open \
               --label "autorelease: pending" \
               --json number,headRefName,author \
@@ -129,7 +130,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           PR_NUMBER: ${{ steps.pr.outputs.number }}
-        run: gh pr update-branch "$PR_NUMBER"
+        run: gh pr update-branch "$PR_NUMBER" --repo "$GITHUB_REPOSITORY"
 
       - name: Checkout synced release PR branch
         if: ${{ steps.pr.outputs.branch != '' }}
