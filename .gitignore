@@ -32,4 +32,7 @@ stryker-result.txt
 
 # Playwright e2e tests
 e2e/.auth/
+e2e/storageState.json
 e2e/playwright-report/
+playwright-report/
+test-results/

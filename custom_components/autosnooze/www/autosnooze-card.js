@@ -3,6 +3,8 @@ function e(e,t,a,o){var i,s=arguments.length,r=s<3?t:null===o?o=Object.getOwnPro
       display: block;
     }
     ha-card {
+      background: var(--card-background-color);
+      color: var(--primary-text-color);
       padding: 16px;
     }
 
@@ -14,6 +16,7 @@ function e(e,t,a,o){var i,s=arguments.length,r=s<3?t:null===o?o=Object.getOwnPro
       margin-bottom: 16px;
       font-size: 1.2em;
       font-weight: 500;
+      color: var(--primary-text-color);
     }
     .header ha-icon {
       color: var(--primary-color);
@@ -914,8 +917,8 @@ function e(e,t,a,o){var i,s=arguments.length,r=s<3?t:null===o?o=Object.getOwnPro
       outline-offset: 2px;
     }
     .pill.active {
-      background: var(--primary-color);
-      color: var(--text-primary-color);
+      background: color-mix(in srgb, var(--primary-color) 16%, var(--card-background-color));
+      color: var(--primary-text-color);
       border-color: var(--primary-color);
     }
 
@@ -959,13 +962,13 @@ function e(e,t,a,o){var i,s=arguments.length,r=s<3?t:null===o?o=Object.getOwnPro
     }
 
     .last-duration-badge.active {
-      background: var(--primary-color);
-      color: var(--text-primary-color);
+      background: color-mix(in srgb, var(--primary-color) 16%, var(--card-background-color));
+      color: var(--primary-text-color);
       border-color: var(--primary-color);
     }
 
     .last-duration-badge.active ha-icon {
-      color: var(--text-primary-color);
+      color: var(--primary-text-color);
     }
 
     .last-duration-badge:focus-visible {
@@ -1035,7 +1038,7 @@ function e(e,t,a,o){var i,s=arguments.length,r=s<3?t:null===o?o=Object.getOwnPro
       gap: 6px;
       margin-top: 12px;
       padding: 8px 4px;
-      color: var(--primary-color);
+      color: var(--primary-text-color);
       cursor: pointer;
       font-size: 0.9em;
       background: none;
@@ -1053,6 +1056,7 @@ function e(e,t,a,o){var i,s=arguments.length,r=s<3?t:null===o?o=Object.getOwnPro
     }
     .schedule-link ha-icon {
       --mdc-icon-size: 18px;
+      color: var(--primary-text-color);
     }
 
     /* Field Hint */
@@ -1165,11 +1169,8 @@ function e(e,t,a,o){var i,s=arguments.length,r=s<3?t:null===o?o=Object.getOwnPro
       }
 
       .pill.active {
-        background: linear-gradient(
-          135deg,
-          var(--primary-color) 0%,
-          color-mix(in srgb, var(--primary-color) 85%, #000) 100%
-        );
+        background: color-mix(in srgb, var(--primary-color) 16%, var(--card-background-color));
+        color: var(--primary-text-color);
         border-color: var(--primary-color);
         box-shadow: 0 2px 8px color-mix(in srgb, var(--primary-color) 30%, transparent);
         transform: translateY(-1px);
@@ -1183,18 +1184,15 @@ function e(e,t,a,o){var i,s=arguments.length,r=s<3?t:null===o?o=Object.getOwnPro
       }
 
       .last-duration-badge.active {
-        background: linear-gradient(
-          135deg,
-          var(--primary-color) 0%,
-          color-mix(in srgb, var(--primary-color) 85%, #000) 100%
-        );
+        background: color-mix(in srgb, var(--primary-color) 16%, var(--card-background-color));
+        color: var(--primary-text-color);
         border-color: var(--primary-color);
         box-shadow: 0 2px 8px color-mix(in srgb, var(--primary-color) 30%, transparent);
         transform: translateY(-1px);
       }
 
       .last-duration-badge.active ha-icon {
-        color: var(--text-primary-color);
+        color: var(--primary-text-color);
       }
 
       .last-duration-badge:active:not(.active) {
@@ -1470,27 +1468,28 @@ function e(e,t,a,o){var i,s=arguments.length,r=s<3?t:null===o?o=Object.getOwnPro
       box-sizing: border-box;
     }
     .tab:hover {
-      background: var(--primary-color);
-      color: var(--text-primary-color);
-      opacity: 0.8;
+      background: color-mix(in srgb, var(--primary-color) 12%, var(--card-background-color));
+      color: var(--primary-text-color);
     }
     .tab:focus-visible {
       outline: 2px solid var(--primary-color);
       outline-offset: 2px;
     }
     .tab.active {
-      background: var(--primary-color);
-      color: var(--text-primary-color);
+      background: color-mix(in srgb, var(--primary-color) 16%, var(--card-background-color));
+      color: var(--primary-text-color);
       border-color: var(--primary-color);
     }
     .tab-count {
-      background: rgba(0, 0, 0, 0.2);
+      background: color-mix(in srgb, var(--primary-color) 12%, var(--card-background-color));
+      color: var(--primary-text-color);
       padding: 2px 6px;
       border-radius: 10px;
       font-size: 0.8em;
     }
     .tab.active .tab-count {
-      background: rgba(255, 255, 255, 0.2);
+      background: color-mix(in srgb, var(--primary-color) 20%, var(--card-background-color));
+      color: var(--primary-text-color);
     }
 
     /* Search */
@@ -1624,16 +1623,18 @@ function e(e,t,a,o){var i,s=arguments.length,r=s<3?t:null===o?o=Object.getOwnPro
     .list-item-name {
       font-size: 0.95em;
       overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
+      overflow-wrap: anywhere;
+      white-space: normal;
+      word-break: break-word;
     }
     .list-item-meta {
       font-size: 0.8em;
       color: var(--secondary-text-color);
       margin-top: 2px;
       overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
+      overflow-wrap: anywhere;
+      white-space: normal;
+      word-break: break-word;
     }
     .list-item-meta ha-icon {
       --mdc-icon-size: 12px;
@@ -1706,8 +1707,8 @@ function e(e,t,a,o){var i,s=arguments.length,r=s<3?t:null===o?o=Object.getOwnPro
     .group-badge {
       margin-left: auto;
       padding: 2px 8px;
-      background: var(--primary-color);
-      color: var(--text-primary-color);
+      background: color-mix(in srgb, var(--primary-color) 16%, var(--card-background-color));
+      color: var(--primary-text-color);
       border-radius: 12px;
       font-size: 0.8em;
     }
@@ -1719,7 +1720,7 @@ function e(e,t,a,o){var i,s=arguments.length,r=s<3?t:null===o?o=Object.getOwnPro
       margin-left: auto;
       padding: 0;
       background: transparent;
-      color: var(--secondary-text-color);
+      color: var(--primary-text-color);
       white-space: nowrap;
       line-height: 1.2;
       font-size: 0.9em;
@@ -1740,8 +1741,8 @@ function e(e,t,a,o){var i,s=arguments.length,r=s<3?t:null===o?o=Object.getOwnPro
       white-space: nowrap;
     }
     .select-all-btn:hover {
-      background: var(--primary-color);
-      color: var(--text-primary-color);
+      background: color-mix(in srgb, var(--primary-color) 12%, var(--card-background-color));
+      color: var(--primary-text-color);
       border-color: var(--primary-color);
     }
     .select-all-btn:focus-visible {
@@ -1754,8 +1755,8 @@ function e(e,t,a,o){var i,s=arguments.length,r=s<3?t:null===o?o=Object.getOwnPro
       border-color: var(--divider-color);
     }
     .clear-selection-btn:active {
-      background: var(--primary-color);
-      color: var(--text-primary-color);
+      background: color-mix(in srgb, var(--primary-color) 12%, var(--card-background-color));
+      color: var(--primary-text-color);
       border-color: var(--primary-color);
     }
 
@@ -1795,7 +1796,7 @@ function e(e,t,a,o){var i,s=arguments.length,r=s<3?t:null===o?o=Object.getOwnPro
       .tab.active {
         background: var(--card-background-color);
         box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08), 0 1px 2px rgba(0, 0, 0, 0.06);
-        color: var(--primary-color);
+        color: var(--primary-text-color);
         font-weight: 600;
       }
 
@@ -1810,8 +1811,8 @@ function e(e,t,a,o){var i,s=arguments.length,r=s<3?t:null===o?o=Object.getOwnPro
       }
 
       .tab.active .tab-count {
-        background: color-mix(in srgb, var(--primary-color) 20%, transparent);
-        color: var(--primary-color);
+        background: color-mix(in srgb, var(--primary-color) 20%, var(--card-background-color));
+        color: var(--primary-text-color);
       }
 
       /* --- Search: Refined input with subtle depth --- */
@@ -1893,7 +1894,8 @@ function e(e,t,a,o){var i,s=arguments.length,r=s<3?t:null===o?o=Object.getOwnPro
       }
 
       .select-all-btn:hover {
-        background: var(--primary-color);
+        background: color-mix(in srgb, var(--primary-color) 12%, var(--card-background-color));
+        color: var(--primary-text-color);
         border-color: var(--primary-color);
       }
 
@@ -1945,7 +1947,7 @@ function e(e,t,a,o){var i,s=arguments.length,r=s<3?t:null===o?o=Object.getOwnPro
       .list-item-name {
         font-size: 0.9em;
         font-weight: 500;
-        letter-spacing: -0.01em;
+        letter-spacing: 0;
       }
 
       .list-item-meta {

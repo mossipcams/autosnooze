@@ -48,8 +48,8 @@ export const durationSelectorStyles = css`
       outline-offset: 2px;
     }
     .pill.active {
-      background: var(--primary-color);
-      color: var(--text-primary-color);
+      background: color-mix(in srgb, var(--primary-color) 16%, var(--card-background-color));
+      color: var(--primary-text-color);
       border-color: var(--primary-color);
     }
 
@@ -93,13 +93,13 @@ export const durationSelectorStyles = css`
     }
 
     .last-duration-badge.active {
-      background: var(--primary-color);
-      color: var(--text-primary-color);
+      background: color-mix(in srgb, var(--primary-color) 16%, var(--card-background-color));
+      color: var(--primary-text-color);
       border-color: var(--primary-color);
     }
 
     .last-duration-badge.active ha-icon {
-      color: var(--text-primary-color);
+      color: var(--primary-text-color);
     }
 
     .last-duration-badge:focus-visible {
@@ -169,7 +169,7 @@ export const durationSelectorStyles = css`
       gap: 6px;
       margin-top: 12px;
       padding: 8px 4px;
-      color: var(--primary-color);
+      color: var(--primary-text-color);
       cursor: pointer;
       font-size: 0.9em;
       background: none;
@@ -187,6 +187,7 @@ export const durationSelectorStyles = css`
     }
     .schedule-link ha-icon {
       --mdc-icon-size: 18px;
+      color: var(--primary-text-color);
     }
 
     /* Field Hint */
@@ -299,11 +300,8 @@ export const durationSelectorStyles = css`
       }
 
       .pill.active {
-        background: linear-gradient(
-          135deg,
-          var(--primary-color) 0%,
-          color-mix(in srgb, var(--primary-color) 85%, #000) 100%
-        );
+        background: color-mix(in srgb, var(--primary-color) 16%, var(--card-background-color));
+        color: var(--primary-text-color);
         border-color: var(--primary-color);
         box-shadow: 0 2px 8px color-mix(in srgb, var(--primary-color) 30%, transparent);
         transform: translateY(-1px);
@@ -317,18 +315,15 @@ export const durationSelectorStyles = css`
       }
 
       .last-duration-badge.active {
-        background: linear-gradient(
-          135deg,
-          var(--primary-color) 0%,
-          color-mix(in srgb, var(--primary-color) 85%, #000) 100%
-        );
+        background: color-mix(in srgb, var(--primary-color) 16%, var(--card-background-color));
+        color: var(--primary-text-color);
         border-color: var(--primary-color);
         box-shadow: 0 2px 8px color-mix(in srgb, var(--primary-color) 30%, transparent);
         transform: translateY(-1px);
       }
 
       .last-duration-badge.active ha-icon {
-        color: var(--text-primary-color);
+        color: var(--primary-text-color);
       }
 
       .last-duration-badge:active:not(.active) {

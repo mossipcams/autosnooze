@@ -10,6 +10,8 @@ export const cardStyles = css`
       display: block;
     }
     ha-card {
+      background: var(--card-background-color);
+      color: var(--primary-text-color);
       padding: 16px;
     }
 
@@ -21,6 +23,7 @@ export const cardStyles = css`
       margin-bottom: 16px;
       font-size: 1.2em;
       font-weight: 500;
+      color: var(--primary-text-color);
     }
     .header ha-icon {
       color: var(--primary-color);
