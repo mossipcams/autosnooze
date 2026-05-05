@@ -104,3 +104,23 @@ def test_synced_release_pr_refreshes_generated_artifact_after_branch_update() ->
         "rebuilt on that updated branch before the required build check is dispatched. "
         f"Missing snippets: {missing}"
     )
+
+
+def test_release_workflow_passes_repo_to_gh_before_checkout() -> None:
+    """GitHub CLI calls before checkout cannot rely on local repository discovery."""
+    assert RELEASE_WORKFLOW_PATH.exists(), "release-please workflow is missing"
+
+    content = RELEASE_WORKFLOW_PATH.read_text()
+
+    required_snippets = [
+        "--repo \"$GITHUB_REPOSITORY\"",
+        "gh pr list \\",
+        "gh pr update-branch \"$PR_NUMBER\" --repo \"$GITHUB_REPOSITORY\"",
+    ]
+
+    missing = [snippet for snippet in required_snippets if snippet not in content]
+    assert not missing, (
+        "Release workflow jobs that run gh before actions/checkout must pass the repository "
+        "explicitly, otherwise gh fails with 'not a git repository'. "
+        f"Missing snippets: {missing}"
+    )
