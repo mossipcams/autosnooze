@@ -35,6 +35,7 @@ jobs:
     timeout-minutes: 15
     permissions:
       contents: write
+      actions: write
     steps:
       - name: Parse release PR metadata
         id: pr
@@ -73,11 +74,16 @@ jobs:
         run: |
           if git diff --quiet -- custom_components/autosnooze/www/autosnooze-card.js custom_components/autosnooze/www/autosnooze-card.js.map; then
             echo "Generated artifact already up to date."
-            exit 0
+          else
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add custom_components/autosnooze/www/autosnooze-card.js custom_components/autosnooze/www/autosnooze-card.js.map
+            git commit -m "build: refresh generated card artifact for release PR"
+            git push origin "HEAD:$BRANCH_NAME"
           fi
 
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add custom_components/autosnooze/www/autosnooze-card.js custom_components/autosnooze/www/autosnooze-card.js.map
-          git commit -m "build: refresh generated card artifact for release PR"
-          git push origin "HEAD:$BRANCH_NAME"
+      - name: Dispatch required Build workflow for release PR
+        env:
+          BRANCH_NAME: ${{ steps.pr.outputs.branch }}
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run build.yml --ref "$BRANCH_NAME"

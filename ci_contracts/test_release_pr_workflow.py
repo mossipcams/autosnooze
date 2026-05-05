@@ -35,3 +35,25 @@ def test_release_workflow_refreshes_generated_card_artifact_for_release_prs() ->
         "Release workflow must rebuild and push the generated card artifact for release PRs. "
         f"Missing snippets: {missing}"
     )
+
+
+def test_release_workflow_reports_required_build_check_for_bot_authored_release_prs() -> None:
+    """Release PRs created with GITHUB_TOKEN still need the required build check."""
+    assert RELEASE_WORKFLOW_PATH.exists(), "release-please workflow is missing"
+
+    content = RELEASE_WORKFLOW_PATH.read_text()
+
+    required_snippets = [
+        "actions: write",
+        "gh workflow run build.yml --ref \"$BRANCH_NAME\"",
+        "Generated artifact already up to date.",
+        "Dispatch required Build workflow for release PR",
+        "GH_TOKEN: ${{ github.token }}",
+    ]
+
+    missing = [snippet for snippet in required_snippets if snippet not in content]
+    assert not missing, (
+        "Release PR commits authored by github-actions[bot] do not automatically trigger pull_request "
+        "workflows, so release-please must explicitly dispatch build.yml for the release PR branch. "
+        f"Missing snippets: {missing}"
+    )
