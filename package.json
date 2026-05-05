@@ -14,6 +14,7 @@
     "e2e:headed": "playwright test --config=e2e/playwright.config.ts --headed",
     "e2e:debug": "playwright test --config=e2e/playwright.config.ts --debug",
     "e2e:report": "playwright show-report e2e/playwright-report",
+    "pr:create": "node scripts/pr-create.mjs",
     "lint": "eslint src/ tests/",
     "lint:fix": "eslint src/ tests/ --fix",
     "lint:deps": "depcruise --config .dependency-cruiser.cjs src",
