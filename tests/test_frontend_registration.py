@@ -29,12 +29,21 @@ import pytest
 # =============================================================================
 
 INIT_FILE_PATH = Path(__file__).parent.parent / "custom_components" / "autosnooze" / "__init__.py"
+FRONTEND_ADAPTER_FILE_PATH = (
+    Path(__file__).parent.parent / "custom_components" / "autosnooze" / "infrastructure" / "frontend.py"
+)
 
 
 def get_init_source() -> str:
     """Read the __init__.py source code."""
     assert INIT_FILE_PATH.exists(), f"Init file not found at {INIT_FILE_PATH}"
     return INIT_FILE_PATH.read_text()
+
+
+def get_frontend_adapter_source() -> str:
+    """Read the frontend resource adapter source code."""
+    assert FRONTEND_ADAPTER_FILE_PATH.exists(), f"Frontend adapter file not found at {FRONTEND_ADAPTER_FILE_PATH}"
+    return FRONTEND_ADAPTER_FILE_PATH.read_text()
 
 
 # =============================================================================
@@ -54,7 +63,7 @@ class TestLovelaceResourcesOnlyRegistration:
         REGRESSION: Using add_extra_js_url caused iOS refresh issues.
         Other HACS cards don't have this issue because they don't use it.
         """
-        source = get_init_source()
+        source = get_frontend_adapter_source()
 
         # Must NOT import add_extra_js_url from frontend
         # (it may appear in comments explaining why we don't use it)
@@ -70,13 +79,13 @@ class TestLovelaceResourcesOnlyRegistration:
 
         StaticPathConfig is still needed to serve the JS file.
         """
-        source = get_init_source()
+        source = get_frontend_adapter_source()
 
         assert "StaticPathConfig" in source, "Must use StaticPathConfig to register static path for serving JS file"
 
     def test_has_lovelace_resource_registration(self) -> None:
         """Verify Lovelace resource registration function exists."""
-        source = get_init_source()
+        source = get_frontend_adapter_source()
 
         assert "_async_register_lovelace_resource" in source, "Must have _async_register_lovelace_resource function"
 
@@ -85,7 +94,7 @@ class TestLovelaceResourcesOnlyRegistration:
 
         cache_headers=False prevents iOS WebView from caching the file.
         """
-        source = get_init_source()
+        source = get_frontend_adapter_source()
 
         # Find the static path registration
         assert "cache_headers=False" in source, "Static path must use cache_headers=False to prevent iOS caching issues"
@@ -442,7 +451,7 @@ class TestWarningLogsOnRegistrationFailure:
 
     def test_source_has_warning_for_no_lovelace_data(self) -> None:
         """Verify warning is logged when lovelace data is missing."""
-        source = get_init_source()
+        source = get_frontend_adapter_source()
 
         # Should have warning level log for this case
         assert "Could not auto-register card: Lovelace not initialized" in source, (
@@ -451,31 +460,31 @@ class TestWarningLogsOnRegistrationFailure:
 
     def test_source_has_warning_for_yaml_mode(self) -> None:
         """Verify warning is logged when in YAML mode."""
-        source = get_init_source()
+        source = get_frontend_adapter_source()
 
         # Should have warning with mode info
         assert "Could not auto-register card: Lovelace in YAML mode" in source, "Must warn user when in YAML mode"
 
     def test_source_has_warning_for_missing_api(self) -> None:
         """Verify warning is logged when resources API is missing."""
-        source = get_init_source()
+        source = get_frontend_adapter_source()
 
         # Should have warning for API not available
         assert "Lovelace resources API not available" in source, "Must warn user when resources API is not available"
 
     def test_source_includes_mode_in_warnings(self) -> None:
         """Verify mode is included in warning messages for debugging."""
-        source = get_init_source()
+        source = get_frontend_adapter_source()
 
         # Check that mode is logged in warnings
         assert "mode=%s" in source or "mode=" in source, "Warnings should include mode for debugging"
 
     def test_source_has_manual_instructions_in_warnings(self) -> None:
         """Verify warnings include manual setup instructions."""
-        source = get_init_source()
+        source = get_frontend_adapter_source()
 
         # Should include instructions
-        assert "Settings → Dashboards → Resources" in source, "Warnings should include manual setup instructions"
+        assert "Settings -> Dashboards -> Resources" in source, "Warnings should include manual setup instructions"
 
 
 class TestLovelaceResourceRegistrationWithModes:
@@ -735,13 +744,43 @@ class TestRetryMechanism:
         resources.async_create_item.assert_called_once()
 
     @pytest.mark.asyncio
+    async def test_registers_resource_from_dict_lovelace_data(self) -> None:
+        """Verify registration supports dict-like Lovelace data."""
+        from custom_components.autosnooze import _async_register_lovelace_resource
+
+        resources = MagicMock()
+        resources.async_items = MagicMock(return_value=[])
+        resources.async_create_item = AsyncMock()
+
+        hass = MagicMock()
+        hass.data = {"lovelace": {"mode": "storage", "resources": resources}}
+
+        await _async_register_lovelace_resource(hass)
+
+        resources.async_create_item.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_warns_when_lovelace_resources_api_is_missing(self) -> None:
+        """Verify invalid Lovelace resources objects produce a manual setup warning."""
+        from custom_components.autosnooze import _async_register_lovelace_resource
+
+        hass = MagicMock()
+        hass.data = {"lovelace": {"mode": "storage", "resources": object()}}
+
+        with patch("custom_components.autosnooze.infrastructure.frontend._LOGGER") as mock_logger:
+            await _async_register_lovelace_resource(hass)
+
+        warning_message = mock_logger.warning.call_args[0][0]
+        assert "resources API not available" in warning_message
+
+    @pytest.mark.asyncio
     async def test_retry_helper_logs_retry_attempts(self) -> None:
         """Verify retry attempts are logged for debugging."""
         from custom_components.autosnooze import _async_retry_or_fail
 
         with (
             patch("custom_components.autosnooze.asyncio.sleep", new_callable=AsyncMock),
-            patch("custom_components.autosnooze._LOGGER") as mock_logger,
+            patch("custom_components.autosnooze.infrastructure.frontend._LOGGER") as mock_logger,
         ):
             await _async_retry_or_fail(0, "Lovelace not initialized yet")
 
@@ -759,7 +798,7 @@ class TestRetryMechanism:
 
         with (
             patch("custom_components.autosnooze.asyncio.sleep", new_callable=AsyncMock),
-            patch("custom_components.autosnooze._LOGGER") as mock_logger,
+            patch("custom_components.autosnooze.infrastructure.frontend._LOGGER") as mock_logger,
         ):
             await _async_register_lovelace_resource(hass, retry_count=self.MAX_RETRIES)
 
@@ -801,7 +840,7 @@ class TestRetryMechanism:
 
         with (
             patch("custom_components.autosnooze.asyncio.sleep", new_callable=AsyncMock),
-            patch("custom_components.autosnooze._LOGGER") as mock_logger,
+            patch("custom_components.autosnooze.infrastructure.frontend._LOGGER") as mock_logger,
         ):
             await _async_retry_or_fail(0, "Test condition", "extra=info")
             mock_logger.debug.assert_called_once()
@@ -936,7 +975,7 @@ class TestDocumentationAndComments:
         Future developers need to understand why we use Lovelace Resources
         only instead of add_extra_js_url.
         """
-        source = get_init_source()
+        source = get_frontend_adapter_source()
 
         # Should mention iOS, HACS, or the refresh issue
         has_explanation = any(

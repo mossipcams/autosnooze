@@ -20,6 +20,7 @@ import {
 import type { HomeAssistant, HassLabel, HassCategory } from '../types/hass.js';
 import type { AutomationItem } from '../types/automation.js';
 import type { FilterTab } from '../types/card.js';
+import { defineAutoSnoozeElement } from '../utils/custom-element-registration.js';
 
 export class AutoSnoozeAutomationList extends LitElement {
   static styles = automationListStyles;
@@ -467,3 +468,5 @@ export class AutoSnoozeAutomationList extends LitElement {
     `;
   }
 }
+
+defineAutoSnoozeElement('autosnooze-automation-list', AutoSnoozeAutomationList);

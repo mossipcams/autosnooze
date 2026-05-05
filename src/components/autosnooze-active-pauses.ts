@@ -17,6 +17,7 @@ import { formatCountdown, formatDateTime } from '../utils/time-formatting.js';
 import { hapticFeedback } from '../utils/haptic.js';
 import { activePausesStyles } from '../styles/active-pauses.styles.js';
 import { sharedPausedStyles } from '../styles/shared.styles.js';
+import { defineAutoSnoozeElement } from '../utils/custom-element-registration.js';
 import type { HomeAssistant } from '../types/hass.js';
 import type { PauseGroup, PausedAutomation } from '../types/automation.js';
 
@@ -193,3 +194,5 @@ export class AutoSnoozeActivePauses extends LitElement {
     `;
   }
 }
+
+defineAutoSnoozeElement('autosnooze-active-pauses', AutoSnoozeActivePauses);

@@ -25,6 +25,17 @@ function uniqueTag(prefix: string): string {
   return `${prefix}-${Date.now()}-${Math.floor(Math.random() * 1000000)}`;
 }
 
+function expectRegisteredSubclass(
+  baseCtor: CustomElementConstructor,
+  tag: string
+): void {
+  const registeredCtor = customElements.get(tag);
+  expect(
+    registeredCtor === baseCtor ||
+      Object.prototype.isPrototypeOf.call(baseCtor, registeredCtor)
+  ).toBe(true);
+}
+
 describe('haptic feedback utility', () => {
   test('dispatches the Home Assistant haptic event with default light feedback', () => {
     const events: CustomEvent[] = [];
@@ -232,12 +243,12 @@ describe('registration utility mutation boundaries', () => {
   test('registerAutoSnoozeCard registers every shipped custom element and marks the runtime', () => {
     registerAutoSnoozeCard();
 
-    expect(customElements.get('autosnooze-card-editor')).toBe(AutomationPauseCardEditor);
-    expect(customElements.get('autosnooze-active-pauses')).toBe(AutoSnoozeActivePauses);
-    expect(customElements.get('autosnooze-duration-selector')).toBe(AutoSnoozeDurationSelector);
-    expect(customElements.get('autosnooze-automation-list')).toBe(AutoSnoozeAutomationList);
-    expect(customElements.get('autosnooze-adjust-modal')).toBe(AutoSnoozeAdjustModal);
-    expect(customElements.get('autosnooze-card')).toBe(AutomationPauseCard);
+    expectRegisteredSubclass(AutomationPauseCardEditor, 'autosnooze-card-editor');
+    expectRegisteredSubclass(AutoSnoozeActivePauses, 'autosnooze-active-pauses');
+    expectRegisteredSubclass(AutoSnoozeDurationSelector, 'autosnooze-duration-selector');
+    expectRegisteredSubclass(AutoSnoozeAutomationList, 'autosnooze-automation-list');
+    expectRegisteredSubclass(AutoSnoozeAdjustModal, 'autosnooze-adjust-modal');
+    expectRegisteredSubclass(AutomationPauseCard, 'autosnooze-card');
     expect(
       (globalThis as Record<PropertyKey, unknown>)[Symbol.for('autosnooze.registration.done.v1')]
     ).toBe(true);

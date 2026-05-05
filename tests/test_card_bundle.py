@@ -408,14 +408,13 @@ class TestCDNCacheBusting:
     """
 
     CONST_PATH = PROJECT_ROOT / "custom_components" / "autosnooze" / "const.py"
-    INIT_PATH = PROJECT_ROOT / "custom_components" / "autosnooze" / "__init__.py"
+    FRONTEND_ADAPTER_PATH = PROJECT_ROOT / "custom_components" / "autosnooze" / "infrastructure" / "frontend.py"
     MANIFEST_PATH = PROJECT_ROOT / "custom_components" / "autosnooze" / "manifest.json"
 
     def test_card_url_uses_query_param_versioning(self) -> None:
         """Test that cache busting uses query param versioning.
 
         Query param versioning (?v=VERSION) is the Home Assistant standard:
-        - Used by HACS (?hacstag=TIMESTAMP)
         - Used by card-mod, mini-graph-card, and most community cards
         - No URL path changes = no backwards compatibility issues
 
@@ -487,7 +486,7 @@ class TestCDNCacheBusting:
 
     def test_lovelace_resource_uses_versioned_url(self) -> None:
         """Test that Lovelace resource registration uses the versioned URL."""
-        content = self.INIT_PATH.read_text()
+        content = self.FRONTEND_ADAPTER_PATH.read_text()
 
         # The resource should use CARD_URL_VERSIONED (with query param)
         assert '"url": CARD_URL_VERSIONED' in content or "'url': CARD_URL_VERSIONED" in content, (
