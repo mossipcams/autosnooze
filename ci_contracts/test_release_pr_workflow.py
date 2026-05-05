@@ -124,3 +124,28 @@ def test_release_workflow_passes_repo_to_gh_before_checkout() -> None:
         "explicitly, otherwise gh fails with 'not a git repository'. "
         f"Missing snippets: {missing}"
     )
+
+
+def test_release_workflow_mirrors_dispatched_build_to_release_pr_head() -> None:
+    """Dispatched builds must report a required build check on bot-authored PR heads."""
+    assert RELEASE_WORKFLOW_PATH.exists(), "release-please workflow is missing"
+
+    content = RELEASE_WORKFLOW_PATH.read_text()
+
+    required_snippets = [
+        "checks: write",
+        "statuses: write",
+        "gh run watch \"$RUN_ID\" --exit-status",
+        "repos/${GITHUB_REPOSITORY}/check-runs",
+        "repos/${GITHUB_REPOSITORY}/statuses/${HEAD_SHA}",
+        "-f name=\"build\"",
+        "-f context=\"build\"",
+    ]
+
+    missing = [snippet for snippet in required_snippets if snippet not in content]
+    assert not missing, (
+        "Workflow-dispatched builds are not reliably attached to bot-authored Release Please PR "
+        "heads. The release workflow must wait for the dispatched build and mirror its result as "
+        "an explicit required build check/status on the release PR head SHA. "
+        f"Missing snippets: {missing}"
+    )
