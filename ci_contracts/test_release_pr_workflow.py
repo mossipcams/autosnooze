@@ -57,3 +57,50 @@ def test_release_workflow_reports_required_build_check_for_bot_authored_release_
         "workflows, so release-please must explicitly dispatch build.yml for the release PR branch. "
         f"Missing snippets: {missing}"
     )
+
+
+def test_release_workflow_syncs_existing_release_pr_after_main_updates() -> None:
+    """An already-open release PR must be kept current when later PRs merge."""
+    assert RELEASE_WORKFLOW_PATH.exists(), "release-please workflow is missing"
+
+    content = RELEASE_WORKFLOW_PATH.read_text()
+
+    required_snippets = [
+        "sync-existing-release-pr",
+        "github.event_name == 'push'",
+        "autorelease: pending",
+        "gh pr list",
+        "startsWith(steps.pr.outputs.branch, 'release-please--branches--main--components--')",
+        "gh pr update-branch \"$PR_NUMBER\"",
+        "gh workflow run build.yml --ref \"$BRANCH_NAME\"",
+    ]
+
+    missing = [snippet for snippet in required_snippets if snippet not in content]
+    assert not missing, (
+        "Release Please can leave an existing release PR branch stale when new non-release-note PRs "
+        "merge into main. The release workflow must find the open Release Please PR, update its "
+        "branch from main, and dispatch the required build check. "
+        f"Missing snippets: {missing}"
+    )
+
+
+def test_synced_release_pr_refreshes_generated_artifact_after_branch_update() -> None:
+    """A synced release PR must rebuild artifacts after pulling in newer main code."""
+    assert RELEASE_WORKFLOW_PATH.exists(), "release-please workflow is missing"
+
+    content = RELEASE_WORKFLOW_PATH.read_text()
+
+    required_snippets = [
+        "Checkout synced release PR branch",
+        "Rebuild synced generated card artifact",
+        "Commit synced generated card artifact",
+        "Synced generated artifact already up to date.",
+        "custom_components/autosnooze/www/autosnooze-card.js.map",
+    ]
+
+    missing = [snippet for snippet in required_snippets if snippet not in content]
+    assert not missing, (
+        "When a stale release PR branch is updated from main, generated frontend artifacts must be "
+        "rebuilt on that updated branch before the required build check is dispatched. "
+        f"Missing snippets: {missing}"
+    )
