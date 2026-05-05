@@ -34,6 +34,7 @@ import {
 import { formatDateTime } from '../utils/time-formatting.js';
 import { isDurationValid } from '../utils/duration-parsing.js';
 import { hapticFeedback } from '../utils/haptic.js';
+import { defineAutoSnoozeElement } from '../utils/custom-element-registration.js';
 import { requiresPauseConfirmation, runPauseFeature } from '../features/pause/index.js';
 import {
   runUndoFeature,
@@ -989,3 +990,5 @@ export class AutomationPauseCard extends LitElement {
     `;
   }
 }
+
+defineAutoSnoozeElement('autosnooze-card', AutomationPauseCard);

@@ -24,6 +24,7 @@ import {
   getConfiguredDurationPresets,
   type LastDurationData,
 } from '../features/card-shell/index.js';
+import { defineAutoSnoozeElement } from '../utils/custom-element-registration.js';
 
 export class AutoSnoozeDurationSelector extends LitElement {
   static styles = durationSelectorStyles;
@@ -331,3 +332,5 @@ export class AutoSnoozeDurationSelector extends LitElement {
     `;
   }
 }
+
+defineAutoSnoozeElement('autosnooze-duration-selector', AutoSnoozeDurationSelector);

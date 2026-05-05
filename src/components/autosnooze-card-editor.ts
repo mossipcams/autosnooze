@@ -9,6 +9,7 @@ import { localize } from '../localization/localize.js';
 import type { HomeAssistant } from '../types/hass.js';
 import type { AutoSnoozeCardConfig } from '../types/card.js';
 import { editorStyles } from '../styles/editor.styles.js';
+import { defineAutoSnoozeElement } from '../utils/custom-element-registration.js';
 
 export class AutomationPauseCardEditor extends LitElement {
   static styles = editorStyles;
@@ -58,3 +59,5 @@ export class AutomationPauseCardEditor extends LitElement {
     `;
   }
 }
+
+defineAutoSnoozeElement('autosnooze-card-editor', AutomationPauseCardEditor);

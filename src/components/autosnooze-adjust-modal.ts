@@ -12,6 +12,7 @@ import { startCardShellCountdown, stopCardShellCountdown } from '../features/car
 import type { CountdownState } from '../utils/countdown-timer.js';
 import { formatCountdown } from '../utils/time-formatting.js';
 import { adjustModalStyles } from '../styles/adjust-modal.styles.js';
+import { defineAutoSnoozeElement } from '../utils/custom-element-registration.js';
 import type { HomeAssistant } from '../types/hass.js';
 import type { PropertyValues } from 'lit';
 
@@ -196,3 +197,5 @@ export class AutoSnoozeAdjustModal extends LitElement {
     `;
   }
 }
+
+defineAutoSnoozeElement('autosnooze-adjust-modal', AutoSnoozeAdjustModal);

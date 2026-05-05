@@ -1,12 +1,10 @@
-import {
-  AutomationPauseCard,
-  AutomationPauseCardEditor,
-  AutoSnoozeActivePauses,
-  AutoSnoozeDurationSelector,
-  AutoSnoozeAutomationList,
-  AutoSnoozeAdjustModal,
-} from './components/index.js';
 import { CARD_VERSION } from './constants/index.js';
+import './components/autosnooze-card.js';
+import './components/autosnooze-card-editor.js';
+import './components/autosnooze-active-pauses.js';
+import './components/autosnooze-duration-selector.js';
+import './components/autosnooze-automation-list.js';
+import './components/autosnooze-adjust-modal.js';
 import type { CustomCardEntry } from './types/card.js';
 
 const REGISTRATION_DONE_KEY = Symbol.for('autosnooze.registration.done.v1');
@@ -26,20 +24,6 @@ interface RegistrationGlobal {
 type AutoSnoozeCardEntry = CustomCardEntry & {
   documentationURL?: string;
 };
-
-interface ElementRegistration {
-  tag: string;
-  ctor: CustomElementConstructor;
-}
-
-const ELEMENTS: ElementRegistration[] = [
-  { tag: 'autosnooze-card-editor', ctor: AutomationPauseCardEditor },
-  { tag: 'autosnooze-active-pauses', ctor: AutoSnoozeActivePauses },
-  { tag: 'autosnooze-duration-selector', ctor: AutoSnoozeDurationSelector },
-  { tag: 'autosnooze-automation-list', ctor: AutoSnoozeAutomationList },
-  { tag: 'autosnooze-adjust-modal', ctor: AutoSnoozeAdjustModal },
-  { tag: CARD_TYPE, ctor: AutomationPauseCard },
-];
 
 function warnOnce(key: string, message: string, error?: unknown): void {
   if (WARNED_KEYS.has(key)) {
@@ -139,7 +123,6 @@ export function registerAutoSnoozeCard(): void {
   const alreadyRegistered = runtime[REGISTRATION_DONE_KEY] === true;
 
   if (!alreadyRegistered) {
-    ELEMENTS.forEach(({ tag, ctor }) => safeDefine(tag, ctor));
     runtime[REGISTRATION_DONE_KEY] = true;
   }
 
