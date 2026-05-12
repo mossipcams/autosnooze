@@ -64,7 +64,7 @@
     "jscpd": "^4.0.9",
     "jsdom": "^29.1.1",
     "knip": "^6.11.0",
-    "lint-staged": "^16.4.0",
+    "lint-staged": "^17.0.4",
     "rollup": "^4.60.3",
     "tdd-guard-vitest": "^0.2.0",
     "tslib": "^2.8.1",
