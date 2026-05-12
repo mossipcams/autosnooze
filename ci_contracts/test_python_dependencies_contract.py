@@ -14,7 +14,7 @@ def test_pytest_homeassistant_custom_component_tracks_homeassistant_2026_5_beta(
     """Keep HA test fixtures aligned with the Dependabot PR #370 update."""
     requirements = REQUIREMENTS_TEST_PATH.read_text(encoding="utf-8")
 
-    assert "pytest-homeassistant-custom-component>=0.13.326,<0.13.327" in requirements
+    assert "pytest-homeassistant-custom-component>=0.13.330,<0.13.331" in requirements
 
 
 def test_pytest_matches_homeassistant_2026_5_fixture_dependency() -> None:
