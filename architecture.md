@@ -1,14 +1,12 @@
 # AutoSnooze Architecture
 
-AutoSnooze is a modular monolith. The integration ships as one Home Assistant custom component and one bundled Lovelace card, but implementation should stay organized around small slices with clear dependency direction.
+AutoSnooze is a modular monolith. Code should stay in a small number of explicit layers, with feature slices owning orchestration and components/services staying thin enough to reason about.
 
-## Frontend Layers
+## Frontend layer direction
 
 Preferred dependency flow:
 
-```text
-src/components -> src/features -> src/services | src/state | src/utils | src/constants | src/types
-```
+`components -> features -> services/state -> utils/constants/types`
 
 Components own rendering, events, and local UI state. They should not import runtime services or shared state helpers directly. When a component needs orchestration or runtime data, expose that through a feature slice facade.
 
@@ -20,20 +18,19 @@ State helpers own framework-agnostic snapshots, stores, and derived state. State
 
 Utilities, constants, and types sit at the bottom. They may be imported broadly but should not import higher layers.
 
-## Backend Layers
+## Backend layer direction
 
 Preferred dependency flow:
 
-```text
-services.py -> application -> runtime | infrastructure | models | const | logging_utils
-sensor.py -> runtime | models | const
-```
+`services -> application -> runtime/infrastructure/domain/models`
 
 `services.py` is the Home Assistant service registration adapter. It should validate service calls and delegate orchestration to application modules.
 
 Application modules own workflows such as pause, resume, adjust, schedule, and setup. They must not import `services.py`; that would couple orchestration back to the registration layer.
 
 Runtime modules own restore, timers, and in-memory runtime helpers. Infrastructure modules own storage and other external persistence concerns. Models define serializable domain data and should remain low-level.
+
+No upward imports: lower layers must not import higher-level orchestration modules to complete a workflow. If a lower layer needs behavior from a higher layer, pass a callable into it from the higher layer instead of importing upward.
 
 ## Enforcement
 

@@ -8,7 +8,8 @@ from __future__ import annotations
 
 import asyncio
 from datetime import datetime, timedelta, timezone
-from unittest.mock import AsyncMock, MagicMock, patch
+import logging
+from unittest.mock import ANY, AsyncMock, MagicMock, patch
 
 import pytest
 from homeassistant.const import ATTR_ENTITY_ID, ATTR_FRIENDLY_NAME
@@ -381,6 +382,20 @@ class TestAsyncSave:
 
         assert result is False
         assert mock_store.async_save.call_count == 4  # Initial + 3 retries
+
+    @pytest.mark.asyncio
+    async def test_delegates_sleep_dependency_to_infrastructure_save(self) -> None:
+        """Coordinator save should inject its retry sleep dependency."""
+        data = AutomationPauseData()
+
+        with patch(
+            "custom_components.autosnooze.coordinator.infrastructure_async_save",
+            AsyncMock(return_value=True),
+        ) as mock_save:
+            result = await async_save(data)
+
+        assert result is True
+        mock_save.assert_awaited_once_with(data, sleep=asyncio.sleep)
 
 
 class TestAsyncLoadStoredLocking:
@@ -1766,6 +1781,19 @@ class TestAsyncCancelScheduled:
 
         listener.assert_called()
 
+    @pytest.mark.asyncio
+    async def test_logs_cancelled_entity(self, caplog: pytest.LogCaptureFixture) -> None:
+        """Test that successful cancellation logs the cancelled entity."""
+        mock_hass = MagicMock()
+        mock_store = MagicMock()
+        mock_store.async_save = AsyncMock()
+        data = AutomationPauseData(store=mock_store)
+
+        with caplog.at_level(logging.INFO, logger="custom_components.autosnooze.coordinator"):
+            await async_cancel_scheduled(mock_hass, data, "automation.test")
+
+        assert "Cancelled scheduled snooze for: automation.test" in caplog.messages
+
 
 class TestAsyncCancelScheduledBatch:
     """Tests for async_cancel_scheduled_batch function."""
@@ -1852,9 +1880,11 @@ class TestAsyncCancelScheduledBatch:
         mock_store.async_save = AsyncMock()
         data = AutomationPauseData(store=mock_store)
 
-        await async_cancel_scheduled_batch(mock_hass, data, [])
+        with patch("custom_components.autosnooze.coordinator._log_command") as mock_log_command:
+            await async_cancel_scheduled_batch(mock_hass, data, [])
 
         mock_store.async_save.assert_not_called()
+        mock_log_command.assert_called_once_with("cancel_scheduled", "success", ANY)
 
     @pytest.mark.asyncio
     async def test_skips_when_unloaded(self) -> None:
@@ -1865,9 +1895,39 @@ class TestAsyncCancelScheduledBatch:
         data = AutomationPauseData(store=mock_store)
         data.unloaded = True
 
-        await async_cancel_scheduled_batch(mock_hass, data, ["automation.test"])
+        with patch("custom_components.autosnooze.coordinator._log_command") as mock_log_command:
+            await async_cancel_scheduled_batch(mock_hass, data, ["automation.test"])
 
         mock_store.async_save.assert_not_called()
+        mock_log_command.assert_called_once_with("cancel_scheduled", "success", ANY)
+
+    @pytest.mark.asyncio
+    async def test_logs_cancelled_count(self, caplog: pytest.LogCaptureFixture) -> None:
+        """Test that successful batch cancellation logs the cancelled count."""
+        mock_hass = MagicMock()
+        mock_store = MagicMock()
+        mock_store.async_save = AsyncMock()
+        data = AutomationPauseData(store=mock_store)
+
+        with caplog.at_level(logging.INFO, logger="custom_components.autosnooze.coordinator"):
+            await async_cancel_scheduled_batch(mock_hass, data, ["automation.test1", "automation.test2"])
+
+        assert "Cancelled 2 scheduled snoozes" in caplog.messages
+
+    @pytest.mark.asyncio
+    async def test_save_failure_logs_error_outcome(self) -> None:
+        """Test that failed batch cancellation records error telemetry."""
+        mock_hass = MagicMock()
+        data = AutomationPauseData()
+
+        with (
+            patch("custom_components.autosnooze.coordinator.async_save", AsyncMock(return_value=False)),
+            patch("custom_components.autosnooze.coordinator._log_command") as mock_log_command,
+            pytest.raises(ServiceValidationError),
+        ):
+            await async_cancel_scheduled_batch(mock_hass, data, ["automation.test"])
+
+        mock_log_command.assert_called_once_with("cancel_scheduled", "error", ANY)
 
 
 # =============================================================================
