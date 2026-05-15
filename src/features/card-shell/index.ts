@@ -3,7 +3,28 @@
  */
 
 import { startCountdownSync, stopCountdownSync } from '../../services/countdown-sync.js';
+import {
+  fetchCategoryRegistry,
+  fetchEntityRegistry,
+  fetchLabelRegistry,
+} from '../../services/registry.js';
+import {
+  loadLastDuration,
+  loadRecentSnoozes,
+} from '../../services/storage.js';
+import {
+  getPausedSnapshot,
+  SENSOR_ENTITY_ID,
+} from '../../state/paused.js';
+import { createCardStore } from '../../state/card-store.js';
+import type { HomeAssistant, HassCategory, HassEntityRegistryEntry, HassLabel } from '../../types/hass.js';
 import type { CountdownState } from '../../utils/countdown-timer.js';
+import type { LastDurationData } from '../../services/storage.js';
+
+export const CARD_SNOOZE_SENSOR_ENTITY_ID = SENSOR_ENTITY_ID;
+export type CardLastDurationData = LastDurationData;
+export type CardPausedSnapshot = ReturnType<typeof getPausedSnapshot>;
+export type CardShellStore = ReturnType<typeof createCardStore>;
 
 interface AdjustModalState {
   adjustModalOpen: boolean;
@@ -84,6 +105,38 @@ export function createClosedAdjustModalState(): AdjustModalState {
     adjustModalEntityIds: [],
     adjustModalFriendlyNames: [],
   };
+}
+
+export function createCardShellStore(): CardShellStore {
+  return createCardStore();
+}
+
+export async function fetchCardLabelRegistry(hass: HomeAssistant): Promise<Record<string, HassLabel> | null> {
+  return fetchLabelRegistry(hass);
+}
+
+export async function fetchCardCategoryRegistry(hass: HomeAssistant): Promise<Record<string, HassCategory>> {
+  return fetchCategoryRegistry(hass);
+}
+
+export async function fetchCardEntityRegistry(hass: HomeAssistant): Promise<Record<string, HassEntityRegistryEntry>> {
+  return fetchEntityRegistry(hass);
+}
+
+export function loadCardLastDuration(): LastDurationData | null {
+  return loadLastDuration();
+}
+
+export function loadCardRecentSnoozeIds(): string[] {
+  return loadRecentSnoozes();
+}
+
+export function getCardPausedSnapshot(hass: HomeAssistant): CardPausedSnapshot {
+  return getPausedSnapshot(hass);
+}
+
+export function isCardSnoozeSensorAvailable(hass: HomeAssistant | undefined): boolean {
+  return Boolean(hass?.states?.[CARD_SNOOZE_SENSOR_ENTITY_ID]);
 }
 
 export function startCardShellCountdown(onTick: () => void): CountdownState {

@@ -93,6 +93,7 @@ def schedule_resume(
         entity_id,
         resume_at,
         track_point_in_time=async_track_point_in_time,
+        resume_handler=async_resume,
     )
 
 
@@ -295,6 +296,7 @@ def schedule_disable(
         entity_id,
         scheduled,
         track_point_in_time=async_track_point_in_time,
+        disable_handler=async_execute_scheduled_disable,
     )
 
 
@@ -452,4 +454,13 @@ def validate_stored_data(stored: Any) -> dict[str, Any]:
 
 async def async_load_stored(hass: HomeAssistant, data: AutomationPauseData) -> None:
     """Load and restore snoozed automations from storage (FR-07: Persistence)."""
-    await runtime_async_load_stored(hass, data)
+    async def set_automation_enabled(hass_: HomeAssistant, entity_id: str, enabled: bool) -> bool:
+        return await async_set_automation_state(hass_, entity_id, enabled=enabled)
+
+    await runtime_async_load_stored(
+        hass,
+        data,
+        set_automation_enabled=set_automation_enabled,
+        schedule_resume_fn=schedule_resume,
+        schedule_disable_fn=schedule_disable,
+    )

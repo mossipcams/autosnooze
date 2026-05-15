@@ -83,7 +83,7 @@ module.exports = {
       comment: 'Components must depend on feature modules instead of importing service/state runtime layers directly.',
       from: {
         path: '^src/components/',
-        pathNot: '^src/components/autosnooze-(card|automation-list|duration-selector|active-pauses)\\.ts$',
+        pathNot: '^src/components/autosnooze-(automation-list|duration-selector|active-pauses)\\.ts$',
       },
       to: {
         path: '^src/(services|state)/',

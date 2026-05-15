@@ -26,6 +26,7 @@ reports/
 # Stryker mutation testing
 .stryker-tmp/
 stryker-result.txt
+mutants/
 
 # Linter caches
 .eslintcache

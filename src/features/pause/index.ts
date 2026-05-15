@@ -12,7 +12,7 @@ import { combineDateTime } from '../../utils/datetime.js';
 import { durationToMinutes } from '../../utils/duration-parsing.js';
 import { formatDateTime, formatDuration } from '../../utils/time-formatting.js';
 
-interface RunPauseFeatureInput {
+export interface RunPauseFeatureInput {
   hass: HomeAssistant;
   selected: string[];
   scheduleMode: boolean;
@@ -24,7 +24,7 @@ interface RunPauseFeatureInput {
   forceConfirm?: boolean;
 }
 
-type RunPauseFeatureResult =
+export type RunPauseFeatureResult =
   | { status: 'aborted' }
   | { status: 'confirm_required' }
   | {

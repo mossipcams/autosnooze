@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+from collections.abc import Awaitable, Callable
 from typing import Any
 
 from homeassistant.core import HomeAssistant
@@ -12,6 +13,10 @@ from ..infrastructure.storage import async_save
 from ..models import AutomationPauseData, PausedAutomation, ScheduledSnooze, parse_datetime_utc
 
 _LOGGER = logging.getLogger(__name__)
+
+SetAutomationState = Callable[[HomeAssistant, str], Awaitable[bool]]
+ScheduleResume = Callable[[HomeAssistant, AutomationPauseData, str, Any], None]
+ScheduleDisable = Callable[[HomeAssistant, AutomationPauseData, str, ScheduledSnooze], None]
 
 
 def validate_stored_entry(
@@ -91,7 +96,14 @@ def validate_stored_data(stored: Any) -> dict[str, Any]:
     return result
 
 
-async def async_load_stored(hass: HomeAssistant, data: AutomationPauseData) -> None:
+async def async_load_stored(
+    hass: HomeAssistant,
+    data: AutomationPauseData,
+    *,
+    set_automation_enabled: Callable[[HomeAssistant, str, bool], Awaitable[bool]] | None = None,
+    schedule_resume_fn: ScheduleResume | None = None,
+    schedule_disable_fn: ScheduleDisable | None = None,
+) -> None:
     if data.store is None:
         return
 
@@ -109,7 +121,8 @@ async def async_load_stored(hass: HomeAssistant, data: AutomationPauseData) -> N
     expired: list[str] = []
     expired_scheduled: list[str] = []
 
-    from ..coordinator import async_set_automation_state, schedule_disable, schedule_resume
+    if set_automation_enabled is None or schedule_resume_fn is None or schedule_disable_fn is None:
+        raise RuntimeError("Restore runtime callbacks are not configured")
 
     async with data.lock:
         for entity_id, info in validated.get("paused", {}).items():
@@ -123,9 +136,9 @@ async def async_load_stored(hass: HomeAssistant, data: AutomationPauseData) -> N
                 if paused.resume_at <= now:
                     expired.append(entity_id)
                 else:
-                    if await async_set_automation_state(hass, entity_id, enabled=False):
+                    if await set_automation_enabled(hass, entity_id, False):
                         data.paused[entity_id] = paused
-                        schedule_resume(hass, data, entity_id, paused.resume_at)
+                        schedule_resume_fn(hass, data, entity_id, paused.resume_at)
                     else:
                         _LOGGER.warning("Failed to restore paused state for %s, removing from storage", entity_id)
                         expired.append(entity_id)
@@ -145,7 +158,7 @@ async def async_load_stored(hass: HomeAssistant, data: AutomationPauseData) -> N
                     if scheduled.resume_at <= now:
                         expired_scheduled.append(entity_id)
                     else:
-                        if await async_set_automation_state(hass, entity_id, enabled=False):
+                        if await set_automation_enabled(hass, entity_id, False):
                             paused = PausedAutomation(
                                 entity_id=entity_id,
                                 friendly_name=scheduled.friendly_name,
@@ -154,7 +167,7 @@ async def async_load_stored(hass: HomeAssistant, data: AutomationPauseData) -> N
                                 disable_at=scheduled.disable_at,
                             )
                             data.paused[entity_id] = paused
-                            schedule_resume(hass, data, entity_id, scheduled.resume_at)
+                            schedule_resume_fn(hass, data, entity_id, scheduled.resume_at)
                         else:
                             _LOGGER.warning(
                                 "Failed to execute scheduled disable for %s, removing from storage",
@@ -163,13 +176,13 @@ async def async_load_stored(hass: HomeAssistant, data: AutomationPauseData) -> N
                             expired_scheduled.append(entity_id)
                 else:
                     data.scheduled[entity_id] = scheduled
-                    schedule_disable(hass, data, entity_id, scheduled)
+                    schedule_disable_fn(hass, data, entity_id, scheduled)
             except (KeyError, ValueError) as err:
                 _LOGGER.warning("Invalid scheduled data for %s: %s", entity_id, err)
                 expired_scheduled.append(entity_id)
 
         for entity_id in expired:
-            await async_set_automation_state(hass, entity_id, enabled=True)
+            await set_automation_enabled(hass, entity_id, True)
 
         if expired or expired_scheduled:
             await async_save(data)

@@ -6,16 +6,18 @@ These tests focus on the sensor platform and AutoSnoozeCountSensor class.
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
-from unittest.mock import MagicMock, AsyncMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 
+from custom_components.autosnooze.const import DOMAIN, SIGNAL_STATE_CHANGED, VERSION
 from custom_components.autosnooze.models import (
     AutomationPauseData,
     PausedAutomation,
     ScheduledSnooze,
 )
 from custom_components.autosnooze.sensor import AutoSnoozeCountSensor
+from homeassistant.helpers.device_registry import DeviceEntryType
 
 UTC = timezone.utc
 
@@ -59,9 +61,10 @@ class TestAutoSnoozeCountSensor:
         """Test sensor device info."""
         device_info = sensor._attr_device_info
         assert device_info is not None
-        assert "identifiers" in device_info
-        assert "name" in device_info
+        assert device_info["identifiers"] == {(DOMAIN, sensor._entry.entry_id)}
         assert device_info["name"] == "AutoSnooze"
+        assert device_info["entry_type"] == DeviceEntryType.SERVICE
+        assert device_info["sw_version"] == VERSION
 
     def test_native_value_returns_zero_when_empty(
         self, sensor: AutoSnoozeCountSensor, data: AutomationPauseData
@@ -135,6 +138,32 @@ class TestAutoSnoozeCountSensor:
 
         # Triggering notify should call async_write_ha_state
         data.notify()
+        sensor.async_write_ha_state.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_async_added_to_hass_uses_dispatcher_when_hass_is_available(
+        self, sensor: AutoSnoozeCountSensor
+    ) -> None:
+        """Test Home Assistant lifecycle wiring uses dispatcher updates."""
+        hass = MagicMock()
+        unsub = MagicMock()
+        sensor.hass = hass
+        sensor.async_write_ha_state = MagicMock()
+
+        with patch(
+            "custom_components.autosnooze.sensor.async_dispatcher_connect",
+            return_value=unsub,
+        ) as connect:
+            await sensor.async_added_to_hass()
+
+        connect.assert_called_once()
+        called_hass, signal, update = connect.call_args.args
+        assert called_hass is hass
+        assert signal == SIGNAL_STATE_CHANGED
+        assert callable(update)
+        assert sensor._unsub is unsub
+
+        update()
         sensor.async_write_ha_state.assert_called_once()
 
     @pytest.mark.asyncio

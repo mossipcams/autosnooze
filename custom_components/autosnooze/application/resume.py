@@ -2,16 +2,28 @@
 
 from __future__ import annotations
 
+from collections.abc import Awaitable, Callable
+
 from homeassistant.const import ATTR_ENTITY_ID
 from homeassistant.core import HomeAssistant, ServiceCall
 
 from ..models import AutomationPauseData
 
+ResumeBatch = Callable[[HomeAssistant, AutomationPauseData, list[str]], Awaitable[None]]
+
+_resume_batch_impl: ResumeBatch | None = None
+
+
+def configure_resume_dependencies(*, resume_batch: ResumeBatch) -> None:
+    """Wire coordinator resume behavior into the resume application flow."""
+    global _resume_batch_impl
+    _resume_batch_impl = resume_batch
+
 
 async def async_resume_batch(hass: HomeAssistant, data: AutomationPauseData, entity_ids: list[str]) -> None:
-    from ..coordinator import async_resume_batch as resume_batch_impl
-
-    await resume_batch_impl(hass, data, entity_ids)
+    if _resume_batch_impl is None:
+        raise RuntimeError("Resume batch implementation is not configured")
+    await _resume_batch_impl(hass, data, entity_ids)
 
 
 async def async_handle_cancel_service(

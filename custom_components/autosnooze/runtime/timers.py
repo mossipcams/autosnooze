@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable
+from collections.abc import Awaitable, Callable
 from datetime import datetime
 
 from homeassistant.core import HomeAssistant, callback
@@ -11,6 +11,9 @@ from homeassistant.helpers.event import async_track_point_in_time as ha_async_tr
 from ..models import AutomationPauseData, ScheduledSnooze
 
 async_track_point_in_time = ha_async_track_point_in_time
+
+ResumeHandler = Callable[[HomeAssistant, AutomationPauseData, str], Awaitable[None]]
+DisableHandler = Callable[[HomeAssistant, AutomationPauseData, str, datetime], Awaitable[None]]
 
 
 def _cancel_timer_from_dict(timers: dict[str, Callable[[], None]], entity_id: str) -> None:
@@ -35,6 +38,7 @@ def schedule_resume(
     track_point_in_time: Callable[[HomeAssistant, Callable[[datetime], None], datetime], Callable[[], None]] | None = (
         None
     ),
+    resume_handler: ResumeHandler | None = None,
 ) -> None:
     cancel_timer(data, entity_id)
     schedule_at = track_point_in_time or async_track_point_in_time
@@ -43,9 +47,10 @@ def schedule_resume(
     def on_timer(_now: datetime) -> None:
         if data.unloaded:
             return
-        from ..coordinator import async_resume
+        if resume_handler is None:
+            return
 
-        hass.async_create_task(async_resume(hass, data, entity_id))
+        hass.async_create_task(resume_handler(hass, data, entity_id))
 
     data.timers[entity_id] = schedule_at(hass, on_timer, resume_at)
 
@@ -59,6 +64,7 @@ def schedule_disable(
     track_point_in_time: Callable[[HomeAssistant, Callable[[datetime], None], datetime], Callable[[], None]] | None = (
         None
     ),
+    disable_handler: DisableHandler | None = None,
 ) -> None:
     cancel_scheduled_timer(data, entity_id)
     schedule_at = track_point_in_time or async_track_point_in_time
@@ -69,8 +75,9 @@ def schedule_disable(
             return
         current = data.scheduled.get(entity_id)
         resume_at = current.resume_at if current is not None else scheduled.resume_at
-        from ..coordinator import async_execute_scheduled_disable
+        if disable_handler is None:
+            return
 
-        hass.async_create_task(async_execute_scheduled_disable(hass, data, entity_id, resume_at))
+        hass.async_create_task(disable_handler(hass, data, entity_id, resume_at))
 
     data.scheduled_timers[entity_id] = schedule_at(hass, on_disable_timer, scheduled.disable_at)

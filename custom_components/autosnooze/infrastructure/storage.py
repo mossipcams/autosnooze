@@ -26,29 +26,32 @@ async def async_save(
         "scheduled": data.get_scheduled_dict(),
     }
 
-    last_error = None
-    for attempt in range(MAX_SAVE_RETRIES + 1):
+    for attempt, delay in enumerate(SAVE_RETRY_DELAYS, start=1):
         try:
             await data.store.async_save(save_data)
             return True
         except TRANSIENT_ERRORS as err:
-            last_error = err
-            if attempt < MAX_SAVE_RETRIES:
-                delay = SAVE_RETRY_DELAYS[attempt]
-                _LOGGER.warning(
-                    "Save attempt %d failed, retrying in %.1fs: %s",
-                    attempt + 1,
-                    delay,
-                    err,
-                )
-                await sleep(delay)
+            _LOGGER.warning(
+                "Save attempt %d failed, retrying in %.1fs: %s",
+                attempt,
+                delay,
+                err,
+            )
+            await sleep(delay)
         except Exception as err:
             _LOGGER.error("Failed to save data: %s", err)
             return False
 
-    _LOGGER.error(
-        "Failed to save data after %d attempts: %s",
-        MAX_SAVE_RETRIES + 1,
-        last_error,
-    )
-    return False
+    try:
+        await data.store.async_save(save_data)
+        return True
+    except TRANSIENT_ERRORS as err:
+        _LOGGER.error(
+            "Failed to save data after %d attempts: %s",
+            MAX_SAVE_RETRIES + 1,
+            err,
+        )
+        return False
+    except Exception as err:
+        _LOGGER.error("Failed to save data: %s", err)
+        return False

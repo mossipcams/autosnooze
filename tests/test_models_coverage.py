@@ -6,7 +6,9 @@ These tests focus on edge cases and branches not covered by existing tests.
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
-from unittest.mock import MagicMock
+import os
+import time
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -74,7 +76,7 @@ class TestEnsureUtcAware:
         result = ensure_utc_aware(None)
         assert result is None
 
-    def test_naive_datetime_treated_as_local_converted_to_utc(self) -> None:
+    def test_naive_datetime_treated_as_local_converted_to_utc(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Test that naive datetime is treated as local time and converted to UTC.
 
         DEF-013 FIX: Naive datetimes are now assumed to be in local timezone,
@@ -83,17 +85,41 @@ class TestEnsureUtcAware:
         naive_dt = datetime(2024, 6, 15, 12, 0, 0)
         assert naive_dt.tzinfo is None
 
-        result = ensure_utc_aware(naive_dt)
+        original_tz = os.environ.get("TZ")
+        try:
+            with patch(
+                "custom_components.autosnooze.models.dt_util.get_default_time_zone",
+                return_value=timezone(timedelta(hours=2)),
+            ):
+                monkeypatch.setenv("TZ", "America/Chicago")
+                time.tzset()
+                result = ensure_utc_aware(naive_dt)
+        finally:
+            if original_tz is None:
+                monkeypatch.delenv("TZ", raising=False)
+            else:
+                monkeypatch.setenv("TZ", original_tz)
+            time.tzset()
 
         assert result is not None
         assert result.tzinfo == UTC
-        # The hour may differ from 12 depending on local timezone offset
+        assert result == datetime(2024, 6, 15, 10, 0, 0, tzinfo=UTC)
 
-    def test_utc_aware_datetime_returned_as_utc(self) -> None:
+    def test_utc_aware_datetime_returned_as_utc(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Test that UTC-aware datetime is returned as UTC."""
+        original_tz = os.environ.get("TZ")
         aware_dt = datetime(2024, 6, 15, 12, 0, 0, tzinfo=UTC)
 
-        result = ensure_utc_aware(aware_dt)
+        try:
+            monkeypatch.setenv("TZ", "America/Chicago")
+            time.tzset()
+            result = ensure_utc_aware(aware_dt)
+        finally:
+            if original_tz is None:
+                monkeypatch.delenv("TZ", raising=False)
+            else:
+                monkeypatch.setenv("TZ", original_tz)
+            time.tzset()
 
         assert result.tzinfo == UTC
         assert result.hour == 12  # UTC stays the same

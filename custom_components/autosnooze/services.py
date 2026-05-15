@@ -28,10 +28,14 @@ from .const import (
     PAUSE_BY_LABEL_SCHEMA,
     PAUSE_SCHEMA,
 )
-from .application.pause import async_handle_pause_service
-from .application.resume import async_handle_cancel_all_service, async_handle_cancel_service
-from .application.scheduled import async_handle_cancel_scheduled_service
-from .application.adjust import async_handle_adjust_service
+from .application.pause import async_handle_pause_service, configure_pause_dependencies
+from .application.resume import (
+    async_handle_cancel_all_service,
+    async_handle_cancel_service,
+    configure_resume_dependencies,
+)
+from .application.scheduled import async_handle_cancel_scheduled_service, configure_scheduled_dependencies
+from .application.adjust import async_handle_adjust_service, configure_adjust_dependencies
 from .logging_utils import _log_command, _raise_save_failed
 from .coordinator import (
     async_adjust_snooze,
@@ -273,6 +277,26 @@ async def async_pause_automations(
 
 def register_services(hass: HomeAssistant, data: AutomationPauseData) -> None:
     """Register integration services."""
+    configure_pause_dependencies(
+        validate_guardrails=lambda hass_, entity_ids, confirm: _validate_guardrails(
+            hass_,
+            entity_ids,
+            confirm=confirm,
+        ),
+        pause_automations=lambda hass_, data_, entity_ids, days, hours, minutes, disable_at, resume_at_dt: async_pause_automations(
+            hass_,
+            data_,
+            entity_ids,
+            days,
+            hours,
+            minutes,
+            disable_at,
+            resume_at_dt,
+        ),
+    )
+    configure_resume_dependencies(resume_batch=async_resume_batch)
+    configure_scheduled_dependencies(cancel_scheduled_batch=async_cancel_scheduled_batch)
+    configure_adjust_dependencies(adjust_batch=async_adjust_snooze_batch)
 
     async def handle_pause(call: ServiceCall) -> None:
         """Handle snooze service call."""

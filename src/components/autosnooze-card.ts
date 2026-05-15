@@ -16,44 +16,37 @@ import {
   UI_TIMING,
   DEFAULT_SNOOZE_MINUTES,
 } from '../constants/index.js';
-import {
-  fetchLabelRegistry,
-  fetchCategoryRegistry,
-  fetchEntityRegistry,
-} from '../services/registry.js';
-import {
-  loadLastDuration,
-  loadRecentSnoozes,
-  type LastDurationData,
-} from '../services/storage.js';
 import { formatDateTime } from '../utils/time-formatting.js';
 import { isDurationValid } from '../utils/duration-parsing.js';
 import { hapticFeedback } from '../utils/haptic.js';
 import { getErrorMessage } from '../utils/errors.js';
-import { runPauseFeature } from '../features/pause/index.js';
 import {
-  runUndoFeature,
-  runWakeAllFeature,
-  runWakeFeature,
-} from '../features/resume/index.js';
+  runCardAdjustAction,
+  runCardCancelScheduledAction,
+  runCardPauseAction,
+  runUndoAction,
+  runWakeAction,
+  runWakeAllAction,
+  validateCardScheduledPauseInput,
+} from './autosnooze-actions-controller.js';
 import {
-  runAdjustFeature,
-  runCancelScheduledFeature,
-  validateScheduledPauseInput,
-} from '../features/scheduled-snooze/index.js';
-import {
+  CARD_SNOOZE_SENSOR_ENTITY_ID,
+  type CardLastDurationData,
+  createCardShellStore,
   createAdjustModalState,
   createClosedAdjustModalState,
   createScheduleModeState,
+  fetchCardCategoryRegistry,
+  fetchCardEntityRegistry,
+  fetchCardLabelRegistry,
+  getCardPausedSnapshot,
+  isCardSnoozeSensorAvailable,
+  loadCardLastDuration,
+  loadCardRecentSnoozeIds,
 } from '../features/card-shell/index.js';
 import {
   getAutomations,
 } from '../features/automation-list/index.js';
-import {
-  getPausedSnapshot,
-  SENSOR_ENTITY_ID,
-} from '../state/paused.js';
-import { createCardStore } from '../state/card-store.js';
 
 
 export class AutomationPauseCard extends LitElement {
@@ -65,7 +58,7 @@ export class AutomationPauseCard extends LitElement {
   @property({ attribute: false })
   config: AutoSnoozeCardConfig = {} as AutoSnoozeCardConfig;
 
-  private _cardStore = createCardStore();
+  private _cardStore = createCardShellStore();
 
   @state() private _selected: string[] = [];
   @state() private _duration: number = DEFAULT_SNOOZE_MINUTES * TIME_MS.MINUTE;
@@ -84,7 +77,7 @@ export class AutomationPauseCard extends LitElement {
   @state() private _showCustomInput: boolean = false;
   @state() private _automationsCache: AutomationItem[] | null = null;
   @state() private _automationsCacheVersion: number = 0;
-  @state() private _lastDuration: LastDurationData | null = null;
+  @state() private _lastDuration: CardLastDurationData | null = null;
   @state() _recentSnoozeIds: string[] = [];
   @state() private _adjustModalOpen: boolean = false;
   @state() private _adjustModalEntityId: string = '';
@@ -140,8 +133,8 @@ export class AutomationPauseCard extends LitElement {
       return true;
     }
 
-    const oldSensor = oldHass.states?.[SENSOR_ENTITY_ID];
-    const newSensor = newHass.states?.[SENSOR_ENTITY_ID];
+    const oldSensor = oldHass.states?.[CARD_SNOOZE_SENSOR_ENTITY_ID];
+    const newSensor = newHass.states?.[CARD_SNOOZE_SENSOR_ENTITY_ID];
     if (oldSensor !== newSensor) {
       return true;
     }
@@ -224,7 +217,7 @@ export class AutomationPauseCard extends LitElement {
     this._fetchLabelRegistry();
     this._fetchCategoryRegistry();
     this._fetchEntityRegistry();
-    this._lastDuration = loadLastDuration();
+    this._lastDuration = loadCardLastDuration();
     this._refreshRecentSnoozeIds();
   }
 
@@ -253,7 +246,7 @@ export class AutomationPauseCard extends LitElement {
     }
 
     this._labelRegistryFetchPromise = (async () => {
-      const labels = await fetchLabelRegistry(this.hass!);
+      const labels = await fetchCardLabelRegistry(this.hass!);
       if (labels === null) {
         this._labelsFetched = false;
         this._labelRegistryUnavailable = true;
@@ -298,7 +291,7 @@ export class AutomationPauseCard extends LitElement {
     }
 
     this._categoryRegistryFetchPromise = (async () => {
-      this._categoryRegistry = await fetchCategoryRegistry(this.hass!);
+      this._categoryRegistry = await fetchCardCategoryRegistry(this.hass!);
       this._categoriesFetched = true;
     })();
 
@@ -317,7 +310,7 @@ export class AutomationPauseCard extends LitElement {
     }
 
     this._entityRegistryFetchPromise = (async () => {
-      this._entityRegistry = await fetchEntityRegistry(this.hass!);
+      this._entityRegistry = await fetchCardEntityRegistry(this.hass!);
       this._entityRegistryFetched = true;
       this._automationsCacheVersion++;
     })();
@@ -330,7 +323,7 @@ export class AutomationPauseCard extends LitElement {
   }
 
   private _refreshRecentSnoozeIds(): void {
-    this._recentSnoozeIds = loadRecentSnoozes();
+    this._recentSnoozeIds = loadCardRecentSnoozeIds();
   }
 
   private _getAutomations(): AutomationItem[] {
@@ -428,11 +421,11 @@ export class AutomationPauseCard extends LitElement {
         groups: [],
       };
     }
-    return getPausedSnapshot(this.hass);
+    return getCardPausedSnapshot(this.hass);
   }
 
   private _isSnoozeSensorAvailable(): boolean {
-    return Boolean(this.hass?.states?.[SENSOR_ENTITY_ID]);
+    return isCardSnoozeSensorAvailable(this.hass);
   }
 
   private _formatDateTime(isoString: string): string {
@@ -521,7 +514,7 @@ export class AutomationPauseCard extends LitElement {
         return;
       }
 
-      const scheduleValidation = validateScheduledPauseInput({
+      const scheduleValidation = validateCardScheduledPauseInput({
         disableAtDate: this._disableAtDate,
         disableAtTime: this._disableAtTime,
         resumeAtDate: this._resumeAtDate,
@@ -554,7 +547,7 @@ export class AutomationPauseCard extends LitElement {
       const snoozedEntities = [...this._selected];
       const wasScheduleMode = this._scheduleMode;
       const hadDisableAt = this._hasDisableAt();
-      const pauseResult = await runPauseFeature({
+      const pauseResult = await runCardPauseAction({
         hass: this.hass,
         selected: this._selected,
         scheduleMode: this._scheduleMode,
@@ -595,7 +588,7 @@ export class AutomationPauseCard extends LitElement {
         onUndo: async () => {
           try {
             if (!this.hass) return;
-            const undoResult = await runUndoFeature(this.hass, snoozedEntities, {
+            const undoResult = await runUndoAction(this.hass, snoozedEntities, {
               wasScheduleMode,
               hadDisableAt,
             });
@@ -639,7 +632,7 @@ export class AutomationPauseCard extends LitElement {
   private async _wake(entityId: string): Promise<void> {
     if (!this.hass) return;
     try {
-      await runWakeFeature(this.hass, entityId);
+      await runWakeAction(this.hass, entityId);
       this._hapticFeedback('success');
       if (this.isConnected && this.shadowRoot) {
         this._showToast(localize(this.hass, 'toast.success.resumed'));
@@ -660,7 +653,7 @@ export class AutomationPauseCard extends LitElement {
   private async _handleWakeAllEvent(): Promise<void> {
     if (!this.hass) return;
     try {
-      await runWakeAllFeature(this.hass);
+      await runWakeAllAction(this.hass);
       this._hapticFeedback('success');
       if (this.isConnected && this.shadowRoot) {
         this._showToast(localize(this.hass, 'toast.success.resumed_all'));
@@ -710,7 +703,7 @@ export class AutomationPauseCard extends LitElement {
   ): Promise<void> {
     if (!this.hass) return;
     try {
-      const adjustResult = await runAdjustFeature(this.hass, e.detail, this._adjustModalResumeAt);
+      const adjustResult = await runCardAdjustAction(this.hass, e.detail, this._adjustModalResumeAt);
       this._hapticFeedback('success');
       this._adjustModalResumeAt = adjustResult.nextResumeAt;
 
@@ -739,7 +732,7 @@ export class AutomationPauseCard extends LitElement {
   private async _cancelScheduled(entityId: string): Promise<void> {
     if (!this.hass) return;
     try {
-      await runCancelScheduledFeature(this.hass, entityId);
+      await runCardCancelScheduledAction(this.hass, entityId);
       this._hapticFeedback('success');
       if (this.isConnected && this.shadowRoot) {
         this._showToast(localize(this.hass, 'toast.success.cancelled'));
