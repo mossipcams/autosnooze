@@ -62,7 +62,7 @@ async def test_application_setup_initializes_runtime_and_services() -> None:
 async def test_application_setup_defers_startup_work_until_home_assistant_started() -> None:
     """Setup helper registers startup work when Home Assistant is not running yet."""
     from custom_components.autosnooze.application.setup import async_setup_integration_entry
-    from custom_components.autosnooze.models import AutomationPauseData
+    from custom_components.autosnooze.runtime.state import AutomationPauseData
 
     hass = MagicMock()
     hass.is_running = False
@@ -110,7 +110,7 @@ async def test_application_setup_defers_startup_work_until_home_assistant_starte
 async def test_application_setup_startup_callback_noops_after_unload() -> None:
     """Deferred startup work exits if the integration unloaded before startup."""
     from custom_components.autosnooze.application.setup import async_setup_integration_entry
-    from custom_components.autosnooze.models import AutomationPauseData
+    from custom_components.autosnooze.runtime.state import AutomationPauseData
 
     hass = MagicMock()
     hass.is_running = False
