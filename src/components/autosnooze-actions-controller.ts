@@ -8,8 +8,6 @@ import type { PauseServiceParams } from '../types/automation.js';
 import {
   runPauseActionFeature,
   runPauseFeature,
-  type RunPauseFeatureInput,
-  type RunPauseFeatureResult,
 } from '../features/pause/index.js';
 import {
   runUndoFeature,
@@ -26,7 +24,10 @@ import {
 
 export { validateScheduledPauseInput as validateCardScheduledPauseInput };
 
-export async function runCardPauseAction(input: RunPauseFeatureInput): Promise<RunPauseFeatureResult> {
+type RunCardPauseInput = Parameters<typeof runPauseFeature>[0];
+type RunCardPauseResult = Awaited<ReturnType<typeof runPauseFeature>>;
+
+export async function runCardPauseAction(input: RunCardPauseInput): Promise<RunCardPauseResult> {
   return runPauseFeature(input);
 }
 
