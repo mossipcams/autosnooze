@@ -274,7 +274,7 @@ export const cardStyles = css`
         box-shadow: 0 4px 14px color-mix(in srgb, var(--primary-color) 25%, transparent),
                     0 2px 4px rgba(0, 0, 0, 0.1);
         transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-        margin-top: 6px;
+        margin-top: 0;
         touch-action: manipulation;
         -webkit-tap-highlight-color: transparent;
       }

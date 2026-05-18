@@ -273,7 +273,7 @@ export const durationSelectorStyles = css`
 
       .duration-pills {
         gap: 8px;
-        margin-bottom: 12px;
+        margin-bottom: 6px;
       }
 
       .pill {
@@ -372,11 +372,11 @@ export const durationSelectorStyles = css`
       }
 
       .schedule-link {
-        margin-top: 14px;
-        padding: 10px 6px;
+        margin-top: 6px;
+        padding: 6px 4px;
         font-size: 0.85em;
         font-weight: 500;
-        min-height: 44px;
+        min-height: 36px;
         opacity: 0.8;
         transition: opacity 0.15s ease;
       }

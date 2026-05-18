@@ -267,7 +267,7 @@ function e(e,t,a,o){var i,s=arguments.length,r=s<3?t:null===o?o=Object.getOwnPro
         box-shadow: 0 4px 14px color-mix(in srgb, var(--primary-color) 25%, transparent),
                     0 2px 4px rgba(0, 0, 0, 0.1);
         transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-        margin-top: 6px;
+        margin-top: 0;
         touch-action: manipulation;
         -webkit-tap-highlight-color: transparent;
       }
@@ -1142,7 +1142,7 @@ function e(e,t,a,o){var i,s=arguments.length,r=s<3?t:null===o?o=Object.getOwnPro
 
       .duration-pills {
         gap: 8px;
-        margin-bottom: 12px;
+        margin-bottom: 6px;
       }
 
       .pill {
@@ -1241,11 +1241,11 @@ function e(e,t,a,o){var i,s=arguments.length,r=s<3?t:null===o?o=Object.getOwnPro
       }
 
       .schedule-link {
-        margin-top: 14px;
-        padding: 10px 6px;
+        margin-top: 6px;
+        padding: 6px 4px;
         font-size: 0.85em;
         font-weight: 500;
-        min-height: 44px;
+        min-height: 36px;
         opacity: 0.8;
         transition: opacity 0.15s ease;
       }
@@ -1901,7 +1901,7 @@ function e(e,t,a,o){var i,s=arguments.length,r=s<3?t:null===o?o=Object.getOwnPro
 
       /* --- Selection List: Card-style items with depth --- */
       .selection-list {
-        max-height: min(200px, 35dvh);
+        max-height: min(252px, calc(35dvh + 52px));
         margin-bottom: 16px;
         border-radius: 12px;
         border: 1.5px solid color-mix(in srgb, var(--divider-color) 60%, transparent);
