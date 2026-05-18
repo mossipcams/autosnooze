@@ -25,7 +25,8 @@
     "lint:unused:prod": "knip --config knip.production.json --reporter compact --production",
     "typecheck": "tsc --noEmit",
     "typecheck:test": "tsc --noEmit -p tsconfig.test.json",
-    "prepare": "husky || true"
+    "prepare": "husky || true",
+    "mutation:backend": "python3 scripts/run_backend_mutation.py"
   },
   "keywords": [
     "home-assistant",
@@ -61,7 +62,7 @@
     "eslint": "^10.3.0",
     "globals": "^17.6.0",
     "husky": "^9.0.0",
-    "jscpd": "^4.1.0",
+    "jscpd": "^4.2.0",
     "jsdom": "^29.1.1",
     "knip": "^6.12.2",
     "lint-staged": "^17.0.4",

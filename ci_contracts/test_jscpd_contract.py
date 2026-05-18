@@ -8,8 +8,10 @@ from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 PACKAGE_JSON_PATH = PROJECT_ROOT / "package.json"
+PACKAGE_LOCK_PATH = PROJECT_ROOT / "package-lock.json"
 BUILD_WORKFLOW_PATH = PROJECT_ROOT / ".github" / "workflows" / "build.yml"
 JSCPD_CONFIG_PATH = PROJECT_ROOT / ".jscpd.json"
+EXPECTED_JSCPD_VERSION = "4.2.0"
 
 
 def test_package_json_exposes_blocking_jscpd_script() -> None:
@@ -24,6 +26,16 @@ def test_package_json_exposes_blocking_jscpd_script() -> None:
     assert "jscpd" in scripts["lint:duplicates"], "lint:duplicates must run jscpd"
     assert ".jscpd.json" in scripts["lint:duplicates"], "lint:duplicates must use the repo jscpd config"
     assert "jscpd" in dev_dependencies, "package.json must declare jscpd as a dev dependency"
+
+
+def test_jscpd_dependency_is_pinned_to_latest_supported_major() -> None:
+    """The duplication checker should stay on the vetted latest release."""
+    package_data = json.loads(PACKAGE_JSON_PATH.read_text())
+    lock_data = json.loads(PACKAGE_LOCK_PATH.read_text())
+
+    assert package_data["devDependencies"]["jscpd"] == f"^{EXPECTED_JSCPD_VERSION}"
+    assert lock_data["packages"][""]["devDependencies"]["jscpd"] == f"^{EXPECTED_JSCPD_VERSION}"
+    assert lock_data["packages"]["node_modules/jscpd"]["version"] == EXPECTED_JSCPD_VERSION
 
 
 def test_jscpd_config_targets_runtime_duplication_with_stricter_signal() -> None:
