@@ -18,12 +18,16 @@ function stepBlock(source: string, stepName: string): string {
 }
 
 describe('Release Please workflow', () => {
-  test('artifact refresh bot push does not run local Husky hooks', () => {
-    const commitStep = stepBlock(workflowSource(), 'Commit refreshed generated card artifact');
+  test('artifact refresh bot pushes rely on package-level local-only Husky installs', () => {
+    const source = workflowSource();
+    const commitStep = stepBlock(source, 'Commit refreshed generated card artifact');
+    const syncedCommitStep = stepBlock(source, 'Commit synced generated card artifact');
 
-    expect(commitStep).toContain('HUSKY:');
-    expect(commitStep).toMatch(/HUSKY:\s*['"]?0['"]?/);
+    expect(commitStep).not.toContain('HUSKY:');
+    expect(syncedCommitStep).not.toContain('HUSKY:');
     expect(commitStep).toContain('git commit -m "build: refresh generated card artifact for release PR"');
     expect(commitStep).toContain('git push origin "HEAD:$BRANCH_NAME"');
+    expect(syncedCommitStep).toContain('git commit -m "build: refresh generated card artifact for synced release PR"');
+    expect(syncedCommitStep).toContain('git push origin "HEAD:$BRANCH_NAME"');
   });
 });
