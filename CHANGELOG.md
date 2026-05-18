@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.2.20](https://github.com/mossipcams/autosnooze/compare/v0.2.19...v0.2.20) (2026-05-18)
+
+
+### Bug Fixes
+
+* align card registration boundaries ([d9cbd10](https://github.com/mossipcams/autosnooze/commit/d9cbd10cc7aa980bf11e0ec0f3697223df72a31c))
+* tighten mobile snooze layout ([#386](https://github.com/mossipcams/autosnooze/issues/386)) ([4acb11d](https://github.com/mossipcams/autosnooze/commit/4acb11d66995aabd0b6d821a1a2a59799021c9b0))
+
 ## [0.2.19](https://github.com/mossipcams/autosnooze/compare/v0.2.18...v0.2.19) (2026-05-04)
 
 
