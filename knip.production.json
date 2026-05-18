@@ -15,6 +15,9 @@
   "ignoreDependencies": [
     "lit"
   ],
+  "ignoreBinaries": [
+    "python3"
+  ],
   "node": false,
   "treatConfigHintsAsErrors": true
 }
