@@ -264,7 +264,7 @@ function e(e,t,a,o){var s,i=arguments.length,r=i<3?t:null===o?o=Object.getOwnPro
         box-shadow: 0 4px 14px color-mix(in srgb, var(--primary-color) 25%, transparent),
                     0 2px 4px rgba(0, 0, 0, 0.1);
         transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-        margin-top: 6px;
+        margin-top: 0;
         touch-action: manipulation;
         -webkit-tap-highlight-color: transparent;
       }
@@ -1137,7 +1137,7 @@ function e(e,t,a,o){var s,i=arguments.length,r=i<3?t:null===o?o=Object.getOwnPro
 
       .duration-pills {
         gap: 8px;
-        margin-bottom: 12px;
+        margin-bottom: 6px;
       }
 
       .pill {
@@ -1232,11 +1232,11 @@ function e(e,t,a,o){var s,i=arguments.length,r=i<3?t:null===o?o=Object.getOwnPro
       }
 
       .schedule-link {
-        margin-top: 14px;
-        padding: 10px 6px;
+        margin-top: 6px;
+        padding: 6px 4px;
         font-size: 0.85em;
         font-weight: 500;
-        min-height: 44px;
+        min-height: 36px;
         opacity: 0.8;
         transition: opacity 0.15s ease;
       }
@@ -1869,7 +1869,7 @@ function e(e,t,a,o){var s,i=arguments.length,r=i<3?t:null===o?o=Object.getOwnPro
 
       /* --- Selection List: Card-style items with depth --- */
       .selection-list {
-        max-height: min(200px, 35dvh);
+        max-height: min(252px, calc(35dvh + 52px));
         margin-bottom: 16px;
         border-radius: 14px;
         border: 1.5px solid color-mix(in srgb, var(--divider-color) 60%, transparent);
@@ -1962,6 +1962,7 @@ function e(e,t,a,o){var s,i=arguments.length,r=i<3?t:null===o?o=Object.getOwnPro
         font-style: italic;
       }
     }
+
 `;class Ut extends ne{constructor(){super(...arguments),this.automations=[],this.selected=[],this.labelRegistry={},this.labelRegistryUnavailable=!1,this.categoryRegistry={},this.recentSnoozeIds=[],this._filterTab="all",this._search="",this._searchInput="",this._expandedGroups={},this._searchTimeout=null,this._viewModelCache=null}disconnectedCallback(){super.disconnectedCallback(),null!==this._searchTimeout&&(clearTimeout(this._searchTimeout),this._searchTimeout=null)}_fireSelectionChange(e){this.dispatchEvent(new CustomEvent("selection-change",{detail:{selected:e},bubbles:!0,composed:!0}))}_toggleSelection(e){let t;Ye("selection"),t=this.selected.includes(e)?this.selected.filter(t=>t!==e):[...this.selected,e],this._fireSelectionChange(t)}_toggleGroupExpansion(e){this._expandedGroups={...this._expandedGroups,[e]:!this._expandedGroups[e]}}_selectGroup(e){const t=e.map(e=>e.id);let a;a=t.every(e=>this.selected.includes(e))?this.selected.filter(e=>!t.includes(e)):[...new Set([...this.selected,...t])],this._fireSelectionChange(a)}_selectAllVisible(){const e=this._getViewModel().filtered.map(e=>e.id),t=[...new Set([...this.selected,...e])];this._fireSelectionChange(t)}_clearSelection(){this._fireSelectionChange([])}_getFilteredAutomations(){return this._getViewModel().filtered}_getAreaName(e){return this.hass?ct(e,this.hass):_e(this.hass,"group.unassigned")}_getLabelName(e){return ht(e,this.labelRegistry)}_getCategoryName(e){return mt(e,this.categoryRegistry)}_getGroupedByTab(e){return bt({automations:this.automations,search:this._search,filterTab:e,hass:this.hass,labelRegistry:this.labelRegistry,categoryRegistry:this.categoryRegistry,emptyAreaLabel:_e(this.hass,"group.unassigned"),emptyLabelLabel:_e(this.hass,"group.unlabeled"),emptyCategoryLabel:_e(this.hass,"group.uncategorized")}).grouped}_getGroupedByArea(){return this._getGroupedByTab("areas")}_getGroupedByLabel(){return this._getGroupedByTab("labels")}_getGroupedByCategory(){return this._getGroupedByTab("categories")}_getAreaCount(){return this._getViewModel().areaCount}_getLabelCount(){return this._getViewModel().labelCount}_getCategoryCount(){return this._getViewModel().categoryCount}_getViewModel(){const e=this._viewModelCache;if(e&&e.automations===this.automations&&e.search===this._search&&e.filterTab===this._filterTab&&e.hass===this.hass&&e.labelRegistry===this.labelRegistry&&e.categoryRegistry===this.categoryRegistry)return e.result;const t=bt({automations:this.automations,search:this._search,filterTab:this._filterTab,hass:this.hass,labelRegistry:this.labelRegistry,categoryRegistry:this.categoryRegistry,emptyAreaLabel:_e(this.hass,"group.unassigned"),emptyLabelLabel:_e(this.hass,"group.unlabeled"),emptyCategoryLabel:_e(this.hass,"group.uncategorized")});return this._viewModelCache={automations:this.automations,search:this._search,filterTab:this._filterTab,hass:this.hass,labelRegistry:this.labelRegistry,categoryRegistry:this.categoryRegistry,result:t},t}_handleSearchInput(e){const t=e.target.value;this._searchInput=t,null!==this._searchTimeout&&clearTimeout(this._searchTimeout),this._searchTimeout=window.setTimeout(()=>{this._search=t,this._searchTimeout=null},ke)}_clearSearch(){null!==this._searchTimeout&&(clearTimeout(this._searchTimeout),this._searchTimeout=null),this._searchInput="",this._search=""}_handleSearchKeydown(e){"Escape"===e.key&&(this._searchInput||this._search)&&(e.preventDefault(),this._clearSearch())}_renderSelectionList(e,t){const{filtered:a,grouped:o}=e;if("all"===this._filterTab){if(0===a.length)return G`<div class="list-empty" role="status">${_e(this.hass,"list.empty")}</div>`;const e=new Set(this.recentSnoozeIds),o=[],s=[];for(const t of a)(e.has(t.id)?o:s).push(t);const i=o.concat(s);return G`
         ${o.length>0?G`
           <div class="recent-group-header">

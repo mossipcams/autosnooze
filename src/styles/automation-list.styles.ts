@@ -445,7 +445,7 @@ export const automationListStyles = css`
 
       /* --- Selection List: Card-style items with depth --- */
       .selection-list {
-        max-height: min(200px, 35dvh);
+        max-height: min(252px, calc(35dvh + 52px));
         margin-bottom: 16px;
         border-radius: 14px;
         border: 1.5px solid color-mix(in srgb, var(--divider-color) 60%, transparent);
@@ -538,4 +538,5 @@ export const automationListStyles = css`
         font-style: italic;
       }
     }
+
 `;
