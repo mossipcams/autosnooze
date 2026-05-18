@@ -25,7 +25,7 @@
     "lint:unused:prod": "knip --config knip.production.json --reporter compact --production",
     "typecheck": "tsc --noEmit",
     "typecheck:test": "tsc --noEmit -p tsconfig.test.json",
-    "prepare": "husky || true",
+    "prepare": "node scripts/install-husky-if-local.mjs",
     "mutation:backend": "python3 scripts/run_backend_mutation.py"
   },
   "keywords": [

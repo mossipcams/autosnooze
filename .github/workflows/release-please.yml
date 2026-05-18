@@ -74,7 +74,6 @@ jobs:
         id: artifact
         env:
           BRANCH_NAME: ${{ steps.pr.outputs.branch }}
-          HUSKY: '0'
         run: |
           if git diff --quiet -- custom_components/autosnooze/www/autosnooze-card.js custom_components/autosnooze/www/autosnooze-card.js.map; then
             echo "Generated artifact already up to date."
