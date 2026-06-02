@@ -113,7 +113,8 @@
     "resumes_at": "Reanuda:",
     "active_count": "{count} activas",
     "scheduled_count": "{count} programadas",
-    "resuming": "Reanudando..."
+    "resuming": "Reanudando...",
+    "no_snoozed": "No hay automatizaciones pausadas actualmente"
   },
   "tab": {
     "all": "Todo",
@@ -128,7 +129,8 @@
     "count": "{selected} de {total} seleccionadas"
   },
   "card": {
-    "default_title": "AutoSnooze"
+    "default_title": "AutoSnooze",
+    "snoozed_title": "Automatizaciones pausadas"
   },
   "editor": {
     "title_label": "Título",

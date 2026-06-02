@@ -14,6 +14,7 @@ import {
 } from '../registration.js';
 import {
   AutomationPauseCard,
+  AutoSnoozeSnoozedCard,
   AutomationPauseCardEditor,
   AutoSnoozeActivePauses,
   AutoSnoozeAdjustModal,
@@ -206,6 +207,13 @@ describe('registration utility mutation boundaries', () => {
         preview: true,
         documentationURL: 'https://github.com/mossipcams/autosnooze#readme',
       },
+      {
+        type: 'autosnooze-snoozed-card',
+        name: 'AutoSnooze Snoozed Card',
+        description: 'Show only currently snoozed automations with resume and adjust controls (v2.0.0)',
+        preview: true,
+        documentationURL: 'https://github.com/mossipcams/autosnooze#readme',
+      },
     ]);
   });
 
@@ -228,12 +236,22 @@ describe('registration utility mutation boundaries', () => {
 
     registerCustomCardMetadata('3.0.0');
 
-    expect(window.customCards).toHaveLength(3);
+    // The existing autosnooze-card entry is upserted in place and the snoozed
+    // card is appended, while the null and foreign entries are preserved.
+    expect(window.customCards).toHaveLength(4);
     expect(window.customCards?.[0]).toBeNull();
     expect(window.customCards?.filter((card) => card?.type === 'autosnooze-card')).toHaveLength(1);
+    expect(window.customCards?.filter((card) => card?.type === 'autosnooze-snoozed-card')).toHaveLength(1);
     expect(window.customCards?.[2]).toMatchObject({
       type: 'autosnooze-card',
       name: 'AutoSnooze Card',
+      description: expect.stringContaining('(v3.0.0)'),
+      preview: true,
+      documentationURL: 'https://github.com/mossipcams/autosnooze#readme',
+    });
+    expect(window.customCards?.[3]).toMatchObject({
+      type: 'autosnooze-snoozed-card',
+      name: 'AutoSnooze Snoozed Card',
       description: expect.stringContaining('(v3.0.0)'),
       preview: true,
       documentationURL: 'https://github.com/mossipcams/autosnooze#readme',
@@ -249,6 +267,7 @@ describe('registration utility mutation boundaries', () => {
     expectRegisteredSubclass(AutoSnoozeAutomationList, 'autosnooze-automation-list');
     expectRegisteredSubclass(AutoSnoozeAdjustModal, 'autosnooze-adjust-modal');
     expectRegisteredSubclass(AutomationPauseCard, 'autosnooze-card');
+    expectRegisteredSubclass(AutoSnoozeSnoozedCard, 'autosnooze-snoozed-card');
     expect(
       (globalThis as Record<PropertyKey, unknown>)[Symbol.for('autosnooze.registration.done.v1')]
     ).toBe(true);

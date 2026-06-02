@@ -66,6 +66,17 @@ title: AutoSnooze
 
 The only option is `title` (string, defaults to `AutoSnooze`).
 
+### Snoozed-Only Card
+
+A lighter companion card that shows **only currently snoozed automations** with their resume and adjust controls — no automation picker, duration controls, or scheduled-snooze setup. Pair it with the full card, or drop it on a dashboard where you just want to see and manage what's paused:
+
+```yaml
+type: custom:autosnooze-snoozed-card
+title: Snoozed Automations
+```
+
+The only option is `title` (string, defaults to `Snoozed Automations`). When nothing is snoozed, the card shows a short empty-state message.
+
 ### Filtering with Labels
 
 You can control which automations show up in the card using HA labels:

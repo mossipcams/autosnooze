@@ -113,7 +113,8 @@
     "resumes_at": "Riprende:",
     "active_count": "{count} attive",
     "scheduled_count": "{count} programmate",
-    "resuming": "Ripresa..."
+    "resuming": "Ripresa...",
+    "no_snoozed": "Nessuna automazione è attualmente in pausa"
   },
   "tab": {
     "all": "Tutto",
@@ -128,7 +129,8 @@
     "count": "{selected} di {total} selezionate"
   },
   "card": {
-    "default_title": "AutoSnooze"
+    "default_title": "AutoSnooze",
+    "snoozed_title": "Automazioni in pausa"
   },
   "editor": {
     "title_label": "Titolo",

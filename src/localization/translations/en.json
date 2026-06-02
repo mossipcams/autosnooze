@@ -121,7 +121,8 @@
     "active_count": "{count} active",
     "scheduled_count": "{count} scheduled",
     "resuming": "Resuming...",
-    "sensor_unavailable": "AutoSnooze status sensor is unavailable. Pause controls are still shown, but active/scheduled state may be stale."
+    "sensor_unavailable": "AutoSnooze status sensor is unavailable. Pause controls are still shown, but active/scheduled state may be stale.",
+    "no_snoozed": "No automations are currently snoozed"
   },
   "tab": {
     "all": "All",
@@ -140,7 +141,8 @@
     "confirm_body": "Some selected automations are tagged autosnooze_confirm or detected as critical. Continue to snooze them."
   },
   "card": {
-    "default_title": "AutoSnooze"
+    "default_title": "AutoSnooze",
+    "snoozed_title": "Snoozed Automations"
   },
   "editor": {
     "title_label": "Title",

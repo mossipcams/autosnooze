@@ -113,7 +113,8 @@
     "resumes_at": "Fortsetzung:",
     "active_count": "{count} aktiv",
     "scheduled_count": "{count} geplant",
-    "resuming": "Wird fortgesetzt..."
+    "resuming": "Wird fortgesetzt...",
+    "no_snoozed": "Derzeit sind keine Automatisierungen pausiert"
   },
   "tab": {
     "all": "Alle",
@@ -128,7 +129,8 @@
     "count": "{selected} von {total} ausgewählt"
   },
   "card": {
-    "default_title": "AutoSnooze"
+    "default_title": "AutoSnooze",
+    "snoozed_title": "Pausierte Automatisierungen"
   },
   "editor": {
     "title_label": "Titel",

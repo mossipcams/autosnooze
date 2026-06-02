@@ -1,5 +1,6 @@
 import { CARD_VERSION } from './constants/index.js';
 import './components/autosnooze-card.js';
+import './components/autosnooze-snoozed-card.js';
 import './components/autosnooze-card-editor.js';
 import './components/autosnooze-active-pauses.js';
 import './components/autosnooze-duration-selector.js';
@@ -15,6 +16,7 @@ export function _resetWarnedKeys(): void {
 }
 
 const CARD_TYPE = 'autosnooze-card';
+const SNOOZED_CARD_TYPE = 'autosnooze-snoozed-card';
 const DOCUMENTATION_URL = 'https://github.com/mossipcams/autosnooze#readme';
 
 interface RegistrationGlobal {
@@ -39,14 +41,23 @@ function warnOnce(key: string, message: string, error?: unknown): void {
   console.warn(message);
 }
 
-function getCardMetadata(version: string): AutoSnoozeCardEntry {
-  return {
-    type: CARD_TYPE,
-    name: 'AutoSnooze Card',
-    description: `Temporarily pause automations with area and label filtering (v${version})`,
-    preview: true,
-    documentationURL: DOCUMENTATION_URL,
-  };
+function getCardMetadata(version: string): AutoSnoozeCardEntry[] {
+  return [
+    {
+      type: CARD_TYPE,
+      name: 'AutoSnooze Card',
+      description: `Temporarily pause automations with area and label filtering (v${version})`,
+      preview: true,
+      documentationURL: DOCUMENTATION_URL,
+    },
+    {
+      type: SNOOZED_CARD_TYPE,
+      name: 'AutoSnooze Snoozed Card',
+      description: `Show only currently snoozed automations with resume and adjust controls (v${version})`,
+      preview: true,
+      documentationURL: DOCUMENTATION_URL,
+    },
+  ];
 }
 
 function ensureCustomCardsArray(): AutoSnoozeCardEntry[] {
@@ -102,18 +113,20 @@ export function safeDefine(
 }
 
 export function registerCustomCardMetadata(version: string = CARD_VERSION): void {
-  const entry = getCardMetadata(version);
+  const entries = getCardMetadata(version);
   const cards = ensureCustomCardsArray();
 
-  const index = cards.findIndex((card) => card?.type === CARD_TYPE);
-  if (index === -1) {
-    cards.push(entry);
-  } else {
-    cards[index] = {
-      ...cards[index],
-      ...entry,
-    };
-  }
+  entries.forEach((entry) => {
+    const index = cards.findIndex((card) => card?.type === entry.type);
+    if (index === -1) {
+      cards.push(entry);
+    } else {
+      cards[index] = {
+        ...cards[index],
+        ...entry,
+      };
+    }
+  });
 
   window.customCards = cards;
 }
