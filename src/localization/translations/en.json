@@ -139,6 +139,9 @@
     "confirm_title": "Review required",
     "confirm_body": "Some selected automations are tagged autosnooze_confirm or detected as critical. Continue to snooze them."
   },
+  "notify": {
+    "on_resume_label": "Notify me when the snooze ends"
+  },
   "card": {
     "default_title": "AutoSnooze"
   },

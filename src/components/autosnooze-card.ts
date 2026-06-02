@@ -73,6 +73,7 @@ export class AutomationPauseCard extends LitElement {
   @state() private _customDurationInput: string = '30m';
   @state() private _loading: boolean = false;
   @state() private _scheduleMode: boolean = false;
+  @state() private _notifyOnResume: boolean = false;
   @state() private _disableAtDate: string = '';
   @state() private _disableAtTime: string = '';
   @state() private _resumeAtDate: string = '';
@@ -564,6 +565,7 @@ export class AutomationPauseCard extends LitElement {
         resumeAtDate: this._resumeAtDate,
         resumeAtTime: this._resumeAtTime,
         forceConfirm,
+        ...(this._notifyOnResume && { notifyOnResume: true }),
       });
 
       if (pauseResult.status === 'confirm_required') {
@@ -622,6 +624,7 @@ export class AutomationPauseCard extends LitElement {
       });
 
       this._setSelected([]);
+      this._notifyOnResume = false;
       this._disableAtDate = '';
       this._disableAtTime = '';
       this._resumeAtDate = '';
@@ -812,6 +815,10 @@ export class AutomationPauseCard extends LitElement {
     this._showCustomInput = e.detail.show;
   }
 
+  private _handleNotifyOnResumeChange(e: Event): void {
+    this._notifyOnResume = (e.target as HTMLInputElement).checked;
+  }
+
   private _handleSelectionChange(e: CustomEvent<{ selected: string[] }>): void {
     this._setSelected(e.detail.selected);
   }
@@ -921,6 +928,18 @@ export class AutomationPauseCard extends LitElement {
             @schedule-field-change=${this._handleScheduleFieldChange}
             @custom-input-toggle=${this._handleCustomInputToggle}
           ></autosnooze-duration-selector>
+
+          <label class="notify-toggle">
+            <input
+              type="checkbox"
+              .checked=${this._notifyOnResume}
+              @change=${this._handleNotifyOnResumeChange}
+            />
+            <ha-icon icon="mdi:bell-outline" aria-hidden="true"></ha-icon>
+            <span class="notify-toggle-text">
+              ${localize(this.hass, 'notify.on_resume_label')}
+            </span>
+          </label>
 
           ${this._guardrailConfirmOpen ? html`
             <div class="guardrail-confirm" role="alertdialog" aria-live="polite">
