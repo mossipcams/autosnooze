@@ -1,3 +1,10 @@
+/**
+ * Default Stryker config. Use `npm run test:mutation:notify-on-resume` for the
+ * scoped notify-on-resume run (70% break on notify-on-resume-request.ts only).
+ *
+ * Note: only one of stryker.config.mjs / stryker.config.json should exist so
+ * thresholds.break is applied (json wins discovery order when both are present).
+ */
 /** @type {import('@stryker-mutator/api/core').PartialStrykerOptions} */
 export default {
   packageManager: "npm",

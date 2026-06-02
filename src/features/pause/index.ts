@@ -11,6 +11,7 @@ import type { HomeAssistant } from '../../types/hass.js';
 import { combineDateTime } from '../../utils/datetime.js';
 import { durationToMinutes } from '../../utils/duration-parsing.js';
 import { formatDateTime, formatDuration } from '../../utils/time-formatting.js';
+import { appendNotifyOnResumeFlag } from './notify-on-resume-request.js';
 
 interface RunPauseFeatureInput {
   hass: HomeAssistant;
@@ -58,13 +59,15 @@ function buildSchedulePauseRequest(input: RunPauseFeatureInput): SchedulePauseBu
     return null;
   }
 
-  const request: PauseServiceParams = {
-    entity_id: input.selected,
-    resume_at: resumeAt,
-    ...(disableAt && { disable_at: disableAt }),
-    ...(input.forceConfirm && { confirm: true }),
-    ...(input.notifyOnResume && { notify_on_resume: true }),
-  };
+  const request: PauseServiceParams = appendNotifyOnResumeFlag(
+    {
+      entity_id: input.selected,
+      resume_at: resumeAt,
+      ...(disableAt && { disable_at: disableAt }),
+      ...(input.forceConfirm && { confirm: true }),
+    },
+    input.notifyOnResume,
+  );
 
   const count = input.selected.length;
   const toastMessage = disableAt
@@ -97,14 +100,16 @@ function buildDurationPauseRequest(input: RunPauseFeatureInput): DurationPauseBu
   };
 
   return {
-    request: {
-      entity_id: input.selected,
-      days,
-      hours,
-      minutes,
-      ...(input.forceConfirm && { confirm: true }),
-      ...(input.notifyOnResume && { notify_on_resume: true }),
-    },
+    request: appendNotifyOnResumeFlag(
+      {
+        entity_id: input.selected,
+        days,
+        hours,
+        minutes,
+        ...(input.forceConfirm && { confirm: true }),
+      },
+      input.notifyOnResume,
+    ),
     toastMessage:
       input.selected.length === 1
         ? localize(input.hass, 'toast.success.snoozed_for_one', {

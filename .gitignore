@@ -27,6 +27,9 @@ reports/
 .stryker-tmp/
 stryker-result.txt
 
+# mutmut instrumentation output
+mutants/
+
 # Linter caches
 .eslintcache
 

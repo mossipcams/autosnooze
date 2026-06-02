@@ -79,7 +79,12 @@ describe('Card notify-on-resume toggle', () => {
       await card._snooze();
 
       expect(runPauseFeature).toHaveBeenCalledOnce();
-      expect(runPauseFeature.mock.calls[0][0]).not.toHaveProperty('notifyOnResume');
+      const pauseInput = runPauseFeature.mock.calls[0][0];
+      expect(Object.hasOwn(pauseInput, 'notifyOnResume')).toBe(false);
+      expect(pauseInput).toMatchObject({
+        selected: ['automation.a'],
+        customDuration: { days: 0, hours: 0, minutes: 30 },
+      });
     } finally {
       document.body.removeChild(raw);
     }
@@ -97,7 +102,12 @@ describe('Card notify-on-resume toggle', () => {
       await card._snooze();
 
       expect(runPauseFeature).toHaveBeenCalledOnce();
-      expect(runPauseFeature.mock.calls[0][0]).toMatchObject({ notifyOnResume: true });
+      const pauseInput = runPauseFeature.mock.calls[0][0];
+      expect(pauseInput.notifyOnResume).toBe(true);
+      expect(pauseInput).toMatchObject({
+        selected: ['automation.a'],
+        customDuration: { days: 0, hours: 0, minutes: 30 },
+      });
     } finally {
       document.body.removeChild(raw);
     }
