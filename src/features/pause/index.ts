@@ -22,6 +22,7 @@ interface RunPauseFeatureInput {
   resumeAtDate: string;
   resumeAtTime: string;
   forceConfirm?: boolean;
+  notifyOnResume?: boolean;
 }
 
 type RunPauseFeatureResult =
@@ -62,6 +63,7 @@ function buildSchedulePauseRequest(input: RunPauseFeatureInput): SchedulePauseBu
     resume_at: resumeAt,
     ...(disableAt && { disable_at: disableAt }),
     ...(input.forceConfirm && { confirm: true }),
+    ...(input.notifyOnResume && { notify_on_resume: true }),
   };
 
   const count = input.selected.length;
@@ -101,6 +103,7 @@ function buildDurationPauseRequest(input: RunPauseFeatureInput): DurationPauseBu
       hours,
       minutes,
       ...(input.forceConfirm && { confirm: true }),
+      ...(input.notifyOnResume && { notify_on_resume: true }),
     },
     toastMessage:
       input.selected.length === 1

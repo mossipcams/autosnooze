@@ -127,6 +127,9 @@
   "selection": {
     "count": "{selected} von {total} ausgewählt"
   },
+  "notify": {
+    "on_resume_label": "Benachrichtigen, wenn die Pause endet"
+  },
   "card": {
     "default_title": "AutoSnooze"
   },

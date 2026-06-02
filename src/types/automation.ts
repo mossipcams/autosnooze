@@ -77,4 +77,5 @@ export interface PauseServiceParams extends ServiceData {
   disable_at?: string;
   resume_at?: string;
   confirm?: boolean;
+  notify_on_resume?: boolean;
 }
