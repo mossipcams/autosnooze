@@ -70,6 +70,7 @@ _DURATION_AND_DATE_SCHEMA = {
     vol.Optional("minutes", default=0): vol.All(cv.positive_int, vol.Range(max=59)),
     vol.Optional("disable_at"): cv.datetime,
     vol.Optional("resume_at"): cv.datetime,
+    vol.Optional("notify_on_resume", default=False): cv.boolean,
     vol.Optional("confirm", default=False): cv.boolean,
 }
 

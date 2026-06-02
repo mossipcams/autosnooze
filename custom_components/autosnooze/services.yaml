@@ -47,6 +47,12 @@ pause:
       description: Specific datetime when to re-enable the automation. Overrides duration fields if set.
       selector:
         datetime:
+    notify_on_resume:
+      name: Notify On Resume
+      description: Send a notification when the snooze expires naturally and the automation wakes successfully.
+      default: false
+      selector:
+        boolean:
     confirm:
       name: Confirm Labeled Automations
       description: Set to true to snooze automations tagged with autosnooze_confirm or detected as critical.
@@ -119,6 +125,12 @@ pause_by_area:
       description: Specific datetime when to re-enable the automations.
       selector:
         datetime:
+    notify_on_resume:
+      name: Notify On Resume
+      description: Send a notification when the snooze expires naturally and the automations wake successfully.
+      default: false
+      selector:
+        boolean:
     confirm:
       name: Confirm Labeled Automations
       description: Set to true to snooze automations tagged with autosnooze_confirm or detected as critical.
@@ -174,6 +186,12 @@ pause_by_label:
       description: Specific datetime when to re-enable the automations.
       selector:
         datetime:
+    notify_on_resume:
+      name: Notify On Resume
+      description: Send a notification when the snooze expires naturally and the automations wake successfully.
+      default: false
+      selector:
+        boolean:
     confirm:
       name: Confirm Labeled Automations
       description: Set to true to snooze automations tagged with autosnooze_confirm or detected as critical.

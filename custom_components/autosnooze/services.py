@@ -140,6 +140,7 @@ async def async_pause_automations(
     minutes: int = 0,
     disable_at: datetime | None = None,
     resume_at_dt: datetime | None = None,
+    notify_on_resume: bool = False,
 ) -> None:
     """Pause automations with duration or dates."""
     started_at = perf_counter()
@@ -217,6 +218,7 @@ async def async_pause_automations(
                         friendly_name=friendly_name,
                         disable_at=disable_at,
                         resume_at=resume_at,
+                        notify_on_resume=notify_on_resume,
                     )
                 )
                 continue
@@ -241,6 +243,7 @@ async def async_pause_automations(
                     hours=hours,
                     minutes=minutes,
                     disable_at=schedule_mode_disable_at,
+                    notify_on_resume=notify_on_resume,
                 )
             )
 
@@ -303,6 +306,7 @@ def register_services(hass: HomeAssistant, data: AutomationPauseData) -> None:
         minutes = call.data.get("minutes", 0)
         disable_at = ensure_utc_aware(call.data.get("disable_at"))
         resume_at_dt = ensure_utc_aware(call.data.get("resume_at"))
+        notify_on_resume = call.data.get("notify_on_resume", False)
         confirm = call.data.get("confirm", False)
 
         entity_ids = get_automations_fn(hass, filter_ids)
@@ -311,7 +315,17 @@ def register_services(hass: HomeAssistant, data: AutomationPauseData) -> None:
             return
 
         _validate_guardrails(hass, entity_ids, confirm=confirm)
-        await async_pause_automations(hass, data, entity_ids, days, hours, minutes, disable_at, resume_at_dt)
+        await async_pause_automations(
+            hass,
+            data,
+            entity_ids,
+            days,
+            hours,
+            minutes,
+            disable_at,
+            resume_at_dt,
+            notify_on_resume,
+        )
 
     async def handle_pause_by_area(call: ServiceCall) -> None:
         """Handle pause by area service call."""

@@ -23,10 +23,21 @@ async def async_pause_automations(
     minutes: int = 0,
     disable_at=None,
     resume_at_dt=None,
+    notify_on_resume: bool = False,
 ) -> None:
     from ..services import async_pause_automations as pause_automations_impl
 
-    await pause_automations_impl(hass, data, entity_ids, days, hours, minutes, disable_at, resume_at_dt)
+    await pause_automations_impl(
+        hass,
+        data,
+        entity_ids,
+        days,
+        hours,
+        minutes,
+        disable_at,
+        resume_at_dt,
+        notify_on_resume,
+    )
 
 
 async def async_handle_pause_service(
@@ -45,6 +56,17 @@ async def async_handle_pause_service(
     minutes = call.data.get("minutes", 0)
     disable_at = ensure_utc_aware(call.data.get("disable_at"))
     resume_at_dt = ensure_utc_aware(call.data.get("resume_at"))
+    notify_on_resume = call.data.get("notify_on_resume", False)
 
     _validate_guardrails(hass, entity_ids, confirm=confirm)
-    await async_pause_automations(hass, data, entity_ids, days, hours, minutes, disable_at, resume_at_dt)
+    await async_pause_automations(
+        hass,
+        data,
+        entity_ids,
+        days,
+        hours,
+        minutes,
+        disable_at,
+        resume_at_dt,
+        notify_on_resume,
+    )

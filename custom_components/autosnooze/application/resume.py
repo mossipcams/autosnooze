@@ -2,16 +2,26 @@
 
 from __future__ import annotations
 
+from typing import Literal
+
 from homeassistant.const import ATTR_ENTITY_ID
 from homeassistant.core import HomeAssistant, ServiceCall
 
 from ..models import AutomationPauseData
 
+ResumeReason = Literal["manual", "expired"]
 
-async def async_resume_batch(hass: HomeAssistant, data: AutomationPauseData, entity_ids: list[str]) -> None:
+
+async def async_resume_batch(
+    hass: HomeAssistant,
+    data: AutomationPauseData,
+    entity_ids: list[str],
+    *,
+    reason: ResumeReason = "manual",
+) -> None:
     from ..coordinator import async_resume_batch as resume_batch_impl
 
-    await resume_batch_impl(hass, data, entity_ids)
+    await resume_batch_impl(hass, data, entity_ids, reason=reason)
 
 
 async def async_handle_cancel_service(
@@ -31,7 +41,7 @@ async def async_handle_cancel_service(
         valid_ids.append(entity_id)
 
     if valid_ids:
-        await async_resume_batch(hass, data, valid_ids)
+        await async_resume_batch(hass, data, valid_ids, reason="manual")
 
 
 async def async_handle_cancel_all_service(
@@ -44,4 +54,4 @@ async def async_handle_cancel_all_service(
 
     entity_ids = list(data.paused.keys())
     if entity_ids:
-        await async_resume_batch(hass, data, entity_ids)
+        await async_resume_batch(hass, data, entity_ids, reason="manual")

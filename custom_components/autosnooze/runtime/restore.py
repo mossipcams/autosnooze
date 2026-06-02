@@ -152,6 +152,7 @@ async def async_load_stored(hass: HomeAssistant, data: AutomationPauseData) -> N
                                 resume_at=scheduled.resume_at,
                                 paused_at=now,
                                 disable_at=scheduled.disable_at,
+                                notify_on_resume=scheduled.notify_on_resume,
                             )
                             data.paused[entity_id] = paused
                             schedule_resume(hass, data, entity_id, scheduled.resume_at)

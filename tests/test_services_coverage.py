@@ -630,6 +630,7 @@ class TestServiceHandlerContracts:
             3,
             disable_at,
             resume_at,
+            False,
         )
 
     @pytest.mark.asyncio
@@ -670,6 +671,45 @@ class TestServiceHandlerContracts:
             3,
             disable_at,
             resume_at,
+            False,
+        )
+
+    @pytest.mark.asyncio
+    async def test_pause_by_area_forwards_notify_on_resume(self) -> None:
+        """pause_by_area should forward notify_on_resume through the shared filter path."""
+        mock_hass, data, handlers = self._register_handlers()
+        pause_by_area_handler = handlers["pause_by_area"]
+
+        call = MagicMock()
+        call.data = {
+            "area_id": "living_room",
+            "hours": 1,
+            "notify_on_resume": True,
+        }
+
+        with (
+            patch(
+                "custom_components.autosnooze.services.get_automations_by_area",
+                return_value=["automation.kitchen"],
+            ),
+            patch("custom_components.autosnooze.services._validate_guardrails"),
+            patch(
+                "custom_components.autosnooze.services.async_pause_automations",
+                new_callable=AsyncMock,
+            ) as pause_automations,
+        ):
+            await pause_by_area_handler(call)
+
+        pause_automations.assert_called_once_with(
+            mock_hass,
+            data,
+            ["automation.kitchen"],
+            0,
+            1,
+            0,
+            None,
+            None,
+            True,
         )
 
     @pytest.mark.asyncio
@@ -695,7 +735,7 @@ class TestServiceHandlerContracts:
         ) as batch_resume:
             await cancel_handler(call)
 
-        batch_resume.assert_called_once_with(mock_hass, data, ["automation.exists"])
+        batch_resume.assert_called_once_with(mock_hass, data, ["automation.exists"], reason="manual")
 
     @pytest.mark.asyncio
     async def test_cancel_all_batches_every_paused_automation(self) -> None:

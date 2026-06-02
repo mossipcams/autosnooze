@@ -51,6 +51,7 @@ async def test_handle_pause_service_forwards_full_contract_fields() -> None:
         3,
         disable_at,
         resume_at,
+        False,
     )
 
 

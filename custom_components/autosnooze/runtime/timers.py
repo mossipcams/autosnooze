@@ -4,13 +4,29 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from datetime import datetime
+from typing import Literal
 
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.event import async_track_point_in_time as ha_async_track_point_in_time
 
 from ..models import AutomationPauseData, ScheduledSnooze
 
+ResumeReason = Literal["manual", "expired"]
+
 async_track_point_in_time = ha_async_track_point_in_time
+
+
+async def async_resume(
+    hass: HomeAssistant,
+    data: AutomationPauseData,
+    entity_id: str,
+    *,
+    reason: ResumeReason = "manual",
+) -> None:
+    """Lazily delegate to coordinator resume for testable timer callbacks."""
+    from ..coordinator import async_resume as resume_impl
+
+    await resume_impl(hass, data, entity_id, reason=reason)
 
 
 def _cancel_timer_from_dict(timers: dict[str, Callable[[], None]], entity_id: str) -> None:
@@ -31,6 +47,7 @@ def schedule_resume(
     data: AutomationPauseData,
     entity_id: str,
     resume_at: datetime,
+    reason: ResumeReason = "expired",
     *,
     track_point_in_time: Callable[[HomeAssistant, Callable[[datetime], None], datetime], Callable[[], None]] | None = (
         None
@@ -43,9 +60,7 @@ def schedule_resume(
     def on_timer(_now: datetime) -> None:
         if data.unloaded:
             return
-        from ..coordinator import async_resume
-
-        hass.async_create_task(async_resume(hass, data, entity_id))
+        hass.async_create_task(async_resume(hass, data, entity_id, reason=reason))
 
     data.timers[entity_id] = schedule_at(hass, on_timer, resume_at)
 
