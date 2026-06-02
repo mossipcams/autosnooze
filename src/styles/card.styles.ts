@@ -43,6 +43,14 @@ export const cardStyles = css`
       font-size: 0.85em;
     }
 
+    /* Snoozed-only card empty state */
+    .snoozed-empty {
+      padding: 16px;
+      text-align: center;
+      color: var(--secondary-text-color);
+      font-size: 0.95em;
+    }
+
     /* Section A: Snooze Setup */
     .snooze-setup {
       margin-bottom: 20px;

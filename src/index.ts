@@ -5,6 +5,7 @@
 
 import {
   AutomationPauseCard,
+  AutoSnoozeSnoozedCard,
   AutomationPauseCardEditor,
   AutoSnoozeActivePauses,
   AutoSnoozeDurationSelector,
@@ -20,6 +21,7 @@ registerAutoSnoozeCard();
 // Export components
 export {
   AutomationPauseCard,
+  AutoSnoozeSnoozedCard,
   AutomationPauseCardEditor,
   AutoSnoozeActivePauses,
   AutoSnoozeDurationSelector,
