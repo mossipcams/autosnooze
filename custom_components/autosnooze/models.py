@@ -78,6 +78,7 @@ class PausedAutomation:
     hours: int = 0
     minutes: int = 0
     disable_at: datetime | None = None  # Set when snooze originated from schedule mode
+    notify_on_resume: bool = False
     resume_retries: int = 0
 
     def to_dict(self) -> dict[str, Any]:
@@ -92,6 +93,8 @@ class PausedAutomation:
         }
         if self.disable_at is not None:
             result["disable_at"] = self.disable_at.isoformat()
+        if self.notify_on_resume:
+            result["notify_on_resume"] = True
         return result
 
     @classmethod
@@ -109,6 +112,7 @@ class PausedAutomation:
             hours=data.get("hours", 0),
             minutes=data.get("minutes", 0),
             disable_at=disable_at,
+            notify_on_resume=data.get("notify_on_resume", False),
         )
 
 
@@ -120,6 +124,7 @@ class ScheduledSnooze:
     friendly_name: str
     disable_at: datetime
     resume_at: datetime
+    notify_on_resume: bool = False
 
     def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for storage/attributes."""
@@ -127,6 +132,7 @@ class ScheduledSnooze:
             "friendly_name": self.friendly_name,
             "disable_at": self.disable_at.isoformat(),
             "resume_at": self.resume_at.isoformat(),
+            "notify_on_resume": self.notify_on_resume,
         }
 
     @classmethod
@@ -137,6 +143,7 @@ class ScheduledSnooze:
             friendly_name=data.get("friendly_name", entity_id),
             disable_at=parse_datetime_utc(data["disable_at"]),
             resume_at=parse_datetime_utc(data["resume_at"]),
+            notify_on_resume=data.get("notify_on_resume", False),
         )
 
 

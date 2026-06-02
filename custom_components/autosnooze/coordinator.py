@@ -6,7 +6,7 @@ import asyncio
 from datetime import datetime, timedelta
 import logging
 from time import perf_counter
-from typing import Any
+from typing import Any, Literal
 
 from homeassistant.const import ATTR_ENTITY_ID, ATTR_FRIENDLY_NAME
 from homeassistant.exceptions import ServiceValidationError
@@ -41,6 +41,8 @@ from .runtime.timers import (
 )
 
 _LOGGER = logging.getLogger(__name__)
+ResumeReason = Literal["manual", "expired"]
+_RESUME_NOTIFICATION_TITLE = "AutoSnooze finished"
 
 
 async def async_set_automation_state(hass: HomeAssistant, entity_id: str, *, enabled: bool) -> bool:
@@ -70,6 +72,60 @@ def get_friendly_name(hass: HomeAssistant, entity_id: str) -> str:
     return entity_id
 
 
+def _build_resume_notification(paused: PausedAutomation) -> tuple[str, str]:
+    """Build copy for a single natural-expiry notification."""
+    return (
+        _RESUME_NOTIFICATION_TITLE,
+        f"{paused.friendly_name} resumed automatically after its snooze ended.",
+    )
+
+
+def _build_resume_batch_notification(paused_items: list[PausedAutomation]) -> tuple[str, str]:
+    """Build copy for a batch natural-expiry notification."""
+    names = ", ".join(paused.friendly_name for paused in paused_items)
+    count = len(paused_items)
+    return (
+        _RESUME_NOTIFICATION_TITLE,
+        f"{count} automations resumed automatically after their snooze ended: {names}.",
+    )
+
+
+async def _send_resume_notification(hass: HomeAssistant, title: str, message: str) -> None:
+    """Send a persistent notification without breaking resume flow on failure."""
+    try:
+        await hass.services.async_call(
+            "persistent_notification",
+            "create",
+            {"title": title, "message": message},
+            blocking=True,
+        )
+    except Exception as err:
+        _LOGGER.warning("Failed to send resume notification: %s", err)
+
+
+async def _notify_resumed_automations(
+    hass: HomeAssistant,
+    resumed_items: list[PausedAutomation],
+    *,
+    reason: ResumeReason,
+    save_succeeded: bool,
+) -> None:
+    """Notify only for successful natural-expiry resumes that requested it."""
+    if reason != "expired" or not save_succeeded:
+        return
+
+    eligible = [paused for paused in resumed_items if paused.notify_on_resume]
+    if not eligible:
+        return
+
+    if len(eligible) == 1:
+        title, message = _build_resume_notification(eligible[0])
+    else:
+        title, message = _build_resume_batch_notification(eligible)
+
+    await _send_resume_notification(hass, title, message)
+
+
 def cancel_timer(data: AutomationPauseData, entity_id: str) -> None:
     """Cancel timer for entity if exists."""
     runtime_cancel_timer(data, entity_id)
@@ -85,6 +141,7 @@ def schedule_resume(
     data: AutomationPauseData,
     entity_id: str,
     resume_at: datetime,
+    reason: ResumeReason = "expired",
 ) -> None:
     """Schedule automation to resume at specified time (FR-06: Auto-Re-enable)."""
     runtime_schedule_resume(
@@ -92,11 +149,18 @@ def schedule_resume(
         data,
         entity_id,
         resume_at,
+        reason=reason,
         track_point_in_time=async_track_point_in_time,
     )
 
 
-async def async_resume(hass: HomeAssistant, data: AutomationPauseData, entity_id: str) -> None:
+async def async_resume(
+    hass: HomeAssistant,
+    data: AutomationPauseData,
+    entity_id: str,
+    *,
+    reason: ResumeReason = "manual",
+) -> None:
     """Wake up a snoozed automation."""
     # Check if integration is unloaded to prevent post-unload operations
     if data.unloaded:
@@ -104,9 +168,12 @@ async def async_resume(hass: HomeAssistant, data: AutomationPauseData, entity_id
     # Perform the HA service call outside the state lock so a slow wake request
     # does not block unrelated pause/resume operations.
     woke_successfully = await async_set_automation_state(hass, entity_id, enabled=True)
+    resumed_item: PausedAutomation | None = None
+    save_succeeded = False
     async with data.lock:
         paused = data.paused.get(entity_id)
         if woke_successfully:
+            resumed_item = paused
             cancel_timer(data, entity_id)
             data.paused.pop(entity_id, None)
         elif paused is not None:
@@ -118,9 +185,16 @@ async def async_resume(hass: HomeAssistant, data: AutomationPauseData, entity_id
                 paused.resume_retries += 1
                 retry_at = dt_util.utcnow() + RESUME_RETRY_DELAY
                 paused.resume_at = retry_at
-                schedule_resume(hass, data, entity_id, retry_at)
-        await async_save(data)
+                schedule_resume(hass, data, entity_id, retry_at, reason="expired")
+        save_succeeded = await async_save(data)
     data.notify()
+    if resumed_item is not None:
+        await _notify_resumed_automations(
+            hass,
+            [resumed_item],
+            reason=reason,
+            save_succeeded=save_succeeded,
+        )
     if woke_successfully:
         _LOGGER.info("Woke automation: %s", entity_id)
     elif entity_id not in data.paused:
@@ -129,7 +203,13 @@ async def async_resume(hass: HomeAssistant, data: AutomationPauseData, entity_id
         _LOGGER.warning("Failed to wake %s; retry scheduled", entity_id)
 
 
-async def async_resume_batch(hass: HomeAssistant, data: AutomationPauseData, entity_ids: list[str]) -> None:
+async def async_resume_batch(
+    hass: HomeAssistant,
+    data: AutomationPauseData,
+    entity_ids: list[str],
+    *,
+    reason: ResumeReason = "manual",
+) -> None:
     """Wake up multiple snoozed automations efficiently with single save.
 
     DEF-011 FIX: Batch operations to reduce disk I/O.
@@ -154,6 +234,8 @@ async def async_resume_batch(hass: HomeAssistant, data: AutomationPauseData, ent
 
         failed = 0
         woke = 0
+        resumed_items: list[PausedAutomation] = []
+        save_succeeded = False
         async with data.lock:
             for entity_id in candidate_ids:
                 paused = data.paused.get(entity_id)
@@ -161,6 +243,7 @@ async def async_resume_batch(hass: HomeAssistant, data: AutomationPauseData, ent
                     continue
 
                 if results.get(entity_id) is True:
+                    resumed_items.append(paused)
                     cancel_timer(data, entity_id)
                     data.paused.pop(entity_id, None)
                     woke += 1
@@ -174,11 +257,18 @@ async def async_resume_batch(hass: HomeAssistant, data: AutomationPauseData, ent
                         paused.resume_retries += 1
                         retry_at = dt_util.utcnow() + RESUME_RETRY_DELAY
                         paused.resume_at = retry_at
-                        schedule_resume(hass, data, entity_id, retry_at)
+                        schedule_resume(hass, data, entity_id, retry_at, reason="expired")
             # Single save after all operations
-            if not await async_save(data):
+            save_succeeded = await async_save(data)
+            if not save_succeeded:
                 _raise_save_failed()
         data.notify()
+        await _notify_resumed_automations(
+            hass,
+            resumed_items,
+            reason=reason,
+            save_succeeded=save_succeeded,
+        )
         if failed:
             _LOGGER.warning("Woke %d automations, %d failed and were rescheduled", woke, failed)
         else:
@@ -362,6 +452,7 @@ async def async_execute_scheduled_disable(
             resume_at=resume_at,
             paused_at=now,
             disable_at=disable_at,
+            notify_on_resume=scheduled.notify_on_resume if scheduled is not None else False,
         )
 
         schedule_resume(hass, data, entity_id, resume_at)

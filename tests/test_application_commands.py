@@ -27,7 +27,7 @@ async def test_handle_cancel_service_filters_unknown_entities() -> None:
     ) as batch_resume:
         await async_handle_cancel_service(hass, data, call)
 
-    batch_resume.assert_called_once_with(hass, data, ["automation.exists"])
+    batch_resume.assert_called_once_with(hass, data, ["automation.exists"], reason="manual")
 
 
 @pytest.mark.asyncio
