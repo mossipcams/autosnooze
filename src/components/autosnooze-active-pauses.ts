@@ -33,6 +33,13 @@ export class AutoSnoozeActivePauses extends LitElement {
   @property({ type: Number })
   pausedCount: number = 0;
 
+  /**
+   * When true, the section is purely informational: no resume/resume-all or
+   * tap-to-adjust controls are rendered. Used by the snoozed-only card.
+   */
+  @property({ type: Boolean })
+  readonly: boolean = false;
+
   @state() private _wakeAllPending: boolean = false;
 
   private _wakeAllTimeout: number | null = null;
@@ -162,29 +169,41 @@ export class AutoSnoozeActivePauses extends LitElement {
         </div>
         ${this.pauseGroups.map((group) => html`
           <div class="pause-group" role="group">
-            <div class="pause-group-header"
-              @click=${() => this._fireAdjustGroup(group)}
-              role="button"
-              aria-label="${localize(this.hass, 'a11y.adjust_group', { count: group.automations.length })}">
-              <ha-icon icon="mdi:timer-outline" aria-hidden="true"></ha-icon>
-              ${group.disableAt
-                ? html`${localize(this.hass, 'status.resumes')} ${formatDateTime(group.resumeAt, locale)}`
-                : html`<span class="countdown">${formatCountdown(group.resumeAt, localize(this.hass, 'status.resuming'))}</span>`}
-            </div>
-            ${group.automations.map((auto) => html`
-              <div class="paused-item" role="button" tabindex="0" @click=${() => this._fireAdjust(auto)} @keydown=${(e: KeyboardEvent) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); this._fireAdjust(auto); } }}>
-                <ha-icon class="paused-icon" icon="mdi:sleep" aria-hidden="true"></ha-icon>
-                <div class="paused-info">
-                  <div class="paused-name">${auto.friendly_name || auto.entity_id}</div>
-                </div>
-                <button type="button" class="wake-btn" @click=${(e: Event) => { e.stopPropagation(); this._fireWake(auto.entity_id); }}>
-                  ${localize(this.hass, 'button.resume')}
-                </button>
-              </div>
-            `)}
+            ${this.readonly
+              ? html`<div class="pause-group-header">
+                  <ha-icon icon="mdi:timer-outline" aria-hidden="true"></ha-icon>
+                  ${group.disableAt
+                    ? html`${localize(this.hass, 'status.resumes')} ${formatDateTime(group.resumeAt, locale)}`
+                    : html`<span class="countdown">${formatCountdown(group.resumeAt, localize(this.hass, 'status.resuming'))}</span>`}
+                </div>`
+              : html`<div class="pause-group-header"
+                  @click=${() => this._fireAdjustGroup(group)}
+                  role="button"
+                  aria-label="${localize(this.hass, 'a11y.adjust_group', { count: group.automations.length })}">
+                  <ha-icon icon="mdi:timer-outline" aria-hidden="true"></ha-icon>
+                  ${group.disableAt
+                    ? html`${localize(this.hass, 'status.resumes')} ${formatDateTime(group.resumeAt, locale)}`
+                    : html`<span class="countdown">${formatCountdown(group.resumeAt, localize(this.hass, 'status.resuming'))}</span>`}
+                </div>`}
+            ${group.automations.map((auto) => this.readonly
+              ? html`<div class="paused-item">
+                  <ha-icon class="paused-icon" icon="mdi:sleep" aria-hidden="true"></ha-icon>
+                  <div class="paused-info">
+                    <div class="paused-name">${auto.friendly_name || auto.entity_id}</div>
+                  </div>
+                </div>`
+              : html`<div class="paused-item" role="button" tabindex="0" @click=${() => this._fireAdjust(auto)} @keydown=${(e: KeyboardEvent) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); this._fireAdjust(auto); } }}>
+                  <ha-icon class="paused-icon" icon="mdi:sleep" aria-hidden="true"></ha-icon>
+                  <div class="paused-info">
+                    <div class="paused-name">${auto.friendly_name || auto.entity_id}</div>
+                  </div>
+                  <button type="button" class="wake-btn" @click=${(e: Event) => { e.stopPropagation(); this._fireWake(auto.entity_id); }}>
+                    ${localize(this.hass, 'button.resume')}
+                  </button>
+                </div>`)}
           </div>
         `)}
-        ${this.pausedCount > 1 ? html`
+        ${!this.readonly && this.pausedCount > 1 ? html`
           <button type="button" class="wake-all ${this._wakeAllPending ? 'pending' : ''}"
             @click=${() => this._handleWakeAll()}>
             ${this._wakeAllPending ? localize(this.hass, 'button.confirm_resume_all') : localize(this.hass, 'button.resume_all')}

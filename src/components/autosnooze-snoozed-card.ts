@@ -1,34 +1,24 @@
 /**
  * AutoSnooze Snoozed-Only Card Component.
- * A thin Lovelace card that surfaces only currently snoozed automations and
- * their resume/adjust actions. Reuses AutoSnoozeActivePauses for rendering and
- * delegates service orchestration to the shared actions controller, so it never
- * duplicates the main card's setup UI (picker, duration, scheduled snoozes).
+ * A thin, purely informational Lovelace card that surfaces only the currently
+ * snoozed automations and when they resume. It has no resume/adjust controls;
+ * for managing snoozes use the main AutoSnooze card. Rendering is delegated to
+ * AutoSnoozeActivePauses in read-only mode, so no setup UI is duplicated.
  */
 
 import { LitElement, html, type PropertyValues, type TemplateResult } from 'lit';
-import { property, state } from 'lit/decorators.js';
+import { property } from 'lit/decorators.js';
 import { localize } from '../localization/localize.js';
 import type { HomeAssistant } from '../types/hass.js';
-import type { AutoSnoozeCardConfig, HapticFeedbackType } from '../types/card.js';
+import type { AutoSnoozeCardConfig } from '../types/card.js';
 import { cardStyles } from '../styles/card.styles.js';
 import { sharedPausedStyles } from '../styles/shared.styles.js';
-import { hapticFeedback } from '../utils/haptic.js';
 import { defineAutoSnoozeElement } from '../utils/custom-element-registration.js';
 import {
-  runAdjustAction,
-  runWakeAction,
-  runWakeAllAction,
-} from './autosnooze-actions-controller.js';
-import {
-  createAdjustModalState,
-  createClosedAdjustModalState,
   getCardPausedSnapshot,
   isCardSnoozeSensorAvailable,
   SNOOZE_SENSOR_ENTITY_ID,
 } from '../features/card-shell/index.js';
-
-type AdjustModalState = ReturnType<typeof createClosedAdjustModalState>;
 
 export class AutoSnoozeSnoozedCard extends LitElement {
   static styles = [sharedPausedStyles, cardStyles];
@@ -38,8 +28,6 @@ export class AutoSnoozeSnoozedCard extends LitElement {
 
   @property({ attribute: false })
   config: AutoSnoozeCardConfig = {} as AutoSnoozeCardConfig;
-
-  @state() private _adjustModal: AdjustModalState = createClosedAdjustModalState();
 
   static getConfigElement(): HTMLElement {
     return document.createElement('autosnooze-card-editor');
@@ -71,104 +59,6 @@ export class AutoSnoozeSnoozedCard extends LitElement {
     return sensorChanged || languageChanged;
   }
 
-  updated(changedProps: PropertyValues): void {
-    super.updated(changedProps);
-    if (changedProps.has('hass') && this._adjustModal.adjustModalOpen) {
-      this._syncAdjustModalWithPaused();
-    }
-  }
-
-  private _hapticFeedback(type: HapticFeedbackType = 'light'): void {
-    hapticFeedback(type);
-  }
-
-  /**
-   * Close (or resync) the adjust modal as the underlying paused state changes,
-   * so a resumed automation can't leave a stale modal open.
-   */
-  private _syncAdjustModalWithPaused(): void {
-    if (!this.hass) return;
-    const paused = getCardPausedSnapshot(this.hass).paused;
-    const modal = this._adjustModal;
-    const targets =
-      modal.adjustModalEntityIds.length > 0
-        ? modal.adjustModalEntityIds
-        : [modal.adjustModalEntityId].filter(Boolean);
-
-    const firstStillPaused = targets.find((id) => paused[id]);
-    if (!firstStillPaused) {
-      this._handleCloseModalEvent();
-      return;
-    }
-
-    const nextResumeAt = paused[firstStillPaused]?.resume_at;
-    if (nextResumeAt && nextResumeAt !== modal.adjustModalResumeAt) {
-      this._adjustModal = { ...modal, adjustModalResumeAt: nextResumeAt };
-    }
-  }
-
-  private async _handleWakeEvent(e: CustomEvent<{ entityId: string }>): Promise<void> {
-    if (!this.hass) return;
-    try {
-      await runWakeAction(this.hass, e.detail.entityId);
-      this._hapticFeedback('success');
-    } catch (err) {
-      console.error('Wake failed:', err);
-      this._hapticFeedback('failure');
-    }
-  }
-
-  private async _handleWakeAllEvent(): Promise<void> {
-    if (!this.hass) return;
-    try {
-      await runWakeAllAction(this.hass);
-      this._hapticFeedback('success');
-    } catch (err) {
-      console.error('Wake all failed:', err);
-      this._hapticFeedback('failure');
-    }
-  }
-
-  private _handleAdjustAutomationEvent(
-    e: CustomEvent<{ entityId: string; friendlyName: string; resumeAt: string }>
-  ): void {
-    this._adjustModal = createAdjustModalState({
-      entityId: e.detail.entityId,
-      friendlyName: e.detail.friendlyName,
-      resumeAt: e.detail.resumeAt,
-    });
-  }
-
-  private _handleAdjustGroupEvent(
-    e: CustomEvent<{ entityIds: string[]; friendlyNames: string[]; resumeAt: string }>
-  ): void {
-    this._adjustModal = createAdjustModalState({
-      entityIds: e.detail.entityIds,
-      friendlyNames: e.detail.friendlyNames,
-      resumeAt: e.detail.resumeAt,
-    });
-  }
-
-  private async _handleAdjustTimeEvent(
-    e: CustomEvent<{ entityId?: string; entityIds?: string[]; days?: number; hours?: number; minutes?: number }>
-  ): Promise<void> {
-    if (!this.hass) return;
-    const { entityId, entityIds, ...params } = e.detail;
-    const target = entityIds && entityIds.length > 0 ? entityIds : entityId;
-    if (!target) return;
-    try {
-      await runAdjustAction(this.hass, target, params);
-      this._hapticFeedback('success');
-    } catch (err) {
-      console.error('Adjust failed:', err);
-      this._hapticFeedback('failure');
-    }
-  }
-
-  private _handleCloseModalEvent(): void {
-    this._adjustModal = createClosedAdjustModalState();
-  }
-
   render(): TemplateResult {
     if (!this.hass || !this.config) {
       return html``;
@@ -176,7 +66,6 @@ export class AutoSnoozeSnoozedCard extends LitElement {
 
     const snapshot = getCardPausedSnapshot(this.hass);
     const pausedCount = Object.keys(snapshot.paused).length;
-    const modal = this._adjustModal;
 
     return html`
       <ha-card>
@@ -203,26 +92,11 @@ export class AutoSnoozeSnoozedCard extends LitElement {
               .hass=${this.hass}
               .pauseGroups=${snapshot.groups}
               .pausedCount=${pausedCount}
-              @wake-automation=${this._handleWakeEvent}
-              @wake-all=${this._handleWakeAllEvent}
-              @adjust-automation=${this._handleAdjustAutomationEvent}
-              @adjust-group=${this._handleAdjustGroupEvent}
+              .readonly=${true}
             ></autosnooze-active-pauses>`
           : html`<div class="snoozed-empty" role="status">
               ${localize(this.hass, 'status.no_snoozed')}
             </div>`}
-
-        <autosnooze-adjust-modal
-          .hass=${this.hass}
-          .open=${modal.adjustModalOpen}
-          .entityId=${modal.adjustModalEntityId}
-          .friendlyName=${modal.adjustModalFriendlyName}
-          .resumeAt=${modal.adjustModalResumeAt}
-          .entityIds=${modal.adjustModalEntityIds}
-          .friendlyNames=${modal.adjustModalFriendlyNames}
-          @adjust-time=${this._handleAdjustTimeEvent}
-          @close-modal=${this._handleCloseModalEvent}
-        ></autosnooze-adjust-modal>
       </ha-card>
     `;
   }

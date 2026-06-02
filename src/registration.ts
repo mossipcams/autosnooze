@@ -53,7 +53,7 @@ function getCardMetadata(version: string): AutoSnoozeCardEntry[] {
     {
       type: SNOOZED_CARD_TYPE,
       name: 'AutoSnooze Snoozed Card',
-      description: `Show only currently snoozed automations with resume and adjust controls (v${version})`,
+      description: `Read-only view of currently snoozed automations and when they resume (v${version})`,
       preview: true,
       documentationURL: DOCUMENTATION_URL,
     },
