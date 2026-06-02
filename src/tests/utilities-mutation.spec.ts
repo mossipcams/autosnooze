@@ -210,7 +210,7 @@ describe('registration utility mutation boundaries', () => {
       {
         type: 'autosnooze-snoozed-card',
         name: 'AutoSnooze Snoozed Card',
-        description: 'Show only currently snoozed automations with resume and adjust controls (v2.0.0)',
+        description: 'Read-only view of currently snoozed automations and when they resume (v2.0.0)',
         preview: true,
         documentationURL: 'https://github.com/mossipcams/autosnooze#readme',
       },

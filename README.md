@@ -68,7 +68,7 @@ The only option is `title` (string, defaults to `AutoSnooze`).
 
 ### Snoozed-Only Card
 
-A lighter companion card that shows **only currently snoozed automations** with their resume and adjust controls — no automation picker, duration controls, or scheduled-snooze setup. Pair it with the full card, or drop it on a dashboard where you just want to see and manage what's paused:
+A lighter, **read-only** companion card that shows **only currently snoozed automations** and when they resume — no automation picker, duration controls, scheduled-snooze setup, or resume/adjust actions. Pair it with the full card, or drop it on a dashboard where you just want to see what's paused at a glance (use the main AutoSnooze card to resume or adjust):
 
 ```yaml
 type: custom:autosnooze-snoozed-card

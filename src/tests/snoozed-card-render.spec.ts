@@ -65,15 +65,20 @@ describe('Snoozed-only card rendering', () => {
 
     const activePauses = root.querySelector('autosnooze-active-pauses') as unknown as {
       pausedCount: number;
+      readonly: boolean;
     } | null;
     expect(activePauses).not.toBeNull();
     expect(activePauses?.pausedCount).toBe(2);
+    // Purely informational: the section is rendered read-only.
+    expect(activePauses?.readonly).toBe(true);
 
-    // The picker, duration controls, snooze button, and scheduled list must be absent.
+    // The picker, duration controls, snooze button, scheduled list, and the
+    // adjust modal must all be absent (no actions on this card).
     expect(root.querySelector('autosnooze-automation-list')).toBeNull();
     expect(root.querySelector('autosnooze-duration-selector')).toBeNull();
     expect(root.querySelector('.snooze-btn')).toBeNull();
     expect(root.querySelector('.scheduled-list')).toBeNull();
+    expect(root.querySelector('autosnooze-adjust-modal')).toBeNull();
   });
 
   test('renders an empty-state message when nothing is snoozed', async () => {
