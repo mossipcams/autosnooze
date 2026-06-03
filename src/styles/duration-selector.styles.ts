@@ -5,10 +5,22 @@
 
 import { css } from 'lit';
 
+import {
+  chipActivePrimary,
+  focusVisiblePrimaryOffset2,
+  hostBlock,
+  mobileTouch,
+  primaryFieldFocus,
+  touchTarget44,
+} from './shared.styles.js';
+
 export const durationSelectorStyles = css`
-    :host {
-      display: block;
-    }
+    ${hostBlock}
+    ${focusVisiblePrimaryOffset2}
+    ${touchTarget44}
+    ${chipActivePrimary}
+    ${primaryFieldFocus}
+    ${mobileTouch}
 
     /* Duration Section */
     .duration-section-header {
@@ -140,12 +152,6 @@ export const durationSelectorStyles = css`
       background: var(--card-background-color);
       color: var(--primary-text-color);
       font-size: 0.95em;
-      box-sizing: border-box;
-      min-height: 44px;
-    }
-    .duration-input:focus {
-      outline: none;
-      border-color: var(--primary-color);
     }
     .duration-input.invalid {
       border-color: #f44336;
@@ -229,8 +235,6 @@ export const durationSelectorStyles = css`
       background: var(--card-background-color);
       color: var(--primary-text-color);
       font-size: 0.95em;
-      min-height: 44px;
-      box-sizing: border-box;
     }
     .datetime-row select {
       flex: 1;
@@ -239,11 +243,6 @@ export const durationSelectorStyles = css`
     .datetime-row input[type="time"] {
       width: 110px;
       flex-shrink: 0;
-    }
-    .datetime-row select:focus,
-    .datetime-row input:focus {
-      outline: none;
-      border-color: var(--primary-color);
     }
     .schedule-summary {
       font-size: 0.82em;

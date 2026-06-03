@@ -360,7 +360,7 @@ class TestAsyncSave:
         mock_store.async_save = failing_save
         data = AutomationPauseData(store=mock_store)
 
-        with patch("custom_components.autosnooze.coordinator.asyncio.sleep", new_callable=AsyncMock):
+        with patch("custom_components.autosnooze.infrastructure.storage.asyncio.sleep", new_callable=AsyncMock):
             result = await async_save(data)
 
         if should_retry:
@@ -377,7 +377,7 @@ class TestAsyncSave:
         mock_store.async_save = AsyncMock(side_effect=IOError("Persistent error"))
         data = AutomationPauseData(store=mock_store)
 
-        with patch("custom_components.autosnooze.coordinator.asyncio.sleep", new_callable=AsyncMock):
+        with patch("custom_components.autosnooze.infrastructure.storage.asyncio.sleep", new_callable=AsyncMock):
             result = await async_save(data)
 
         assert result is False

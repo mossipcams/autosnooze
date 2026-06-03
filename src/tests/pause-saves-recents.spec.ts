@@ -12,9 +12,9 @@ vi.mock('../services/storage.js', () => ({
   loadRecentSnoozes: vi.fn().mockReturnValue([]),
 }));
 
-import { runPauseActionFeature, runPauseFeature } from '../features/pause/index.js';
-import { saveRecentSnoozes } from '../services/storage.js';
+import { runPauseFeature } from '../features/pause/index.js';
 import { pauseAutomations } from '../services/snooze.js';
+import { saveRecentSnoozes } from '../services/storage.js';
 
 describe('runPauseFeature saves recent snoozes', () => {
   beforeEach(() => {
@@ -38,11 +38,11 @@ describe('runPauseFeature saves recent snoozes', () => {
     expect(saveRecentSnoozes).toHaveBeenCalledWith(['automation.a', 'automation.b']);
   });
 
-  test('runPauseActionFeature delegates pause requests through the service seam', async () => {
+  test('runPauseFeature delegates pause requests through the service seam', async () => {
     const hass = { callService: vi.fn(), language: 'en' } as unknown as Parameters<typeof runPauseFeature>[0]['hass'];
     const params = { entity_id: ['automation.a'], hours: 1 };
 
-    await runPauseActionFeature(hass, params);
+    await pauseAutomations(hass, params);
 
     expect(pauseAutomations).toHaveBeenCalledWith(hass, params);
   });

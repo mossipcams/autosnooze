@@ -36,9 +36,6 @@ export const cardStyles = css`
     .sensor-health-banner {
       margin-bottom: 12px;
       padding: 10px 12px;
-      border: 1px solid color-mix(in srgb, #ff9800 45%, var(--divider-color));
-      border-radius: 8px;
-      background: color-mix(in srgb, #ff9800 10%, var(--card-background-color));
       color: var(--primary-text-color);
       font-size: 0.85em;
     }
@@ -127,9 +124,6 @@ export const cardStyles = css`
     .guardrail-confirm {
       margin-top: 10px;
       padding: 12px;
-      border-radius: 10px;
-      border: 1px solid color-mix(in srgb, #ff9800 40%, var(--divider-color));
-      background: color-mix(in srgb, #ff9800 8%, var(--card-background-color));
       display: flex;
       flex-direction: column;
       gap: 8px;
@@ -178,10 +172,6 @@ export const cardStyles = css`
     .snooze-btn:hover:not(:disabled) {
       opacity: 0.9;
     }
-    .snooze-btn:focus-visible {
-      outline: 2px solid var(--primary-color);
-      outline-offset: 2px;
-    }
     .snooze-btn:disabled {
       opacity: 0.4;
       cursor: not-allowed;
@@ -195,7 +185,9 @@ export const cardStyles = css`
       padding: 12px;
       margin-top: 12px;
     }
-    .scheduled-list .list-header ha-icon {
+    .scheduled-list .list-header ha-icon,
+    .scheduled-icon,
+    .scheduled-time {
       color: #2196f3;
     }
     .scheduled-item {
@@ -211,36 +203,17 @@ export const cardStyles = css`
       margin-bottom: 12px;
     }
     .scheduled-icon {
-      color: #2196f3;
       opacity: 0.8;
     }
     .scheduled-time {
       font-size: 0.85em;
-      color: #2196f3;
       font-weight: 500;
-    }
-    .cancel-scheduled-btn {
-      padding: 6px 12px;
-      border: 1px solid var(--divider-color);
-      border-radius: 6px;
-      background: var(--card-background-color);
-      color: var(--primary-text-color);
-      cursor: pointer;
-      font-size: 0.85em;
-      transition: all 0.2s;
-      min-height: 44px;
-      box-sizing: border-box;
     }
     .cancel-scheduled-btn:hover {
       background: #f44336;
       color: white;
       border-color: #f44336;
     }
-    .cancel-scheduled-btn:focus-visible {
-      outline: 2px solid var(--primary-color);
-      outline-offset: 2px;
-    }
-
     /* Toast */
     .toast {
       position: fixed;
@@ -264,20 +237,12 @@ export const cardStyles = css`
       border-radius: 4px;
       background: transparent;
       color: var(--text-primary-color);
-      cursor: pointer;
       font-size: 0.85em;
       font-weight: 500;
-      transition: all 0.2s;
-      min-height: 44px;
-      box-sizing: border-box;
     }
     .toast-undo-btn:hover {
       background: rgba(255, 255, 255, 0.2);
       border-color: rgba(255, 255, 255, 0.8);
-    }
-    .toast-undo-btn:focus-visible {
-      outline: 2px solid white;
-      outline-offset: 2px;
     }
     @keyframes slideUp {
       from {

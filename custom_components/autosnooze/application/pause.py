@@ -38,6 +38,7 @@ from ..runtime.ports import (
 from ..runtime.state import AutomationPauseData
 
 _LOGGER = logging.getLogger(__name__)
+async_save = runtime_async_save
 
 type SetAutomationState = Callable[[HomeAssistant, str, bool], Awaitable[bool]]
 type SaveData = Callable[[AutomationPauseData], Awaitable[bool]]
@@ -155,7 +156,7 @@ async def async_pause_automations(
     set_state = set_automation_state or (
         lambda hass, entity_id, enabled: async_set_automation_state(hass, entity_id, enabled=enabled)
     )
-    save_runtime_data = save_data or runtime_async_save
+    save_runtime_data = save_data or async_save
     notify_started = notify_started_automations or _default_notify_started_automations
     resume_scheduler = schedule_resume_callback or schedule_resume
     disable_scheduler = schedule_disable_callback or schedule_disable

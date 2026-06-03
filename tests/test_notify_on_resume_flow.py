@@ -91,7 +91,7 @@ async def test_async_pause_automations_sets_notification_trigger_for_scheduled_p
     data = AutomationPauseData(store=MagicMock(async_save=AsyncMock()))
 
     now = datetime.now(UTC)
-    with patch("custom_components.autosnooze.services.schedule_disable"):
+    with patch("custom_components.autosnooze.application.pause.schedule_disable"):
         await async_pause_automations(
             mock_hass,
             data,

@@ -4,16 +4,25 @@
 
 import { css } from 'lit';
 
+import {
+  adjustModalBtnStyles,
+  focusVisibleAccentOffset2,
+  focusVisiblePrimaryOffset2,
+  hostBlock,
+  mobileTouch,
+  touchTarget44,
+} from './shared.styles.js';
+
 export const adjustModalStyles = css`
-    :host {
-      display: block;
-    }
+    ${hostBlock}
+    ${focusVisiblePrimaryOffset2}
+    ${focusVisibleAccentOffset2}
+    ${touchTarget44}
+    ${mobileTouch}
+    ${adjustModalBtnStyles}
     .modal-overlay {
       position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
+      inset: 0;
       background: rgba(0, 0, 0, 0.5);
       z-index: 999;
       display: flex;
@@ -72,13 +81,7 @@ export const adjustModalStyles = css`
       color: var(--primary-text-color);
       background: var(--secondary-background-color);
     }
-    .modal-close:focus-visible {
-      outline: 2px solid var(--primary-color);
-      outline-offset: 2px;
-    }
-    .modal-body {
-      padding: 16px;
-    }
+    .modal-body { padding: 16px; }
     .remaining-time {
       text-align: center;
       font-size: 2em;
@@ -93,12 +96,8 @@ export const adjustModalStyles = css`
       color: var(--secondary-text-color);
       margin-bottom: 4px;
     }
-    .adjust-section {
-      margin-bottom: 16px;
-    }
-    .adjust-section:last-child {
-      margin-bottom: 0;
-    }
+    .adjust-section { margin-bottom: 16px; }
+    .adjust-section:last-child { margin-bottom: 0; }
     .adjust-section-label {
       font-size: 0.8em;
       font-weight: 500;

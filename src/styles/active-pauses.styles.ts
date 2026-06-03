@@ -5,10 +5,26 @@
 
 import { css } from 'lit';
 
+import {
+  compactActionButtonStyles,
+  focusVisibleAccentOffset2,
+  focusVisiblePrimaryInset,
+  focusVisiblePrimaryOffset2,
+  hostBlock,
+  touchTarget44,
+  mobileTouch,
+  primaryHoverFill,
+} from './shared.styles.js';
+
 export const activePausesStyles = css`
-    :host {
-      display: block;
-    }
+    ${hostBlock}
+    ${focusVisiblePrimaryOffset2}
+    ${focusVisiblePrimaryInset}
+    ${focusVisibleAccentOffset2}
+    ${touchTarget44}
+    ${compactActionButtonStyles}
+    ${primaryHoverFill}
+    ${mobileTouch}
     .snooze-list {
       border: 2px solid #ff9800;
       border-radius: 8px;
@@ -33,10 +49,6 @@ export const activePausesStyles = css`
     }
     .pause-group-header:hover {
       background: var(--secondary-background-color, rgba(0, 0, 0, 0.03));
-    }
-    .pause-group-header:focus-visible {
-      outline: 2px solid var(--primary-color);
-      outline-offset: -2px;
     }
     .pause-group-header ha-icon {
       --mdc-icon-size: 18px;

@@ -1,16 +1,32 @@
-/**
- * Styles for the AutoSnooze automation list component.
- * Extracted from card.styles.ts for the child component.
- */
-
 import { css } from 'lit';
 
-export const automationListStyles = css`
-    :host {
-      display: block;
-    }
+import {
+  chipActivePrimary,
+  chipHoverPrimary,
+  filterTabControl,
+  focusVisiblePrimaryInset,
+  focusVisiblePrimaryOffset2,
+  hostBlock,
+  mobileTouch,
+  primaryHoverFill,
+  primaryFieldFocus,
+  touchTarget44,
+  warningSurfaceStyles,
+} from './shared.styles.js';
 
-    /* Filter Tabs */
+export const automationListStyles = css`
+    ${hostBlock}
+    ${warningSurfaceStyles}
+    ${focusVisiblePrimaryOffset2}
+    ${focusVisiblePrimaryInset}
+    ${touchTarget44}
+    ${chipActivePrimary}
+    ${chipHoverPrimary}
+    ${filterTabControl}
+    ${primaryHoverFill}
+    ${primaryFieldFocus}
+    ${mobileTouch}
+
     .filter-tabs {
       display: flex;
       gap: 8px;
@@ -108,26 +124,12 @@ export const automationListStyles = css`
     .search-clear-btn:hover {
       background: var(--secondary-background-color);
     }
-    .search-clear-btn:focus-visible {
-      outline: 2px solid var(--primary-color);
-      outline-offset: 2px;
-    }
-    .search-box input:focus {
-      outline: none;
-      border-color: var(--primary-color);
-      box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary-color) 15%, transparent);
-    }
     .registry-warning {
       margin-bottom: 10px;
       padding: 8px 10px;
-      border: 1px solid color-mix(in srgb, #ff9800 45%, var(--divider-color));
-      border-radius: 8px;
-      background: color-mix(in srgb, #ff9800 10%, var(--card-background-color));
-      color: var(--primary-text-color);
       font-size: 0.82em;
     }
 
-    /* Selection List */
     .selection-list {
       max-height: 300px;
       overflow-y: auto;
@@ -141,33 +143,32 @@ export const automationListStyles = css`
       color: var(--secondary-text-color);
       font-size: 0.9em;
     }
-    .list-item {
+    .list-item,
+    .group-header {
       display: flex;
       align-items: center;
-      gap: 10px;
-      padding: 12px;
       cursor: pointer;
       border: none;
       border-bottom: 1px solid var(--divider-color);
-      transition: background 0.2s;
-      min-height: 48px;
       width: 100%;
-      background: transparent;
       text-align: left;
       font-family: inherit;
-      font-size: inherit;
       color: inherit;
       box-sizing: border-box;
+    }
+    .list-item {
+      gap: 10px;
+      padding: 12px;
+      transition: background 0.2s;
+      min-height: 48px;
+      background: transparent;
+      font-size: inherit;
     }
     .list-item:last-child {
       border-bottom: none;
     }
     .list-item:hover {
       background: var(--secondary-background-color);
-    }
-    .list-item:focus-visible {
-      outline: 2px solid var(--primary-color);
-      outline-offset: -2px;
     }
     .list-item.selected {
       background: rgba(var(--rgb-primary-color), 0.1);
@@ -176,11 +177,13 @@ export const automationListStyles = css`
       color: var(--primary-color);
       flex-shrink: 0;
     }
-    .list-item input[type="checkbox"] {
+    .list-item input[type="checkbox"], .group-header input[type="checkbox"] {
       width: 18px;
       height: 18px;
       cursor: pointer;
       accent-color: var(--primary-color);
+    }
+    .list-item input[type="checkbox"] {
       flex-shrink: 0;
     }
     .list-item-content {
@@ -209,7 +212,6 @@ export const automationListStyles = css`
       vertical-align: middle;
     }
 
-    /* Recent Group Header */
     .recent-group-header {
       display: flex;
       align-items: center;
@@ -233,43 +235,21 @@ export const automationListStyles = css`
       background: color-mix(in srgb, var(--primary-color) 4%, transparent);
     }
 
-    /* Group Headers */
     .group-header {
-      display: flex;
-      align-items: center;
       gap: 8px;
       padding: 10px 12px;
       background: var(--secondary-background-color);
-      cursor: pointer;
       font-weight: 500;
       font-size: 0.9em;
-      border: none;
-      border-bottom: 1px solid var(--divider-color);
-      width: 100%;
-      text-align: left;
-      font-family: inherit;
-      color: inherit;
-      box-sizing: border-box;
-      min-height: 44px;
     }
     .group-header:hover {
       background: var(--divider-color);
-    }
-    .group-header:focus-visible {
-      outline: 2px solid var(--primary-color);
-      outline-offset: -2px;
     }
     .group-header ha-icon {
       transition: transform 0.2s;
     }
     .group-header.expanded ha-icon {
       transform: rotate(90deg);
-    }
-    .group-header input[type="checkbox"] {
-      width: 18px;
-      height: 18px;
-      cursor: pointer;
-      accent-color: var(--primary-color);
     }
     .group-badge {
       margin-left: auto;

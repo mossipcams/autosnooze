@@ -28,15 +28,6 @@ interface BuildAutomationListViewModelInput {
   emptyCategoryLabel: string;
 }
 
-interface DecoratedAutomation {
-  automation: AutomationItem;
-  areaName: string;
-  categoryName: string;
-  visibleLabelNames: string[];
-  hasIncludeLabel: boolean;
-  hasExcludeLabel: boolean;
-}
-
 export { formatRegistryId };
 
 export function getAreaName(areaId: string | null, hass: HomeAssistant, fallback: string = 'Unassigned'): string {
@@ -142,20 +133,22 @@ export function filterAutomations(
   return filtered;
 }
 
-function groupDecoratedAutomations(
-  automations: DecoratedAutomation[],
-  getKeys: (automation: DecoratedAutomation) => string[] | null,
+function groupItemsBy<Item>(
+  items: Item[],
+  getKeys: (item: Item) => string[] | null,
+  getAutomation: (item: Item) => AutomationItem,
   defaultGroupName: string
 ): [string, AutomationItem[]][] {
   const groups: Record<string, AutomationItem[]> = {};
 
-  automations.forEach((item) => {
+  items.forEach((item) => {
     const keys = getKeys(item);
+    const automation = getAutomation(item);
     if (!keys || keys.length === 0) {
       if (!groups[defaultGroupName]) {
         groups[defaultGroupName] = [];
       }
-      groups[defaultGroupName].push(item.automation);
+      groups[defaultGroupName].push(automation);
       return;
     }
 
@@ -163,7 +156,7 @@ function groupDecoratedAutomations(
       if (!groups[key]) {
         groups[key] = [];
       }
-      groups[key].push(item.automation);
+      groups[key].push(automation);
     });
   });
 
@@ -177,25 +170,20 @@ export function groupAutomationsBy(
   getKeys: (auto: AutomationItem) => string[] | null,
   defaultGroupName: string
 ): [string, AutomationItem[]][] {
-  const groups: Record<string, AutomationItem[]> = {};
+  return groupItemsBy(automations, getKeys, (automation) => automation, defaultGroupName);
+}
 
-  automations.forEach((automation) => {
-    const keys = getKeys(automation);
-    if (!keys || keys.length === 0) {
-      if (!groups[defaultGroupName]) groups[defaultGroupName] = [];
-      groups[defaultGroupName].push(automation);
-      return;
-    }
-
-    keys.forEach((key) => {
-      if (!groups[key]) groups[key] = [];
-      groups[key].push(automation);
-    });
-  });
-
-  return Object.entries(groups).sort((a, b) =>
-    a[0] === defaultGroupName ? 1 : b[0] === defaultGroupName ? -1 : a[0].localeCompare(b[0])
-  );
+export function partitionRecentAutomations(
+  items: AutomationItem[],
+  recentSnoozeIds: string[]
+): { recentItems: AutomationItem[]; ordered: AutomationItem[] } {
+  const recentIds = new Set(recentSnoozeIds);
+  const recentItems: AutomationItem[] = [];
+  const otherItems: AutomationItem[] = [];
+  for (const item of items) {
+    (recentIds.has(item.id) ? recentItems : otherItems).push(item);
+  }
+  return { recentItems, ordered: recentItems.concat(otherItems) };
 }
 
 export function buildAutomationListViewModel(
@@ -261,21 +249,24 @@ export function buildAutomationListViewModel(
 
   const grouped =
     input.filterTab === 'areas'
-      ? groupDecoratedAutomations(
+      ? groupItemsBy(
           filteredDecorated,
           (automation) => (automation.automation.area_id ? [automation.areaName] : null),
+          (automation) => automation.automation,
           input.emptyAreaLabel
         )
       : input.filterTab === 'categories'
-        ? groupDecoratedAutomations(
+        ? groupItemsBy(
             filteredDecorated,
             (automation) => (automation.automation.category_id ? [automation.categoryName] : null),
+            (automation) => automation.automation,
             input.emptyCategoryLabel
           )
         : input.filterTab === 'labels'
-          ? groupDecoratedAutomations(
+          ? groupItemsBy(
               filteredDecorated,
               (automation) => automation.visibleLabelNames.length > 0 ? automation.visibleLabelNames : null,
+              (automation) => automation.automation,
               input.emptyLabelLabel
             )
           : [];

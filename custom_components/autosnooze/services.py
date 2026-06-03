@@ -41,6 +41,8 @@ from .models import ensure_utc_aware
 from .runtime.state import AutomationPauseData
 
 _LOGGER = logging.getLogger(__name__)
+_APPLICATION_ASYNC_SET_AUTOMATION_STATE = pause_application.async_set_automation_state
+_APPLICATION_ASYNC_SAVE = pause_application.async_save
 
 
 def _contains_guardrail_term(text: str, term: str) -> bool:
@@ -73,6 +75,14 @@ async def async_pause_automations(
     notification_lead_minutes: int | None = None,
 ) -> None:
     """Service-layer pause seam preserved for direct callers and tests."""
+    set_automation_state = (
+        pause_application.async_set_automation_state
+        if pause_application.async_set_automation_state is not _APPLICATION_ASYNC_SET_AUTOMATION_STATE
+        else async_set_automation_state
+    )
+    save_data = (
+        pause_application.async_save if pause_application.async_save is not _APPLICATION_ASYNC_SAVE else async_save
+    )
     await pause_application.async_pause_automations(
         hass,
         data,
@@ -84,12 +94,12 @@ async def async_pause_automations(
         resume_at_dt,
         notification_trigger,
         notification_lead_minutes,
-        set_automation_state=lambda hass, entity_id, enabled: async_set_automation_state(
+        set_automation_state=lambda hass, entity_id, enabled: set_automation_state(
             hass,
             entity_id,
             enabled=enabled,
         ),
-        save_data=async_save,
+        save_data=save_data,
         notify_started_automations=lambda hass, paused_entries: _notify_started_automations(
             hass,
             paused_entries,
@@ -128,8 +138,8 @@ def register_services(hass: HomeAssistant, data: AutomationPauseData) -> None:
         notification_trigger = call.data.get("notification_trigger", NOTIFICATION_TRIGGER_NONE)
         notification_lead_minutes = call.data.get("notification_lead_minutes")
 
-        _validate_guardrails(hass, entity_ids, confirm=confirm)
-        await async_pause_automations(
+        pause_application._validate_guardrails(hass, entity_ids, confirm=confirm)
+        await pause_application.async_pause_automations(
             hass,
             data,
             entity_ids,
@@ -140,6 +150,11 @@ def register_services(hass: HomeAssistant, data: AutomationPauseData) -> None:
             resume_at_dt,
             notification_trigger,
             notification_lead_minutes,
+            notify_started_automations=lambda hass, paused_entries: _notify_started_automations(
+                hass,
+                paused_entries,
+                save_succeeded=True,
+            ),
         )
 
     async def handle_cancel(call: ServiceCall) -> None:

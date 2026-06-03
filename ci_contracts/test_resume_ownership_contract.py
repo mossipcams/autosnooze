@@ -6,31 +6,35 @@ from pathlib import Path
 
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
-ACTIONS_CONTROLLER_PATH = PROJECT_ROOT / "src" / "components" / "autosnooze-actions-controller.ts"
 RESUME_FEATURE_PATH = PROJECT_ROOT / "src" / "features" / "resume" / "index.ts"
 SCHEDULED_SNOOZE_FEATURE_PATH = PROJECT_ROOT / "src" / "features" / "scheduled-snooze" / "index.ts"
+CARD_PATH = PROJECT_ROOT / "src" / "components" / "autosnooze-card.ts"
+ACTIONS_CONTROLLER_PATH = PROJECT_ROOT / "src" / "components" / "autosnooze-actions-controller.ts"
 
 
-def test_actions_controller_delegates_resume_behavior_to_resume_feature() -> None:
-    """Wake/undo orchestration should live in the resume feature, not the controller."""
-    source = ACTIONS_CONTROLLER_PATH.read_text(encoding="utf-8")
+def test_actions_controller_shim_removed() -> None:
+    """Wake/undo orchestration should not live in a legacy controller shim."""
+    assert not ACTIONS_CONTROLLER_PATH.exists()
+
+
+def test_card_delegates_resume_behavior_to_resume_feature() -> None:
+    """The card should import resume feature helpers instead of a controller shim."""
+    source = CARD_PATH.read_text(encoding="utf-8")
 
     assert "../features/resume/index.js" in source
-    assert "runWakeFeature" in source
-    assert "runWakeAllFeature" in source
     assert "runUndoFeature" in source
-    assert "Promise.allSettled" not in source
-    assert "const undoCall" not in source
+    assert "autosnooze-actions-controller" not in source
 
 
-def test_scheduled_snooze_feature_only_uses_controller_for_adjust_and_cancel() -> None:
-    """Scheduled-snooze orchestration may keep using the controller for legacy adjust/cancel helpers."""
+def test_scheduled_snooze_feature_uses_snooze_service_seams() -> None:
+    """Scheduled-snooze orchestration should call snooze services directly."""
     source = SCHEDULED_SNOOZE_FEATURE_PATH.read_text(encoding="utf-8")
 
-    assert "runAdjustAction" in source
-    assert "runCancelScheduledAction" in source
-    assert "runWakeAction" not in source
-    assert "runWakeAllAction" not in source
+    assert "../../services/snooze.js" in source
+    assert "adjustSnooze" in source
+    assert "runAdjustFeature" in source
+    assert "runCancelScheduledFeature" in source
+    assert "autosnooze-actions-controller" not in source
     assert "runUndoAction" not in source
 
 
