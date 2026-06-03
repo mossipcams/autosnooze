@@ -1,11 +1,23 @@
 # Changelog
 
-## [0.2.21](https://github.com/mossipcams/autosnooze/compare/v0.2.20...v0.2.21) (2026-06-02)
+## [0.2.22](https://github.com/mossipcams/autosnooze/compare/v0.2.20...v0.2.22) (2026-06-03)
 
 
 ### Features
 
+* configurable snooze notifications on natural expiry ([#400](https://github.com/mossipcams/autosnooze/issues/400)) ([d790ab3](https://github.com/mossipcams/autosnooze/commit/d790ab3247e55a221b87b7925262e5bf5735f28d))
+* make the snoozed-only card read-only ([#408](https://github.com/mossipcams/autosnooze/issues/408)) ([59655f3](https://github.com/mossipcams/autosnooze/commit/59655f3fb00300d72686896e93c55b3ac086af8c))
 * add snoozed-only Lovelace card ([#397](https://github.com/mossipcams/autosnooze/issues/397)) ([e5b418a](https://github.com/mossipcams/autosnooze/commit/e5b418a3438216863c96c2b3cca9f51a0d4ac9a3))
+
+
+### Dependencies
+
+* bump the npm-minor-patch group ([#407](https://github.com/mossipcams/autosnooze/issues/407)) ([b6d8a71](https://github.com/mossipcams/autosnooze/commit/b6d8a7131eca5e9f095cbfdecdd90ec35de5956f))
+* bump home-assistant/actions ([#405](https://github.com/mossipcams/autosnooze/issues/405)) ([d38806d](https://github.com/mossipcams/autosnooze/commit/d38806db78a83ac0cf16c80e1041b7e12ec1b4c5))
+* bump the actions-minor-patch group ([#404](https://github.com/mossipcams/autosnooze/issues/404)) ([fd82e96](https://github.com/mossipcams/autosnooze/commit/fd82e96052c3a190ce04d6fbe0c892c91879c618))
+* update ruff ([#403](https://github.com/mossipcams/autosnooze/issues/403)) ([fa862c8](https://github.com/mossipcams/autosnooze/commit/fa862c8a7e92e4380c5e2fdcba686809192eafdc))
+* update pyright ([#402](https://github.com/mossipcams/autosnooze/issues/402)) ([9b3fa57](https://github.com/mossipcams/autosnooze/commit/9b3fa576947bc60d1d6fa3c3552d46ad1f36f1f4))
+* update pytest-homeassistant-custom-component ([8a3ee89](https://github.com/mossipcams/autosnooze/commit/8a3ee8905857ab385c171a88f3bd7e9e9f04d007))
 
 ## [0.2.20](https://github.com/mossipcams/autosnooze/compare/v0.2.19...v0.2.20) (2026-05-18)
 
