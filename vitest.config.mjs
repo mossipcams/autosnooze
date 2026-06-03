@@ -9,7 +9,7 @@ export default defineConfig({
   test: {
     environment: 'jsdom',
     include: ['**/tests/**/*.spec.{js,ts}'],
-    exclude: ['**/node_modules/**', '**/e2e/**'],
+    exclude: ['**/node_modules/**', '**/e2e/**', '**/mutants/**'],
     setupFiles: ['./tests/vitest.setup.ts'],
     globals: true,
     reporters: [

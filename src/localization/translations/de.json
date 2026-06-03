@@ -142,5 +142,15 @@
     "reduce_time": "Zeit reduzieren",
     "group_title": "Anpassen von {count} Automatisierungen",
     "group_subtitle": "Alle Automatisierungen in dieser Gruppe"
+  },
+  "notify": {
+    "toggle_label": "Benachrichtigen",
+    "when_label": "Wann?",
+    "lead_label": "Wie lange vorher?",
+    "when": {
+      "start": "Wenn die Schlummerzeit beginnt",
+      "about_to_end": "Bevor die Schlummerzeit endet",
+      "end": "Wenn die Schlummerzeit endet"
+    }
   }
 }

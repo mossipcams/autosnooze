@@ -81,6 +81,7 @@ export interface PausedAutomationAttribute {
   hours: number;
   minutes: number;
   disable_at?: string;
+  notification_trigger?: 'none' | 'start' | 'about_to_end' | 'end';
 }
 
 export interface ScheduledSnoozeAttribute {

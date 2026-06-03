@@ -2,18 +2,40 @@
 
 from __future__ import annotations
 
+from collections.abc import Awaitable, Callable
 import logging
 from typing import Any
 
 from homeassistant.core import HomeAssistant
 from homeassistant.util import dt as dt_util
 
+from ..domain.notifications import NOTIFICATION_TRIGGER_NONE, validate_notification_config
 from ..infrastructure.storage import async_save
 from ..models import PausedAutomation, ScheduledSnooze, parse_datetime_utc
 from .state import AutomationPauseData
-from .timers import ResumeCallback, ScheduledDisableCallback
 
 _LOGGER = logging.getLogger(__name__)
+StartedNotificationCallback = Callable[[HomeAssistant, list[PausedAutomation]], Awaitable[None]]
+_default_started_notification_callback: StartedNotificationCallback | None = None
+
+
+def configure_default_restore_callbacks(
+    *,
+    started_notification_callback: StartedNotificationCallback | None = None,
+) -> None:
+    """Register higher-layer callbacks used during restore-specific workflows."""
+    global _default_started_notification_callback
+    _default_started_notification_callback = started_notification_callback
+
+
+async def _notify_started_automations_on_restore(
+    hass: HomeAssistant,
+    started_items: list[PausedAutomation],
+) -> None:
+    """Emit start notifications for due scheduled snoozes activated during restore."""
+    if _default_started_notification_callback is None or not started_items:
+        return
+    await _default_started_notification_callback(hass, started_items)
 
 
 def validate_stored_entry(
@@ -48,6 +70,15 @@ def validate_stored_entry(
             if not isinstance(value, (int, float)) or value < 0:
                 _LOGGER.warning("Invalid data for %s: %s must be non-negative, got %s", entity_id, field_name, value)
                 return False
+
+    try:
+        validate_notification_config(
+            entry_data.get("notification_trigger", NOTIFICATION_TRIGGER_NONE),
+            entry_data.get("notification_lead_minutes"),
+        )
+    except ValueError as err:
+        _LOGGER.warning("Invalid data for %s: %s", entity_id, err)
+        return False
 
     if entry_type == "scheduled":
         disable_at = parse_datetime_utc(entry_data["disable_at"])
@@ -93,13 +124,7 @@ def validate_stored_data(stored: Any) -> dict[str, Any]:
     return result
 
 
-async def async_load_stored(
-    hass: HomeAssistant,
-    data: AutomationPauseData,
-    *,
-    resume_callback: ResumeCallback | None = None,
-    disable_callback: ScheduledDisableCallback | None = None,
-) -> None:
+async def async_load_stored(hass: HomeAssistant, data: AutomationPauseData) -> None:
     if data.store is None:
         return
 
@@ -121,8 +146,14 @@ async def async_load_stored(
     scheduled_to_restore: list[ScheduledSnooze] = []
     restored_paused: list[PausedAutomation] = []
     executed_scheduled: list[ScheduledSnooze] = []
+    restored_started: list[PausedAutomation] = []
 
-    from .ports import async_set_automation_state, schedule_disable, schedule_resume
+    from .ports import (
+        async_set_automation_state,
+        schedule_disable,
+        schedule_pre_resume_notification,
+        schedule_resume,
+    )
 
     for entity_id, info in validated.get("paused", {}).items():
         try:
@@ -186,12 +217,14 @@ async def async_load_stored(
                 current_paused is not None and current_paused != paused
             ):
                 _LOGGER.info(
-                    "Skipping stale stored pause for %s; runtime state changed during restore", paused.entity_id
+                    "Skipping stale stored pause for %s; runtime state changed during restore",
+                    paused.entity_id,
                 )
                 continue
 
             data.paused[paused.entity_id] = paused
-            schedule_resume(hass, data, paused.entity_id, paused.resume_at, resume_callback=resume_callback)
+            schedule_resume(hass, data, paused.entity_id, paused.resume_at)
+            schedule_pre_resume_notification(hass, data, paused)
 
         for scheduled in executed_scheduled:
             paused = PausedAutomation(
@@ -200,6 +233,8 @@ async def async_load_stored(
                 resume_at=scheduled.resume_at,
                 paused_at=now,
                 disable_at=scheduled.disable_at,
+                notification_trigger=scheduled.notification_trigger,
+                notification_lead_minutes=scheduled.notification_lead_minutes,
             )
             current_paused = data.paused.get(scheduled.entity_id)
             current_scheduled = data.scheduled.get(scheduled.entity_id)
@@ -213,7 +248,9 @@ async def async_load_stored(
                 continue
 
             data.paused[scheduled.entity_id] = paused
-            schedule_resume(hass, data, scheduled.entity_id, scheduled.resume_at, resume_callback=resume_callback)
+            schedule_resume(hass, data, scheduled.entity_id, scheduled.resume_at)
+            schedule_pre_resume_notification(hass, data, paused)
+            restored_started.append(paused)
 
         for scheduled in scheduled_to_restore:
             current_scheduled = data.scheduled.get(scheduled.entity_id)
@@ -227,10 +264,11 @@ async def async_load_stored(
                 continue
 
             data.scheduled[scheduled.entity_id] = scheduled
-            schedule_disable(hass, data, scheduled.entity_id, scheduled, disable_callback=disable_callback)
+            schedule_disable(hass, data, scheduled.entity_id, scheduled)
 
         if expired or expired_scheduled:
             if not await async_save(data):
-                _LOGGER.error("Failed to persist restored autosnooze cleanup state")
+                _LOGGER.warning("Failed to persist cleanup of expired entries during storage load")
 
     data.notify()
+    await _notify_started_automations_on_restore(hass, restored_started)

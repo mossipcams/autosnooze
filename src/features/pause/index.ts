@@ -6,11 +6,12 @@
 import { localize } from '../../localization/localize.js';
 import { saveLastDuration, saveRecentSnoozes, type LastDurationData } from '../../services/storage.js';
 import { pauseAutomations } from '../../services/snooze.js';
-import type { AutomationItem, ParsedDuration, PauseServiceParams } from '../../types/automation.js';
+import type { AutomationItem, NotificationTrigger, ParsedDuration, PauseServiceParams } from '../../types/automation.js';
 import type { HassLabel, HomeAssistant } from '../../types/hass.js';
 import { combineDateTime } from '../../utils/datetime.js';
 import { durationToMinutes } from '../../utils/duration-parsing.js';
 import { formatDateTime, formatDuration } from '../../utils/time-formatting.js';
+import { appendNotificationTrigger } from '../../utils/notification-trigger-request.js';
 
 const CONFIRM_LABEL = 'autosnooze_confirm';
 const CRITICAL_AUTOMATION_TERMS = [
@@ -37,6 +38,8 @@ interface RunPauseFeatureInput {
   resumeAtDate: string;
   resumeAtTime: string;
   forceConfirm?: boolean;
+  notificationTrigger?: NotificationTrigger;
+  notificationLeadMinutes?: number;
 }
 
 type RunPauseFeatureResult =
@@ -104,12 +107,16 @@ function buildSchedulePauseRequest(input: RunPauseFeatureInput): SchedulePauseBu
     return null;
   }
 
-  const request: PauseServiceParams = {
-    entity_id: input.selected,
-    resume_at: resumeAt,
-    ...(disableAt && { disable_at: disableAt }),
-    ...(input.forceConfirm && { confirm: true }),
-  };
+  const request: PauseServiceParams = appendNotificationTrigger(
+    {
+      entity_id: input.selected,
+      resume_at: resumeAt,
+      ...(disableAt && { disable_at: disableAt }),
+      ...(input.forceConfirm && { confirm: true }),
+    },
+    input.notificationTrigger,
+    input.notificationLeadMinutes,
+  );
 
   const count = input.selected.length;
   const toastMessage = disableAt
@@ -142,13 +149,17 @@ function buildDurationPauseRequest(input: RunPauseFeatureInput): DurationPauseBu
   };
 
   return {
-    request: {
-      entity_id: input.selected,
-      days,
-      hours,
-      minutes,
-      ...(input.forceConfirm && { confirm: true }),
-    },
+    request: appendNotificationTrigger(
+      {
+        entity_id: input.selected,
+        days,
+        hours,
+        minutes,
+        ...(input.forceConfirm && { confirm: true }),
+      },
+      input.notificationTrigger,
+      input.notificationLeadMinutes,
+    ),
     toastMessage:
       input.selected.length === 1
         ? localize(input.hass, 'toast.success.snoozed_for_one', {

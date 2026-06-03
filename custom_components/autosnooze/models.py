@@ -4,10 +4,16 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime, timezone
-from typing import Any, TypeAlias
+from typing import Any
 
-from homeassistant.config_entries import ConfigEntry
+from homeassistant.helpers.dispatcher import async_dispatcher_send
 from homeassistant.util import dt as dt_util
+
+from .domain.notifications import (
+    NOTIFICATION_TRIGGER_NONE,
+    NotificationTrigger,
+    validate_notification_config,
+)
 
 
 def parse_datetime_utc(dt_str: str) -> datetime:
@@ -75,10 +81,13 @@ class PausedAutomation:
     hours: int = 0
     minutes: int = 0
     disable_at: datetime | None = None  # Set when snooze originated from schedule mode
+    notification_trigger: NotificationTrigger = NOTIFICATION_TRIGGER_NONE
+    notification_lead_minutes: int | None = None
     resume_retries: int = 0
 
     def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for storage/attributes."""
+        validate_notification_config(self.notification_trigger, self.notification_lead_minutes)
         result = {
             "friendly_name": self.friendly_name,
             "resume_at": self.resume_at.isoformat(),
@@ -86,9 +95,12 @@ class PausedAutomation:
             "days": self.days,
             "hours": self.hours,
             "minutes": self.minutes,
+            "notification_trigger": self.notification_trigger,
         }
         if self.disable_at is not None:
             result["disable_at"] = self.disable_at.isoformat()
+        if self.notification_lead_minutes is not None:
+            result["notification_lead_minutes"] = self.notification_lead_minutes
         return result
 
     @classmethod
@@ -97,6 +109,9 @@ class PausedAutomation:
         disable_at = None
         if "disable_at" in data:
             disable_at = parse_datetime_utc(data["disable_at"])
+        notification_trigger = data.get("notification_trigger", NOTIFICATION_TRIGGER_NONE)
+        notification_lead_minutes = data.get("notification_lead_minutes")
+        validate_notification_config(notification_trigger, notification_lead_minutes)
         return cls(
             entity_id=entity_id,
             friendly_name=data.get("friendly_name", entity_id),
@@ -106,6 +121,8 @@ class PausedAutomation:
             hours=data.get("hours", 0),
             minutes=data.get("minutes", 0),
             disable_at=disable_at,
+            notification_trigger=notification_trigger,
+            notification_lead_minutes=notification_lead_minutes,
         )
 
 
@@ -117,24 +134,33 @@ class ScheduledSnooze:
     friendly_name: str
     disable_at: datetime
     resume_at: datetime
+    notification_trigger: NotificationTrigger = NOTIFICATION_TRIGGER_NONE
+    notification_lead_minutes: int | None = None
 
     def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for storage/attributes."""
-        return {
+        validate_notification_config(self.notification_trigger, self.notification_lead_minutes)
+        result: dict[str, Any] = {
             "friendly_name": self.friendly_name,
             "disable_at": self.disable_at.isoformat(),
             "resume_at": self.resume_at.isoformat(),
+            "notification_trigger": self.notification_trigger,
         }
+        if self.notification_lead_minutes is not None:
+            result["notification_lead_minutes"] = self.notification_lead_minutes
+        return result
 
     @classmethod
     def from_dict(cls, entity_id: str, data: dict[str, Any]) -> ScheduledSnooze:
         """Create from dictionary."""
+        notification_trigger = data.get("notification_trigger", NOTIFICATION_TRIGGER_NONE)
+        notification_lead_minutes = data.get("notification_lead_minutes")
+        validate_notification_config(notification_trigger, notification_lead_minutes)
         return cls(
             entity_id=entity_id,
             friendly_name=data.get("friendly_name", entity_id),
             disable_at=parse_datetime_utc(data["disable_at"]),
             resume_at=parse_datetime_utc(data["resume_at"]),
+            notification_trigger=notification_trigger,
+            notification_lead_minutes=notification_lead_minutes,
         )
-
-
-AutomationPauseConfigEntry: TypeAlias = ConfigEntry[Any]

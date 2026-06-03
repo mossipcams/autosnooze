@@ -1,6 +1,6 @@
 {
   "name": "autosnooze",
-  "version": "0.2.20",
+  "version": "0.2.21",
   "description": "AutoSnooze - Temporarily pause Home Assistant automations",
   "main": "custom_components/autosnooze/www/autosnooze-card.js",
   "scripts": {
@@ -26,7 +26,8 @@
     "typecheck": "tsc --noEmit",
     "typecheck:test": "tsc --noEmit -p tsconfig.test.json",
     "prepare": "node scripts/install-husky-if-local.mjs",
-    "mutation:backend": "python3 scripts/run_backend_mutation.py"
+    "mutation:backend": "python3 scripts/run_backend_mutation.py",
+    "test:mutation:notification-trigger": "stryker run stryker.notification-trigger.config.mjs"
   },
   "keywords": [
     "home-assistant",

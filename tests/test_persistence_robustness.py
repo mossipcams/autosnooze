@@ -168,6 +168,47 @@ class TestDeletedAutomationCleanup:
         assert "automation.existing_scheduled" in data.scheduled
 
     @pytest.mark.asyncio
+    async def test_due_scheduled_automation_restores_about_to_end_notification_when_loaded_as_paused(
+        self, mock_hass: MagicMock, mock_store: MagicMock
+    ) -> None:
+        """Test that due scheduled snoozes preserve pre-end notification config during restore."""
+        from custom_components.autosnooze.coordinator import async_load_stored as _async_load_stored
+        from custom_components.autosnooze.runtime.state import AutomationPauseData
+
+        now = datetime.now(UTC)
+        data = AutomationPauseData(store=mock_store)
+
+        stored_data = {
+            "paused": {},
+            "scheduled": {
+                "automation.existing_scheduled": {
+                    "friendly_name": "Existing Scheduled",
+                    "disable_at": (now - timedelta(minutes=5)).isoformat(),
+                    "resume_at": (now + timedelta(hours=1)).isoformat(),
+                    "notification_trigger": "about_to_end",
+                    "notification_lead_minutes": 60,
+                },
+            },
+        }
+        mock_store.async_load = AsyncMock(return_value=stored_data)
+
+        mock_state = MagicMock()
+        mock_state.attributes = {"friendly_name": "Existing Scheduled"}
+        mock_hass.states.get.return_value = mock_state
+
+        with (
+            patch("custom_components.autosnooze.coordinator.schedule_resume"),
+            patch(
+                "custom_components.autosnooze.runtime.ports.schedule_pre_resume_notification"
+            ) as schedule_notification,
+        ):
+            await _async_load_stored(mock_hass, data)
+
+        assert data.paused["automation.existing_scheduled"].notification_trigger == "about_to_end"
+        assert data.paused["automation.existing_scheduled"].notification_lead_minutes == 60
+        schedule_notification.assert_called_once()
+
+    @pytest.mark.asyncio
     async def test_mixed_deleted_and_existing_automations(self, mock_hass: MagicMock, mock_store: MagicMock) -> None:
         """Test that only deleted automations are cleaned up, existing ones remain."""
         from custom_components.autosnooze.coordinator import async_load_stored as _async_load_stored

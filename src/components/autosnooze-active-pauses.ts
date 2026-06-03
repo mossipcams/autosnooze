@@ -126,6 +126,18 @@ export class AutoSnoozeActivePauses extends LitElement {
     }));
   }
 
+  _fireClearNotification(entityId: string): void {
+    this.dispatchEvent(new CustomEvent('clear-notification', {
+      detail: { entityId },
+      bubbles: true,
+      composed: true,
+    }));
+  }
+
+  _hasNotificationConfig(auto: PausedAutomation): boolean {
+    return auto.notification_trigger !== undefined && auto.notification_trigger !== 'none';
+  }
+
 
   _fireAdjust(auto: PausedAutomation): void {
     this.dispatchEvent(new CustomEvent('adjust-automation', {
@@ -197,6 +209,18 @@ export class AutoSnoozeActivePauses extends LitElement {
                   <div class="paused-info">
                     <div class="paused-name">${auto.friendly_name || auto.entity_id}</div>
                   </div>
+                  ${this._hasNotificationConfig(auto) ? html`
+                    <button
+                      type="button"
+                      class="wake-btn clear-notification-btn"
+                      @click=${(e: Event) => {
+                        e.stopPropagation();
+                        this._fireClearNotification(auto.entity_id);
+                      }}
+                    >
+                      ${localize(this.hass, 'button.remove_notification')}
+                    </button>
+                  ` : ''}
                   <button type="button" class="wake-btn" @click=${(e: Event) => { e.stopPropagation(); this._fireWake(auto.entity_id); }}>
                     ${localize(this.hass, 'button.resume')}
                   </button>

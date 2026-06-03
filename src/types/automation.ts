@@ -22,6 +22,7 @@ export interface PausedAutomation {
   hours: number;
   minutes: number;
   disable_at?: string; // ISO datetime string, set when snooze originated from schedule mode
+  notification_trigger?: NotificationTrigger;
 }
 
 /**
@@ -67,6 +68,12 @@ export interface DurationPreset {
 export type ServiceData = Record<string, unknown>;
 
 /**
+ * Notification trigger moment for a snooze.
+ * Mirrors NotificationTrigger in custom_components/autosnooze/domain/notifications.py.
+ */
+export type NotificationTrigger = 'none' | 'start' | 'about_to_end' | 'end';
+
+/**
  * Service call parameters for pause operation.
  */
 export interface PauseServiceParams extends ServiceData {
@@ -77,4 +84,6 @@ export interface PauseServiceParams extends ServiceData {
   disable_at?: string;
   resume_at?: string;
   confirm?: boolean;
+  notification_trigger?: NotificationTrigger;
+  notification_lead_minutes?: number;
 }

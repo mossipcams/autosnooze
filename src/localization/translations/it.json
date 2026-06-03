@@ -142,5 +142,15 @@
     "reduce_time": "Riduci tempo",
     "group_title": "Modifica {count} automazioni",
     "group_subtitle": "Tutte le automazioni in questo gruppo"
+  },
+  "notify": {
+    "toggle_label": "Notificami",
+    "when_label": "Quando?",
+    "lead_label": "Quanto tempo prima?",
+    "when": {
+      "start": "Quando inizia il posticipo",
+      "about_to_end": "Prima che termini il posticipo",
+      "end": "Quando termina il posticipo"
+    }
   }
 }

@@ -12,7 +12,7 @@ from homeassistant.helpers.device_registry import DeviceEntryType, DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .const import DEFAULT_DURATION_PRESETS, DOMAIN, SENSOR_SCHEMA_VERSION, SIGNAL_STATE_CHANGED, VERSION
-from .models import AutomationPauseConfigEntry
+from .runtime.state import AutomationPauseConfigEntry
 
 
 async def async_setup_entry(

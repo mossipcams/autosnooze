@@ -142,5 +142,15 @@
     "reduce_time": "Reducir tiempo",
     "group_title": "Ajustar {count} automatizaciones",
     "group_subtitle": "Todas las automatizaciones en este grupo"
+  },
+  "notify": {
+    "toggle_label": "Notificarme",
+    "when_label": "¿Cuándo?",
+    "lead_label": "¿Cuánto antes?",
+    "when": {
+      "start": "Cuando empiece la siesta",
+      "about_to_end": "Antes de que termine la siesta",
+      "end": "Cuando termine la siesta"
+    }
   }
 }

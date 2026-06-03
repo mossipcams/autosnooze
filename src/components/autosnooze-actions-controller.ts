@@ -9,11 +9,7 @@ import {
   runPauseActionFeature,
   runPauseFeature,
 } from '../features/pause/index.js';
-import {
-  runUndoFeature,
-  runWakeAllFeature,
-  runWakeFeature,
-} from '../features/resume/index.js';
+import { runUndoFeature, runWakeAllFeature, runWakeFeature } from '../features/resume/index.js';
 import {
   runAdjustFeature,
   runAdjustActionFeature,

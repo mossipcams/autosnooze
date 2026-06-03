@@ -111,4 +111,51 @@ describe('Snoozed-only card rendering', () => {
 
     expect(el.shadowRoot!.querySelector('.sensor-health-banner')).not.toBeNull();
   });
+
+  test('passes notification-enabled paused automations through to the shared list UI', async () => {
+    const el = document.createElement(TEST_TAG) as AutoSnoozeSnoozedCard;
+    el.hass = makeHass({
+      states: {
+        'sensor.autosnooze_snoozed_automations': {
+          state: '1',
+          attributes: {
+            schema_version: 1,
+            paused: {
+              'automation.kitchen': {
+                friendly_name: 'Kitchen Lights',
+                resume_at: futureIso(60),
+                paused_at: new Date().toISOString(),
+                days: 0,
+                hours: 1,
+                minutes: 0,
+                notification_trigger: 'end',
+              },
+            },
+            scheduled: {},
+          },
+        },
+      },
+    });
+    el.config = { type: 'custom:autosnooze-snoozed-card' };
+    document.body.appendChild(el);
+    await el.updateComplete;
+
+    const activePauses = el.shadowRoot!.querySelector('autosnooze-active-pauses') as unknown as {
+      updateComplete: Promise<unknown>;
+      pauseGroups?: Array<{
+        automations: Array<{
+          entity_id: string;
+          notification_trigger?: string;
+        }>;
+      }>;
+    } | null;
+    expect(activePauses).not.toBeNull();
+    await activePauses.updateComplete;
+    expect(activePauses?.pauseGroups?.[0]?.automations).toEqual([
+      expect.objectContaining({
+        entity_id: 'automation.kitchen',
+        notification_trigger: 'end',
+      }),
+    ]);
+  });
 });

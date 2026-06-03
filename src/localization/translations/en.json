@@ -8,6 +8,7 @@
   "button": {
     "undo": "Undo",
     "resume": "Resume",
+    "remove_notification": "Remove notification",
     "confirm_resume_all": "Confirm Resume All",
     "resume_all": "Resume All",
     "cancel": "Cancel",
@@ -154,5 +155,15 @@
     "reduce_time": "Reduce time",
     "group_title": "Adjust {count} automations",
     "group_subtitle": "All automations in this group"
+  },
+  "notify": {
+    "toggle_label": "Notify me",
+    "when_label": "When?",
+    "lead_label": "How long before?",
+    "when": {
+      "start": "When snooze starts",
+      "about_to_end": "Before snooze ends",
+      "end": "When snooze ends"
+    }
   }
 }

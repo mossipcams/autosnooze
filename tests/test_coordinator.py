@@ -882,6 +882,33 @@ class TestAsyncResume:
         assert "automation.test" not in data.timers
 
     @pytest.mark.asyncio
+    async def test_cancels_pre_resume_notification_timer_for_entity(self) -> None:
+        """Manual or expired resume should cancel any pending pre-resume notification."""
+        mock_hass = MagicMock()
+        mock_hass.states.get.return_value = MagicMock()
+        mock_hass.services.async_call = AsyncMock()
+        mock_store = MagicMock()
+        mock_store.async_save = AsyncMock()
+        data = AutomationPauseData(store=mock_store)
+
+        now = datetime.now(UTC)
+        data.paused["automation.test"] = PausedAutomation(
+            entity_id="automation.test",
+            friendly_name="Test",
+            resume_at=now + timedelta(hours=1),
+            paused_at=now,
+            notification_trigger="about_to_end",
+            notification_lead_minutes=30,
+        )
+        unsub = MagicMock()
+        data.notification_timers["automation.test"] = unsub
+
+        await async_resume(mock_hass, data, "automation.test")
+
+        unsub.assert_called_once()
+        assert "automation.test" not in data.notification_timers
+
+    @pytest.mark.asyncio
     async def test_removes_from_paused_dict(self) -> None:
         """Verify entity is removed from paused dict."""
         mock_hass = MagicMock()
@@ -1610,6 +1637,32 @@ class TestAsyncExecuteScheduledDisable:
         mock_store.async_save.assert_called_once()
 
     @pytest.mark.asyncio
+    async def test_raises_when_save_fails_after_successful_scheduled_disable(self) -> None:
+        """Successful scheduled disable should raise when persistence fails."""
+        mock_hass = MagicMock()
+        mock_store = MagicMock()
+        mock_store.async_save = AsyncMock()
+        data = AutomationPauseData(store=mock_store)
+
+        now = datetime.now(UTC)
+        resume_at = now + timedelta(hours=1)
+        data.scheduled["automation.test"] = ScheduledSnooze(
+            entity_id="automation.test",
+            friendly_name="Original Name",
+            disable_at=now - timedelta(minutes=1),
+            resume_at=resume_at,
+            notification_trigger="end",
+        )
+
+        with (
+            patch("custom_components.autosnooze.coordinator.async_set_automation_state", AsyncMock(return_value=True)),
+            patch("custom_components.autosnooze.coordinator.schedule_resume"),
+            patch("custom_components.autosnooze.coordinator.async_save", AsyncMock(return_value=False)),
+            pytest.raises(ServiceValidationError, match="Failed to persist autosnooze state"),
+        ):
+            await async_execute_scheduled_disable(mock_hass, data, "automation.test", resume_at)
+
+    @pytest.mark.asyncio
     async def test_releases_lock_before_waiting_on_turn_off_service(self) -> None:
         """Scheduled disable should not hold data.lock while awaiting automation turn-off."""
         mock_hass = MagicMock()
@@ -2090,6 +2143,36 @@ class TestAsyncAdjustSnooze:
 
         expected_resume_at = original_resume_at + timedelta(hours=1)
         mock_schedule.assert_called_once_with(mock_hass, data, "automation.test", expected_resume_at)
+
+    @pytest.mark.asyncio
+    async def test_reschedules_pre_resume_notification_for_about_to_end(self) -> None:
+        """Adjust should reschedule pre-resume notification for about_to_end snoozes."""
+        mock_hass = MagicMock()
+        mock_store = MagicMock()
+        mock_store.async_save = AsyncMock()
+        data = AutomationPauseData(store=mock_store)
+
+        now = datetime.now(UTC)
+        data.paused["automation.test"] = PausedAutomation(
+            entity_id="automation.test",
+            friendly_name="Test",
+            resume_at=now + timedelta(hours=2),
+            paused_at=now,
+            notification_trigger="about_to_end",
+            notification_lead_minutes=30,
+        )
+
+        with (
+            patch("custom_components.autosnooze.coordinator.schedule_resume"),
+            patch("custom_components.autosnooze.coordinator.schedule_pre_resume_notification") as schedule_notification,
+        ):
+            await async_adjust_snooze(mock_hass, data, "automation.test", timedelta(hours=1))
+
+        schedule_notification.assert_called_once_with(
+            mock_hass,
+            data,
+            data.paused["automation.test"],
+        )
 
     @pytest.mark.asyncio
     async def test_saves_after_adjust(self) -> None:

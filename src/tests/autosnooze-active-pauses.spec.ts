@@ -1,5 +1,6 @@
 import { describe, expect, test, vi } from 'vitest';
 import { AutoSnoozeActivePauses } from '../components/autosnooze-active-pauses.js';
+import type { PauseGroup } from '../types/automation.js';
 
 type TestActivePauses = {
   connectedCallback: () => void;
@@ -27,6 +28,67 @@ describe('AutoSnoozeActivePauses countdown lifecycle', () => {
 
     element.disconnectedCallback();
     vi.useRealTimers();
+  });
+});
+
+describe('AutoSnoozeActivePauses notification controls', () => {
+  test('renders a clear-notification control only for paused automations with notification config', async () => {
+    const tag = 'test-autosnooze-active-pauses-render';
+    if (!customElements.get(tag)) {
+      customElements.define(tag, AutoSnoozeActivePauses);
+    }
+
+    const element = document.createElement(tag) as AutoSnoozeActivePauses;
+    element.hass = { locale: { language: 'en' } } as never;
+    element.pausedCount = 2;
+    element.pauseGroups = [
+      {
+        resumeAt: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
+        automations: [
+          {
+            entity_id: 'automation.kitchen',
+            friendly_name: 'Kitchen',
+            resume_at: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
+            paused_at: new Date().toISOString(),
+            days: 0,
+            hours: 1,
+            minutes: 0,
+            notification_trigger: 'end',
+          },
+          {
+            entity_id: 'automation.hallway',
+            friendly_name: 'Hallway',
+            resume_at: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
+            paused_at: new Date().toISOString(),
+            days: 0,
+            hours: 1,
+            minutes: 0,
+          },
+        ],
+      },
+    ] as PauseGroup[];
+
+    document.body.appendChild(element);
+    await element.updateComplete;
+
+    const clearButtons = element.shadowRoot?.querySelectorAll('.clear-notification-btn');
+    expect(clearButtons).toHaveLength(1);
+    expect(clearButtons?.[0]?.textContent?.trim()).toBe('Remove notification');
+
+    element.pauseGroups = [
+      {
+        ...element.pauseGroups[0]!,
+        automations: element.pauseGroups[0]!.automations.map((automation) => ({
+          ...automation,
+          notification_trigger: undefined,
+        })),
+      },
+    ];
+    await element.updateComplete;
+
+    expect(element.shadowRoot?.querySelectorAll('.clear-notification-btn')).toHaveLength(0);
+
+    document.body.removeChild(element);
   });
 });
 

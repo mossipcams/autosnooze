@@ -56,6 +56,67 @@ export const cardStyles = css`
       margin-bottom: 20px;
     }
 
+    .notify-toggle {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin: 12px 0;
+      cursor: pointer;
+      font-size: 0.9em;
+      color: var(--primary-text-color);
+    }
+    .notify-toggle input[type='checkbox'] {
+      width: 18px;
+      height: 18px;
+      accent-color: var(--primary-color);
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+    .notify-toggle ha-icon {
+      --mdc-icon-size: 18px;
+      color: var(--secondary-text-color);
+      flex-shrink: 0;
+    }
+    .notify-toggle input[type='checkbox']:checked ~ ha-icon {
+      color: var(--primary-color);
+    }
+    .notify-toggle-text {
+      line-height: 1.3;
+    }
+    .notify-detail {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: flex-end;
+      gap: 8px;
+      margin: 0 0 12px 26px;
+    }
+    .notify-field {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      font-size: 0.85em;
+      color: var(--secondary-text-color);
+    }
+    .notify-field select {
+      padding: 6px 8px;
+      border-radius: 8px;
+      border: 1px solid var(--divider-color);
+      background: var(--card-background-color);
+      color: var(--primary-text-color);
+      font-size: 0.95em;
+    }
+    .visually-hidden {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border: 0;
+    }
+
     /* Snooze Button */
     .guardrail-confirm {
       margin-top: 10px;

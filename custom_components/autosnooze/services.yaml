@@ -1,6 +1,9 @@
 pause:
   name: Snooze
   description: Snooze automation(s) for a specified duration or until a specific time. They will automatically wake up when the time expires.
+  target:
+    entity:
+      - domain: automation
   fields:
     entity_id:
       name: Automation
@@ -47,6 +50,35 @@ pause:
       description: Specific datetime when to re-enable the automation. Overrides duration fields if set.
       selector:
         datetime:
+    notification_trigger:
+      name: Notification Trigger
+      description: Choose whether to notify when the snooze starts, shortly before it ends, or when it ends.
+      default: none
+      selector:
+        select:
+          options:
+            - label: No notification
+              value: none
+            - label: When snooze starts
+              value: start
+            - label: Before snooze ends
+              value: about_to_end
+            - label: When snooze ends
+              value: end
+    notification_lead_minutes:
+      name: Notification Lead Minutes
+      description: Required when Notification Trigger is set to Before snooze ends.
+      selector:
+        select:
+          options:
+            - label: 30 minutes
+              value: "30"
+            - label: 1 hour
+              value: "60"
+            - label: 2 hours
+              value: "120"
+            - label: 4 hours
+              value: "240"
     confirm:
       name: Confirm Labeled Automations
       description: Set to true to snooze automations tagged with autosnooze_confirm or detected as critical.
@@ -71,9 +103,25 @@ cancel_all:
   name: Wake All
   description: Wake all snoozed automations and re-enable them immediately.
 
+clear_notification:
+  name: Clear Notification
+  description: Remove notification settings from currently snoozed automation(s).
+  fields:
+    entity_id:
+      name: Automation
+      description: Snoozed automation(s) whose notification settings should be cleared.
+      required: true
+      selector:
+        entity:
+          domain: automation
+          multiple: true
+
 pause_by_area:
   name: Snooze by Area
   description: Snooze all automations in a specific area.
+  target:
+    entity:
+      - domain: automation
   fields:
     area_id:
       name: Area
@@ -119,6 +167,35 @@ pause_by_area:
       description: Specific datetime when to re-enable the automations.
       selector:
         datetime:
+    notification_trigger:
+      name: Notification Trigger
+      description: Choose whether to notify when the snooze starts, shortly before it ends, or when it ends.
+      default: none
+      selector:
+        select:
+          options:
+            - label: No notification
+              value: none
+            - label: When snooze starts
+              value: start
+            - label: Before snooze ends
+              value: about_to_end
+            - label: When snooze ends
+              value: end
+    notification_lead_minutes:
+      name: Notification Lead Minutes
+      description: Required when Notification Trigger is set to Before snooze ends.
+      selector:
+        select:
+          options:
+            - label: 30 minutes
+              value: "30"
+            - label: 1 hour
+              value: "60"
+            - label: 2 hours
+              value: "120"
+            - label: 4 hours
+              value: "240"
     confirm:
       name: Confirm Labeled Automations
       description: Set to true to snooze automations tagged with autosnooze_confirm or detected as critical.
@@ -129,6 +206,9 @@ pause_by_area:
 pause_by_label:
   name: Snooze by Label
   description: Snooze all automations with a specific label.
+  target:
+    entity:
+      - domain: automation
   fields:
     label_id:
       name: Label
@@ -174,6 +254,35 @@ pause_by_label:
       description: Specific datetime when to re-enable the automations.
       selector:
         datetime:
+    notification_trigger:
+      name: Notification Trigger
+      description: Choose whether to notify when the snooze starts, shortly before it ends, or when it ends.
+      default: none
+      selector:
+        select:
+          options:
+            - label: No notification
+              value: none
+            - label: When snooze starts
+              value: start
+            - label: Before snooze ends
+              value: about_to_end
+            - label: When snooze ends
+              value: end
+    notification_lead_minutes:
+      name: Notification Lead Minutes
+      description: Required when Notification Trigger is set to Before snooze ends.
+      selector:
+        select:
+          options:
+            - label: 30 minutes
+              value: "30"
+            - label: 1 hour
+              value: "60"
+            - label: 2 hours
+              value: "120"
+            - label: 4 hours
+              value: "240"
     confirm:
       name: Confirm Labeled Automations
       description: Set to true to snooze automations tagged with autosnooze_confirm or detected as critical.
