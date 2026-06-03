@@ -8,7 +8,7 @@ import re
 
 from homeassistant.const import ATTR_ENTITY_ID
 from homeassistant.core import HomeAssistant, ServiceCall
-from homeassistant.helpers import entity_registry as er
+from homeassistant.helpers import entity_registry as er  # noqa: F401 — tests patch services.er
 
 from .const import (
     ADJUST_SCHEMA,

@@ -1,6 +1,7 @@
-// @ts-nocheck -- focused unit tests for controller orchestration
+// @ts-nocheck -- focused unit tests for feature service delegation
 /**
- * Tests for actions controller service payload mapping and error handling.
+ * Tests for pause/resume/scheduled feature service payload mapping.
+ * Card orchestration uses these feature modules directly (no actions-controller layer).
  */
 
 import { beforeEach, describe, expect, test, vi } from 'vitest';
@@ -13,14 +14,12 @@ vi.mock('../src/services/snooze.js', () => ({
   adjustSnooze: vi.fn(),
 }));
 
+import { runPauseActionFeature } from '../src/features/pause/index.js';
 import {
-  runAdjustAction,
-  runCancelScheduledAction,
-  runPauseAction,
-  runUndoAction,
-  runWakeAction,
-  runWakeAllAction,
-} from '../src/components/autosnooze-actions-controller.js';
+  runAdjustActionFeature,
+  runCancelScheduledActionFeature,
+} from '../src/features/scheduled-snooze/index.js';
+import { runUndoFeature, runWakeAllFeature, runWakeFeature } from '../src/features/resume/index.js';
 import {
   adjustSnooze,
   cancelScheduled,
@@ -29,42 +28,42 @@ import {
   wakeAutomation,
 } from '../src/services/snooze.js';
 
-describe('Actions Controller', () => {
+describe('Feature service delegation', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  test('runPauseAction forwards payload unchanged', async () => {
+  test('runPauseActionFeature forwards payload unchanged', async () => {
     const hass = createMockHass();
     const params = { entity_id: ['automation.a'], hours: 1 };
 
-    await runPauseAction(hass, params);
+    await runPauseActionFeature(hass, params);
     expect(pauseAutomations).toHaveBeenCalledWith(hass, params);
   });
 
-  test('runWakeAction and runWakeAllAction call expected services', async () => {
+  test('runWakeFeature and runWakeAllFeature call expected services', async () => {
     const hass = createMockHass();
-    await runWakeAction(hass, 'automation.a');
-    await runWakeAllAction(hass);
+    await runWakeFeature(hass, 'automation.a');
+    await runWakeAllFeature(hass);
 
     expect(wakeAutomation).toHaveBeenCalledWith(hass, 'automation.a');
     expect(wakeAll).toHaveBeenCalledWith(hass);
   });
 
-  test('runCancelScheduledAction and runAdjustAction call expected services', async () => {
+  test('runCancelScheduledActionFeature and runAdjustActionFeature call expected services', async () => {
     const hass = createMockHass();
-    await runCancelScheduledAction(hass, 'automation.s');
-    await runAdjustAction(hass, ['automation.a'], { minutes: 15 });
+    await runCancelScheduledActionFeature(hass, 'automation.s');
+    await runAdjustActionFeature(hass, ['automation.a'], { minutes: 15 });
 
     expect(cancelScheduled).toHaveBeenCalledWith(hass, 'automation.s');
     expect(adjustSnooze).toHaveBeenCalledWith(hass, ['automation.a'], { minutes: 15 });
   });
 
-  test('runUndoAction uses wake path when not schedule mode', async () => {
+  test('runUndoFeature uses wake path when not schedule mode', async () => {
     const hass = createMockHass();
     wakeAutomation.mockResolvedValue(undefined);
 
-    const result = await runUndoAction(hass, ['automation.a', 'automation.b'], {
+    const result = await runUndoFeature(hass, ['automation.a', 'automation.b'], {
       wasScheduleMode: false,
       hadDisableAt: false,
     });
@@ -74,13 +73,13 @@ describe('Actions Controller', () => {
     expect(result).toEqual({ succeeded: ['automation.a', 'automation.b'], failed: [] });
   });
 
-  test('runUndoAction uses cancelScheduled path and reports partial failures', async () => {
+  test('runUndoFeature uses cancelScheduled path and reports partial failures', async () => {
     const hass = createMockHass();
     cancelScheduled
       .mockResolvedValueOnce(undefined)
       .mockRejectedValueOnce(new Error('cancel failed'));
 
-    const result = await runUndoAction(hass, ['automation.a', 'automation.b'], {
+    const result = await runUndoFeature(hass, ['automation.a', 'automation.b'], {
       wasScheduleMode: true,
       hadDisableAt: true,
     });
