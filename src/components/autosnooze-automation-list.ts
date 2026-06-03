@@ -13,13 +13,21 @@ import { hapticFeedback } from '../utils/haptic.js';
 import {
   buildAutomationListViewModel,
   getAreaName,
-  getLabelName,
   getCategoryName,
+  getLabelName,
+  partitionRecentAutomations,
   type AutomationListViewModel,
 } from '../features/automation-list/index.js';
 import type { HomeAssistant, HassLabel, HassCategory } from '../types/hass.js';
 import type { AutomationItem } from '../types/automation.js';
 import type { FilterTab } from '../types/card.js';
+
+interface FilterTabDescriptor {
+  tab: FilterTab;
+  labelKey: string;
+  countLabelKey: string;
+  count: number;
+}
 
 export class AutoSnoozeAutomationList extends LitElement {
   static styles = automationListStyles;
@@ -122,21 +130,31 @@ export class AutoSnoozeAutomationList extends LitElement {
     return this._getViewModel().filtered;
   }
 
-  private _getAreaName(areaId: string | null): string {
+  _getAreaName(areaId: string | null | undefined): string {
     if (!this.hass) return localize(this.hass, 'group.unassigned');
-    return getAreaName(areaId, this.hass);
+    return getAreaName(areaId ?? null, this.hass, localize(this.hass, 'group.unassigned'));
   }
 
-  private _getLabelName(labelId: string): string {
+  _getLabelName(labelId: string): string {
     return getLabelName(labelId, this.labelRegistry);
   }
 
-  private _getCategoryName(categoryId: string | null): string {
-    return getCategoryName(categoryId, this.categoryRegistry);
+  _getCategoryName(categoryId: string | null | undefined): string {
+    return getCategoryName(
+      categoryId ?? null,
+      this.categoryRegistry,
+      localize(this.hass, 'group.uncategorized')
+    );
   }
 
-  private _getGroupedByTab(filterTab: 'areas' | 'labels' | 'categories'): [string, AutomationItem[]][] {
-    return buildAutomationListViewModel({
+  _getAreaCount = (): number => this._getViewModel().areaCount;
+
+  _getLabelCount = (): number => this._getViewModel().labelCount;
+
+  _getCategoryCount = (): number => this._getViewModel().categoryCount;
+
+  private _buildViewModelInput(filterTab: FilterTab = this._filterTab) {
+    return {
       automations: this.automations,
       search: this._search,
       filterTab,
@@ -146,31 +164,26 @@ export class AutoSnoozeAutomationList extends LitElement {
       emptyAreaLabel: localize(this.hass, 'group.unassigned'),
       emptyLabelLabel: localize(this.hass, 'group.unlabeled'),
       emptyCategoryLabel: localize(this.hass, 'group.uncategorized'),
-    }).grouped;
+    };
   }
 
-  private _getGroupedByArea(): [string, AutomationItem[]][] {
-    return this._getGroupedByTab('areas');
+  _getGroupedView(filterTab: 'areas' | 'labels' | 'categories'): [string, AutomationItem[]][] {
+    if (filterTab === this._filterTab) {
+      return this._getViewModel().grouped;
+    }
+    return buildAutomationListViewModel(this._buildViewModelInput(filterTab)).grouped;
   }
 
-  private _getGroupedByLabel(): [string, AutomationItem[]][] {
-    return this._getGroupedByTab('labels');
+  _getGroupedByArea(): [string, AutomationItem[]][] {
+    return this._getGroupedView('areas');
   }
 
-  private _getGroupedByCategory(): [string, AutomationItem[]][] {
-    return this._getGroupedByTab('categories');
+  _getGroupedByLabel(): [string, AutomationItem[]][] {
+    return this._getGroupedView('labels');
   }
 
-  _getAreaCount(): number {
-    return this._getViewModel().areaCount;
-  }
-
-  _getLabelCount(): number {
-    return this._getViewModel().labelCount;
-  }
-
-  _getCategoryCount(): number {
-    return this._getViewModel().categoryCount;
+  _getGroupedByCategory(): [string, AutomationItem[]][] {
+    return this._getGroupedView('categories');
   }
 
   private _getViewModel(): AutomationListViewModel {
@@ -187,17 +200,7 @@ export class AutoSnoozeAutomationList extends LitElement {
       return cache.result;
     }
 
-    const result = buildAutomationListViewModel({
-      automations: this.automations,
-      search: this._search,
-      filterTab: this._filterTab,
-      hass: this.hass,
-      labelRegistry: this.labelRegistry,
-      categoryRegistry: this.categoryRegistry,
-      emptyAreaLabel: localize(this.hass, 'group.unassigned'),
-      emptyLabelLabel: localize(this.hass, 'group.unlabeled'),
-      emptyCategoryLabel: localize(this.hass, 'group.uncategorized'),
-    });
+    const result = buildAutomationListViewModel(this._buildViewModelInput());
 
     this._viewModelCache = {
       automations: this.automations,
@@ -227,20 +230,41 @@ export class AutoSnoozeAutomationList extends LitElement {
     }, UI_TIMING.SEARCH_DEBOUNCE_MS);
   }
 
-  private _clearSearch(): void {
+  private _renderAutomationRow(a: AutomationItem, selectedIds: Set<string>, extraClass = ''): TemplateResult {
+    return html`
+      <button
+        type="button"
+        class="list-item ${selectedIds.has(a.id) ? 'selected' : ''} ${extraClass}"
+        @click=${() => this._toggleSelection(a.id)}
+        role="option"
+        aria-selected=${selectedIds.has(a.id)}
+      >
+        <input
+          type="checkbox"
+          .checked=${selectedIds.has(a.id)}
+          @click=${(e: Event) => e.stopPropagation()}
+          @change=${() => this._toggleSelection(a.id)}
+          aria-label="${localize(this.hass, 'a11y.select_automation', { name: a.name })}"
+          tabindex="-1"
+        />
+        <div class="list-item-content">
+          <div class="list-item-name">${a.name}</div>
+        </div>
+      </button>
+    `;
+  }
+
+  private _renderEmptyList(): TemplateResult {
+    return html`<div class="list-empty" role="status">${localize(this.hass, 'list.empty')}</div>`;
+  }
+
+  private _resetSearch(): void {
     if (this._searchTimeout !== null) {
       clearTimeout(this._searchTimeout);
       this._searchTimeout = null;
     }
     this._searchInput = '';
     this._search = '';
-  }
-
-  private _handleSearchKeydown(e: KeyboardEvent): void {
-    if (e.key !== 'Escape') return;
-    if (!this._searchInput && !this._search) return;
-    e.preventDefault();
-    this._clearSearch();
   }
 
   private _renderSelectionList(
@@ -251,15 +275,9 @@ export class AutoSnoozeAutomationList extends LitElement {
 
     if (this._filterTab === 'all') {
       if (filtered.length === 0) {
-        return html`<div class="list-empty" role="status">${localize(this.hass, 'list.empty')}</div>`;
+        return this._renderEmptyList();
       }
-      const recentIds = new Set(this.recentSnoozeIds);
-      const recentItems: AutomationItem[] = [];
-      const otherItems: AutomationItem[] = [];
-      for (const item of filtered) {
-        (recentIds.has(item.id) ? recentItems : otherItems).push(item);
-      }
-      const ordered = recentItems.concat(otherItems);
+      const { recentItems, ordered } = partitionRecentAutomations(filtered, this.recentSnoozeIds);
       return html`
         ${recentItems.length > 0 ? html`
           <div class="recent-group-header">
@@ -267,32 +285,12 @@ export class AutoSnoozeAutomationList extends LitElement {
             <span>${localize(this.hass, 'group.recent')}</span>
           </div>
         ` : ''}
-        ${ordered.map((a, index) => html`
-        <button
-          type="button"
-          class="list-item ${selectedIds.has(a.id) ? 'selected' : ''} ${index < recentItems.length ? 'is-recent' : ''}"
-          @click=${() => this._toggleSelection(a.id)}
-          role="option"
-          aria-selected=${selectedIds.has(a.id)}
-        >
-          <input
-            type="checkbox"
-            .checked=${selectedIds.has(a.id)}
-            @click=${(e: Event) => e.stopPropagation()}
-            @change=${() => this._toggleSelection(a.id)}
-            aria-label="${localize(this.hass, 'a11y.select_automation', { name: a.name })}"
-            tabindex="-1"
-          />
-          <div class="list-item-content">
-            <div class="list-item-name">${a.name}</div>
-          </div>
-        </button>
-      `)}
+        ${ordered.map((a, index) => this._renderAutomationRow(a, selectedIds, index < recentItems.length ? 'is-recent' : ''))}
       `;
     }
 
     if (grouped.length === 0) {
-      return html`<div class="list-empty" role="status">${localize(this.hass, 'list.empty')}</div>`;
+      return this._renderEmptyList();
     }
 
     return grouped.map(([groupName, items]) => {
@@ -322,30 +320,55 @@ export class AutoSnoozeAutomationList extends LitElement {
           />
         </button>
         ${expanded
-          ? items.map((a) => html`
-                <button
-                  type="button"
-                  class="list-item ${selectedIds.has(a.id) ? 'selected' : ''}"
-                  @click=${() => this._toggleSelection(a.id)}
-                  role="option"
-                  aria-selected=${selectedIds.has(a.id)}
-                >
-                  <input
-                    type="checkbox"
-                    .checked=${selectedIds.has(a.id)}
-                    @click=${(e: Event) => e.stopPropagation()}
-                    @change=${() => this._toggleSelection(a.id)}
-                    aria-label="${localize(this.hass, 'a11y.select_automation', { name: a.name })}"
-                    tabindex="-1"
-                  />
-                  <div class="list-item-content">
-                    <div class="list-item-name">${a.name}</div>
-                  </div>
-                </button>
-              `)
+          ? items.map((a) => this._renderAutomationRow(a, selectedIds))
           : ''}
       `;
     });
+  }
+
+  private _getTabDescriptors(viewModel: AutomationListViewModel): FilterTabDescriptor[] {
+    return [
+      {
+        tab: 'all',
+        labelKey: 'tab.all',
+        countLabelKey: 'a11y.automation_count',
+        count: this.automations.length,
+      },
+      {
+        tab: 'areas',
+        labelKey: 'tab.areas',
+        countLabelKey: 'a11y.area_count',
+        count: viewModel.areaCount,
+      },
+      {
+        tab: 'categories',
+        labelKey: 'tab.categories',
+        countLabelKey: 'a11y.category_count',
+        count: viewModel.categoryCount,
+      },
+      {
+        tab: 'labels',
+        labelKey: 'tab.labels',
+        countLabelKey: 'a11y.label_count',
+        count: viewModel.labelCount,
+      },
+    ];
+  }
+
+  private _renderFilterTab({ tab, labelKey, countLabelKey, count }: FilterTabDescriptor): TemplateResult {
+    return html`
+      <button
+        type="button"
+        class="tab ${this._filterTab === tab ? 'active' : ''}"
+        @click=${() => (this._filterTab = tab)}
+        role="tab"
+        aria-selected=${this._filterTab === tab}
+        aria-controls="selection-list"
+      >
+        ${localize(this.hass, labelKey)}
+        <span class="tab-count" aria-label="${localize(this.hass, countLabelKey, { count })}">${count}</span>
+      </button>
+    `;
   }
 
   render(): TemplateResult {
@@ -358,50 +381,7 @@ export class AutoSnoozeAutomationList extends LitElement {
       filtered.length > 0 && filtered.every((a) => selectedIds.has(a.id));
     return html`
       <div class="filter-tabs" role="tablist" aria-label="${localize(this.hass, 'a11y.filter_tabs')}">
-        <button
-          type="button"
-          class="tab ${this._filterTab === 'all' ? 'active' : ''}"
-          @click=${() => (this._filterTab = 'all')}
-          role="tab"
-          aria-selected=${this._filterTab === 'all'}
-          aria-controls="selection-list"
-        >
-          ${localize(this.hass, 'tab.all')}
-          <span class="tab-count" aria-label="${localize(this.hass, 'a11y.automation_count', { count: this.automations.length })}">${this.automations.length}</span>
-        </button>
-        <button
-          type="button"
-          class="tab ${this._filterTab === 'areas' ? 'active' : ''}"
-          @click=${() => (this._filterTab = 'areas')}
-          role="tab"
-          aria-selected=${this._filterTab === 'areas'}
-          aria-controls="selection-list"
-        >
-          ${localize(this.hass, 'tab.areas')}
-          <span class="tab-count" aria-label="${localize(this.hass, 'a11y.area_count', { count: viewModel.areaCount })}">${viewModel.areaCount}</span>
-        </button>
-        <button
-          type="button"
-          class="tab ${this._filterTab === 'categories' ? 'active' : ''}"
-          @click=${() => (this._filterTab = 'categories')}
-          role="tab"
-          aria-selected=${this._filterTab === 'categories'}
-          aria-controls="selection-list"
-        >
-          ${localize(this.hass, 'tab.categories')}
-          <span class="tab-count" aria-label="${localize(this.hass, 'a11y.category_count', { count: viewModel.categoryCount })}">${viewModel.categoryCount}</span>
-        </button>
-        <button
-          type="button"
-          class="tab ${this._filterTab === 'labels' ? 'active' : ''}"
-          @click=${() => (this._filterTab = 'labels')}
-          role="tab"
-          aria-selected=${this._filterTab === 'labels'}
-          aria-controls="selection-list"
-        >
-          ${localize(this.hass, 'tab.labels')}
-          <span class="tab-count" aria-label="${localize(this.hass, 'a11y.label_count', { count: viewModel.labelCount })}">${viewModel.labelCount}</span>
-        </button>
+        ${this._getTabDescriptors(viewModel).map((tab) => this._renderFilterTab(tab))}
       </div>
 
       <div class="search-row selection-actions">
@@ -411,7 +391,11 @@ export class AutoSnoozeAutomationList extends LitElement {
             placeholder="${localize(this.hass, 'search.placeholder')}"
             .value=${this._searchInput || this._search}
             @input=${(e: Event) => this._handleSearchInput(e)}
-            @keydown=${(e: KeyboardEvent) => this._handleSearchKeydown(e)}
+            @keydown=${(e: KeyboardEvent) => {
+              if (e.key !== 'Escape' || (!this._searchInput && !this._search)) return;
+              e.preventDefault();
+              this._resetSearch();
+            }}
             aria-label="${localize(this.hass, 'a11y.search')}"
           />
           ${hasSearchValue
@@ -419,7 +403,7 @@ export class AutoSnoozeAutomationList extends LitElement {
                 <button
                   type="button"
                   class="search-clear-btn"
-                  @click=${() => this._clearSearch()}
+                  @click=${() => this._resetSearch()}
                   aria-label="${localize(this.hass, 'a11y.clear_search')}"
                 >
                   ${localize(this.hass, 'button.clear')}

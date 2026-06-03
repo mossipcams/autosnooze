@@ -2,10 +2,9 @@
  * Card shell helpers for local UI state transitions.
  */
 
-import { startCountdownSync, stopCountdownSync } from '../../services/countdown-sync.js';
-import type { CountdownState } from '../../utils/countdown-timer.js';
+export { startCountdownSync as startCardShellCountdown, stopCountdownSync as stopCardShellCountdown } from '../../services/countdown-sync.js';
 
-interface AdjustModalState {
+export interface AdjustModalState {
   adjustModalOpen: boolean;
   adjustModalEntityId: string;
   adjustModalFriendlyName: string;
@@ -14,17 +13,13 @@ interface AdjustModalState {
   adjustModalFriendlyNames: string[];
 }
 
-function formatLocalDate(value: Date): string {
+function formatLocalDateTime(value: Date): { date: string; time: string } {
   const year = value.getFullYear();
   const month = String(value.getMonth() + 1).padStart(2, '0');
   const day = String(value.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
-}
-
-function formatLocalTime(value: Date): string {
   const hours = String(value.getHours()).padStart(2, '0');
   const minutes = String(value.getMinutes()).padStart(2, '0');
-  return `${hours}:${minutes}`;
+  return { date: `${year}-${month}-${day}`, time: `${hours}:${minutes}` };
 }
 
 export function createScheduleModeState(input: {
@@ -49,12 +44,14 @@ export function createScheduleModeState(input: {
   }
 
   const resumeDate = new Date(input.now.getTime() + (input.resumeMinutes * 60 * 1000));
+  const now = formatLocalDateTime(input.now);
+  const resume = formatLocalDateTime(resumeDate);
   return {
     scheduleMode: true,
-    disableAtDate: formatLocalDate(input.now),
-    disableAtTime: formatLocalTime(input.now),
-    resumeAtDate: formatLocalDate(resumeDate),
-    resumeAtTime: formatLocalTime(resumeDate),
+    disableAtDate: now.date,
+    disableAtTime: now.time,
+    resumeAtDate: resume.date,
+    resumeAtTime: resume.time,
   };
 }
 
@@ -77,19 +74,7 @@ export function createAdjustModalState(input: {
 
 export function createClosedAdjustModalState(): AdjustModalState {
   return {
+    ...createAdjustModalState({ resumeAt: '' }),
     adjustModalOpen: false,
-    adjustModalEntityId: '',
-    adjustModalFriendlyName: '',
-    adjustModalResumeAt: '',
-    adjustModalEntityIds: [],
-    adjustModalFriendlyNames: [],
   };
-}
-
-export function startCardShellCountdown(onTick: () => void): CountdownState {
-  return startCountdownSync(onTick);
-}
-
-export function stopCardShellCountdown(state: CountdownState): void {
-  stopCountdownSync(state);
 }

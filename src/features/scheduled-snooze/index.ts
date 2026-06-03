@@ -2,7 +2,7 @@
  * Scheduled snooze feature orchestration and validation helpers.
  */
 
-import { adjustSnooze, cancelScheduled } from '../../services/snooze.js';
+import { adjustSnooze } from '../../services/snooze.js';
 import type { HomeAssistant } from '../../types/hass.js';
 import { combineDateTime } from '../../utils/datetime.js';
 
@@ -58,16 +58,7 @@ export function validateScheduledPauseInput(input: {
   return { status: 'valid' };
 }
 
-export async function runCancelScheduledFeature(hass: HomeAssistant, entityId: string): Promise<void> {
-  await cancelScheduled(hass, entityId);
-}
-
-export async function runCancelScheduledActionFeature(
-  hass: HomeAssistant,
-  entityId: string,
-): Promise<void> {
-  await cancelScheduled(hass, entityId);
-}
+export { cancelScheduled as runCancelScheduledFeature } from '../../services/snooze.js';
 
 export async function runAdjustFeature(
   hass: HomeAssistant,
@@ -86,12 +77,4 @@ export async function runAdjustFeature(
 
   const nextResumeAt = new Date(new Date(currentResumeAt).getTime() + deltaMs).toISOString();
   return { nextResumeAt };
-}
-
-export async function runAdjustActionFeature(
-  hass: HomeAssistant,
-  entityId: string | string[],
-  params: { days?: number; hours?: number; minutes?: number },
-): Promise<void> {
-  await adjustSnooze(hass, entityId, params);
 }

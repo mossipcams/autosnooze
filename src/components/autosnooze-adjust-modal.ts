@@ -74,24 +74,16 @@ export class AutoSnoozeAdjustModal extends LitElement {
   updated(changedProps: PropertyValues): void {
     if (changedProps.has('open')) {
       if (this.open) {
-        this._startSynchronizedCountdown();
+        stopCardShellCountdown(this._countdownState);
+        this._countdownState = startCardShellCountdown(() => this.requestUpdate());
       } else {
-        this._stopCountdown();
+        stopCardShellCountdown(this._countdownState);
       }
     }
   }
 
   disconnectedCallback(): void {
     super.disconnectedCallback();
-    this._stopCountdown();
-  }
-
-  _startSynchronizedCountdown(): void {
-    stopCardShellCountdown(this._countdownState);
-    this._countdownState = startCardShellCountdown(() => this.requestUpdate());
-  }
-
-  _stopCountdown(): void {
     stopCardShellCountdown(this._countdownState);
   }
 
@@ -102,45 +94,41 @@ export class AutoSnoozeAdjustModal extends LitElement {
   }
 
   _fireAdjustTime(params: { days?: number; hours?: number; minutes?: number }): void {
-    if (this.entityIds.length > 0) {
-      this.dispatchEvent(new CustomEvent('adjust-time', {
-        detail: { entityIds: this.entityIds, ...params },
-        bubbles: true,
-        composed: true,
-      }));
-    } else {
-      this.dispatchEvent(new CustomEvent('adjust-time', {
-        detail: { entityId: this.entityId, ...params },
-        bubbles: true,
-        composed: true,
-      }));
-    }
+    const detail = this.entityIds.length > 0
+      ? { entityIds: this.entityIds, ...params }
+      : { entityId: this.entityId, ...params };
+    this._dispatchModalEvent('adjust-time', detail);
   }
 
   _close(): void {
-    this.dispatchEvent(new CustomEvent('close-modal', {
+    this._dispatchModalEvent('close-modal', undefined);
+  }
+
+  _dispatchModalEvent(type: string, detail?: Record<string, unknown>): void {
+    this.dispatchEvent(new CustomEvent(type, {
+      detail,
       bubbles: true,
       composed: true,
     }));
-  }
-
-  private _handleOverlayKeydown(e: KeyboardEvent): void {
-    if (e.key === 'Escape') {
-      this._close();
-    }
-  }
-
-  _handleOverlayClick(e: Event): void {
-    if (e.target === e.currentTarget) {
-      this._close();
-    }
   }
 
   render() {
     if (!this.open) return html``;
 
     return html`
-      <div class="modal-overlay" @click=${this._handleOverlayClick} @keydown=${this._handleOverlayKeydown}>
+      <div
+        class="modal-overlay"
+        @click=${(e: Event) => {
+          if (e.target === e.currentTarget) {
+            this._close();
+          }
+        }}
+        @keydown=${(e: KeyboardEvent) => {
+          if (e.key === 'Escape') {
+            this._close();
+          }
+        }}
+      >
         <div class="modal-content" role="dialog" aria-modal="true" aria-labelledby="adjust-title" @click=${(e: Event) => e.stopPropagation()}>
           <div class="modal-header">
             <span class="modal-title" id="adjust-title">

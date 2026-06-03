@@ -7,7 +7,7 @@ import { LitElement, html, PropertyValues, TemplateResult } from 'lit';
 import { property, state } from 'lit/decorators.js';
 import { localize } from '../localization/localize.js';
 import type { HomeAssistant, HassLabel, HassCategory, HassEntityRegistryEntry, HassEntities, PausedAutomationAttribute, ScheduledSnoozeAttribute } from '../types/hass.js';
-import type { AutoSnoozeCardConfig, HapticFeedbackType } from '../types/card.js';
+import type { AutoSnoozeCardConfig } from '../types/card.js';
 import type { AutomationItem, ParsedDuration, PauseGroup } from '../types/automation.js';
 import { cardStyles } from '../styles/card.styles.js';
 import { sharedPausedStyles } from '../styles/shared.styles.js';
@@ -47,6 +47,14 @@ import {
   createScheduleModeState,
 } from '../features/card-shell/index.js';
 import {
+  getScheduledValidationToastKey,
+  haveAutomationStatesChanged,
+  renderScheduledPausesSection,
+  resolveAdjustModalSync,
+  showCardToast,
+  type CardToastTimers,
+} from '../utils/card-shell-ui.js';
+import {
   getAutomations,
 } from '../features/automation-list/index.js';
 import {
@@ -54,6 +62,7 @@ import {
   SENSOR_ENTITY_ID,
 } from '../state/paused.js';
 import { createCardStore } from '../state/card-store.js';
+import type { HapticFeedbackType } from '../types/card.js';
 
 
 export class AutomationPauseCard extends LitElement {
@@ -100,14 +109,41 @@ export class AutomationPauseCard extends LitElement {
   private _labelRegistryFetchPromise: Promise<void> | null = null;
   private _categoryRegistryFetchPromise: Promise<void> | null = null;
   private _entityRegistryFetchPromise: Promise<void> | null = null;
-  private _lastAutomationFingerprintStates: HassEntities | null = null;
-  private _lastAutomationFingerprint: string = '';
   private _lastHassStates: HassEntities | null = null;
   private _lastCacheVersion: number = 0;
-  private _toastTimeout: number | null = null;
-  private _toastFadeTimeout: number | null = null;
+  private _toastTimers: CardToastTimers = {
+    toastTimeout: null,
+    toastFadeTimeout: null,
+  };
   private _labelRegistryRetryTimeout: number | null = null;
   private _labelRegistryRetryDelayMs: number = UI_TIMING.REGISTRY_RETRY_MIN_MS;
+  private _hapticFeedback = (type: HapticFeedbackType = 'light'): void => {
+    hapticFeedback(type);
+  };
+  _showToast = (message: string, options: { showUndo?: boolean; onUndo?: (() => void) | null } = {}): void => {
+    showCardToast(this.shadowRoot, this._toastTimers, this.hass, message, options);
+  };
+  _getLocale = (): string | undefined => this.hass?.locale?.language;
+  _formatDateTime = (isoString: string): string => formatDateTime(isoString, this._getLocale());
+  _handleWakeEvent = async (e: CustomEvent<{ entityId: string }>): Promise<void> => {
+    await this._wake(e.detail.entityId);
+  };
+  _handleAdjustAutomationEvent = (
+    e: CustomEvent<{ entityId: string; friendlyName: string; resumeAt: string }>
+  ): void => {
+    this._handleAdjustModalOpenEvent(e);
+  };
+  _handleAdjustGroupEvent = (
+    e: CustomEvent<{ entityIds: string[]; friendlyNames: string[]; resumeAt: string }>
+  ): void => {
+    this._handleAdjustModalOpenEvent(e);
+  };
+  _getAutomationStateFingerprint = (states: HassEntities): string =>
+    Object.entries(states)
+      .filter(([entityId]) => entityId.startsWith('automation.'))
+      .map(([entityId, state]) => `${entityId}:${state.state}`)
+      .sort()
+      .join('|');
 
   static getConfigElement(): HTMLElement {
     return document.createElement('autosnooze-card-editor');
@@ -172,7 +208,7 @@ export class AutomationPauseCard extends LitElement {
       return false;
     }
 
-    return this._haveAutomationStatesChanged(oldStates, newStates);
+    return haveAutomationStatesChanged(oldStates, newStates);
   }
 
   updated(changedProps: PropertyValues): void {
@@ -189,31 +225,17 @@ export class AutomationPauseCard extends LitElement {
       }
     }
     if (changedProps.has('hass') && this._adjustModalOpen) {
-      const paused = this._getPaused();
-
-      if (this._adjustModalEntityIds.length > 0) {
-        // Group mode: close only when ALL entities are no longer paused
-        const anyStillPaused = this._adjustModalEntityIds.some(id => paused[id]);
-        if (!anyStillPaused) {
-          this._handleCloseModalEvent();
-        }
-        // Sync resumeAt from first still-paused entity (they share the same resumeAt)
-        const firstPaused = this._adjustModalEntityIds.find(id => paused[id]);
-        if (firstPaused) {
-          const pausedData = paused[firstPaused] as { resume_at?: string } | undefined;
-          if (pausedData?.resume_at && pausedData.resume_at !== this._adjustModalResumeAt) {
-            this._adjustModalResumeAt = pausedData.resume_at;
-          }
-        }
-      } else if (this._adjustModalEntityId) {
-        // Single mode: existing logic
-        const pausedData = paused[this._adjustModalEntityId] as { resume_at?: string } | undefined;
-        if (pausedData?.resume_at && pausedData.resume_at !== this._adjustModalResumeAt) {
-          this._adjustModalResumeAt = pausedData.resume_at;
-        }
-        if (!pausedData) {
-          this._handleCloseModalEvent();
-        }
+      const sync = resolveAdjustModalSync({
+        paused: this._getPausedSnapshot().paused,
+        entityIds: this._adjustModalEntityIds,
+        entityId: this._adjustModalEntityId,
+        currentResumeAt: this._adjustModalResumeAt,
+      });
+      if (sync.nextResumeAt) {
+        this._adjustModalResumeAt = sync.nextResumeAt;
+      }
+      if (sync.shouldClose) {
+        this._handleCloseModalEvent();
       }
     }
   }
@@ -225,18 +247,18 @@ export class AutomationPauseCard extends LitElement {
     this._fetchCategoryRegistry();
     this._fetchEntityRegistry();
     this._lastDuration = loadLastDuration();
-    this._refreshRecentSnoozeIds();
+    this._recentSnoozeIds = loadRecentSnoozes();
   }
 
   disconnectedCallback(): void {
     super.disconnectedCallback();
-    if (this._toastTimeout !== null) {
-      clearTimeout(this._toastTimeout);
-      this._toastTimeout = null;
+    if (this._toastTimers.toastTimeout !== null) {
+      clearTimeout(this._toastTimers.toastTimeout);
+      this._toastTimers.toastTimeout = null;
     }
-    if (this._toastFadeTimeout !== null) {
-      clearTimeout(this._toastFadeTimeout);
-      this._toastFadeTimeout = null;
+    if (this._toastTimers.toastFadeTimeout !== null) {
+      clearTimeout(this._toastTimers.toastFadeTimeout);
+      this._toastTimers.toastFadeTimeout = null;
     }
     if (this._labelRegistryRetryTimeout !== null) {
       clearTimeout(this._labelRegistryRetryTimeout);
@@ -244,93 +266,91 @@ export class AutomationPauseCard extends LitElement {
     }
   }
 
-
   private async _fetchLabelRegistry(): Promise<void> {
-    if (this._labelsFetched || !this.hass?.connection) return;
-    if (this._labelRegistryFetchPromise) {
-      await this._labelRegistryFetchPromise;
-      return;
-    }
-
-    this._labelRegistryFetchPromise = (async () => {
-      const labels = await fetchLabelRegistry(this.hass!);
-      if (labels === null) {
-        this._labelsFetched = false;
-        this._labelRegistryUnavailable = true;
-        if (this._labelRegistryRetryTimeout === null) {
-          const delay = this._labelRegistryRetryDelayMs;
-          this._labelRegistryRetryTimeout = window.setTimeout(() => {
-            this._labelRegistryRetryTimeout = null;
-            if (!this.isConnected) return;
-            void this._fetchLabelRegistry();
-          }, delay);
-          this._labelRegistryRetryDelayMs = Math.min(
-            this._labelRegistryRetryDelayMs * 2,
-            UI_TIMING.REGISTRY_RETRY_MAX_MS,
-          );
+    await this._runRegistryFetch(
+      '_labelsFetched',
+      '_labelRegistryFetchPromise',
+      () => fetchLabelRegistry(this.hass!),
+      (labels) => {
+        if (labels === null) {
+          this._labelsFetched = false;
+          this._labelRegistryUnavailable = true;
+          if (this._labelRegistryRetryTimeout === null) {
+            const delay = this._labelRegistryRetryDelayMs;
+            this._labelRegistryRetryTimeout = window.setTimeout(() => {
+              this._labelRegistryRetryTimeout = null;
+              if (!this.isConnected) return;
+              void this._fetchLabelRegistry();
+            }, delay);
+            this._labelRegistryRetryDelayMs = Math.min(
+              this._labelRegistryRetryDelayMs * 2,
+              UI_TIMING.REGISTRY_RETRY_MAX_MS,
+            );
+          }
+          return;
         }
-        return;
-      }
 
-      this._labelRegistry = labels;
-      this._labelsFetched = true;
-      this._labelRegistryUnavailable = false;
-      this._automationsCacheVersion++;
-      this._labelRegistryRetryDelayMs = UI_TIMING.REGISTRY_RETRY_MIN_MS;
-      if (this._labelRegistryRetryTimeout !== null) {
-        clearTimeout(this._labelRegistryRetryTimeout);
-        this._labelRegistryRetryTimeout = null;
+        this._labelRegistry = labels;
+        this._labelsFetched = true;
+        this._labelRegistryUnavailable = false;
+        this._automationsCacheVersion++;
+        this._labelRegistryRetryDelayMs = UI_TIMING.REGISTRY_RETRY_MIN_MS;
+        if (this._labelRegistryRetryTimeout !== null) {
+          clearTimeout(this._labelRegistryRetryTimeout);
+          this._labelRegistryRetryTimeout = null;
+        }
       }
-    })();
-
-    try {
-      await this._labelRegistryFetchPromise;
-    } finally {
-      this._labelRegistryFetchPromise = null;
-    }
+    );
   }
 
   private async _fetchCategoryRegistry(): Promise<void> {
-    if (this._categoriesFetched || !this.hass?.connection) return;
-    if (this._categoryRegistryFetchPromise) {
-      await this._categoryRegistryFetchPromise;
-      return;
-    }
-
-    this._categoryRegistryFetchPromise = (async () => {
-      this._categoryRegistry = await fetchCategoryRegistry(this.hass!);
-      this._categoriesFetched = true;
-    })();
-
-    try {
-      await this._categoryRegistryFetchPromise;
-    } finally {
-      this._categoryRegistryFetchPromise = null;
-    }
+    await this._runRegistryFetch(
+      '_categoriesFetched',
+      '_categoryRegistryFetchPromise',
+      () => fetchCategoryRegistry(this.hass!),
+      (categories) => {
+        this._categoryRegistry = categories;
+        this._categoriesFetched = true;
+      }
+    );
   }
 
   private async _fetchEntityRegistry(): Promise<void> {
-    if (this._entityRegistryFetched || !this.hass?.connection) return;
-    if (this._entityRegistryFetchPromise) {
-      await this._entityRegistryFetchPromise;
+    await this._runRegistryFetch(
+      '_entityRegistryFetched',
+      '_entityRegistryFetchPromise',
+      () => fetchEntityRegistry(this.hass!),
+      (entities) => {
+        this._entityRegistry = entities;
+        this._entityRegistryFetched = true;
+        this._automationsCacheVersion++;
+      }
+    );
+  }
+
+  private async _runRegistryFetch<Result>(
+    stateKey: '_labelsFetched' | '_categoriesFetched' | '_entityRegistryFetched',
+    promiseKey: '_labelRegistryFetchPromise' | '_categoryRegistryFetchPromise' | '_entityRegistryFetchPromise',
+    run: () => Promise<Result>,
+    onResult: (result: Result) => void,
+  ): Promise<void> {
+    if (this[stateKey] || !this.hass?.connection) return;
+    const inFlight = this[promiseKey];
+    if (inFlight) {
+      await inFlight;
       return;
     }
 
-    this._entityRegistryFetchPromise = (async () => {
-      this._entityRegistry = await fetchEntityRegistry(this.hass!);
-      this._entityRegistryFetched = true;
-      this._automationsCacheVersion++;
+    this[promiseKey] = (async () => {
+      const result = await run();
+      onResult(result);
     })();
 
     try {
-      await this._entityRegistryFetchPromise;
+      await this[promiseKey];
     } finally {
-      this._entityRegistryFetchPromise = null;
+      this[promiseKey] = null;
     }
-  }
-
-  private _refreshRecentSnoozeIds(): void {
-    this._recentSnoozeIds = loadRecentSnoozes();
   }
 
   private _getAutomations(): AutomationItem[] {
@@ -353,55 +373,6 @@ export class AutomationPauseCard extends LitElement {
     this._lastHassStates = statesRef;
 
     return result;
-  }
-
-  private _getAutomationStateFingerprint(states: HassEntities): string {
-    if (this._lastAutomationFingerprintStates === states) {
-      return this._lastAutomationFingerprint;
-    }
-
-    const automationIds = Object.keys(states)
-      .filter((entityId) => entityId.startsWith('automation.'))
-      .sort();
-
-    const fingerprint = automationIds
-      .map((entityId) => {
-        const entity = states[entityId] as { state?: string; last_changed?: string; last_updated?: string } | undefined;
-        return `${entityId}:${entity?.state ?? ''}:${entity?.last_changed ?? ''}:${entity?.last_updated ?? ''}`;
-      })
-      .join('|');
-
-    this._lastAutomationFingerprintStates = states;
-    this._lastAutomationFingerprint = fingerprint;
-    return fingerprint;
-  }
-
-  private _haveAutomationStatesChanged(oldStates: HassEntities, newStates: HassEntities): boolean {
-    let oldAutomationCount = 0;
-
-    for (const [entityId, oldState] of Object.entries(oldStates)) {
-      if (!entityId.startsWith('automation.')) {
-        continue;
-      }
-
-      oldAutomationCount += 1;
-      if (!(entityId in newStates)) {
-        return true;
-      }
-
-      if (newStates[entityId] !== oldState) {
-        return true;
-      }
-    }
-
-    let newAutomationCount = 0;
-    for (const entityId of Object.keys(newStates)) {
-      if (entityId.startsWith('automation.')) {
-        newAutomationCount += 1;
-      }
-    }
-
-    return oldAutomationCount !== newAutomationCount;
   }
 
   private _getPaused(): Record<string, PausedAutomationAttribute> {
@@ -431,19 +402,6 @@ export class AutomationPauseCard extends LitElement {
     return getPausedSnapshot(this.hass);
   }
 
-  private _isSnoozeSensorAvailable(): boolean {
-    return Boolean(this.hass?.states?.[SENSOR_ENTITY_ID]);
-  }
-
-  private _formatDateTime(isoString: string): string {
-    return formatDateTime(isoString, this._getLocale());
-  }
-
-  private _getLocale(): string | undefined {
-    return this.hass?.locale?.language;
-  }
-
-
   private _hasResumeAt(): boolean {
     return Boolean(this._resumeAtDate && this._resumeAtTime);
   }
@@ -452,72 +410,12 @@ export class AutomationPauseCard extends LitElement {
     return Boolean(this._disableAtDate && this._disableAtTime);
   }
 
-
-  private _hapticFeedback(type: HapticFeedbackType = 'light'): void {
-    hapticFeedback(type);
-  }
-
-  private _showToast(message: string, options: { showUndo?: boolean; onUndo?: (() => void) | null } = {}): void {
-    const { showUndo = false, onUndo = null } = options;
-
-    if (!this.shadowRoot) return;
-
-    const existingToast = this.shadowRoot.querySelector('.toast');
-    if (existingToast) {
-      existingToast.remove();
-    }
-
-    const toast = document.createElement('div');
-    toast.className = 'toast';
-    toast.setAttribute('role', 'alert');
-    toast.setAttribute('aria-live', 'polite');
-    toast.setAttribute('aria-atomic', 'true');
-
-    if (showUndo && onUndo) {
-      const textSpan = document.createElement('span');
-      textSpan.textContent = message;
-      toast.appendChild(textSpan);
-
-      const undoBtn = document.createElement('button');
-      undoBtn.className = 'toast-undo-btn';
-      undoBtn.textContent = localize(this.hass, 'button.undo');
-      undoBtn.setAttribute('aria-label', localize(this.hass, 'a11y.undo_action'));
-      undoBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        onUndo();
-        toast.remove();
-      });
-      toast.appendChild(undoBtn);
-    } else {
-      toast.textContent = message;
-    }
-
-    this.shadowRoot.appendChild(toast);
-
-    if (this._toastTimeout !== null) {
-      clearTimeout(this._toastTimeout);
-    }
-    if (this._toastFadeTimeout !== null) {
-      clearTimeout(this._toastFadeTimeout);
-    }
-
-    this._toastTimeout = window.setTimeout(() => {
-      this._toastTimeout = null;
-      if (!this.shadowRoot || !toast.parentNode) return;
-      toast.style.animation = `slideUp ${UI_TIMING.TOAST_FADE_MS}ms ease-out reverse`;
-      this._toastFadeTimeout = window.setTimeout(() => {
-        this._toastFadeTimeout = null;
-        if (toast.parentNode) toast.remove();
-      }, UI_TIMING.TOAST_FADE_MS);
-    }, UI_TIMING.TOAST_DURATION_MS);
-  }
-
   private async _snooze(forceConfirm: boolean = false): Promise<void> {
     if (this._selected.length === 0 || this._loading) return;
 
     if (this._scheduleMode) {
       if (!this._hasResumeAt()) {
-        this._showToast(localize(this.hass, 'toast.error.resume_time_required'));
+        this._showToast( localize(this.hass, 'toast.error.resume_time_required'));
         return;
       }
 
@@ -530,12 +428,7 @@ export class AutomationPauseCard extends LitElement {
       });
 
       if (scheduleValidation.status === 'error') {
-        const message = scheduleValidation.message === 'Resume time is required'
-          ? localize(this.hass, 'toast.error.invalid_datetime')
-          : scheduleValidation.message === 'Resume time must be in the future'
-            ? localize(this.hass, 'toast.error.resume_time_past')
-            : localize(this.hass, 'toast.error.snooze_before_resume');
-        this._showToast(message);
+        this._showToast( localize(this.hass, getScheduledValidationToastKey(scheduleValidation.message)));
         return;
       }
     } else {
@@ -581,7 +474,7 @@ export class AutomationPauseCard extends LitElement {
         this._lastDuration = pauseResult.lastDuration;
       }
 
-      this._refreshRecentSnoozeIds();
+      this._recentSnoozeIds = loadRecentSnoozes();
 
       if (!this.isConnected || !this.shadowRoot) {
         this._loading = false;
@@ -590,7 +483,7 @@ export class AutomationPauseCard extends LitElement {
 
       this._hapticFeedback('success');
 
-      this._showToast(pauseResult.toastMessage, {
+      this._showToast( pauseResult.toastMessage, {
         showUndo: true,
         onUndo: async () => {
           try {
@@ -605,17 +498,17 @@ export class AutomationPauseCard extends LitElement {
                 const restoredMsg = count === 1
                   ? localize(this.hass, 'toast.success.restored_one')
                   : localize(this.hass, 'toast.success.restored_many', { count });
-                this._showToast(restoredMsg);
+                this._showToast( restoredMsg);
               } else {
                 // Keep only failed entities selected to make retry easier.
                 this._setSelected(undoResult.failed);
-                this._showToast(localize(this.hass, 'toast.error.undo_failed'));
+                this._showToast( localize(this.hass, 'toast.error.undo_failed'));
               }
             }
           } catch (e) {
             console.error('Undo failed:', e);
             if (this.isConnected && this.shadowRoot) {
-              this._showToast(localize(this.hass, 'toast.error.undo_failed'));
+              this._showToast( localize(this.hass, 'toast.error.undo_failed'));
             }
           }
         },
@@ -630,7 +523,7 @@ export class AutomationPauseCard extends LitElement {
       console.error('Snooze failed:', e);
       this._hapticFeedback('failure');
       if (this.isConnected && this.shadowRoot) {
-        this._showToast(getErrorMessage(e as Error, 'Failed to snooze automations'));
+        this._showToast( getErrorMessage(e as Error, 'Failed to snooze automations'));
       }
     }
     this._loading = false;
@@ -638,96 +531,67 @@ export class AutomationPauseCard extends LitElement {
 
   private async _wake(entityId: string): Promise<void> {
     if (!this.hass) return;
-    try {
-      await runWakeFeature(this.hass, entityId);
-      this._hapticFeedback('success');
-      if (this.isConnected && this.shadowRoot) {
-        this._showToast(localize(this.hass, 'toast.success.resumed'));
-      }
-    } catch (e) {
-      console.error('Wake failed:', e);
-      this._hapticFeedback('failure');
-      if (this.isConnected && this.shadowRoot) {
-        this._showToast(getErrorMessage(e as Error, localize(this.hass, 'toast.error.resume_failed')));
-      }
-    }
-  }
-
-  private async _handleWakeEvent(e: CustomEvent<{ entityId: string }>): Promise<void> {
-    await this._wake(e.detail.entityId);
+    await this._runCardAction({
+      run: () => runWakeFeature(this.hass!, entityId),
+      successMessage: localize(this.hass, 'toast.success.resumed'),
+      failureLog: 'Wake failed:',
+      failureMessage: localize(this.hass, 'toast.error.resume_failed'),
+    });
   }
 
   private async _handleWakeAllEvent(): Promise<void> {
     if (!this.hass) return;
-    try {
-      await runWakeAllFeature(this.hass);
-      this._hapticFeedback('success');
-      if (this.isConnected && this.shadowRoot) {
-        this._showToast(localize(this.hass, 'toast.success.resumed_all'));
-      }
-    } catch (e) {
-      console.error('Wake all failed:', e);
-      this._hapticFeedback('failure');
-      if (this.isConnected && this.shadowRoot) {
-        this._showToast(getErrorMessage(e as Error, localize(this.hass, 'toast.error.resume_all_failed')));
-      }
-    }
-  }
-
-
-  private _handleAdjustAutomationEvent(e: CustomEvent<{ entityId: string; friendlyName: string; resumeAt: string }>): void {
-    const state = createAdjustModalState({
-      entityId: e.detail.entityId,
-      friendlyName: e.detail.friendlyName,
-      resumeAt: e.detail.resumeAt,
+    await this._runCardAction({
+      run: () => runWakeAllFeature(this.hass!),
+      successMessage: localize(this.hass, 'toast.success.resumed_all'),
+      failureLog: 'Wake all failed:',
+      failureMessage: localize(this.hass, 'toast.error.resume_all_failed'),
     });
-    this._adjustModalOpen = state.adjustModalOpen;
-    this._adjustModalEntityId = state.adjustModalEntityId;
-    this._adjustModalFriendlyName = state.adjustModalFriendlyName;
-    this._adjustModalResumeAt = state.adjustModalResumeAt;
-    this._adjustModalEntityIds = state.adjustModalEntityIds;
-    this._adjustModalFriendlyNames = state.adjustModalFriendlyNames;
   }
 
-  private _handleAdjustGroupEvent(
-    e: CustomEvent<{ entityIds: string[]; friendlyNames: string[]; resumeAt: string }>
+
+  private _handleAdjustModalOpenEvent(
+    e: CustomEvent<{
+      entityId?: string;
+      friendlyName?: string;
+      entityIds?: string[];
+      friendlyNames?: string[];
+      resumeAt: string;
+    }>
   ): void {
-    const state = createAdjustModalState({
-      entityIds: e.detail.entityIds,
-      friendlyNames: e.detail.friendlyNames,
-      resumeAt: e.detail.resumeAt,
-    });
-    this._adjustModalOpen = state.adjustModalOpen;
-    this._adjustModalEntityIds = state.adjustModalEntityIds;
-    this._adjustModalFriendlyNames = state.adjustModalFriendlyNames;
-    this._adjustModalEntityId = state.adjustModalEntityId;
-    this._adjustModalFriendlyName = state.adjustModalFriendlyName;
-    this._adjustModalResumeAt = state.adjustModalResumeAt;
+    this._applyAdjustModalState(createAdjustModalState(e.detail));
   }
 
   private async _handleAdjustTimeEvent(
     e: CustomEvent<{ entityId?: string; entityIds?: string[]; days?: number; hours?: number; minutes?: number }>
   ): Promise<void> {
     if (!this.hass) return;
-    try {
-      const adjustResult = await runAdjustFeature(this.hass, e.detail, this._adjustModalResumeAt);
-      this._hapticFeedback('success');
-      this._adjustModalResumeAt = adjustResult.nextResumeAt;
-
-      if (this.isConnected && this.shadowRoot) {
-        this._showToast(localize(this.hass, 'toast.success.adjusted'));
-      }
-    } catch (e) {
-      console.error('Adjust failed:', e);
-      this._hapticFeedback('failure');
-      if (this.isConnected && this.shadowRoot) {
-        this._showToast(getErrorMessage(e as Error, localize(this.hass, 'toast.error.adjust_failed')));
-      }
-    }
+    await this._runCardAction({
+      run: () => runAdjustFeature(this.hass!, e.detail, this._adjustModalResumeAt),
+      onSuccess: (adjustResult) => {
+        this._adjustModalResumeAt = adjustResult.nextResumeAt;
+      },
+      successMessage: localize(this.hass, 'toast.success.adjusted'),
+      failureLog: 'Adjust failed:',
+      failureMessage: localize(this.hass, 'toast.error.adjust_failed'),
+    });
   }
 
   private _handleCloseModalEvent(): void {
-    const state = createClosedAdjustModalState();
+    this._applyAdjustModalState(createClosedAdjustModalState());
+  }
+
+  private async _cancelScheduled(entityId: string): Promise<void> {
+    if (!this.hass) return;
+    await this._runCardAction({
+      run: () => runCancelScheduledFeature(this.hass!, entityId),
+      successMessage: localize(this.hass, 'toast.success.cancelled'),
+      failureLog: 'Cancel scheduled failed:',
+      failureMessage: localize(this.hass, 'toast.error.cancel_failed'),
+    });
+  }
+
+  private _applyAdjustModalState(state: ReturnType<typeof createAdjustModalState> | ReturnType<typeof createClosedAdjustModalState>): void {
     this._adjustModalOpen = state.adjustModalOpen;
     this._adjustModalEntityId = state.adjustModalEntityId;
     this._adjustModalFriendlyName = state.adjustModalFriendlyName;
@@ -736,19 +600,31 @@ export class AutomationPauseCard extends LitElement {
     this._adjustModalFriendlyNames = state.adjustModalFriendlyNames;
   }
 
-  private async _cancelScheduled(entityId: string): Promise<void> {
-    if (!this.hass) return;
+  private async _runCardAction<T>({
+    run,
+    onSuccess,
+    successMessage,
+    failureLog,
+    failureMessage,
+  }: {
+    run: () => Promise<T>;
+    onSuccess?: (result: T) => void;
+    successMessage: string;
+    failureLog: string;
+    failureMessage: string;
+  }): Promise<void> {
     try {
-      await runCancelScheduledFeature(this.hass, entityId);
+      const result = await run();
+      onSuccess?.(result);
       this._hapticFeedback('success');
       if (this.isConnected && this.shadowRoot) {
-        this._showToast(localize(this.hass, 'toast.success.cancelled'));
+        this._showToast( successMessage);
       }
     } catch (e) {
-      console.error('Cancel scheduled failed:', e);
+      console.error(failureLog, e);
       this._hapticFeedback('failure');
       if (this.isConnected && this.shadowRoot) {
-        this._showToast(getErrorMessage(e as Error, localize(this.hass, 'toast.error.cancel_failed')));
+        this._showToast( getErrorMessage(e as Error, failureMessage));
       }
     }
   }
@@ -792,72 +668,18 @@ export class AutomationPauseCard extends LitElement {
 
   private _handleScheduleFieldChange(e: CustomEvent<{ field: string; value: string }>): void {
     const { field, value } = e.detail;
-    switch (field) {
-      case 'disableAtDate':
-        this._disableAtDate = value;
-        break;
-      case 'disableAtTime':
-        this._disableAtTime = value;
-        break;
-      case 'resumeAtDate':
-        this._resumeAtDate = value;
-        break;
-      case 'resumeAtTime':
-        this._resumeAtTime = value;
-        break;
-    }
+    const updateField = {
+      disableAtDate: () => { this._disableAtDate = value; },
+      disableAtTime: () => { this._disableAtTime = value; },
+      resumeAtDate: () => { this._resumeAtDate = value; },
+      resumeAtTime: () => { this._resumeAtTime = value; },
+    }[field];
+
+    updateField?.();
   }
 
   private _handleCustomInputToggle(e: CustomEvent<{ show: boolean }>): void {
     this._showCustomInput = e.detail.show;
-  }
-
-  private _handleSelectionChange(e: CustomEvent<{ selected: string[] }>): void {
-    this._setSelected(e.detail.selected);
-  }
-
-  private _handleGuardrailCancel(): void {
-    this._guardrailConfirmOpen = false;
-  }
-
-  private async _handleGuardrailContinue(): Promise<void> {
-    this._guardrailConfirmOpen = false;
-    await this._snooze(true);
-  }
-
-  private _renderScheduledPauses(scheduledCount: number, scheduled: Record<string, { friendly_name?: string; disable_at?: string; resume_at: string }>): TemplateResult | string {
-    if (scheduledCount === 0) return '';
-
-    return html`
-      <div class="scheduled-list" role="region" aria-label="${localize(this.hass, 'a11y.scheduled_region')}">
-        <div class="list-header">
-          <ha-icon icon="mdi:calendar-clock" aria-hidden="true"></ha-icon>
-          ${localize(this.hass, 'section.scheduled_count', { count: scheduledCount })}
-        </div>
-
-        ${Object.entries(scheduled).map(
-          ([id, data]) => html`
-            <div class="scheduled-item" role="article" aria-label="${localize(this.hass, 'a11y.scheduled_pause_for', { name: data.friendly_name || id })}">
-              <ha-icon class="scheduled-icon" icon="mdi:clock-outline" aria-hidden="true"></ha-icon>
-              <div class="paused-info">
-                <div class="paused-name">
-                  ${data.friendly_name || id}
-                </div>
-                <div class="scheduled-time">
-                  ${localize(this.hass, 'status.disables')} ${this._formatDateTime(data.disable_at || 'now')}
-                </div>
-                <div class="paused-time">
-                  ${localize(this.hass, 'status.resumes_at')} ${this._formatDateTime(data.resume_at)}
-                </div>
-              </div>
-              <button type="button" class="cancel-scheduled-btn" @click=${() => this._cancelScheduled(id)} aria-label="${localize(this.hass, 'a11y.cancel_scheduled_for', { name: data.friendly_name || id })}">
-                ${localize(this.hass, 'button.cancel')}
-              </button>
-            </div>
-          `
-        )}
-      </div>
-    `;
   }
 
   render(): TemplateResult {
@@ -871,7 +693,7 @@ export class AutomationPauseCard extends LitElement {
     const scheduled = pausedSnapshot.scheduled;
     const scheduledCount = Object.keys(scheduled).length;
     const automations = this._getAutomations();
-    const sensorAvailable = this._isSnoozeSensorAvailable();
+    const sensorAvailable = Boolean(this.hass?.states?.[SENSOR_ENTITY_ID]);
 
     return html`
       <ha-card>
@@ -902,7 +724,7 @@ export class AutomationPauseCard extends LitElement {
             .labelRegistryUnavailable=${this._labelRegistryUnavailable}
             .categoryRegistry=${this._categoryRegistry}
             .recentSnoozeIds=${this._recentSnoozeIds}
-            @selection-change=${this._handleSelectionChange}
+            @selection-change=${(e: CustomEvent<{ selected: string[] }>) => this._setSelected(e.detail.selected)}
           ></autosnooze-automation-list>
 
           <autosnooze-duration-selector
@@ -927,10 +749,10 @@ export class AutomationPauseCard extends LitElement {
               <div class="guardrail-title">${localize(this.hass, 'guardrail.confirm_title')}</div>
               <div class="guardrail-body">${localize(this.hass, 'guardrail.confirm_body')}</div>
               <div class="guardrail-actions">
-                <button type="button" class="guardrail-cancel-btn" @click=${() => this._handleGuardrailCancel()}>
+                <button type="button" class="guardrail-cancel-btn" @click=${() => { this._guardrailConfirmOpen = false; }}>
                   ${localize(this.hass, 'button.cancel')}
                 </button>
-                <button type="button" class="guardrail-continue-btn" @click=${() => this._handleGuardrailContinue()}>
+                <button type="button" class="guardrail-continue-btn" @click=${async () => { this._guardrailConfirmOpen = false; await this._snooze(true); }}>
                   ${localize(this.hass, 'button.continue')}
                 </button>
               </div>
@@ -967,11 +789,17 @@ export class AutomationPauseCard extends LitElement {
               .pausedCount=${pausedCount}
               @wake-automation=${this._handleWakeEvent}
               @wake-all=${this._handleWakeAllEvent}
-              @adjust-automation=${this._handleAdjustAutomationEvent}
-              @adjust-group=${this._handleAdjustGroupEvent}
+              @adjust-automation=${this._handleAdjustModalOpenEvent}
+              @adjust-group=${this._handleAdjustModalOpenEvent}
             ></autosnooze-active-pauses>`
           : ''}
-        ${this._renderScheduledPauses(scheduledCount, scheduled)}
+        ${renderScheduledPausesSection(
+          this.hass,
+          scheduledCount,
+          scheduled,
+          (isoString) => formatDateTime(isoString, this.hass?.locale?.language),
+          (entityId) => void this._cancelScheduled(entityId),
+        )}
         <autosnooze-adjust-modal
           .hass=${this.hass}
           .open=${this._adjustModalOpen}

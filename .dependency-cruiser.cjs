@@ -49,7 +49,6 @@ module.exports = {
       comment: 'Production code should import service modules directly instead of going through the services barrel.',
       from: {
         path: '^src/components/',
-        pathNot: '^src/components/autosnooze-actions-controller\\.ts$',
       },
       to: {
         path: '^src/services/index\\.ts$',

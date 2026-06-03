@@ -5,10 +5,23 @@
 
 import { css } from 'lit';
 
+import {
+  chipActivePrimary,
+  durationSelectorMobile,
+  focusVisiblePrimaryOffset2,
+  hostBlock,
+  mobileTouch,
+  primaryFieldFocus,
+  touchTarget44,
+} from './shared.styles.js';
+
 export const durationSelectorStyles = css`
-    :host {
-      display: block;
-    }
+    ${hostBlock}
+    ${focusVisiblePrimaryOffset2}
+    ${touchTarget44}
+    ${chipActivePrimary}
+    ${primaryFieldFocus}
+    ${mobileTouch}
 
     /* Duration Section */
     .duration-section-header {
@@ -36,23 +49,11 @@ export const durationSelectorStyles = css`
       cursor: pointer;
       font-size: 0.9em;
       transition: all 0.2s;
-      min-height: 44px;
-      box-sizing: border-box;
       color: var(--primary-text-color);
     }
     .pill:hover {
       border-color: var(--primary-color);
     }
-    .pill:focus-visible {
-      outline: 2px solid var(--primary-color);
-      outline-offset: 2px;
-    }
-    .pill.active {
-      background: var(--primary-color);
-      color: var(--text-primary-color);
-      border-color: var(--primary-color);
-    }
-
     /* Duration Header Row */
     .duration-header-row {
       display: flex;
@@ -92,19 +93,8 @@ export const durationSelectorStyles = css`
       border-color: var(--primary-color);
     }
 
-    .last-duration-badge.active {
-      background: var(--primary-color);
-      color: var(--text-primary-color);
-      border-color: var(--primary-color);
-    }
-
     .last-duration-badge.active ha-icon {
       color: var(--text-primary-color);
-    }
-
-    .last-duration-badge:focus-visible {
-      outline: 2px solid var(--primary-color);
-      outline-offset: 2px;
     }
 
     .last-duration-badge:active:not(.active) {
@@ -151,12 +141,6 @@ export const durationSelectorStyles = css`
       background: var(--card-background-color);
       color: var(--primary-text-color);
       font-size: 0.95em;
-      box-sizing: border-box;
-      min-height: 44px;
-    }
-    .duration-input:focus {
-      outline: none;
-      border-color: var(--primary-color);
     }
     .duration-input.invalid {
       border-color: #f44336;
@@ -186,15 +170,9 @@ export const durationSelectorStyles = css`
       background: none;
       border: none;
       font-family: inherit;
-      min-height: 44px;
-      box-sizing: border-box;
     }
     .schedule-link:hover {
       text-decoration: underline;
-    }
-    .schedule-link:focus-visible {
-      outline: 2px solid var(--primary-color);
-      outline-offset: 2px;
     }
     .schedule-link ha-icon {
       --mdc-icon-size: 18px;
@@ -239,8 +217,6 @@ export const durationSelectorStyles = css`
       background: var(--card-background-color);
       color: var(--primary-text-color);
       font-size: 0.95em;
-      min-height: 44px;
-      box-sizing: border-box;
     }
     .datetime-row select {
       flex: 1;
@@ -249,11 +225,6 @@ export const durationSelectorStyles = css`
     .datetime-row input[type="time"] {
       width: 110px;
       flex-shrink: 0;
-    }
-    .datetime-row select:focus,
-    .datetime-row input:focus {
-      outline: none;
-      border-color: var(--primary-color);
     }
     .schedule-summary {
       font-size: 0.82em;
@@ -269,194 +240,5 @@ export const durationSelectorStyles = css`
       border-color: color-mix(in srgb, #f44336 36%, transparent);
     }
 
-    /* Mobile Responsive Styles */
-    @media (max-width: 480px) {
-      /* --- Duration Selector: Pill-style chips --- */
-      .duration-section-header {
-        font-size: 0.8em;
-        font-weight: 600;
-        margin-bottom: 12px;
-        text-transform: uppercase;
-        letter-spacing: 0.04em;
-        opacity: 0.7;
-      }
-
-      .duration-pills {
-        gap: 8px;
-        margin-bottom: 12px;
-      }
-
-      .pill {
-        padding: 11px 16px;
-        font-size: 0.88em;
-        font-weight: 500;
-        border-radius: 24px;
-        min-height: 44px;
-        border: 1.5px solid color-mix(in srgb, var(--divider-color) 80%, transparent);
-        background: var(--card-background-color);
-        transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
-        touch-action: manipulation;
-        -webkit-tap-highlight-color: transparent;
-      }
-
-      .pill:active:not(.active) {
-        transform: scale(0.95);
-      }
-
-      .pill:hover:not(.active) {
-        border-color: var(--primary-color);
-        transform: translateY(-1px);
-      }
-
-      .pill.active {
-        background: linear-gradient(
-          135deg,
-          var(--primary-color) 0%,
-          color-mix(in srgb, var(--primary-color) 85%, #000) 100%
-        );
-        border-color: var(--primary-color);
-        box-shadow: 0 2px 8px color-mix(in srgb, var(--primary-color) 30%, transparent);
-        transform: translateY(-1px);
-      }
-
-      /* Last duration badge mobile hover - match pill behavior */
-      .last-duration-badge:hover:not(.active) {
-        border-color: var(--primary-color);
-        transform: translateY(-1px);
-        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-      }
-
-      .last-duration-badge.active {
-        background: linear-gradient(
-          135deg,
-          var(--primary-color) 0%,
-          color-mix(in srgb, var(--primary-color) 85%, #000) 100%
-        );
-        border-color: var(--primary-color);
-        box-shadow: 0 2px 8px color-mix(in srgb, var(--primary-color) 30%, transparent);
-        transform: translateY(-1px);
-      }
-
-      .last-duration-badge.active ha-icon {
-        color: var(--text-primary-color);
-      }
-
-      .last-duration-badge:active:not(.active) {
-        transform: scale(0.95);
-        background: color-mix(in srgb, var(--primary-color) 10%, transparent);
-        border-color: var(--primary-color);
-      }
-
-      .duration-input {
-        padding: 13px 14px;
-        font-size: 0.9em;
-        min-height: 46px;
-        border-radius: 12px;
-        border: 1.5px solid color-mix(in srgb, var(--divider-color) 70%, transparent);
-        box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.04);
-      }
-
-      .duration-input:focus {
-        box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary-color) 12%, transparent);
-      }
-
-      .duration-help {
-        font-size: 0.72em;
-        opacity: 0.6;
-        margin-top: 6px;
-      }
-
-      .duration-preview {
-        font-size: 0.78em;
-        font-weight: 600;
-        margin-top: 6px;
-        padding: 6px 10px;
-        background: color-mix(in srgb, var(--primary-color) 10%, transparent);
-        border-radius: 6px;
-        display: inline-block;
-      }
-
-      .schedule-link {
-        margin-top: 14px;
-        padding: 10px 6px;
-        font-size: 0.85em;
-        font-weight: 500;
-        min-height: 44px;
-        opacity: 0.8;
-        transition: opacity 0.15s ease;
-      }
-
-      .schedule-link:hover {
-        opacity: 1;
-      }
-
-      /* --- Schedule Inputs: Refined form layout --- */
-      .schedule-inputs {
-        padding: 14px;
-        gap: 14px;
-        margin-bottom: 14px;
-        border-radius: 14px;
-        background: linear-gradient(
-          180deg,
-          var(--secondary-background-color) 0%,
-          color-mix(in srgb, var(--secondary-background-color) 95%, var(--divider-color)) 100%
-        );
-        border: 1px solid color-mix(in srgb, var(--divider-color) 40%, transparent);
-      }
-
-      .datetime-field label {
-        font-size: 0.8em;
-        font-weight: 600;
-        margin-bottom: 8px;
-        text-transform: uppercase;
-        letter-spacing: 0.03em;
-        opacity: 0.7;
-      }
-
-      .datetime-row {
-        flex-wrap: nowrap;
-        gap: 8px;
-      }
-
-      .datetime-row select {
-        flex: 1;
-        min-width: 0;
-        min-height: 46px;
-        padding: 10px 12px;
-        font-size: 0.9em;
-        border-radius: 10px;
-        border: 1.5px solid color-mix(in srgb, var(--divider-color) 70%, transparent);
-        background: var(--card-background-color);
-      }
-
-      .datetime-row input[type="time"] {
-        flex: 0 0 auto;
-        width: 105px;
-        min-height: 46px;
-        padding: 10px 10px;
-        font-size: 0.9em;
-        font-weight: 500;
-        border-radius: 10px;
-        border: 1.5px solid color-mix(in srgb, var(--divider-color) 70%, transparent);
-        background: var(--card-background-color);
-      }
-
-      .datetime-row select:focus,
-      .datetime-row input:focus {
-        border-color: var(--primary-color);
-        box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary-color) 12%, transparent);
-      }
-
-      .field-hint {
-        font-size: 0.7em;
-        opacity: 0.6;
-        font-style: italic;
-      }
-      .schedule-summary {
-        font-size: 0.76em;
-        border-radius: 10px;
-        padding: 9px 10px;
-      }
-    }
+    ${durationSelectorMobile}
 `;

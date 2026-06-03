@@ -1,6 +1,6 @@
-// @ts-nocheck -- focused unit tests for controller orchestration
+// @ts-nocheck -- focused unit tests for action service seams and undo orchestration
 /**
- * Tests for actions controller service payload mapping and error handling.
+ * Tests for snooze service delegation and resume-feature undo orchestration.
  */
 
 import { beforeEach, describe, expect, test, vi } from 'vitest';
@@ -13,14 +13,7 @@ vi.mock('../src/services/snooze.js', () => ({
   adjustSnooze: vi.fn(),
 }));
 
-import {
-  runAdjustAction,
-  runCancelScheduledAction,
-  runPauseAction,
-  runUndoAction,
-  runWakeAction,
-  runWakeAllAction,
-} from '../src/components/autosnooze-actions-controller.js';
+import { runUndoFeature } from '../src/features/resume/index.js';
 import {
   adjustSnooze,
   cancelScheduled,
@@ -29,42 +22,42 @@ import {
   wakeAutomation,
 } from '../src/services/snooze.js';
 
-describe('Actions Controller', () => {
+describe('Action service seams', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  test('runPauseAction forwards payload unchanged', async () => {
+  test('pauseAutomations forwards payload unchanged', async () => {
     const hass = createMockHass();
     const params = { entity_id: ['automation.a'], hours: 1 };
 
-    await runPauseAction(hass, params);
+    await pauseAutomations(hass, params);
     expect(pauseAutomations).toHaveBeenCalledWith(hass, params);
   });
 
-  test('runWakeAction and runWakeAllAction call expected services', async () => {
+  test('wakeAutomation and wakeAll call expected services', async () => {
     const hass = createMockHass();
-    await runWakeAction(hass, 'automation.a');
-    await runWakeAllAction(hass);
+    await wakeAutomation(hass, 'automation.a');
+    await wakeAll(hass);
 
     expect(wakeAutomation).toHaveBeenCalledWith(hass, 'automation.a');
     expect(wakeAll).toHaveBeenCalledWith(hass);
   });
 
-  test('runCancelScheduledAction and runAdjustAction call expected services', async () => {
+  test('cancelScheduled and adjustSnooze call expected services', async () => {
     const hass = createMockHass();
-    await runCancelScheduledAction(hass, 'automation.s');
-    await runAdjustAction(hass, ['automation.a'], { minutes: 15 });
+    await cancelScheduled(hass, 'automation.s');
+    await adjustSnooze(hass, ['automation.a'], { minutes: 15 });
 
     expect(cancelScheduled).toHaveBeenCalledWith(hass, 'automation.s');
     expect(adjustSnooze).toHaveBeenCalledWith(hass, ['automation.a'], { minutes: 15 });
   });
 
-  test('runUndoAction uses wake path when not schedule mode', async () => {
+  test('runUndoFeature uses wake path when not schedule mode', async () => {
     const hass = createMockHass();
     wakeAutomation.mockResolvedValue(undefined);
 
-    const result = await runUndoAction(hass, ['automation.a', 'automation.b'], {
+    const result = await runUndoFeature(hass, ['automation.a', 'automation.b'], {
       wasScheduleMode: false,
       hadDisableAt: false,
     });
@@ -74,13 +67,13 @@ describe('Actions Controller', () => {
     expect(result).toEqual({ succeeded: ['automation.a', 'automation.b'], failed: [] });
   });
 
-  test('runUndoAction uses cancelScheduled path and reports partial failures', async () => {
+  test('runUndoFeature uses cancelScheduled path and reports partial failures', async () => {
     const hass = createMockHass();
     cancelScheduled
       .mockResolvedValueOnce(undefined)
       .mockRejectedValueOnce(new Error('cancel failed'));
 
-    const result = await runUndoAction(hass, ['automation.a', 'automation.b'], {
+    const result = await runUndoFeature(hass, ['automation.a', 'automation.b'], {
       wasScheduleMode: true,
       hadDisableAt: true,
     });

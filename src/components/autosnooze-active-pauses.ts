@@ -54,23 +54,17 @@ export class AutoSnoozeActivePauses extends LitElement {
     }
   }
 
-  private _updateCountdownIfNeeded(): void {
-    if (this.pauseGroups.length > 0) {
-      this.requestUpdate();
-    }
-  }
-
-  private _hasLiveCountdowns(): boolean {
-    return this.pauseGroups.some((group) => !group.disableAt);
-  }
-
   private _scheduleCountdownBootstrap(): void {
     this._countdownState = {
       interval: null,
       syncTimeout: globalThis.setTimeout(() => {
         this._countdownState.syncTimeout = null;
-        if (this._hasLiveCountdowns()) {
-          this._countdownState = startCountdownSync(() => this._updateCountdownIfNeeded());
+        if (this.pauseGroups.some((group) => !group.disableAt)) {
+          this._countdownState = startCountdownSync(() => {
+            if (this.pauseGroups.length > 0) {
+              this.requestUpdate();
+            }
+          });
         }
       }, 0),
     };
@@ -82,11 +76,15 @@ export class AutoSnoozeActivePauses extends LitElement {
       this._scheduleCountdownBootstrap();
       return;
     }
-    if (!this._hasLiveCountdowns()) {
+    if (!this.pauseGroups.some((group) => !group.disableAt)) {
       this._countdownState = { interval: null, syncTimeout: null };
       return;
     }
-    this._countdownState = startCountdownSync(() => this._updateCountdownIfNeeded());
+    this._countdownState = startCountdownSync(() => {
+      if (this.pauseGroups.length > 0) {
+        this.requestUpdate();
+      }
+    });
   }
 
   _handleWakeAll(): void {
@@ -108,40 +106,37 @@ export class AutoSnoozeActivePauses extends LitElement {
   }
 
   _fireWake(entityId: string): void {
-    this.dispatchEvent(new CustomEvent('wake-automation', {
-      detail: { entityId },
-      bubbles: true,
-      composed: true,
-    }));
+    this._dispatchPauseEvent('wake-automation', { entityId });
   }
 
 
+  private _fireAdjustEvent(type: 'adjust-automation' | 'adjust-group', detail: Record<string, unknown>): void {
+    this._dispatchPauseEvent(type, detail);
+  }
+
   _fireAdjust(auto: PausedAutomation): void {
-    this.dispatchEvent(new CustomEvent('adjust-automation', {
-      detail: {
-        entityId: auto.entity_id,
-        friendlyName: auto.friendly_name,
-        resumeAt: auto.resume_at,
-      },
-      bubbles: true,
-      composed: true,
-    }));
+    this._fireAdjustEvent('adjust-automation', {
+      entityId: auto.entity_id,
+      friendlyName: auto.friendly_name,
+      resumeAt: auto.resume_at,
+    });
   }
 
   _fireAdjustGroup(group: PauseGroup): void {
-    this.dispatchEvent(new CustomEvent('adjust-group', {
-      detail: {
-        entityIds: group.automations.map(a => a.entity_id),
-        friendlyNames: group.automations.map(a => a.friendly_name || a.entity_id),
-        resumeAt: group.resumeAt,
-      },
-      bubbles: true,
-      composed: true,
-    }));
+    this._fireAdjustEvent('adjust-group', {
+      entityIds: group.automations.map((a) => a.entity_id),
+      friendlyNames: group.automations.map((a) => a.friendly_name || a.entity_id),
+      resumeAt: group.resumeAt,
+    });
   }
 
   _fireWakeAll(): void {
-    this.dispatchEvent(new CustomEvent('wake-all', {
+    this._dispatchPauseEvent('wake-all', undefined);
+  }
+
+  _dispatchPauseEvent(type: string, detail?: Record<string, unknown>): void {
+    this.dispatchEvent(new CustomEvent(type, {
+      detail,
       bubbles: true,
       composed: true,
     }));

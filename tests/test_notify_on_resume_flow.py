@@ -59,7 +59,7 @@ async def test_async_pause_automations_sets_notify_on_resume_for_immediate_pause
     mock_hass.services.async_call = AsyncMock()
     data = AutomationPauseData(store=MagicMock(async_save=AsyncMock()))
 
-    with patch("custom_components.autosnooze.services.schedule_resume"):
+    with patch("custom_components.autosnooze.application.pause.schedule_resume"):
         await async_pause_automations(
             mock_hass,
             data,
@@ -82,7 +82,7 @@ async def test_async_pause_automations_sets_notify_on_resume_for_scheduled_pause
     data = AutomationPauseData(store=MagicMock(async_save=AsyncMock()))
 
     now = datetime.now(UTC)
-    with patch("custom_components.autosnooze.services.schedule_disable"):
+    with patch("custom_components.autosnooze.application.pause.schedule_disable"):
         await async_pause_automations(
             mock_hass,
             data,

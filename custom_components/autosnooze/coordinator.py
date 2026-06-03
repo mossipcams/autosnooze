@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import asyncio
 from datetime import datetime, timedelta
 import logging
 from time import perf_counter
@@ -21,7 +20,7 @@ from .const import (
     RESUME_RETRY_DELAY,
     SCHEDULED_DISABLE_RETRY_DELAY,
 )
-from .infrastructure.storage import async_save as infrastructure_async_save
+from .infrastructure.storage import async_save
 from .logging_utils import _log_command, _raise_save_failed
 from .models import (
     AutomationPauseData,
@@ -29,13 +28,13 @@ from .models import (
     ScheduledSnooze,
 )
 from .runtime.restore import (
-    async_load_stored as runtime_async_load_stored,
-    validate_stored_data as runtime_validate_stored_data,
-    validate_stored_entry as runtime_validate_stored_entry,
+    async_load_stored,
+    validate_stored_data,
+    validate_stored_entry,
 )
 from .runtime.timers import (
-    cancel_scheduled_timer as runtime_cancel_scheduled_timer,
-    cancel_timer as runtime_cancel_timer,
+    cancel_scheduled_timer,
+    cancel_timer,
     schedule_disable as runtime_schedule_disable,
     schedule_resume as runtime_schedule_resume,
 )
@@ -126,16 +125,6 @@ async def _notify_resumed_automations(
     await _send_resume_notification(hass, title, message)
 
 
-def cancel_timer(data: AutomationPauseData, entity_id: str) -> None:
-    """Cancel timer for entity if exists."""
-    runtime_cancel_timer(data, entity_id)
-
-
-def cancel_scheduled_timer(data: AutomationPauseData, entity_id: str) -> None:
-    """Cancel scheduled timer for entity if exists."""
-    runtime_cancel_scheduled_timer(data, entity_id)
-
-
 def schedule_resume(
     hass: HomeAssistant,
     data: AutomationPauseData,
@@ -152,6 +141,31 @@ def schedule_resume(
         reason=reason,
         track_point_in_time=async_track_point_in_time,
     )
+
+
+def _clear_paused_after_wake(data: AutomationPauseData, entity_id: str) -> None:
+    """Cancel resume timer and remove paused state after a successful wake."""
+    cancel_timer(data, entity_id)
+    data.paused.pop(entity_id, None)
+
+
+def _handle_wake_failure(
+    hass: HomeAssistant,
+    data: AutomationPauseData,
+    entity_id: str,
+    paused: PausedAutomation,
+) -> bool:
+    """Apply retry or give-up state after a failed wake. Returns True if retry was scheduled."""
+    if paused.resume_retries >= MAX_RESUME_RETRIES:
+        _clear_paused_after_wake(data, entity_id)
+        _LOGGER.error("Giving up waking %s after %d retries", entity_id, paused.resume_retries)
+        return False
+
+    paused.resume_retries += 1
+    retry_at = dt_util.utcnow() + RESUME_RETRY_DELAY
+    paused.resume_at = retry_at
+    schedule_resume(hass, data, entity_id, retry_at, reason="expired")
+    return True
 
 
 async def async_resume(
@@ -174,18 +188,9 @@ async def async_resume(
         paused = data.paused.get(entity_id)
         if woke_successfully:
             resumed_item = paused
-            cancel_timer(data, entity_id)
-            data.paused.pop(entity_id, None)
+            _clear_paused_after_wake(data, entity_id)
         elif paused is not None:
-            if paused.resume_retries >= MAX_RESUME_RETRIES:
-                cancel_timer(data, entity_id)
-                data.paused.pop(entity_id, None)
-                _LOGGER.error("Giving up waking %s after %d retries", entity_id, paused.resume_retries)
-            else:
-                paused.resume_retries += 1
-                retry_at = dt_util.utcnow() + RESUME_RETRY_DELAY
-                paused.resume_at = retry_at
-                schedule_resume(hass, data, entity_id, retry_at, reason="expired")
+            _handle_wake_failure(hass, data, entity_id, paused)
         save_succeeded = await async_save(data)
     data.notify()
     if resumed_item is not None:
@@ -244,20 +249,11 @@ async def async_resume_batch(
 
                 if results.get(entity_id) is True:
                     resumed_items.append(paused)
-                    cancel_timer(data, entity_id)
-                    data.paused.pop(entity_id, None)
+                    _clear_paused_after_wake(data, entity_id)
                     woke += 1
                 else:
-                    if paused.resume_retries >= MAX_RESUME_RETRIES:
-                        cancel_timer(data, entity_id)
-                        data.paused.pop(entity_id, None)
-                        _LOGGER.error("Giving up waking %s after %d retries", entity_id, paused.resume_retries)
-                    else:
+                    if _handle_wake_failure(hass, data, entity_id, paused):
                         failed += 1
-                        paused.resume_retries += 1
-                        retry_at = dt_util.utcnow() + RESUME_RETRY_DELAY
-                        paused.resume_at = retry_at
-                        schedule_resume(hass, data, entity_id, retry_at, reason="expired")
             # Single save after all operations
             save_succeeded = await async_save(data)
             if not save_succeeded:
@@ -278,6 +274,21 @@ async def async_resume_batch(
         raise
     finally:
         _log_command("cancel", outcome, started_at)
+
+
+def _apply_adjusted_resume(
+    hass: HomeAssistant,
+    data: AutomationPauseData,
+    entity_id: str,
+    paused: PausedAutomation,
+    new_resume_at: datetime,
+) -> None:
+    """Apply adjusted resume time and clear stale duration fields."""
+    paused.resume_at = new_resume_at
+    paused.days = 0
+    paused.hours = 0
+    paused.minutes = 0
+    schedule_resume(hass, data, entity_id, new_resume_at)
 
 
 async def async_adjust_snooze(
@@ -305,13 +316,7 @@ async def async_adjust_snooze(
                 translation_key="adjust_time_too_short",
             )
 
-        paused.resume_at = new_resume_at
-        # Clear stale duration fields -- resume_at is the source of truth after adjustment
-        paused.days = 0
-        paused.hours = 0
-        paused.minutes = 0
-
-        schedule_resume(hass, data, entity_id, new_resume_at)
+        _apply_adjusted_resume(hass, data, entity_id, paused, new_resume_at)
         if not await async_save(data):
             _raise_save_failed()
     data.notify()
@@ -355,12 +360,7 @@ async def async_adjust_snooze_batch(
                 updates.append((entity_id, paused, new_resume_at))
 
             for entity_id, paused, new_resume_at in updates:
-                paused.resume_at = new_resume_at
-                paused.days = 0
-                paused.hours = 0
-                paused.minutes = 0
-
-                schedule_resume(hass, data, entity_id, new_resume_at)
+                _apply_adjusted_resume(hass, data, entity_id, paused, new_resume_at)
             if not await async_save(data):
                 _raise_save_failed()
         data.notify()
@@ -467,12 +467,17 @@ async def async_cancel_scheduled(hass: HomeAssistant, data: AutomationPauseData,
     if data.unloaded:
         return
     async with data.lock:
-        cancel_scheduled_timer(data, entity_id)
-        data.scheduled.pop(entity_id, None)
+        _remove_scheduled_snoozes(data, [entity_id])
         if not await async_save(data):
             _raise_save_failed()
     data.notify()
     _LOGGER.info("Cancelled scheduled snooze for: %s", entity_id)
+
+
+def _remove_scheduled_snoozes(data: AutomationPauseData, entity_ids: list[str]) -> None:
+    for entity_id in entity_ids:
+        cancel_scheduled_timer(data, entity_id)
+        data.scheduled.pop(entity_id, None)
 
 
 async def async_cancel_scheduled_batch(hass: HomeAssistant, data: AutomationPauseData, entity_ids: list[str]) -> None:
@@ -491,9 +496,7 @@ async def async_cancel_scheduled_batch(hass: HomeAssistant, data: AutomationPaus
             return
 
         async with data.lock:
-            for entity_id in entity_ids:
-                cancel_scheduled_timer(data, entity_id)
-                data.scheduled.pop(entity_id, None)
+            _remove_scheduled_snoozes(data, entity_ids)
             # Single save after all operations
             if not await async_save(data):
                 _raise_save_failed()
@@ -504,43 +507,3 @@ async def async_cancel_scheduled_batch(hass: HomeAssistant, data: AutomationPaus
         raise
     finally:
         _log_command("cancel_scheduled", outcome, started_at)
-
-
-async def async_save(data: AutomationPauseData) -> bool:
-    """Save snoozed automations to storage with retry logic.
-
-    Returns:
-        True if save succeeded, False if all retries exhausted.
-    """
-    return await infrastructure_async_save(data, sleep=asyncio.sleep)
-
-
-def validate_stored_entry(
-    entity_id: str,
-    entry_data: Any,
-    entry_type: str,
-) -> bool:
-    """Validate a single stored entry.
-
-    Args:
-        entity_id: The entity ID (key in storage)
-        entry_data: The entry data
-        entry_type: "paused" or "scheduled"
-
-    Returns:
-        True if valid, False if invalid.
-    """
-    return runtime_validate_stored_entry(entity_id, entry_data, entry_type)
-
-
-def validate_stored_data(stored: Any) -> dict[str, Any]:
-    """Validate and sanitize stored data.
-
-    Returns validated data with invalid entries removed.
-    """
-    return runtime_validate_stored_data(stored)
-
-
-async def async_load_stored(hass: HomeAssistant, data: AutomationPauseData) -> None:
-    """Load and restore snoozed automations from storage (FR-07: Persistence)."""
-    await runtime_async_load_stored(hass, data)

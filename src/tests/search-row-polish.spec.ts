@@ -4,10 +4,9 @@ import { automationListStyles } from '../styles/automation-list.styles.js';
 describe('Search row polish', () => {
   test('search input focus state has a subtle primary-tinted focus ring', () => {
     const cssText = automationListStyles.cssText;
-    const match = cssText.match(/\.search-box input:focus\s*\{[^}]*\}/);
-    expect(match).not.toBeNull();
-    const block = match![0];
-    expect(block).toMatch(/box-shadow:[^;]*var\(--primary-color\)[^;]*/);
+    expect(cssText).toMatch(
+      /\.search-box input:focus[\s\S]*?box-shadow:[^;]*var\(--primary-color\)[^;]*/
+    );
   });
 
   test('search input has a transition to smooth the focus ring animation', () => {

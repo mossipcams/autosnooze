@@ -3,6 +3,7 @@
 For any code change, follow this sequence:
 
 ## Step 1: Plan
+- Before starting a plan, write it to a Markdown file under `/plans`
 - Break work into small tasks (5-15 min each)
 - For each task, specify:
   * What test to write
@@ -34,3 +35,6 @@ All implementation, refactoring, and reviews must follow `architecture.md`.
 - Never modify files in the `tests/` directory unless explicitly asked to
 - Never delete or weaken test assertions
 - When tests fail, fix the implementation, not the tests
+- Use Graphify only for planning and repo navigation.
+- Before editing, inspect the actual files in this worktree.
+- After edits, run tests and update the graph only if the change affects architecture or cross-module flow.

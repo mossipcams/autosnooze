@@ -1,15 +1,13 @@
 import { describe, expect, test } from 'vitest';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { AutoSnoozeAutomationList } from '../components/autosnooze-automation-list.js';
+import {
+  buildAutomationListViewModel,
+  partitionRecentAutomations,
+} from '../features/automation-list/index.js';
 import type { AutomationItem } from '../types/automation.js';
 import type { HassCategory, HassLabel, HomeAssistant } from '../types/hass.js';
-
-type TestAutomationList = {
-  hass?: HomeAssistant;
-  automations: AutomationItem[];
-  labelRegistry: Record<string, HassLabel>;
-  categoryRegistry: Record<string, HassCategory>;
-  _getGroupedByTab: (filterTab: 'areas' | 'labels' | 'categories') => [string, AutomationItem[]][];
-};
 
 describe('AutoSnoozeAutomationList grouped derivation', () => {
   test('derives grouped results for areas, labels, and categories through one shared helper', () => {
@@ -17,8 +15,7 @@ describe('AutoSnoozeAutomationList grouped derivation', () => {
       customElements.define('test-autosnooze-automation-list', AutoSnoozeAutomationList);
     }
 
-    const element = document.createElement('test-autosnooze-automation-list') as unknown as TestAutomationList;
-    element.hass = {
+    const hass = {
       states: {},
       entities: {},
       areas: {
@@ -29,7 +26,7 @@ describe('AutoSnoozeAutomationList grouped derivation', () => {
       },
       callService: async () => undefined,
     } as unknown as HomeAssistant;
-    element.automations = [
+    const automations: AutomationItem[] = [
       {
         id: 'automation.kitchen',
         name: 'Kitchen Lights',
@@ -45,14 +42,27 @@ describe('AutoSnoozeAutomationList grouped derivation', () => {
         labels: [],
       },
     ];
-    element.labelRegistry = {
+    const labelRegistry: Record<string, HassLabel> = {
       party: { label_id: 'party', name: 'Party' },
     };
-    element.categoryRegistry = {
+    const categoryRegistry: Record<string, HassCategory> = {
       lighting: { category_id: 'lighting', name: 'Lighting' },
     };
 
-    expect(element._getGroupedByTab('areas')).toEqual([
+    const build = (filterTab: 'areas' | 'labels' | 'categories') =>
+      buildAutomationListViewModel({
+        automations,
+        search: '',
+        filterTab,
+        hass,
+        labelRegistry,
+        categoryRegistry,
+        emptyAreaLabel: 'Unassigned',
+        emptyLabelLabel: 'Unlabeled',
+        emptyCategoryLabel: 'Uncategorized',
+      }).grouped;
+
+    expect(build('areas')).toEqual([
       [
         'Kitchen',
         [
@@ -79,7 +89,7 @@ describe('AutoSnoozeAutomationList grouped derivation', () => {
       ],
     ]);
 
-    expect(element._getGroupedByTab('labels')).toEqual([
+    expect(build('labels')).toEqual([
       [
         'Party',
         [
@@ -106,7 +116,7 @@ describe('AutoSnoozeAutomationList grouped derivation', () => {
       ],
     ]);
 
-    expect(element._getGroupedByTab('categories')).toEqual([
+    expect(build('categories')).toEqual([
       [
         'Lighting',
         [
@@ -132,5 +142,25 @@ describe('AutoSnoozeAutomationList grouped derivation', () => {
         ],
       ],
     ]);
+  });
+
+  test('partitionRecentAutomations keeps recent items first without duplicating ids', () => {
+    const items = [
+      { id: 'automation.b', name: 'B', area_id: null, category_id: null, labels: [] },
+      { id: 'automation.a', name: 'A', area_id: null, category_id: null, labels: [] },
+      { id: 'automation.c', name: 'C', area_id: null, category_id: null, labels: [] },
+    ];
+
+    const { recentItems, ordered } = partitionRecentAutomations(items, ['automation.c', 'automation.a']);
+
+    expect(recentItems.map((item) => item.id)).toEqual(['automation.a', 'automation.c']);
+    expect(ordered.map((item) => item.id)).toEqual(['automation.a', 'automation.c', 'automation.b']);
+  });
+
+  test('does not keep separate grouping implementations for public and decorated paths', () => {
+    const sourcePath = join(process.cwd(), 'src/features/automation-list/index.ts');
+    const source = readFileSync(sourcePath, 'utf8');
+
+    expect(source).not.toContain('function groupDecoratedAutomations');
   });
 });
