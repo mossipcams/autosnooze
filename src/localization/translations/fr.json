@@ -145,12 +145,12 @@
   },
   "notify": {
     "toggle_label": "Me notifier",
-    "when_label": "Quand ?",
+    "when_label": "Moment de la notification",
     "lead_label": "Combien de temps avant ?",
     "when": {
-      "start": "Au début de la sieste",
+      "start": "Début de la sieste",
       "about_to_end": "Avant la fin de la sieste",
-      "end": "À la fin de la sieste"
+      "end": "Fin de la sieste"
     }
   }
 }

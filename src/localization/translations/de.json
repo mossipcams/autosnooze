@@ -145,12 +145,12 @@
   },
   "notify": {
     "toggle_label": "Benachrichtigen",
-    "when_label": "Wann?",
+    "when_label": "Benachrichtigungszeitpunkt",
     "lead_label": "Wie lange vorher?",
     "when": {
-      "start": "Wenn die Schlummerzeit beginnt",
+      "start": "Schlummerzeit beginnt",
       "about_to_end": "Bevor die Schlummerzeit endet",
-      "end": "Wenn die Schlummerzeit endet"
+      "end": "Schlummerzeit endet"
     }
   }
 }

@@ -213,12 +213,14 @@ export class AutoSnoozeActivePauses extends LitElement {
                     <button
                       type="button"
                       class="wake-btn clear-notification-btn"
+                      aria-label="${localize(this.hass, 'button.remove_notification')}"
+                      title="${localize(this.hass, 'button.remove_notification')}"
                       @click=${(e: Event) => {
                         e.stopPropagation();
                         this._fireClearNotification(auto.entity_id);
                       }}
                     >
-                      ${localize(this.hass, 'button.remove_notification')}
+                      <ha-icon icon="mdi:bell-off-outline" aria-hidden="true"></ha-icon>
                     </button>
                   ` : ''}
                   <button type="button" class="wake-btn" @click=${(e: Event) => { e.stopPropagation(); this._fireWake(auto.entity_id); }}>
