@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.23](https://github.com/mossipcams/autosnooze/compare/v0.2.22...v0.2.23) (2026-06-03)
+
+
+### Bug Fixes
+
+* streamline snooze notification controls ([#410](https://github.com/mossipcams/autosnooze/issues/410)) ([a61e4c6](https://github.com/mossipcams/autosnooze/commit/a61e4c6250d4912490b106947b119634fa68e9ea))
+
 ## [0.2.22](https://github.com/mossipcams/autosnooze/compare/v0.2.20...v0.2.22) (2026-06-03)
 
 
