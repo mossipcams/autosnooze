@@ -167,7 +167,10 @@ jobs:
 
   sync-existing-release-pr:
     needs: release-please
-    if: ${{ github.event_name == 'push' && needs.release-please.outputs.prs_created != 'true' }}
+    # Bot pushes to the release PR branch do not re-trigger pull_request Build workflows,
+    # so keep the open Release Please PR synced and mirror a successful Build check.
+    # workflow_dispatch must run this path too; only refresh-release-pr-artifacts handles brand-new PRs.
+    if: ${{ needs.release-please.result == 'success' && (github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && needs.release-please.outputs.prs_created != 'true')) }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
