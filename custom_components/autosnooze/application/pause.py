@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable, Mapping
+from collections.abc import Awaitable, Callable, Mapping
 from datetime import datetime, timedelta
 import logging
 import re
@@ -17,25 +17,91 @@ from homeassistant.helpers import label_registry as lr
 from homeassistant.util import dt as dt_util
 
 from ..const import CRITICAL_AUTOMATION_TERMS, DOMAIN, LABEL_CONFIRM_NAME
-from ..runtime.state import AutomationPauseData
+from ..domain.notifications import (
+    NOTIFICATION_TRIGGER_NONE,
+    NotificationTrigger,
+    notification_window_supports_lead,
+)
+from ..logging_utils import _log_command, _raise_save_failed
+from ..models import PausedAutomation, ScheduledSnooze, ensure_utc_aware
 from ..runtime.ports import (
-    async_save,
+    async_save as runtime_async_save,
     async_set_automation_state,
+    cancel_notification_timer,
     cancel_scheduled_timer,
     cancel_timer,
     get_friendly_name,
     schedule_disable,
+    schedule_pre_resume_notification,
     schedule_resume,
 )
-from ..logging_utils import _log_command, _raise_save_failed
-from ..models import PausedAutomation, ScheduledSnooze, ensure_utc_aware
-from .resume import async_resume
-from .scheduled import async_execute_scheduled_disable
+from ..runtime.state import AutomationPauseData
 
 _LOGGER = logging.getLogger(__name__)
 
+type SetAutomationState = Callable[[HomeAssistant, str, bool], Awaitable[bool]]
+type SaveData = Callable[[AutomationPauseData], Awaitable[bool]]
+type NotifyStarted = Callable[[HomeAssistant, list[PausedAutomation]], Awaitable[None]]
+type ScheduleResume = Callable[[HomeAssistant, AutomationPauseData, str, datetime], None]
+type ScheduleDisable = Callable[[HomeAssistant, AutomationPauseData, str, ScheduledSnooze], None]
+type SchedulePreResumeNotification = Callable[[HomeAssistant, AutomationPauseData, PausedAutomation], bool]
 
-def _validate_guardrails(hass: HomeAssistant, entity_ids: list[str], confirm: bool = False) -> None:
+
+def _get_automations_by_filter(
+    hass: HomeAssistant,
+    filter_fn: Callable[[Any], bool],
+) -> list[str]:
+    """Get all automation entity IDs matching a filter predicate."""
+    entity_reg = er.async_get(hass)
+    return [
+        entity.entity_id
+        for entity in entity_reg.entities.values()
+        if entity.domain == "automation" and filter_fn(entity)
+    ]
+
+
+def get_automations_by_area(hass: HomeAssistant, area_ids: list[str]) -> list[str]:
+    """Get all automation entity IDs in the specified areas."""
+    return _get_automations_by_filter(hass, lambda entity: entity.area_id in area_ids)
+
+
+def get_automations_by_label(hass: HomeAssistant, label_ids: list[str]) -> list[str]:
+    """Get all automation entity IDs with the specified labels."""
+    return _get_automations_by_filter(
+        hass,
+        lambda entity: entity.labels and any(label in label_ids for label in entity.labels),
+    )
+
+
+def _entity_has_label_name(
+    entity: Any,
+    label_name: str,
+    labels_by_id: Mapping[str, Any],
+) -> bool:
+    """Check whether entity has a label by id or name."""
+    labels = entity.labels or set()
+    for label_id in labels:
+        if label_id == label_name:
+            return True
+        label = labels_by_id.get(label_id)
+        if label and getattr(label, "name", None) == label_name:
+            return True
+    return False
+
+
+def _contains_guardrail_term(text: str, term: str) -> bool:
+    """Check whether a term appears as a token or phrase in text."""
+    escaped = re.escape(term.lower())
+    return re.search(rf"(?<![a-z0-9]){escaped}(?![a-z0-9])", text.lower()) is not None
+
+
+def _is_critical_automation(entity_id: str, friendly_name: str) -> bool:
+    """Detect whether automation appears to control critical infrastructure."""
+    targets = [entity_id, friendly_name]
+    return any(_contains_guardrail_term(target, term) for target in targets for term in CRITICAL_AUTOMATION_TERMS)
+
+
+def validate_guardrails(hass: HomeAssistant, entity_ids: list[str], confirm: bool = False) -> None:
     """Validate confirm label guardrails for pause operations."""
     entity_reg = er.async_get(hass)
     label_reg = lr.async_get(hass)
@@ -59,55 +125,11 @@ def _validate_guardrails(hass: HomeAssistant, entity_ids: list[str], confirm: bo
         )
 
 
-def _entity_has_label_name(
-    entity: Any,
-    label_name: str,
-    labels_by_id: Mapping[str, Any],
-) -> bool:
-    """Check whether entity has a label by id or name."""
-    labels = entity.labels or set()
-    for label_id in labels:
-        if label_id == label_name:
-            return True
-        label = labels_by_id.get(label_id)
-        if label and getattr(label, "name", None) == label_name:
-            return True
-    return False
-
-
-def _contains_guardrail_term(text: str, term: str) -> bool:
-    """Check whether a term appears as a token/phrase in text."""
-    escaped = re.escape(term.lower())
-    return re.search(rf"(?<![a-z0-9]){escaped}(?![a-z0-9])", text.lower()) is not None
-
-
-def _is_critical_automation(entity_id: str, friendly_name: str) -> bool:
-    """Detect whether automation appears to control critical infrastructure."""
-    targets = [entity_id, friendly_name]
-    return any(_contains_guardrail_term(target, term) for target in targets for term in CRITICAL_AUTOMATION_TERMS)
-
-
-def _get_automations_by_filter(
+async def _default_notify_started_automations(
     hass: HomeAssistant,
-    filter_fn: Callable[[Any], bool],
-) -> list[str]:
-    """Get all automation entity IDs matching a filter predicate."""
-    entity_reg = er.async_get(hass)
-    return [
-        entity.entity_id
-        for entity in entity_reg.entities.values()
-        if entity.domain == "automation" and filter_fn(entity)
-    ]
-
-
-def get_automations_by_area(hass: HomeAssistant, area_ids: list[str]) -> list[str]:
-    """Get all automation entity IDs in the specified areas."""
-    return _get_automations_by_filter(hass, lambda e: e.area_id in area_ids)
-
-
-def get_automations_by_label(hass: HomeAssistant, label_ids: list[str]) -> list[str]:
-    """Get all automation entity IDs with the specified labels."""
-    return _get_automations_by_filter(hass, lambda e: e.labels and any(label in label_ids for label in e.labels))
+    paused_entries: list[PausedAutomation],
+) -> None:
+    del hass, paused_entries
 
 
 async def async_pause_automations(
@@ -119,8 +141,26 @@ async def async_pause_automations(
     minutes: int = 0,
     disable_at: datetime | None = None,
     resume_at_dt: datetime | None = None,
+    notification_trigger: NotificationTrigger = NOTIFICATION_TRIGGER_NONE,
+    notification_lead_minutes: int | None = None,
+    *,
+    set_automation_state: SetAutomationState | None = None,
+    save_data: SaveData | None = None,
+    notify_started_automations: NotifyStarted | None = None,
+    schedule_resume_callback: ScheduleResume | None = None,
+    schedule_disable_callback: ScheduleDisable | None = None,
+    schedule_pre_resume_notification_callback: SchedulePreResumeNotification | None = None,
 ) -> None:
     """Pause automations with duration or dates."""
+    set_state = set_automation_state or (
+        lambda hass, entity_id, enabled: async_set_automation_state(hass, entity_id, enabled=enabled)
+    )
+    save_runtime_data = save_data or runtime_async_save
+    notify_started = notify_started_automations or _default_notify_started_automations
+    resume_scheduler = schedule_resume_callback or schedule_resume
+    disable_scheduler = schedule_disable_callback or schedule_disable
+    pre_resume_scheduler = schedule_pre_resume_notification_callback or schedule_pre_resume_notification
+
     started_at = perf_counter()
     outcome = "success"
     try:
@@ -170,6 +210,14 @@ async def async_pause_automations(
             resume_at = now + timedelta(days=days, hours=hours, minutes=minutes)
             use_scheduled = False
 
+        notification_window_start = disable_at if use_scheduled and disable_at is not None else now
+        if not notification_window_supports_lead(
+            notification_trigger,
+            notification_lead_minutes,
+            window=resume_at - notification_window_start,
+        ):
+            raise ServiceValidationError("notification_lead_minutes must be shorter than the snooze window")
+
         scheduled_entries: list[ScheduledSnooze] = []
         paused_entries: list[PausedAutomation] = []
         active_replacements: dict[str, PausedAutomation] = {}
@@ -186,11 +234,13 @@ async def async_pause_automations(
                         friendly_name=friendly_name,
                         disable_at=disable_at,
                         resume_at=resume_at,
+                        notification_trigger=notification_trigger,
+                        notification_lead_minutes=notification_lead_minutes,
                     )
                 )
                 continue
 
-            if not await async_set_automation_state(hass, entity_id, enabled=False):
+            if not await set_state(hass, entity_id, False):
                 continue
 
             schedule_mode_disable_at = (
@@ -206,6 +256,8 @@ async def async_pause_automations(
                     hours=hours,
                     minutes=minutes,
                     disable_at=schedule_mode_disable_at,
+                    notification_trigger=notification_trigger,
+                    notification_lead_minutes=notification_lead_minutes,
                 )
             )
 
@@ -218,7 +270,7 @@ async def async_pause_automations(
                 }
 
             for entity_id in active_replacements:
-                replacement_wake_results[entity_id] = await async_set_automation_state(hass, entity_id, enabled=True)
+                replacement_wake_results[entity_id] = await set_state(hass, entity_id, True)
                 if not replacement_wake_results[entity_id]:
                     _LOGGER.warning(
                         "Failed to wake %s before replacing active snooze with a future schedule",
@@ -239,15 +291,10 @@ async def async_pause_automations(
                         continue
 
                 cancel_timer(data, scheduled.entity_id)
+                cancel_notification_timer(data, scheduled.entity_id)
                 data.paused.pop(scheduled.entity_id, None)
                 data.scheduled[scheduled.entity_id] = scheduled
-                schedule_disable(
-                    hass,
-                    data,
-                    scheduled.entity_id,
-                    scheduled,
-                    disable_callback=async_execute_scheduled_disable,
-                )
+                disable_scheduler(hass, data, scheduled.entity_id, scheduled)
                 _LOGGER.info(
                     "Scheduled snooze for %s: disable at %s, resume at %s",
                     scheduled.entity_id,
@@ -257,22 +304,31 @@ async def async_pause_automations(
 
             for paused in paused_entries:
                 cancel_scheduled_timer(data, paused.entity_id)
+                cancel_notification_timer(data, paused.entity_id)
                 data.scheduled.pop(paused.entity_id, None)
                 data.paused[paused.entity_id] = paused
-                schedule_resume(hass, data, paused.entity_id, paused.resume_at, resume_callback=async_resume)
+                resume_scheduler(hass, data, paused.entity_id, paused.resume_at)
+                pre_resume_scheduler(hass, data, paused)
                 _LOGGER.info("Snoozed %s until %s", paused.entity_id, paused.resume_at)
 
-            if not await async_save(data):
+            if not await save_runtime_data(data):
                 _raise_save_failed()
+
         for entity_id in re_disable_stale_replacements:
-            if not await async_set_automation_state(hass, entity_id, enabled=False):
+            if not await set_state(hass, entity_id, False):
                 _LOGGER.warning("Failed to restore disabled state for stale replacement of %s", entity_id)
+
         data.notify()
+        await notify_started(hass, paused_entries)
     except Exception:
         outcome = "error"
         raise
     finally:
         _log_command("pause", outcome, started_at)
+
+
+def _validate_guardrails(hass: HomeAssistant, entity_ids: list[str], confirm: bool = False) -> None:
+    validate_guardrails(hass, entity_ids, confirm=confirm)
 
 
 async def async_handle_pause_service(
@@ -291,68 +347,19 @@ async def async_handle_pause_service(
     minutes = call.data.get("minutes", 0)
     disable_at = ensure_utc_aware(call.data.get("disable_at"))
     resume_at_dt = ensure_utc_aware(call.data.get("resume_at"))
+    notification_trigger = call.data.get("notification_trigger", NOTIFICATION_TRIGGER_NONE)
+    notification_lead_minutes = call.data.get("notification_lead_minutes")
 
     _validate_guardrails(hass, entity_ids, confirm=confirm)
-    await async_pause_automations(hass, data, entity_ids, days, hours, minutes, disable_at, resume_at_dt)
-
-
-async def _handle_pause_by_filter(
-    hass: HomeAssistant,
-    data: AutomationPauseData,
-    call: ServiceCall,
-    filter_key: str,
-    get_automations_fn: Callable[[HomeAssistant, list[str]], list[str]],
-    not_found_msg: str,
-) -> None:
-    """Handle pause by area/label application flows."""
-    if data.unloaded:
-        return
-
-    filter_value = call.data[filter_key]
-    filter_ids = [filter_value] if isinstance(filter_value, str) else filter_value
-    days = call.data.get("days", 0)
-    hours = call.data.get("hours", 0)
-    minutes = call.data.get("minutes", 0)
-    disable_at = ensure_utc_aware(call.data.get("disable_at"))
-    resume_at_dt = ensure_utc_aware(call.data.get("resume_at"))
-    confirm = call.data.get("confirm", False)
-
-    entity_ids = get_automations_fn(hass, filter_ids)
-    if not entity_ids:
-        _LOGGER.warning(not_found_msg, filter_ids)
-        return
-
-    _validate_guardrails(hass, entity_ids, confirm=confirm)
-    await async_pause_automations(hass, data, entity_ids, days, hours, minutes, disable_at, resume_at_dt)
-
-
-async def async_handle_pause_by_area_service(
-    hass: HomeAssistant,
-    data: AutomationPauseData,
-    call: ServiceCall,
-) -> None:
-    """Handle pause by area service application flow."""
-    await _handle_pause_by_filter(
+    await async_pause_automations(
         hass,
         data,
-        call,
-        "area_id",
-        get_automations_by_area,
-        "No automations found in area(s): %s",
-    )
-
-
-async def async_handle_pause_by_label_service(
-    hass: HomeAssistant,
-    data: AutomationPauseData,
-    call: ServiceCall,
-) -> None:
-    """Handle pause by label service application flow."""
-    await _handle_pause_by_filter(
-        hass,
-        data,
-        call,
-        "label_id",
-        get_automations_by_label,
-        "No automations found with label(s): %s",
+        entity_ids,
+        days,
+        hours,
+        minutes,
+        disable_at,
+        resume_at_dt,
+        notification_trigger,
+        notification_lead_minutes,
     )

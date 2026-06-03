@@ -12,11 +12,11 @@ from homeassistant.exceptions import ServiceValidationError
 from homeassistant.util import dt as dt_util
 
 from ..const import DOMAIN, MIN_ADJUST_BUFFER
+from ..domain.notifications import notification_window_supports_lead
 from ..logging_utils import _log_command, _raise_save_failed
 from ..models import PausedAutomation
-from ..runtime.ports import async_save, schedule_resume
+from ..runtime.ports import async_save, schedule_pre_resume_notification, schedule_resume
 from ..runtime.state import AutomationPauseData
-from .resume import async_resume
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -45,13 +45,20 @@ async def async_adjust_snooze(
                 translation_domain=DOMAIN,
                 translation_key="adjust_time_too_short",
             )
+        if not notification_window_supports_lead(
+            paused.notification_trigger,
+            paused.notification_lead_minutes,
+            window=new_resume_at - now,
+        ):
+            raise ServiceValidationError("notification_lead_minutes must be shorter than the remaining snooze window")
 
         paused.resume_at = new_resume_at
         paused.days = 0
         paused.hours = 0
         paused.minutes = 0
 
-        schedule_resume(hass, data, entity_id, new_resume_at, resume_callback=async_resume)
+        schedule_resume(hass, data, entity_id, new_resume_at)
+        schedule_pre_resume_notification(hass, data, paused)
         if not await async_save(data):
             _raise_save_failed()
     data.notify()
@@ -91,6 +98,14 @@ async def async_adjust_snooze_batch(
                         translation_domain=DOMAIN,
                         translation_key="adjust_time_too_short",
                     )
+                if not notification_window_supports_lead(
+                    paused.notification_trigger,
+                    paused.notification_lead_minutes,
+                    window=new_resume_at - now,
+                ):
+                    raise ServiceValidationError(
+                        "notification_lead_minutes must be shorter than the remaining snooze window"
+                    )
 
                 updates.append((entity_id, paused, new_resume_at))
 
@@ -100,7 +115,8 @@ async def async_adjust_snooze_batch(
                 paused.hours = 0
                 paused.minutes = 0
 
-                schedule_resume(hass, data, entity_id, new_resume_at, resume_callback=async_resume)
+                schedule_resume(hass, data, entity_id, new_resume_at)
+                schedule_pre_resume_notification(hass, data, paused)
             if not await async_save(data):
                 _raise_save_failed()
         data.notify()

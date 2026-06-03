@@ -6,8 +6,9 @@ import asyncio
 import logging
 from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, TypeAlias
 
+from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.dispatcher import async_dispatcher_send
 from homeassistant.helpers.storage import Store
@@ -28,6 +29,7 @@ class AutomationPauseData:
     scheduled: dict[str, ScheduledSnooze] = field(default_factory=dict)
     timers: dict[str, Callable[[], None]] = field(default_factory=dict)
     scheduled_timers: dict[str, Callable[[], None]] = field(default_factory=dict)
+    notification_timers: dict[str, Callable[[], None]] = field(default_factory=dict)
     listeners: list[Callable[[], None]] = field(default_factory=list)
     store: Store | None = None
     hass: HomeAssistant | None = None
@@ -62,3 +64,6 @@ class AutomationPauseData:
 
     def get_scheduled_dict(self) -> dict[str, dict[str, object]]:
         return {key: value.to_dict() for key, value in self.scheduled.items()}
+
+
+AutomationPauseConfigEntry: TypeAlias = ConfigEntry[AutomationPauseData]

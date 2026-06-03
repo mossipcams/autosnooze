@@ -110,6 +110,7 @@ function buildPauseGroups(
       hours: data.hours,
       minutes: data.minutes,
       disable_at: data.disable_at,
+      notification_trigger: data.notification_trigger,
     });
   });
 

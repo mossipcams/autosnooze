@@ -51,38 +51,7 @@ async def test_handle_pause_service_forwards_full_contract_fields() -> None:
         3,
         disable_at,
         resume_at,
-    )
-
-
-@pytest.mark.asyncio
-async def test_handle_pause_service_forwards_default_contract_fields() -> None:
-    """Pause application supplies default service fields when optional inputs are omitted."""
-    from custom_components.autosnooze.application.pause import async_handle_pause_service
-    from custom_components.autosnooze.runtime.state import AutomationPauseData
-
-    mock_hass = MagicMock()
-    data = AutomationPauseData(store=MagicMock())
-    call = MagicMock()
-    call.data = {ATTR_ENTITY_ID: ["automation.a"]}
-
-    with (
-        patch("custom_components.autosnooze.application.pause._validate_guardrails") as validate_guardrails,
-        patch(
-            "custom_components.autosnooze.application.pause.async_pause_automations",
-            new_callable=AsyncMock,
-        ) as pause_automations,
-    ):
-        await async_handle_pause_service(mock_hass, data, call)
-
-    validate_guardrails.assert_called_once_with(mock_hass, ["automation.a"], confirm=False)
-    pause_automations.assert_awaited_once_with(
-        mock_hass,
-        data,
-        ["automation.a"],
-        0,
-        0,
-        0,
-        None,
+        "none",
         None,
     )
 

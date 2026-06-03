@@ -22,7 +22,6 @@ from ..runtime.ports import (
     schedule_resume,
 )
 from ..runtime.state import AutomationPauseData
-from .resume import async_resume
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -105,7 +104,7 @@ async def async_execute_scheduled_disable(
                 disable_at=disable_at,
             )
 
-            schedule_resume(hass, data, entity_id, resume_at, resume_callback=async_resume)
+            schedule_resume(hass, data, entity_id, resume_at)
             if not await async_save(data):
                 _raise_save_failed()
     if undo_stale_disable:

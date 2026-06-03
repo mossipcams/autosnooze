@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import timedelta
+from datetime import datetime, timedelta
 import json
 import logging
 from pathlib import Path
@@ -11,6 +11,15 @@ import voluptuous as vol
 
 from homeassistant.const import ATTR_ENTITY_ID
 from homeassistant.helpers import config_validation as cv
+from homeassistant.util import dt as dt_util
+
+from .domain.notifications import (
+    NOTIFICATION_LEAD_MINUTES_VALUES,
+    NOTIFICATION_TRIGGER_NONE,
+    NOTIFICATION_TRIGGER_VALUES,
+    notification_window_supports_lead,
+)
+from .models import ensure_utc_aware
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -70,14 +79,58 @@ _DURATION_AND_DATE_SCHEMA = {
     vol.Optional("minutes", default=0): vol.All(cv.positive_int, vol.Range(max=59)),
     vol.Optional("disable_at"): cv.datetime,
     vol.Optional("resume_at"): cv.datetime,
+    vol.Optional("notification_trigger", default=NOTIFICATION_TRIGGER_NONE): vol.In(NOTIFICATION_TRIGGER_VALUES),
+    vol.Optional("notification_lead_minutes"): vol.In(NOTIFICATION_LEAD_MINUTES_VALUES),
     vol.Optional("confirm", default=False): cv.boolean,
 }
 
-PAUSE_SCHEMA = vol.Schema(
-    {
-        vol.Required(ATTR_ENTITY_ID): cv.entity_ids,
-        **_DURATION_AND_DATE_SCHEMA,
-    }
+
+def _validate_notification_schema(value: dict[str, object]) -> dict[str, object]:
+    trigger_raw = value.get("notification_trigger", NOTIFICATION_TRIGGER_NONE)
+    trigger = trigger_raw if isinstance(trigger_raw, str) else NOTIFICATION_TRIGGER_NONE
+    lead_raw = value.get("notification_lead_minutes")
+    lead_minutes = lead_raw if isinstance(lead_raw, int) else None
+
+    if trigger == "about_to_end":
+        if lead_minutes not in NOTIFICATION_LEAD_MINUTES_VALUES:
+            raise vol.Invalid("notification_lead_minutes is required for notification_trigger=about_to_end")
+        window = _get_notification_window(value)
+        if not notification_window_supports_lead(trigger, lead_minutes, window=window):
+            raise vol.Invalid("notification_lead_minutes must be shorter than the snooze window")
+    elif lead_minutes is not None:
+        raise vol.Invalid("notification_lead_minutes is only allowed when notification_trigger=about_to_end")
+
+    return value
+
+
+def _get_notification_window(value: dict[str, object]) -> timedelta:
+    resume_raw = value.get("resume_at")
+    disable_raw = value.get("disable_at")
+    resume_at = ensure_utc_aware(resume_raw) if isinstance(resume_raw, datetime) else None
+    disable_at = ensure_utc_aware(disable_raw) if isinstance(disable_raw, datetime) else None
+    if resume_at is not None:
+        now = dt_util.utcnow()
+        if disable_at is not None and disable_at > now:
+            return resume_at - disable_at
+        return resume_at - now
+    days = value.get("days", 0)
+    hours = value.get("hours", 0)
+    minutes = value.get("minutes", 0)
+    return timedelta(
+        days=days if isinstance(days, int) else 0,
+        hours=hours if isinstance(hours, int) else 0,
+        minutes=minutes if isinstance(minutes, int) else 0,
+    )
+
+
+PAUSE_SCHEMA = vol.All(
+    vol.Schema(
+        {
+            vol.Required(ATTR_ENTITY_ID): cv.entity_ids,
+            **_DURATION_AND_DATE_SCHEMA,
+        }
+    ),
+    _validate_notification_schema,
 )
 
 # FR-10: Early Wake Up
@@ -88,19 +141,25 @@ CANCEL_SCHEMA = vol.Schema(
 )
 
 # Pause by area
-PAUSE_BY_AREA_SCHEMA = vol.Schema(
-    {
-        vol.Required("area_id"): vol.Any(cv.string, [cv.string]),
-        **_DURATION_AND_DATE_SCHEMA,
-    }
+PAUSE_BY_AREA_SCHEMA = vol.All(
+    vol.Schema(
+        {
+            vol.Required("area_id"): vol.Any(cv.string, [cv.string]),
+            **_DURATION_AND_DATE_SCHEMA,
+        }
+    ),
+    _validate_notification_schema,
 )
 
 # Pause by label
-PAUSE_BY_LABEL_SCHEMA = vol.Schema(
-    {
-        vol.Required("label_id"): vol.Any(cv.string, [cv.string]),
-        **_DURATION_AND_DATE_SCHEMA,
-    }
+PAUSE_BY_LABEL_SCHEMA = vol.All(
+    vol.Schema(
+        {
+            vol.Required("label_id"): vol.Any(cv.string, [cv.string]),
+            **_DURATION_AND_DATE_SCHEMA,
+        }
+    ),
+    _validate_notification_schema,
 )
 
 # Adjust snooze duration (positive adds time, negative subtracts)

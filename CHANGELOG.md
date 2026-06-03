@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.21](https://github.com/mossipcams/autosnooze/compare/v0.2.20...v0.2.21) (2026-06-02)
+
+
+### Features
+
+* add snoozed-only Lovelace card ([#397](https://github.com/mossipcams/autosnooze/issues/397)) ([e5b418a](https://github.com/mossipcams/autosnooze/commit/e5b418a3438216863c96c2b3cca9f51a0d4ac9a3))
+
 ## [0.2.20](https://github.com/mossipcams/autosnooze/compare/v0.2.19...v0.2.20) (2026-05-18)
 
 

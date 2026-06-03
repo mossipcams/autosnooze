@@ -8,6 +8,7 @@ const mocks = vi.hoisted(() => ({
   runUndoFeature: vi.fn(),
   runWakeFeature: vi.fn(),
   runWakeAllFeature: vi.fn(),
+  runClearNotificationFeature: vi.fn(),
   runAdjustFeature: vi.fn(),
   runCancelScheduledFeature: vi.fn(),
 }));
@@ -21,6 +22,7 @@ vi.mock('../features/resume/index.js', () => ({
   runUndoFeature: mocks.runUndoFeature,
   runWakeFeature: mocks.runWakeFeature,
   runWakeAllFeature: mocks.runWakeAllFeature,
+  runClearNotificationFeature: mocks.runClearNotificationFeature,
 }));
 vi.mock('../features/scheduled-snooze/index.js', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../features/scheduled-snooze/index.js')>();
@@ -97,6 +99,7 @@ type TestCard = HTMLElement & {
   _wake: (entityId: string) => Promise<void>;
   _handleWakeEvent: (event: CustomEvent<{ entityId: string }>) => Promise<void>;
   _handleWakeAllEvent: () => Promise<void>;
+  _handleClearNotificationEvent: (event: CustomEvent<{ entityId: string }>) => Promise<void>;
   _handleAdjustAutomationEvent: (event: CustomEvent<{ entityId: string; friendlyName: string; resumeAt: string }>) => void;
   _handleAdjustGroupEvent: (event: CustomEvent<{ entityIds: string[]; friendlyNames: string[]; resumeAt: string }>) => void;
   _handleAdjustTimeEvent: (event: CustomEvent<{ entityId?: string; entityIds?: string[]; days?: number; hours?: number; minutes?: number }>) => Promise<void>;
@@ -625,6 +628,7 @@ describe('AutomationPauseCard mutation boundaries', () => {
     const card = await connectCard();
     mocks.runWakeFeature.mockResolvedValue(undefined);
     mocks.runWakeAllFeature.mockResolvedValue(undefined);
+    mocks.runClearNotificationFeature.mockResolvedValue(undefined);
     mocks.runAdjustFeature.mockResolvedValue({ nextResumeAt: '2026-04-29T15:00:00' });
     mocks.runCancelScheduledFeature.mockResolvedValue(undefined);
 
@@ -638,6 +642,12 @@ describe('AutomationPauseCard mutation boundaries', () => {
     await card._handleWakeAllEvent();
     expect(mocks.runWakeAllFeature).toHaveBeenCalledWith(card.hass);
     expect(getText(card.shadowRoot?.querySelector('.toast'))).toContain('All automations resumed successfully');
+
+    await card._handleClearNotificationEvent(new CustomEvent('clear-notification', {
+      detail: { entityId: 'automation.kitchen_lights' },
+    }));
+    expect(mocks.runClearNotificationFeature).toHaveBeenCalledWith(card.hass, 'automation.kitchen_lights');
+    expect(mocks.hapticFeedback).toHaveBeenCalledWith('success');
 
     card._adjustModalResumeAt = '2026-04-29T14:00:00';
     await card._handleAdjustTimeEvent(new CustomEvent('adjust-time', {
@@ -660,18 +670,22 @@ describe('AutomationPauseCard mutation boundaries', () => {
     const card = await connectCard();
     mocks.runWakeFeature.mockRejectedValueOnce(new Error('wake failed'));
     mocks.runWakeAllFeature.mockRejectedValueOnce(new Error('wake all failed'));
+    mocks.runClearNotificationFeature.mockRejectedValueOnce(new Error('clear failed'));
     mocks.runAdjustFeature.mockRejectedValueOnce(new Error('adjust failed'));
     mocks.runCancelScheduledFeature.mockRejectedValueOnce(new Error('cancel failed'));
 
     await card._wake('automation.kitchen_lights');
     await card._handleWakeAllEvent();
+    await card._handleClearNotificationEvent(new CustomEvent('clear-notification', {
+      detail: { entityId: 'automation.kitchen_lights' },
+    }));
     await card._handleAdjustTimeEvent(new CustomEvent('adjust-time', {
       detail: { entityId: 'automation.kitchen_lights', minutes: 15 },
     }));
     await card._cancelScheduled('automation.kitchen_lights');
 
     expect(mocks.hapticFeedback).toHaveBeenCalledWith('failure');
-    expect(mocks.hapticFeedback).toHaveBeenCalledTimes(4);
+    expect(mocks.hapticFeedback).toHaveBeenCalledTimes(5);
     expect(card.shadowRoot?.querySelector('.toast')).toBeNull();
 
     const detached = createCard();

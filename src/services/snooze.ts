@@ -67,6 +67,23 @@ export async function cancelScheduled(
 }
 
 /**
+ * Clear notification settings from an active snooze.
+ */
+export async function clearNotification(
+  hass: HomeAssistant,
+  entityId: string | string[]
+): Promise<void> {
+  try {
+    await hass.callService('autosnooze', 'clear_notification', {
+      entity_id: entityId,
+    });
+  } catch (error) {
+    console.error('[AutoSnooze] Failed to clear snooze notification:', error);
+    throw error;
+  }
+}
+
+/**
  * Adjust the snooze duration for a paused automation.
  * Positive values add time, negative values reduce time.
  */

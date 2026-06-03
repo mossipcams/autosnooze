@@ -8,13 +8,15 @@ import { property, state } from 'lit/decorators.js';
 import { localize } from '../localization/localize.js';
 import type { HomeAssistant, HassLabel, HassCategory, HassEntityRegistryEntry, HassEntities, PausedAutomationAttribute, ScheduledSnoozeAttribute } from '../types/hass.js';
 import type { AutoSnoozeCardConfig, HapticFeedbackType } from '../types/card.js';
-import type { AutomationItem, ParsedDuration, PauseGroup } from '../types/automation.js';
+import type { AutomationItem, NotificationTrigger, ParsedDuration, PauseGroup } from '../types/automation.js';
 import { cardStyles } from '../styles/card.styles.js';
 import { sharedPausedStyles } from '../styles/shared.styles.js';
 import {
   TIME_MS,
   UI_TIMING,
   DEFAULT_SNOOZE_MINUTES,
+  NOTIFICATION_LEAD_OPTIONS,
+  DEFAULT_NOTIFICATION_LEAD_MINUTES,
 } from '../constants/index.js';
 import {
   createCardUiStore,
@@ -31,13 +33,14 @@ import {
   createScheduleModeState,
   type LastDurationData,
 } from '../features/card-shell/index.js';
-import { formatDateTime } from '../utils/time-formatting.js';
-import { isDurationValid } from '../utils/duration-parsing.js';
+import { formatDateTime, formatDuration } from '../utils/time-formatting.js';
+import { isDurationValid, minutesToDuration } from '../utils/duration-parsing.js';
 import { hapticFeedback } from '../utils/haptic.js';
 import { defineAutoSnoozeElement } from '../utils/custom-element-registration.js';
 import { requiresPauseConfirmation, runPauseFeature } from '../features/pause/index.js';
 import {
   runUndoFeature,
+  runClearNotificationFeature,
   runWakeAllFeature,
   runWakeFeature,
 } from '../features/resume/index.js';
@@ -68,6 +71,9 @@ export class AutomationPauseCard extends LitElement {
   @state() private _customDurationInput: string = '30m';
   @state() private _loading: boolean = false;
   @state() private _scheduleMode: boolean = false;
+  @state() private _notificationsEnabled: boolean = false;
+  @state() private _notificationTrigger: Exclude<NotificationTrigger, 'none'> = 'end';
+  @state() private _notificationLeadMinutes: number = DEFAULT_NOTIFICATION_LEAD_MINUTES;
   @state() private _disableAtDate: string = '';
   @state() private _disableAtTime: string = '';
   @state() private _resumeAtDate: string = '';
@@ -582,6 +588,12 @@ export class AutomationPauseCard extends LitElement {
         resumeAtDate: this._resumeAtDate,
         resumeAtTime: this._resumeAtTime,
         forceConfirm,
+        ...(this._notificationsEnabled && {
+          notificationTrigger: this._notificationTrigger,
+          ...(this._notificationTrigger === 'about_to_end' && {
+            notificationLeadMinutes: this._notificationLeadMinutes,
+          }),
+        }),
       });
 
       if (pauseResult.status === 'confirm_required') {
@@ -640,6 +652,9 @@ export class AutomationPauseCard extends LitElement {
       });
 
       this._setSelected([]);
+      this._notificationsEnabled = false;
+      this._notificationTrigger = 'end';
+      this._notificationLeadMinutes = DEFAULT_NOTIFICATION_LEAD_MINUTES;
       this._disableAtDate = '';
       this._disableAtTime = '';
       this._resumeAtDate = '';
@@ -679,6 +694,19 @@ export class AutomationPauseCard extends LitElement {
       }
     } catch (e) {
       console.error('Wake all failed:', e);
+      this._hapticFeedback('failure');
+    }
+  }
+
+  private async _handleClearNotificationEvent(
+    e: CustomEvent<{ entityId: string }>
+  ): Promise<void> {
+    if (!this.hass) return;
+    try {
+      await runClearNotificationFeature(this.hass, e.detail.entityId);
+      this._hapticFeedback('success');
+    } catch (err) {
+      console.error('Clear notification failed:', err);
       this._hapticFeedback('failure');
     }
   }
@@ -815,6 +843,23 @@ export class AutomationPauseCard extends LitElement {
     this._showCustomInput = e.detail.show;
   }
 
+  private _handleNotificationsToggle(e: Event): void {
+    this._notificationsEnabled = (e.target as HTMLInputElement).checked;
+  }
+
+  private _handleNotificationWhenChange(e: Event): void {
+    this._notificationTrigger = (e.target as HTMLSelectElement).value as Exclude<NotificationTrigger, 'none'>;
+  }
+
+  private _handleNotificationLeadChange(e: Event): void {
+    this._notificationLeadMinutes = Number((e.target as HTMLSelectElement).value);
+  }
+
+  private _formatLeadLabel(minutes: number): string {
+    const { days, hours, minutes: mins } = minutesToDuration(minutes);
+    return formatDuration(days, hours, mins);
+  }
+
   private _handleSelectionChange(e: CustomEvent<{ selected: string[] }>): void {
     this._setSelected(e.detail.selected);
   }
@@ -925,6 +970,50 @@ export class AutomationPauseCard extends LitElement {
             @custom-input-toggle=${this._handleCustomInputToggle}
           ></autosnooze-duration-selector>
 
+          <div class="notify-section">
+            <label class="notify-toggle">
+              <input
+                type="checkbox"
+                .checked=${this._notificationsEnabled}
+                @change=${this._handleNotificationsToggle}
+              />
+              <ha-icon icon="mdi:bell-outline" aria-hidden="true"></ha-icon>
+              <span class="notify-toggle-text">
+                ${localize(this.hass, 'notify.toggle_label')}
+              </span>
+            </label>
+
+            ${this._notificationsEnabled ? html`
+              <div class="notify-detail">
+                <label class="notify-field">
+                  <span class="notify-field-label">${localize(this.hass, 'notify.when_label')}</span>
+                  <select
+                    .value=${this._notificationTrigger}
+                    @change=${this._handleNotificationWhenChange}
+                  >
+                    <option value="start">${localize(this.hass, 'notify.when.start')}</option>
+                    <option value="about_to_end">${localize(this.hass, 'notify.when.about_to_end')}</option>
+                    <option value="end">${localize(this.hass, 'notify.when.end')}</option>
+                  </select>
+                </label>
+
+                ${this._notificationTrigger === 'about_to_end' ? html`
+                  <label class="notify-field">
+                    <span class="notify-field-label visually-hidden">${localize(this.hass, 'notify.lead_label')}</span>
+                    <select
+                      .value=${String(this._notificationLeadMinutes)}
+                      @change=${this._handleNotificationLeadChange}
+                    >
+                      ${NOTIFICATION_LEAD_OPTIONS.map(
+                        (m) => html`<option value=${String(m)}>${this._formatLeadLabel(m)}</option>`
+                      )}
+                    </select>
+                  </label>
+                ` : ''}
+              </div>
+            ` : ''}
+          </div>
+
           ${this._guardrailConfirmOpen ? html`
             <div class="guardrail-confirm" role="alertdialog" aria-live="polite">
               <div class="guardrail-title">${localize(this.hass, 'guardrail.confirm_title')}</div>
@@ -970,6 +1059,7 @@ export class AutomationPauseCard extends LitElement {
               .pausedCount=${pausedCount}
               @wake-automation=${this._handleWakeEvent}
               @wake-all=${this._handleWakeAllEvent}
+              @clear-notification=${this._handleClearNotificationEvent}
               @adjust-automation=${this._handleAdjustAutomationEvent}
               @adjust-group=${this._handleAdjustGroupEvent}
             ></autosnooze-active-pauses>`

@@ -1,10 +1,11 @@
 import { beforeEach, describe, expect, test, vi } from 'vitest';
 import type { HomeAssistant } from '../types/hass.js';
 
-const { pauseAutomationsMock, adjustSnoozeMock, cancelScheduledMock } = vi.hoisted(() => ({
+const { pauseAutomationsMock, adjustSnoozeMock, cancelScheduledMock, clearNotificationMock } = vi.hoisted(() => ({
   pauseAutomationsMock: vi.fn(),
   adjustSnoozeMock: vi.fn(),
   cancelScheduledMock: vi.fn(),
+  clearNotificationMock: vi.fn(),
 }));
 
 const { saveLastDurationMock, saveRecentSnoozesMock } = vi.hoisted(() => ({
@@ -16,6 +17,7 @@ vi.mock('../services/snooze.js', () => ({
   pauseAutomations: pauseAutomationsMock,
   adjustSnooze: adjustSnoozeMock,
   cancelScheduled: cancelScheduledMock,
+  clearNotification: clearNotificationMock,
 }));
 
 vi.mock('../services/storage.js', () => ({
@@ -35,6 +37,7 @@ import {
   runCancelScheduledFeature,
   validateScheduledPauseInput,
 } from '../features/scheduled-snooze/index.js';
+import { runClearNotificationFeature } from '../features/resume/index.js';
 
 const hass = {
   locale: { language: 'en' },
@@ -278,6 +281,7 @@ describe('scheduled snooze feature mutation boundaries', () => {
     vi.clearAllMocks();
     adjustSnoozeMock.mockResolvedValue(undefined);
     cancelScheduledMock.mockResolvedValue(undefined);
+    clearNotificationMock.mockResolvedValue(undefined);
   });
 
   test('validateScheduledPauseInput rejects missing, current, past, invalid, and overlapping times', () => {
@@ -364,6 +368,12 @@ describe('scheduled snooze feature mutation boundaries', () => {
 
     expect(cancelScheduledMock).toHaveBeenNthCalledWith(1, hass, 'automation.a');
     expect(cancelScheduledMock).toHaveBeenNthCalledWith(2, hass, 'automation.b');
+  });
+
+  test('runClearNotificationFeature delegates entity ids unchanged', async () => {
+    await runClearNotificationFeature(hass, 'automation.a');
+
+    expect(clearNotificationMock).toHaveBeenCalledWith(hass, 'automation.a');
   });
 
   test('runAdjustFeature delegates array targets and calculates day, hour, and minute deltas', async () => {

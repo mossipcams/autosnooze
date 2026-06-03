@@ -32,6 +32,7 @@ const pausedLate: PausedAutomationAttribute = {
   hours: 1,
   minutes: 30,
   disable_at: '2026-04-29T12:15:00',
+  notification_trigger: 'about_to_end',
 };
 
 function createHass(attributes?: Record<string, unknown>): HomeAssistant {
@@ -199,6 +200,7 @@ describe('paused snapshot mutation boundaries', () => {
             hours: 0,
             minutes: 30,
             disable_at: undefined,
+            notification_trigger: undefined,
           },
         ],
       },

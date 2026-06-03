@@ -4,21 +4,37 @@ from __future__ import annotations
 
 import logging
 from time import perf_counter
+from typing import Literal
 
 from homeassistant.const import ATTR_ENTITY_ID
 from homeassistant.core import HomeAssistant, ServiceCall
 from homeassistant.util import dt as dt_util
 
 from ..const import MAX_RESUME_RETRIES, RESUME_RETRY_DELAY
+from ..domain.notifications import NOTIFICATION_TRIGGER_NONE
 from ..logging_utils import _log_command, _raise_save_failed
-from ..runtime.ports import async_save, async_set_automation_state, cancel_timer, schedule_resume
 from ..runtime.state import AutomationPauseData
+from ..runtime.ports import (
+    async_save,
+    async_set_automation_state,
+    cancel_notification_timer,
+    cancel_timer,
+    schedule_resume,
+)
 
+ResumeReason = Literal["manual", "expired"]
 _LOGGER = logging.getLogger(__name__)
 
 
-async def async_resume(hass: HomeAssistant, data: AutomationPauseData, entity_id: str) -> None:
+async def async_resume(
+    hass: HomeAssistant,
+    data: AutomationPauseData,
+    entity_id: str,
+    *,
+    reason: ResumeReason = "manual",
+) -> None:
     """Wake up a snoozed automation."""
+    del reason  # Application resume only handles manual/service-driven flows.
     if data.unloaded:
         return
     async with data.lock:
@@ -34,9 +50,11 @@ async def async_resume(hass: HomeAssistant, data: AutomationPauseData, entity_id
         if woke_successfully:
             if paused is not None or expected_pause is None:
                 cancel_timer(data, entity_id)
+                cancel_notification_timer(data, entity_id)
                 if paused is not None:
                     data.paused.pop(entity_id, None)
         elif paused is not None:
+            cancel_notification_timer(data, entity_id)
             if paused.resume_retries >= MAX_RESUME_RETRIES:
                 cancel_timer(data, entity_id)
                 data.paused.pop(entity_id, None)
@@ -60,8 +78,15 @@ async def async_resume(hass: HomeAssistant, data: AutomationPauseData, entity_id
         _LOGGER.warning("Failed to wake %s; retry scheduled", entity_id)
 
 
-async def async_resume_batch(hass: HomeAssistant, data: AutomationPauseData, entity_ids: list[str]) -> None:
+async def async_resume_batch(
+    hass: HomeAssistant,
+    data: AutomationPauseData,
+    entity_ids: list[str],
+    *,
+    reason: ResumeReason = "manual",
+) -> None:
     """Wake up multiple snoozed automations efficiently with single save."""
+    del reason  # Application resume only handles manual/service-driven flows.
     started_at = perf_counter()
     outcome = "success"
     try:
@@ -93,6 +118,7 @@ async def async_resume_batch(hass: HomeAssistant, data: AutomationPauseData, ent
                 if paused is None:
                     continue
 
+                cancel_notification_timer(data, entity_id)
                 if results.get(entity_id) is True:
                     cancel_timer(data, entity_id)
                     data.paused.pop(entity_id, None)
@@ -125,6 +151,53 @@ async def async_resume_batch(hass: HomeAssistant, data: AutomationPauseData, ent
         _log_command("cancel", outcome, started_at)
 
 
+async def async_clear_notification_config_batch(
+    _hass: HomeAssistant,
+    data: AutomationPauseData,
+    entity_ids: list[str],
+) -> None:
+    """Clear notification settings from paused automations with one save."""
+    started_at = perf_counter()
+    outcome = "success"
+    try:
+        if data.unloaded:
+            return
+        if not entity_ids:
+            return
+
+        changed = False
+        async with data.lock:
+            for entity_id in dict.fromkeys(entity_ids):
+                paused = data.paused.get(entity_id)
+                if paused is None:
+                    continue
+
+                cancel_notification_timer(data, entity_id)
+                if (
+                    paused.notification_trigger == NOTIFICATION_TRIGGER_NONE
+                    and paused.notification_lead_minutes is None
+                ):
+                    continue
+
+                paused.notification_trigger = NOTIFICATION_TRIGGER_NONE
+                paused.notification_lead_minutes = None
+                changed = True
+
+            if not changed:
+                return
+
+            if not await async_save(data):
+                _raise_save_failed()
+
+        data.notify()
+        _LOGGER.info("Cleared notification config for paused automations")
+    except Exception:
+        outcome = "error"
+        raise
+    finally:
+        _log_command("clear_notification", outcome, started_at)
+
+
 async def async_handle_cancel_service(
     hass: HomeAssistant,
     data: AutomationPauseData,
@@ -142,7 +215,7 @@ async def async_handle_cancel_service(
         valid_ids.append(entity_id)
 
     if valid_ids:
-        await async_resume_batch(hass, data, valid_ids)
+        await async_resume_batch(hass, data, valid_ids, reason="manual")
 
 
 async def async_handle_cancel_all_service(
@@ -155,4 +228,18 @@ async def async_handle_cancel_all_service(
 
     entity_ids = list(data.paused.keys())
     if entity_ids:
-        await async_resume_batch(hass, data, entity_ids)
+        await async_resume_batch(hass, data, entity_ids, reason="manual")
+
+
+async def async_handle_clear_notification_service(
+    hass: HomeAssistant,
+    data: AutomationPauseData,
+    call: ServiceCall,
+) -> None:
+    """Handle clear-notification service application flow."""
+    if data.unloaded:
+        return
+
+    valid_ids = [entity_id for entity_id in call.data[ATTR_ENTITY_ID] if entity_id in data.paused]
+    if valid_ids:
+        await async_clear_notification_config_batch(hass, data, valid_ids)

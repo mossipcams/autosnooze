@@ -65,6 +65,14 @@
         "resume_at": {
           "name": "Resume At",
           "description": "Specific datetime when to re-enable the automation."
+        },
+        "notification_trigger": {
+          "name": "Notification Trigger",
+          "description": "Choose whether to notify when the snooze starts, shortly before it ends, or when it ends."
+        },
+        "notification_lead_minutes": {
+          "name": "Notification Lead Minutes",
+          "description": "Required when Notification Trigger is set to Before snooze ends."
         }
       }
     },
@@ -81,6 +89,16 @@
     "cancel_all": {
       "name": "Wake All",
       "description": "Wake all snoozed automations immediately."
+    },
+    "clear_notification": {
+      "name": "Clear Notification",
+      "description": "Remove notification settings from currently snoozed automations.",
+      "fields": {
+        "entity_id": {
+          "name": "Automation",
+          "description": "Snoozed automation(s) whose notification settings should be cleared."
+        }
+      }
     },
     "pause_by_area": {
       "name": "Snooze by Area",
@@ -109,6 +127,14 @@
         "resume_at": {
           "name": "Resume At",
           "description": "Specific datetime when to re-enable the automations."
+        },
+        "notification_trigger": {
+          "name": "Notification Trigger",
+          "description": "Choose whether to notify when the snooze starts, shortly before it ends, or when it ends."
+        },
+        "notification_lead_minutes": {
+          "name": "Notification Lead Minutes",
+          "description": "Required when Notification Trigger is set to Before snooze ends."
         }
       }
     },
@@ -139,6 +165,14 @@
         "resume_at": {
           "name": "Resume At",
           "description": "Specific datetime when to re-enable the automations."
+        },
+        "notification_trigger": {
+          "name": "Notification Trigger",
+          "description": "Choose whether to notify when the snooze starts, shortly before it ends, or when it ends."
+        },
+        "notification_lead_minutes": {
+          "name": "Notification Lead Minutes",
+          "description": "Required when Notification Trigger is set to Before snooze ends."
         }
       }
     },

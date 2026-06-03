@@ -12,4 +12,5 @@ def test_runtime_state_module_exposes_automation_pause_data() -> None:
     data = AutomationPauseData(store=MagicMock())
     assert data.paused == {}
     assert data.scheduled == {}
+    assert data.notification_timers == {}
     assert data.unloaded is False

@@ -28,8 +28,7 @@ from .infrastructure.frontend import (
     _async_register_static_path,
     _async_retry_or_fail,
 )
-from .models import AutomationPauseConfigEntry
-from .runtime.state import AutomationPauseData
+from .runtime.state import AutomationPauseConfigEntry, AutomationPauseData
 from .services import register_services
 
 _LOGGER = logging.getLogger(__name__)
@@ -120,6 +119,11 @@ async def async_unload_entry(hass: HomeAssistant, entry: AutomationPauseConfigEn
         for unsub in data.scheduled_timers.values():
             unsub()
         data.scheduled_timers.clear()
+
+        # Cancel all pre-resume notification timers
+        for unsub in data.notification_timers.values():
+            unsub()
+        data.notification_timers.clear()
 
         # Clear all listeners to prevent orphaned callbacks
         data.listeners.clear()

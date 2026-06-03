@@ -2,7 +2,7 @@
  * Resume feature orchestration for waking and undoing snoozes.
  */
 
-import { cancelScheduled, wakeAll, wakeAutomation } from '../../services/snooze.js';
+import { cancelScheduled, clearNotification, wakeAll, wakeAutomation } from '../../services/snooze.js';
 import type { HomeAssistant } from '../../types/hass.js';
 
 interface UndoFeatureResult {
@@ -16,6 +16,13 @@ export async function runWakeFeature(hass: HomeAssistant, entityId: string): Pro
 
 export async function runWakeAllFeature(hass: HomeAssistant): Promise<void> {
   await wakeAll(hass);
+}
+
+export async function runClearNotificationFeature(
+  hass: HomeAssistant,
+  entityId: string,
+): Promise<void> {
+  await clearNotification(hass, entityId);
 }
 
 export async function runUndoFeature(

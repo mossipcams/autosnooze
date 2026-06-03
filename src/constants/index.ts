@@ -60,6 +60,18 @@ export const DEFAULT_DURATIONS: DurationPreset[] = [
 export const DEFAULT_SNOOZE_MINUTES = 30;
 
 /**
+ * Lead-time options (minutes) for the "Before snooze ends" notification trigger.
+ * Must stay in sync with NOTIFICATION_LEAD_MINUTES_VALUES in
+ * custom_components/autosnooze/domain/notifications.py.
+ */
+export const NOTIFICATION_LEAD_OPTIONS = [30, 60, 120, 240] as const;
+
+/**
+ * Default lead time (minutes) when "Before snooze ends" is selected.
+ */
+export const DEFAULT_NOTIFICATION_LEAD_MINUTES = 60;
+
+/**
  * Error translation key to user-friendly message mapping.
  */
 export const ERROR_MESSAGES: Record<string, string> = {

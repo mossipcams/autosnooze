@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 from datetime import datetime
+from inspect import isawaitable
 import logging
 
 from homeassistant.const import ATTR_ENTITY_ID, ATTR_FRIENDLY_NAME
@@ -14,11 +15,14 @@ from ..infrastructure.storage import async_save as infrastructure_async_save
 from ..models import ScheduledSnooze
 from .state import AutomationPauseData
 from .timers import (
+    NotificationCallback,
     ResumeCallback,
     ScheduledDisableCallback,
+    cancel_notification_timer,
     cancel_scheduled_timer,
     cancel_timer,
     schedule_disable as runtime_schedule_disable,
+    schedule_pre_resume_notification as runtime_schedule_pre_resume_notification,
     schedule_resume as runtime_schedule_resume,
 )
 
@@ -33,12 +37,14 @@ async def async_set_automation_state(hass: HomeAssistant, entity_id: str, *, ena
         return False
 
     try:
-        await hass.services.async_call(
+        result = hass.services.async_call(
             "automation",
             "turn_on" if enabled else "turn_off",
             {ATTR_ENTITY_ID: entity_id},
             blocking=True,
         )
+        if isawaitable(result):
+            await result
         return True
     except Exception as err:
         _LOGGER.error("Failed to %s %s: %s", "wake" if enabled else "snooze", entity_id, err)
@@ -59,6 +65,7 @@ def schedule_resume(
     resume_at: datetime,
     *,
     resume_callback: ResumeCallback | None = None,
+    reason: str = "expired",
 ) -> None:
     """Schedule automation to resume at specified time."""
     runtime_schedule_resume(
@@ -66,6 +73,7 @@ def schedule_resume(
         data,
         entity_id,
         resume_at,
+        reason=reason,  # type: ignore[arg-type]
         resume_callback=resume_callback,
         track_point_in_time=async_track_point_in_time,
     )
@@ -86,6 +94,23 @@ def schedule_disable(
         entity_id,
         scheduled,
         disable_callback=disable_callback,
+        track_point_in_time=async_track_point_in_time,
+    )
+
+
+def schedule_pre_resume_notification(
+    hass: HomeAssistant,
+    data: AutomationPauseData,
+    paused,
+    *,
+    notification_callback: NotificationCallback | None = None,
+) -> bool:
+    """Schedule a notification before an active snooze resumes."""
+    return runtime_schedule_pre_resume_notification(
+        hass,
+        data,
+        paused,
+        notification_callback=notification_callback,
         track_point_in_time=async_track_point_in_time,
     )
 
