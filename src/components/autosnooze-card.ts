@@ -986,7 +986,7 @@ export class AutomationPauseCard extends LitElement {
             ${this._notificationsEnabled ? html`
               <div class="notify-detail">
                 <label class="notify-field">
-                  <span class="notify-field-label">${localize(this.hass, 'notify.when_label')}</span>
+                  <span class="notify-field-label visually-hidden">${localize(this.hass, 'notify.when_label')}</span>
                   <select
                     .value=${this._notificationTrigger}
                     @change=${this._handleNotificationWhenChange}

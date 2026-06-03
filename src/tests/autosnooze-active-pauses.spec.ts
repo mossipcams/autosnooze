@@ -73,7 +73,8 @@ describe('AutoSnoozeActivePauses notification controls', () => {
 
     const clearButtons = element.shadowRoot?.querySelectorAll('.clear-notification-btn');
     expect(clearButtons).toHaveLength(1);
-    expect(clearButtons?.[0]?.textContent?.trim()).toBe('Remove notification');
+    expect(clearButtons?.[0]?.getAttribute('aria-label')).toBe('Remove notification');
+    expect(clearButtons?.[0]?.querySelector('ha-icon')?.getAttribute('icon')).toBe('mdi:bell-off-outline');
 
     element.pauseGroups = [
       {

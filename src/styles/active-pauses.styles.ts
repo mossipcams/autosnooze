@@ -90,6 +90,25 @@ export const activePausesStyles = css`
       outline: 2px solid var(--primary-color);
       outline-offset: 2px;
     }
+    /* Compact icon-only button so the automation name keeps its space. */
+    .clear-notification-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      padding: 6px;
+      min-width: 44px;
+      --mdc-icon-size: 20px;
+      color: var(--secondary-text-color);
+    }
+    .clear-notification-btn ha-icon {
+      display: block;
+    }
+    .clear-notification-btn:hover {
+      background: var(--secondary-background-color, rgba(0, 0, 0, 0.06));
+      color: var(--primary-text-color);
+      border-color: var(--divider-color);
+    }
     .wake-all {
       width: 100%;
       padding: 10px;

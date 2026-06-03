@@ -56,11 +56,17 @@ export const cardStyles = css`
       margin-bottom: 20px;
     }
 
+    .notify-section {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 8px 12px;
+      margin: 12px 0;
+    }
     .notify-toggle {
       display: flex;
       align-items: center;
       gap: 8px;
-      margin: 12px 0;
       cursor: pointer;
       font-size: 0.9em;
       color: var(--primary-text-color);
@@ -86,9 +92,9 @@ export const cardStyles = css`
     .notify-detail {
       display: flex;
       flex-wrap: wrap;
-      align-items: flex-end;
+      align-items: center;
       gap: 8px;
-      margin: 0 0 12px 26px;
+      margin: 0;
     }
     .notify-field {
       display: flex;

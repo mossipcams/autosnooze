@@ -158,12 +158,12 @@
   },
   "notify": {
     "toggle_label": "Notify me",
-    "when_label": "When?",
+    "when_label": "Notification timing",
     "lead_label": "How long before?",
     "when": {
-      "start": "When snooze starts",
+      "start": "Snooze starts",
       "about_to_end": "Before snooze ends",
-      "end": "When snooze ends"
+      "end": "Snooze ends"
     }
   }
 }
