@@ -10,7 +10,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from custom_components.autosnooze.coordinator import (
+from custom_components.autosnooze.runtime.restore import (
     validate_stored_data,
     validate_stored_entry,
 )

@@ -8,7 +8,7 @@ import pytest
 import voluptuous as vol
 
 from custom_components.autosnooze.const import PAUSE_SCHEMA
-from custom_components.autosnooze.coordinator import validate_stored_data
+from custom_components.autosnooze.runtime.restore import validate_stored_data
 from custom_components.autosnooze.models import PausedAutomation, ScheduledSnooze
 
 UTC = timezone.utc
