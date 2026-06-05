@@ -8,7 +8,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from custom_components.autosnooze.coordinator import async_resume_batch
+from custom_components.autosnooze.application.resume import async_resume_batch
 from custom_components.autosnooze.application.pause import async_pause_automations
 from custom_components.autosnooze.runtime.state import AutomationPauseData
 from custom_components.autosnooze.models import PausedAutomation
@@ -60,12 +60,12 @@ async def test_cancel_batch_path_emits_structured_log_fields(caplog: pytest.LogC
 
     with (
         patch(
-            "custom_components.autosnooze.coordinator.async_set_automation_state",
+            "custom_components.autosnooze.application.resume.async_set_automation_state",
             new_callable=AsyncMock,
             return_value=True,
         ),
-        patch("custom_components.autosnooze.coordinator.async_save", new_callable=AsyncMock, return_value=True),
-        patch("custom_components.autosnooze.coordinator.cancel_timer"),
+        patch("custom_components.autosnooze.application.resume.async_save", new_callable=AsyncMock, return_value=True),
+        patch("custom_components.autosnooze.application.resume.cancel_timer"),
     ):
         await async_resume_batch(hass, data, ["automation.kitchen"])
 
