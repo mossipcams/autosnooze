@@ -3,21 +3,18 @@
 from __future__ import annotations
 
 import asyncio
-from datetime import datetime, timedelta
+from datetime import datetime
 import logging
 from time import perf_counter
 from typing import Any, Literal
 
 from homeassistant.const import ATTR_ENTITY_ID, ATTR_FRIENDLY_NAME
-from homeassistant.exceptions import ServiceValidationError
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.event import async_track_point_in_time
 from homeassistant.util import dt as dt_util
 
 from .const import (
-    DOMAIN,
     MAX_RESUME_RETRIES,
-    MIN_ADJUST_BUFFER,
     RESUME_RETRY_DELAY,
     SCHEDULED_DISABLE_RETRY_DELAY,
 )
@@ -427,100 +424,6 @@ async def async_resume_batch(
         _log_command("cancel", outcome, started_at)
 
 
-async def async_adjust_snooze(
-    hass: HomeAssistant,
-    data: AutomationPauseData,
-    entity_id: str,
-    delta: timedelta,
-) -> None:
-    """Adjust the resume time of a paused automation by a time delta."""
-    if data.unloaded:
-        return
-    async with data.lock:
-        paused = data.paused.get(entity_id)
-        if paused is None:
-            _LOGGER.warning("Cannot adjust %s: not currently snoozed", entity_id)
-            return
-
-        new_resume_at = paused.resume_at + delta
-        now = dt_util.utcnow()
-
-        if new_resume_at <= now + MIN_ADJUST_BUFFER:
-            raise ServiceValidationError(
-                "Adjusted time must be at least 1 minute in the future",
-                translation_domain=DOMAIN,
-                translation_key="adjust_time_too_short",
-            )
-
-        paused.resume_at = new_resume_at
-        # Clear stale duration fields -- resume_at is the source of truth after adjustment
-        paused.days = 0
-        paused.hours = 0
-        paused.minutes = 0
-
-        schedule_resume(hass, data, entity_id, new_resume_at)
-        schedule_pre_resume_notification(hass, data, paused)
-        if not await async_save(data):
-            _raise_save_failed()
-    data.notify()
-    _LOGGER.info("Adjusted snooze for %s: new resume at %s", entity_id, new_resume_at)
-
-
-async def async_adjust_snooze_batch(
-    hass: HomeAssistant,
-    data: AutomationPauseData,
-    entity_ids: list[str],
-    delta: timedelta,
-) -> None:
-    """Adjust the resume time of multiple paused automations with single save."""
-    started_at = perf_counter()
-    outcome = "success"
-    try:
-        if data.unloaded:
-            return
-        if not entity_ids:
-            return
-
-        now = dt_util.utcnow()
-        updates: list[tuple[str, PausedAutomation, datetime]] = []
-
-        async with data.lock:
-            for entity_id in entity_ids:
-                paused = data.paused.get(entity_id)
-                if paused is None:
-                    _LOGGER.warning("Cannot adjust %s: not currently snoozed", entity_id)
-                    continue
-
-                new_resume_at = paused.resume_at + delta
-
-                if new_resume_at <= now + MIN_ADJUST_BUFFER:
-                    raise ServiceValidationError(
-                        "Adjusted time must be at least 1 minute in the future",
-                        translation_domain=DOMAIN,
-                        translation_key="adjust_time_too_short",
-                    )
-
-                updates.append((entity_id, paused, new_resume_at))
-
-            for entity_id, paused, new_resume_at in updates:
-                paused.resume_at = new_resume_at
-                paused.days = 0
-                paused.hours = 0
-                paused.minutes = 0
-
-                schedule_resume(hass, data, entity_id, new_resume_at)
-                schedule_pre_resume_notification(hass, data, paused)
-            if not await async_save(data):
-                _raise_save_failed()
-        data.notify()
-        _LOGGER.info("Adjusted snooze for %d automations", len(entity_ids))
-    except Exception:
-        outcome = "error"
-        raise
-    finally:
-        _log_command("adjust", outcome, started_at)
-
-
 def schedule_disable(
     hass: HomeAssistant,
     data: AutomationPauseData,
@@ -640,51 +543,6 @@ async def async_execute_scheduled_disable(
         save_succeeded=True,
     )
     _LOGGER.info("Executed scheduled snooze for %s until %s", entity_id, resume_at)
-
-
-async def async_cancel_scheduled(hass: HomeAssistant, data: AutomationPauseData, entity_id: str) -> None:
-    """Cancel a scheduled snooze."""
-    # Check if integration is unloaded to prevent post-unload operations
-    if data.unloaded:
-        return
-    async with data.lock:
-        cancel_scheduled_timer(data, entity_id)
-        data.scheduled.pop(entity_id, None)
-        if not await async_save(data):
-            _raise_save_failed()
-    data.notify()
-    _LOGGER.info("Cancelled scheduled snooze for: %s", entity_id)
-
-
-async def async_cancel_scheduled_batch(hass: HomeAssistant, data: AutomationPauseData, entity_ids: list[str]) -> None:
-    """Cancel multiple scheduled snoozes efficiently with single save.
-
-    Similar to async_resume_batch (DEF-011 fix), this batches operations
-    to reduce disk I/O when cancelling multiple scheduled snoozes.
-    """
-    started_at = perf_counter()
-    outcome = "success"
-    try:
-        # Check if integration is unloaded to prevent post-unload operations
-        if data.unloaded:
-            return
-        if not entity_ids:
-            return
-
-        async with data.lock:
-            for entity_id in entity_ids:
-                cancel_scheduled_timer(data, entity_id)
-                data.scheduled.pop(entity_id, None)
-            # Single save after all operations
-            if not await async_save(data):
-                _raise_save_failed()
-        data.notify()
-        _LOGGER.info("Cancelled %d scheduled snoozes", len(entity_ids))
-    except Exception:
-        outcome = "error"
-        raise
-    finally:
-        _log_command("cancel_scheduled", outcome, started_at)
 
 
 async def async_save(data: AutomationPauseData) -> bool:
