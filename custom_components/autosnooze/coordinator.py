@@ -6,7 +6,7 @@ import asyncio
 from datetime import datetime, timedelta
 import logging
 from time import perf_counter
-from typing import Any, Literal
+from typing import Literal
 
 from homeassistant.const import ATTR_ENTITY_ID, ATTR_FRIENDLY_NAME
 from homeassistant.exceptions import ServiceValidationError
@@ -696,35 +696,9 @@ async def async_save(data: AutomationPauseData) -> bool:
     return await infrastructure_async_save(data, sleep=asyncio.sleep)
 
 
-def validate_stored_entry(
-    entity_id: str,
-    entry_data: Any,
-    entry_type: str,
-) -> bool:
-    """Validate a single stored entry.
-
-    Args:
-        entity_id: The entity ID (key in storage)
-        entry_data: The entry data
-        entry_type: "paused" or "scheduled"
-
-    Returns:
-        True if valid, False if invalid.
-    """
-    return runtime_validate_stored_entry(entity_id, entry_data, entry_type)
-
-
-def validate_stored_data(stored: Any) -> dict[str, Any]:
-    """Validate and sanitize stored data.
-
-    Returns validated data with invalid entries removed.
-    """
-    return runtime_validate_stored_data(stored)
-
-
-async def async_load_stored(hass: HomeAssistant, data: AutomationPauseData) -> None:
-    """Load and restore snoozed automations from storage (FR-07: Persistence)."""
-    await runtime_async_load_stored(hass, data)
+validate_stored_entry = runtime_validate_stored_entry
+validate_stored_data = runtime_validate_stored_data
+async_load_stored = runtime_async_load_stored
 
 
 configure_default_timer_callbacks(

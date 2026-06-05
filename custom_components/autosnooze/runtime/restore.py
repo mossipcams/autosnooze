@@ -9,6 +9,7 @@ from typing import Any
 from homeassistant.core import HomeAssistant
 from homeassistant.util import dt as dt_util
 
+from ..const import MAX_RESUME_RETRIES, RESUME_RETRY_DELAY
 from ..domain.notifications import NOTIFICATION_TRIGGER_NONE, validate_notification_config
 from ..infrastructure.storage import async_save
 from ..models import PausedAutomation, ScheduledSnooze, parse_datetime_utc
@@ -140,11 +141,13 @@ async def async_load_stored(hass: HomeAssistant, data: AutomationPauseData) -> N
     validated = validate_stored_data(stored)
     now = dt_util.utcnow()
     expired: list[str] = []
+    expired_pauses: dict[str, PausedAutomation] = {}
     expired_scheduled: list[str] = []
     paused_to_restore: list[PausedAutomation] = []
     scheduled_to_execute: list[ScheduledSnooze] = []
     scheduled_to_restore: list[ScheduledSnooze] = []
     restored_paused: list[PausedAutomation] = []
+    failed_expired_wakes: list[PausedAutomation] = []
     executed_scheduled: list[ScheduledSnooze] = []
     restored_started: list[PausedAutomation] = []
 
@@ -165,6 +168,7 @@ async def async_load_stored(hass: HomeAssistant, data: AutomationPauseData) -> N
             paused = PausedAutomation.from_dict(entity_id, info)
             if paused.resume_at <= now:
                 expired.append(entity_id)
+                expired_pauses[entity_id] = paused
             else:
                 paused_to_restore.append(paused)
         except (KeyError, ValueError) as err:
@@ -208,7 +212,16 @@ async def async_load_stored(hass: HomeAssistant, data: AutomationPauseData) -> N
             expired_scheduled.append(scheduled.entity_id)
 
     for entity_id in expired:
-        await async_set_automation_state(hass, entity_id, enabled=True)
+        paused = expired_pauses.get(entity_id)
+        if paused is None:
+            await async_set_automation_state(hass, entity_id, enabled=True)
+            continue
+        if await async_set_automation_state(hass, entity_id, enabled=True):
+            continue
+        if paused.resume_retries < MAX_RESUME_RETRIES:
+            paused.resume_retries += 1
+            paused.resume_at = dt_util.utcnow() + RESUME_RETRY_DELAY
+        failed_expired_wakes.append(paused)
 
     async with data.lock:
         for paused in restored_paused:
@@ -225,6 +238,11 @@ async def async_load_stored(hass: HomeAssistant, data: AutomationPauseData) -> N
             data.paused[paused.entity_id] = paused
             schedule_resume(hass, data, paused.entity_id, paused.resume_at)
             schedule_pre_resume_notification(hass, data, paused)
+
+        for paused in failed_expired_wakes:
+            data.paused[paused.entity_id] = paused
+            if paused.resume_retries < MAX_RESUME_RETRIES:
+                schedule_resume(hass, data, paused.entity_id, paused.resume_at)
 
         for scheduled in executed_scheduled:
             paused = PausedAutomation(
