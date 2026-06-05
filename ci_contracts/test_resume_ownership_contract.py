@@ -6,14 +6,15 @@ from pathlib import Path
 
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
-ACTIONS_CONTROLLER_PATH = PROJECT_ROOT / "src" / "components" / "autosnooze-actions-controller.ts"
+CARD_PATH = PROJECT_ROOT / "src" / "components" / "autosnooze-card.ts"
 RESUME_FEATURE_PATH = PROJECT_ROOT / "src" / "features" / "resume" / "index.ts"
 SCHEDULED_SNOOZE_FEATURE_PATH = PROJECT_ROOT / "src" / "features" / "scheduled-snooze" / "index.ts"
+ACTIONS_CONTROLLER_PATH = PROJECT_ROOT / "src" / "components" / "autosnooze-actions-controller.ts"
 
 
-def test_actions_controller_delegates_resume_behavior_to_resume_feature() -> None:
-    """Wake/undo orchestration should live in the resume feature, not the controller."""
-    source = ACTIONS_CONTROLLER_PATH.read_text(encoding="utf-8")
+def test_card_delegates_resume_behavior_to_resume_feature() -> None:
+    """Wake/undo orchestration should live in the resume feature, not the card component."""
+    source = CARD_PATH.read_text(encoding="utf-8")
 
     assert "../features/resume/index.js" in source
     assert "runWakeFeature" in source
@@ -23,15 +24,22 @@ def test_actions_controller_delegates_resume_behavior_to_resume_feature() -> Non
     assert "const undoCall" not in source
 
 
-def test_scheduled_snooze_feature_only_uses_controller_for_adjust_and_cancel() -> None:
-    """Scheduled-snooze orchestration may keep using the controller for legacy adjust/cancel helpers."""
+def test_legacy_actions_controller_removed() -> None:
+    """The redundant actions-controller facade was removed; the card uses features directly."""
+    assert not ACTIONS_CONTROLLER_PATH.exists()
+
+
+def test_scheduled_snooze_feature_owns_adjust_and_cancel_actions() -> None:
+    """Scheduled-snooze orchestration lives in the scheduled-snooze feature module."""
     source = SCHEDULED_SNOOZE_FEATURE_PATH.read_text(encoding="utf-8")
 
-    assert "runAdjustAction" in source
-    assert "runCancelScheduledAction" in source
-    assert "runWakeAction" not in source
-    assert "runWakeAllAction" not in source
-    assert "runUndoAction" not in source
+    assert "runAdjustFeature" in source
+    assert "runAdjustActionFeature" in source
+    assert "runCancelScheduledFeature" in source
+    assert "runCancelScheduledActionFeature" in source
+    assert "runWakeFeature" not in source
+    assert "runWakeAllFeature" not in source
+    assert "runUndoFeature" not in source
 
 
 def test_resume_feature_remains_single_owner_of_undo_orchestration() -> None:

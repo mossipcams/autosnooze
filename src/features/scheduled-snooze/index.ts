@@ -66,7 +66,7 @@ export async function runCancelScheduledActionFeature(
   hass: HomeAssistant,
   entityId: string,
 ): Promise<void> {
-  await cancelScheduled(hass, entityId);
+  await runCancelScheduledFeature(hass, entityId);
 }
 
 export async function runAdjustFeature(

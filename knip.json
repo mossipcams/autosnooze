@@ -16,9 +16,6 @@
     "src/types/**/*.ts": [
       "types"
     ],
-    "src/components/autosnooze-actions-controller.ts": [
-      "exports"
-    ],
     "e2e/helpers/**/*.ts": [
       "exports",
       "types"

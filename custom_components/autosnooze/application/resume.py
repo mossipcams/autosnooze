@@ -17,10 +17,9 @@ from ..runtime.state import AutomationPauseData
 from ..runtime.ports import (
     async_save,
     async_set_automation_state,
-    cancel_notification_timer,
-    cancel_timer,
     schedule_resume,
 )
+from ..runtime.timers import cancel_notification_timer, cancel_timer
 
 ResumeReason = Literal["manual", "expired"]
 _LOGGER = logging.getLogger(__name__)

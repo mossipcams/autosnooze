@@ -27,13 +27,15 @@ from ..models import PausedAutomation, ScheduledSnooze, ensure_utc_aware
 from ..runtime.ports import (
     async_save as runtime_async_save,
     async_set_automation_state,
-    cancel_notification_timer,
-    cancel_scheduled_timer,
-    cancel_timer,
     get_friendly_name,
     schedule_disable,
     schedule_pre_resume_notification,
     schedule_resume,
+)
+from ..runtime.timers import (
+    cancel_notification_timer,
+    cancel_scheduled_timer,
+    cancel_timer,
 )
 from ..runtime.state import AutomationPauseData
 

@@ -16,11 +16,11 @@ from ..models import PausedAutomation, ScheduledSnooze
 from ..runtime.ports import (
     async_save,
     async_set_automation_state,
-    cancel_scheduled_timer,
     get_friendly_name,
     schedule_disable,
     schedule_resume,
 )
+from ..runtime.timers import cancel_scheduled_timer
 from ..runtime.state import AutomationPauseData
 
 _LOGGER = logging.getLogger(__name__)
