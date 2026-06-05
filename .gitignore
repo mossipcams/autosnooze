@@ -38,5 +38,6 @@ e2e/playwright-report/
 playwright-report/
 test-results/
 
-# Graphify build output (durable graph artifacts live in .planning/graphs/)
-graphify-out/
+# Local Graphify output
+graphify-out/cost.json
+graphify-out/cache/
