@@ -388,11 +388,15 @@ describe('automation list mutation boundaries', () => {
 
     element.hass = { ...HASS } as HomeAssistant;
     const hassChanged = (element as never as { _getViewModel: () => unknown })._getViewModel();
-    expect(hassChanged).not.toBe(tabChanged);
+    expect(hassChanged).toBe(tabChanged);
+
+    element.hass = { ...HASS, areas: { ...HASS.areas } } as HomeAssistant;
+    const areasChanged = (element as never as { _getViewModel: () => unknown })._getViewModel();
+    expect(areasChanged).not.toBe(hassChanged);
 
     element.labelRegistry = { ...LABELS };
     const labelsChanged = (element as never as { _getViewModel: () => unknown })._getViewModel();
-    expect(labelsChanged).not.toBe(hassChanged);
+    expect(labelsChanged).not.toBe(areasChanged);
 
     element.categoryRegistry = { ...CATEGORIES };
     const categoriesChanged = (element as never as { _getViewModel: () => unknown })._getViewModel();

@@ -34,14 +34,84 @@ function asRecord(value: unknown): Record<string, unknown> | null {
   return value as Record<string, unknown>;
 }
 
+function isValidIsoDateTime(value: unknown): boolean {
+  if (typeof value !== 'string' || value.length === 0) {
+    return false;
+  }
+  const parsed = Date.parse(value);
+  return Number.isFinite(parsed);
+}
+
+function isNonNegativeNumber(value: unknown): boolean {
+  return typeof value === 'number' && Number.isFinite(value) && value >= 0;
+}
+
+function isValidPausedEntry(value: unknown): value is PausedAutomationAttribute {
+  const record = asRecord(value);
+  if (!record) {
+    return false;
+  }
+  return (record.friendly_name === undefined || typeof record.friendly_name === 'string')
+    && isValidIsoDateTime(record.resume_at)
+    && (record.paused_at === undefined || isValidIsoDateTime(record.paused_at))
+    && (record.days === undefined || isNonNegativeNumber(record.days))
+    && (record.hours === undefined || isNonNegativeNumber(record.hours))
+    && (record.minutes === undefined || isNonNegativeNumber(record.minutes))
+    && (record.disable_at === undefined || record.disable_at === null || isValidIsoDateTime(record.disable_at));
+}
+
+function isValidScheduledEntry(value: unknown): value is ScheduledSnoozeAttribute {
+  const record = asRecord(value);
+  if (!record) {
+    return false;
+  }
+  if ((record.friendly_name !== undefined && typeof record.friendly_name !== 'string')
+    || !isValidIsoDateTime(record.resume_at)
+    || (record.disable_at !== undefined && !isValidIsoDateTime(record.disable_at))) {
+    return false;
+  }
+  return record.disable_at === undefined
+    || Date.parse(record.disable_at as string) < Date.parse(record.resume_at as string);
+}
+
 function asPausedMap(value: unknown): Record<string, PausedAutomationAttribute> | null {
   const record = asRecord(value);
-  return record as Record<string, PausedAutomationAttribute> | null;
+  if (!record) {
+    return null;
+  }
+
+  const parsed: Record<string, PausedAutomationAttribute> = {};
+  let validCount = 0;
+  for (const [entityId, entry] of Object.entries(record)) {
+    if (!entityId.startsWith('automation.') || !isValidPausedEntry(entry)) {
+      continue;
+    }
+    parsed[entityId] = entry;
+    validCount += 1;
+  }
+  return validCount === Object.keys(record).length
+    ? value as Record<string, PausedAutomationAttribute>
+    : parsed;
 }
 
 function asScheduledMap(value: unknown): Record<string, ScheduledSnoozeAttribute> | null {
   const record = asRecord(value);
-  return record as Record<string, ScheduledSnoozeAttribute> | null;
+  if (!record) {
+    return null;
+  }
+
+  const parsed: Record<string, ScheduledSnoozeAttribute> = {};
+  let validCount = 0;
+  for (const [entityId, entry] of Object.entries(record)) {
+    if (!entityId.startsWith('automation.') || !isValidScheduledEntry(entry)) {
+      continue;
+    }
+    parsed[entityId] = entry;
+    validCount += 1;
+  }
+  return validCount === Object.keys(record).length
+    ? value as Record<string, ScheduledSnoozeAttribute>
+    : parsed;
 }
 
 /**

@@ -132,6 +132,38 @@ describe('Paused Contract Parser', () => {
     expect(groupsSecond).toBe(groupsFirst);
   });
 
+  test('paused_contract_rejects_invalid_nested_records', () => {
+    const parsed = parsePausedContract({
+      schema_version: SENSOR_SCHEMA_VERSION,
+      paused: {
+        'automation.valid': pausedEntry(),
+        'automation.invalid': pausedEntry({ resume_at: 'not-a-date' }),
+        'automation.bad_name': pausedEntry({ friendly_name: null }),
+        'automation.bad_paused_at': pausedEntry({ paused_at: 'not-a-date' }),
+        'automation.bad_duration': pausedEntry({ minutes: 'zero' }),
+        'light.invalid': pausedEntry({ friendly_name: 'Wrong Domain' }),
+      },
+      scheduled: {
+        'automation.scheduled': scheduledEntry(),
+        'automation.bad_schedule': scheduledEntry({ resume_at: '' }),
+        'automation.bad_order': scheduledEntry({
+          disable_at: '2030-01-01T13:00:00+00:00',
+          resume_at: '2030-01-01T12:00:00+00:00',
+        }),
+      },
+    });
+
+    expect(parsed.paused['automation.valid']).toBeDefined();
+    expect(parsed.paused['automation.invalid']).toBeUndefined();
+    expect(parsed.paused['automation.bad_name']).toBeUndefined();
+    expect(parsed.paused['automation.bad_paused_at']).toBeUndefined();
+    expect(parsed.paused['automation.bad_duration']).toBeUndefined();
+    expect(parsed.paused['light.invalid']).toBeUndefined();
+    expect(parsed.scheduled['automation.scheduled']).toBeDefined();
+    expect(parsed.scheduled['automation.bad_schedule']).toBeUndefined();
+    expect(parsed.scheduled['automation.bad_order']).toBeUndefined();
+  });
+
   test('invalidates memoized snapshot when sensor attributes object changes', () => {
     const hass = createMockHass({
       states: {

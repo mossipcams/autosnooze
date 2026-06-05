@@ -56,7 +56,8 @@ export class AutoSnoozeAutomationList extends LitElement {
     automations: AutomationItem[];
     search: string;
     filterTab: FilterTab;
-    hass: HomeAssistant | undefined;
+    areas: HomeAssistant['areas'] | undefined;
+    language: string | undefined;
     labelRegistry: Record<string, HassLabel>;
     categoryRegistry: Record<string, HassCategory>;
     result: AutomationListViewModel;
@@ -182,7 +183,8 @@ export class AutoSnoozeAutomationList extends LitElement {
       cache.automations === this.automations &&
       cache.search === this._search &&
       cache.filterTab === this._filterTab &&
-      cache.hass === this.hass &&
+      cache.areas === this.hass?.areas &&
+      cache.language === this.hass?.locale?.language &&
       cache.labelRegistry === this.labelRegistry &&
       cache.categoryRegistry === this.categoryRegistry
     ) {
@@ -205,7 +207,8 @@ export class AutoSnoozeAutomationList extends LitElement {
       automations: this.automations,
       search: this._search,
       filterTab: this._filterTab,
-      hass: this.hass,
+      areas: this.hass?.areas,
+      language: this.hass?.locale?.language,
       labelRegistry: this.labelRegistry,
       categoryRegistry: this.categoryRegistry,
       result,

@@ -2,6 +2,7 @@
 import { afterEach, beforeEach, describe, expect, test } from 'vitest';
 
 import '../src/index.ts';
+import { CardController } from '../src/features/card-controller/index.ts';
 
 describe('PR #329 Automation List Cache', () => {
   let list;
@@ -58,5 +59,39 @@ describe('PR #329 Automation List Cache', () => {
     const after = list._getViewModel();
     expect(after).not.toBe(before);
     expect(after.grouped[0][0]).toBe('Scenes');
+  });
+
+  test('unrelated_hass_state_change_reuses_automation_read_model', () => {
+    const controller = new CardController(() => {});
+    const firstHass = createMockHass({
+      states: {
+        'automation.kitchen': {
+          entity_id: 'automation.kitchen',
+          state: 'on',
+          attributes: { friendly_name: 'Kitchen' },
+        },
+        'light.kitchen': {
+          entity_id: 'light.kitchen',
+          state: 'off',
+          attributes: {},
+        },
+      },
+    });
+    controller.setHass(firstHass);
+
+    const getAutomations = vi.spyOn(controller, '_getAutomations');
+
+    controller.setHass({
+      ...firstHass,
+      states: {
+        ...firstHass.states,
+        'light.kitchen': {
+          ...firstHass.states['light.kitchen'],
+          state: 'on',
+        },
+      },
+    });
+
+    expect(getAutomations).not.toHaveBeenCalled();
   });
 });

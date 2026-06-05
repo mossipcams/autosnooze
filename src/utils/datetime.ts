@@ -7,6 +7,8 @@ interface DateOption {
   label: string; // Human-readable label
 }
 
+const dateOptionsCache = new Map<string, DateOption[]>();
+
 /**
  * Combine date and time strings into an ISO datetime string with local timezone offset.
  * Returns null if date or time is missing/empty.
@@ -37,8 +39,13 @@ export function combineDateTime(date: string, time: string): string | null {
  * Generate date options for the next N days.
  */
 export function generateDateOptions(daysAhead: number = 365, locale?: string): DateOption[] {
-  const options: DateOption[] = [];
   const now = new Date();
+  const dayKey = `${now.getFullYear()}-${now.getMonth()}-${now.getDate()}`;
+  const cacheKey = `${daysAhead}:${locale ?? ''}:${dayKey}`;
+  const cached = dateOptionsCache.get(cacheKey);
+  if (cached) return cached;
+
+  const options: DateOption[] = [];
   const currentYear = now.getFullYear();
 
   for (let i = 0; i < daysAhead; i++) {
@@ -63,5 +70,6 @@ export function generateDateOptions(daysAhead: number = 365, locale?: string): D
     options.push({ value: isoDate, label });
   }
 
+  dateOptionsCache.set(cacheKey, options);
   return options;
 }

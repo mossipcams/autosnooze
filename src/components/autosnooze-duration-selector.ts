@@ -12,7 +12,6 @@ import {
 } from '../utils/time-formatting.js';
 import {
   parseDurationInput,
-  isDurationValid,
   durationToMinutes,
   minutesToDuration,
 } from '../utils/duration-parsing.js';
@@ -59,6 +58,13 @@ export class AutoSnoozeDurationSelector extends LitElement {
   @property({ type: String })
   resumeAtTime: string = '';
 
+  private _dateOptionsSource?: ReturnType<typeof generateDateOptions>;
+  private _dateOptionTemplates?: TemplateResult[];
+  private _parsedDurationInputKey?: string;
+  private _parsedDurationInput?: ParsedDuration | null;
+  private _scheduleSummaryKey?: string;
+  private _scheduleSummary?: TemplateResult | string;
+
   private _getBasePresets(): { label: string; minutes: number }[] {
     const configuredPresets = getConfiguredDurationPresets(this.hass);
 
@@ -75,20 +81,32 @@ export class AutoSnoozeDurationSelector extends LitElement {
   }
 
   _getDurationPreview(): string {
-    const parsed = parseDurationInput(this.customDurationInput);
+    const parsed = this._getParsedDurationInput();
     if (!parsed) return '';
     return formatDuration(parsed.days, parsed.hours, parsed.minutes);
   }
 
   _isDurationValid(): boolean {
-    return isDurationValid(this.customDurationInput);
+    return this._getParsedDurationInput() !== null;
+  }
+
+  _getParsedDurationInput(): ParsedDuration | null {
+    if (this._parsedDurationInputKey !== this.customDurationInput) {
+      this._parsedDurationInputKey = this.customDurationInput;
+      this._parsedDurationInput = parseDurationInput(this.customDurationInput);
+    }
+    return this._parsedDurationInput ?? null;
   }
 
   _renderDateOptions(): TemplateResult[] {
     const options = generateDateOptions(365, this.hass?.locale?.language);
-    return options.map(
-      (opt) => html`<option value="${opt.value}">${opt.label}</option>`
-    );
+    if (this._dateOptionsSource !== options) {
+      this._dateOptionsSource = options;
+      this._dateOptionTemplates = options.map(
+        (opt) => html`<option value="${opt.value}">${opt.label}</option>`
+      );
+    }
+    return this._dateOptionTemplates ?? [];
   }
 
   _renderLastDurationBadge(): TemplateResult | string {
@@ -174,7 +192,23 @@ export class AutoSnoozeDurationSelector extends LitElement {
     });
   }
 
-  private _renderScheduleSummary(): TemplateResult | string {
+  _renderScheduleSummary(): TemplateResult | string {
+    const key = [
+      this.disableAtDate,
+      this.disableAtTime,
+      this.resumeAtDate,
+      this.resumeAtTime,
+      this.hass?.locale?.language ?? '',
+    ].join('|');
+    if (this._scheduleSummaryKey === key) {
+      return this._scheduleSummary ?? '';
+    }
+    this._scheduleSummaryKey = key;
+    this._scheduleSummary = this._buildScheduleSummary();
+    return this._scheduleSummary;
+  }
+
+  private _buildScheduleSummary(): TemplateResult | string {
     if (!this.resumeAtDate || !this.resumeAtTime) return '';
 
     const resumeAt = combineDateTime(this.resumeAtDate, this.resumeAtTime);

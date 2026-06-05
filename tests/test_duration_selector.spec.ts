@@ -5,6 +5,7 @@
 
 import { describe, it, expect } from 'vitest';
 import { AutoSnoozeDurationSelector } from '../src/components/index.js';
+import { generateDateOptions } from '../src/utils/datetime.js';
 
 // Register custom element for jsdom instantiation
 if (!customElements.get('autosnooze-duration-selector')) {
@@ -31,6 +32,26 @@ describe('Duration Selector Styles', () => {
 });
 
 describe('AutoSnoozeDurationSelector', () => {
+  it('schedule_date_options_generate_once_per_locale_and_day', () => {
+    const first = generateDateOptions(365, 'en');
+    const second = generateDateOptions(365, 'en');
+    const otherLocale = generateDateOptions(365, 'fr');
+
+    expect(second).toBe(first);
+    expect(otherLocale).not.toBe(first);
+  });
+
+  it('reuses rendered date options and parsed summaries by input values', () => {
+    const el = new AutoSnoozeDurationSelector();
+    el.hass = createMockHass({ locale: { language: 'en' } });
+    el.customDurationInput = '2h30m';
+    el.resumeAtDate = '2030-01-02';
+    el.resumeAtTime = '12:00';
+
+    expect(el._renderDateOptions()).toBe(el._renderDateOptions());
+    expect(el._getParsedDurationInput()).toBe(el._getParsedDurationInput());
+    expect(el._renderScheduleSummary()).toBe(el._renderScheduleSummary());
+  });
   it('should be importable as a class', () => {
     expect(AutoSnoozeDurationSelector).toBeDefined();
     expect(typeof AutoSnoozeDurationSelector).toBe('function');
@@ -178,4 +199,3 @@ describe('AutoSnoozeDurationSelector', () => {
     document.body.removeChild(el);
   });
 });
-

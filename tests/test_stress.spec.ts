@@ -5,7 +5,7 @@
  * Tests for handling large numbers of automations efficiently.
  */
 
-import '../custom_components/autosnooze/www/autosnooze-card.js';
+import '../src/index.js';
 import { queryAutomationList } from './helpers/query-helpers.js';
 
 describe('Stress Testing', () => {
@@ -83,5 +83,28 @@ describe('Stress Testing', () => {
 
     expect(card._selected.length).toBe(50);
     expect(card.shadowRoot.querySelector('ha-card')).not.toBeNull();
+  });
+
+  test('five_hundred_automation_fixture_has_bounded_rebuild_count', () => {
+    const ListClass = customElements.get('autosnooze-automation-list');
+    const list = new ListClass();
+    list.automations = Array.from({ length: 500 }, (_, index) => ({
+      id: `automation.stress_${index}`,
+      name: `Stress ${index}`,
+      area_id: null,
+      category_id: null,
+      labels: [],
+    }));
+    list.hass = createMockHass();
+
+    list._search = '25';
+    const searched = list._getViewModel();
+    const repeatedSearch = list._getViewModel();
+    list.selected = ['automation.stress_25'];
+    const afterSelection = list._getViewModel();
+
+    expect(repeatedSearch).toBe(searched);
+    expect(afterSelection).toBe(searched);
+    expect(searched.filtered.length).toBeLessThanOrEqual(15);
   });
 });
