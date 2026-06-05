@@ -47,12 +47,51 @@ async def test_dispatcher_updates_once_per_notify_and_unsubscribes_on_remove(mon
 
     await sensor.async_added_to_hass()
 
+    data.bump_snapshot_version()
     data.notify()
     sensor.async_write_ha_state.assert_called_once()
 
+    data.bump_snapshot_version()
     data.notify()
     assert sensor.async_write_ha_state.call_count == 2
 
     await sensor.async_will_remove_from_hass()
+    data.notify()
+    assert sensor.async_write_ha_state.call_count == 2
+
+
+@pytest.mark.asyncio
+async def test_sensor_does_not_publish_when_snapshot_version_is_unchanged(monkeypatch) -> None:
+    callbacks: dict[str, list] = {}
+
+    def fake_connect(_hass, signal: str, callback):
+        callbacks.setdefault(signal, []).append(callback)
+
+        def _remove() -> None:
+            callbacks[signal].remove(callback)
+
+        return _remove
+
+    def fake_send(_hass, signal: str) -> None:
+        for callback in list(callbacks.get(signal, [])):
+            callback()
+
+    monkeypatch.setattr("custom_components.autosnooze.sensor.async_dispatcher_connect", fake_connect)
+    monkeypatch.setattr("custom_components.autosnooze.runtime.state.async_dispatcher_send", fake_send)
+
+    data = AutomationPauseData(hass=MagicMock())
+    entry = MockConfigEntry(data)
+    sensor = AutoSnoozeCountSensor(entry)
+    sensor.hass = data.hass
+    sensor.async_write_ha_state = MagicMock()
+
+    await sensor.async_added_to_hass()
+
+    data.bump_snapshot_version()
+    data.notify()
+    data.notify()
+    sensor.async_write_ha_state.assert_called_once()
+
+    data.bump_snapshot_version()
     data.notify()
     assert sensor.async_write_ha_state.call_count == 2

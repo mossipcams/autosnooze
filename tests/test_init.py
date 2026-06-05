@@ -876,6 +876,60 @@ class TestAsyncUnloadEntry:
         assert result is True
 
     @pytest.mark.asyncio
+    async def test_unload_waits_for_or_invalidates_in_flight_commands(
+        self, mock_hass: MagicMock, mock_entry: MagicMock, mock_data: AutomationPauseData
+    ) -> None:
+        """Unload must finish only after in-flight commands resolve or are invalidated."""
+        import asyncio
+
+        from custom_components.autosnooze.application.pause import async_pause_automations
+
+        mock_data.store = MagicMock()
+        mock_data.store.async_save = AsyncMock(return_value=True)
+        mock_data.hass = mock_hass
+
+        enabled_state = MagicMock()
+        enabled_state.state = "on"
+        mock_hass.states.get.return_value = enabled_state
+
+        disable_started = asyncio.Event()
+        allow_disable_to_finish = asyncio.Event()
+        unload_finished = asyncio.Event()
+
+        async def slow_disable(_hass: MagicMock, _entity_id: str, enabled: bool) -> bool:
+            if not enabled:
+                disable_started.set()
+                await allow_disable_to_finish.wait()
+            return True
+
+        pause_task = asyncio.create_task(
+            async_pause_automations(
+                mock_hass,
+                mock_data,
+                ["automation.in_flight"],
+                minutes=30,
+                set_automation_state=slow_disable,
+                schedule_resume_callback=MagicMock(),
+            )
+        )
+
+        await disable_started.wait()
+        assert mock_data.unloaded is False
+
+        unload_task = asyncio.create_task(async_unload_entry(mock_hass, mock_entry))
+
+        await asyncio.sleep(0.05)
+        assert mock_data.unloaded is True
+        assert unload_task.done() is False
+
+        allow_disable_to_finish.set()
+        await pause_task
+        await unload_task
+        unload_finished.set()
+
+        assert unload_finished.is_set()
+
+    @pytest.mark.asyncio
     async def test_does_not_cleanup_on_failed_unload(
         self, mock_hass: MagicMock, mock_entry: MagicMock, mock_data: AutomationPauseData
     ) -> None:
