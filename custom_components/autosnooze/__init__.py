@@ -19,7 +19,9 @@ from .const import (
     STORAGE_VERSION,
     VERSION,
 )
-from .coordinator import async_load_stored
+from .application.notifications import notify_started_automations
+from .application.runtime_wiring import create_entry_data
+from .application.restore import async_restore_stored
 from .infrastructure import frontend as _frontend_resource_adapter
 from .infrastructure.frontend import (
     LOVELACE_REGISTER_MAX_RETRIES,
@@ -30,6 +32,8 @@ from .infrastructure.frontend import (
 )
 from .runtime.state import AutomationPauseConfigEntry, AutomationPauseData
 from .services import register_services
+
+async_load_stored = async_restore_stored
 
 _LOGGER = logging.getLogger(__name__)
 asyncio = _frontend_resource_adapter.asyncio
@@ -88,7 +92,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: AutomationPauseConfigEnt
         storage_factory=lambda: Store[dict[str, Any]](hass, STORAGE_VERSION, f"{DOMAIN}.storage"),
         platforms=PLATFORMS,
         update_listener=_async_options_update_listener,
-        data_factory=lambda store, runtime_hass: AutomationPauseData(store=store, hass=runtime_hass),
+        data_factory=create_entry_data,
     )
 
 
@@ -104,16 +108,18 @@ async def async_unload_entry(hass: HomeAssistant, entry: AutomationPauseConfigEn
 
         # Mark as unloaded first to prevent timer callbacks from running
         data.unloaded = True
+        data.bump_lifecycle()
+        await data.wait_for_in_flight_commands()
 
         # Cancel startup listener if HA hasn't fully started yet
         if data.startup_listener_unsub is not None:
             data.startup_listener_unsub()
             data.startup_listener_unsub = None
 
-        # Cancel all timers
-        for unsub in data.timers.values():
-            unsub()
-        data.timers.clear()
+        # Cancel all resume deadline timers
+        from .runtime.timers import cancel_all_resume_deadline_timers
+
+        cancel_all_resume_deadline_timers(data)
 
         # Cancel all scheduled timers
         for unsub in data.scheduled_timers.values():

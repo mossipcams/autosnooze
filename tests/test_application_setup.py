@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
@@ -144,3 +144,72 @@ async def test_application_setup_startup_callback_noops_after_unload() -> None:
     register_lovelace_resource.assert_not_awaited()
     ensure_labels_exist.assert_not_awaited()
     load_stored.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_runtime_callbacks_are_scoped_per_entry() -> None:
+    """Two config entries must not overwrite each other's timer callbacks."""
+    from datetime import datetime, timezone
+
+    from custom_components.autosnooze.application.runtime_wiring import wire_runtime_callbacks
+    from custom_components.autosnooze.runtime.state import AutomationPauseData
+    from custom_components.autosnooze.runtime.timers import schedule_resume
+
+    first = AutomationPauseData(store=MagicMock())
+    second = AutomationPauseData(store=MagicMock())
+    wire_runtime_callbacks(first)
+    wire_runtime_callbacks(second)
+
+    first_calls: list[str] = []
+    second_calls: list[str] = []
+
+    async def first_callback(_hass, _data, entity_id, *, reason="manual"):
+        first_calls.append(entity_id)
+
+    async def second_callback(_hass, _data, entity_id, *, reason="manual"):
+        second_calls.append(entity_id)
+
+    first.resume_callback = first_callback
+    second.resume_callback = second_callback
+
+    await first.resume_callback(MagicMock(), first, "automation.one", reason="expired")
+    await second.resume_callback(MagicMock(), second, "automation.two", reason="expired")
+
+    assert first_calls == ["automation.one"]
+    assert second_calls == ["automation.two"]
+
+
+@pytest.mark.asyncio
+async def test_restore_reconciliation_is_owned_by_application_layer() -> None:
+    """Setup should delegate stored-state reconciliation to application restore."""
+    from custom_components.autosnooze.application.restore import async_restore_stored
+    from custom_components.autosnooze.application.setup import async_setup_integration_entry
+    from custom_components.autosnooze.runtime.restore import validate_stored_data
+
+    assert async_restore_stored.__module__ == "custom_components.autosnooze.application.restore"
+    assert validate_stored_data.__module__ == "custom_components.autosnooze.runtime.restore"
+
+    hass = MagicMock()
+    hass.is_running = True
+    hass.config_entries.async_forward_entry_setups = AsyncMock()
+    entry = MagicMock()
+    entry.add_update_listener = MagicMock(return_value=MagicMock())
+    entry.async_on_unload = MagicMock()
+    load_stored = AsyncMock()
+    data = MagicMock()
+
+    await async_setup_integration_entry(
+        hass,
+        entry,
+        register_static_path=AsyncMock(),
+        register_lovelace_resource=AsyncMock(),
+        ensure_labels_exist=AsyncMock(),
+        load_stored=load_stored,
+        register_services=MagicMock(),
+        storage_factory=MagicMock(return_value=MagicMock()),
+        platforms=["sensor"],
+        update_listener=AsyncMock(),
+        data_factory=MagicMock(return_value=data),
+    )
+
+    load_stored.assert_awaited_once_with(hass, data)

@@ -151,3 +151,21 @@ def test_architecture_document_exists_and_names_enforced_boundaries() -> None:
     missing = [term for term in required_terms if term not in architecture]
 
     assert missing == [], f"architecture.md is missing enforced boundary terms: {missing}"
+
+
+def test_production_modules_do_not_import_coordinator_workflows() -> None:
+    """Production modules must not import coordinator workflow symbols."""
+    offenders: list[str] = []
+    for path in sorted(BACKEND_ROOT.rglob("*.py")):
+        if path.name == "coordinator.py":
+            continue
+        if path.parts[-2:] == ("tests", path.name):
+            continue
+        imports = _import_modules(path)
+        if any(module in {"..coordinator", "custom_components.autosnooze.coordinator"} for module in imports):
+            offenders.append(str(path.relative_to(PROJECT_ROOT)))
+
+    assert offenders == [], (
+        "Production modules must not import coordinator.py; use application/runtime/infrastructure owners instead. "
+        f"Offenders: {offenders}"
+    )

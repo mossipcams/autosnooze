@@ -296,6 +296,106 @@ def test_runtime_pre_resume_timer_uses_injected_callback() -> None:
     hass.async_create_task.assert_called_once()
 
 
+def test_same_deadline_pauses_create_one_runtime_deadline_callback() -> None:
+    """N pauses sharing a deadline create one grouped callback."""
+    from custom_components.autosnooze.runtime.state import AutomationPauseData
+    from custom_components.autosnooze.runtime.timers import schedule_resume
+
+    hass = MagicMock()
+    data = AutomationPauseData()
+    scheduled_callbacks: list[object] = []
+    resume_at = datetime.now(UTC) + timedelta(hours=1)
+
+    def track_time(_hass: object, callback: object, _when: datetime) -> MagicMock:
+        scheduled_callbacks.append(callback)
+        return MagicMock()
+
+    from custom_components.autosnooze.models import ensure_utc_aware
+
+    deadline = ensure_utc_aware(resume_at)
+    for entity_id in ("automation.one", "automation.two", "automation.three"):
+        schedule_resume(hass, data, entity_id, resume_at, track_point_in_time=track_time)
+
+    assert len(scheduled_callbacks) == 1
+    assert len(data.resume_deadline_timers) == 1
+    assert data.resume_deadline_entities[deadline] == {"automation.one", "automation.two", "automation.three"}
+
+
+def test_distinct_deadlines_schedule_only_distinct_deadline_count() -> None:
+    """Timer count equals distinct deadlines, not entity count."""
+    from custom_components.autosnooze.runtime.state import AutomationPauseData
+    from custom_components.autosnooze.runtime.timers import schedule_resume
+
+    hass = MagicMock()
+    data = AutomationPauseData()
+    now = datetime.now(UTC)
+    scheduled_callbacks: list[object] = []
+
+    def track_time(_hass: object, callback: object, _when: datetime) -> MagicMock:
+        scheduled_callbacks.append(callback)
+        return MagicMock()
+
+    deadlines = [now + timedelta(hours=1), now + timedelta(hours=2)]
+    for entity_id, deadline in zip(
+        ("automation.one", "automation.two", "automation.three"),
+        (deadlines[0], deadlines[0], deadlines[1]),
+        strict=True,
+    ):
+        schedule_resume(hass, data, entity_id, deadline, track_point_in_time=track_time)
+
+    assert len(scheduled_callbacks) == 2
+    assert len(data.resume_deadline_timers) == 2
+
+
+@pytest.mark.asyncio
+async def test_deadline_callback_resumes_all_due_entities_in_one_batch() -> None:
+    """Firing one deadline invokes one grouped resume with every due entity."""
+    from custom_components.autosnooze.runtime.state import AutomationPauseData
+    from custom_components.autosnooze.runtime.timers import schedule_resume
+
+    hass = MagicMock()
+    data = AutomationPauseData()
+    resume_at = datetime.now(UTC) + timedelta(hours=1)
+    scheduled_callbacks: list[object] = []
+    batch_calls: list[list[str]] = []
+
+    async def deadline_callback(
+        _hass: object,
+        _data: object,
+        entity_ids: list[str],
+        *,
+        reason: str = "expired",
+    ) -> None:
+        del reason
+        batch_calls.append(entity_ids)
+
+    def track_time(_hass: object, callback: object, _when: datetime) -> MagicMock:
+        scheduled_callbacks.append(callback)
+        return MagicMock()
+
+    for entity_id in ("automation.one", "automation.two"):
+        schedule_resume(
+            hass,
+            data,
+            entity_id,
+            resume_at,
+            deadline_callback=deadline_callback,
+            track_point_in_time=track_time,
+        )
+
+    created_tasks: list[object] = []
+
+    def create_task(coro: object) -> object:
+        created_tasks.append(coro)
+        return coro
+
+    hass.async_create_task = MagicMock(side_effect=create_task)
+    scheduled_callbacks[0](resume_at)
+    await created_tasks[0]
+
+    assert sorted(batch_calls[0]) == ["automation.one", "automation.two"]
+
+
 @pytest.mark.asyncio
 async def test_runtime_port_returns_false_when_state_change_service_fails() -> None:
     """Runtime port converts Home Assistant service errors into False."""

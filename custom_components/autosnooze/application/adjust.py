@@ -13,9 +13,10 @@ from homeassistant.util import dt as dt_util
 
 from ..const import DOMAIN, MIN_ADJUST_BUFFER
 from ..domain.notifications import notification_window_supports_lead
-from ..logging_utils import _log_command, _raise_save_failed
+from ..logging_utils import _log_command
 from ..models import PausedAutomation
-from ..runtime.ports import async_save, schedule_pre_resume_notification, schedule_resume
+from ..runtime import ports as runtime_ports
+from ..runtime.persistence_commit import commit_and_persist
 from ..runtime.state import AutomationPauseData
 
 _LOGGER = logging.getLogger(__name__)
@@ -52,15 +53,24 @@ async def async_adjust_snooze(
         ):
             raise ServiceValidationError("notification_lead_minutes must be shorter than the remaining snooze window")
 
+    def _commit_adjust() -> None:
+        paused = data.paused.get(entity_id)
+        if paused is None:
+            return
         paused.resume_at = new_resume_at
         paused.days = 0
         paused.hours = 0
         paused.minutes = 0
+        runtime_ports.schedule_resume(hass, data, entity_id, new_resume_at)
+        runtime_ports.schedule_pre_resume_notification(hass, data, paused)
 
-        schedule_resume(hass, data, entity_id, new_resume_at)
-        schedule_pre_resume_notification(hass, data, paused)
-        if not await async_save(data):
-            _raise_save_failed()
+    await commit_and_persist(
+        data,
+        lifecycle_generation=data.lifecycle_generation,
+        mutate=_commit_adjust,
+        affected_entity_ids=[entity_id],
+        raise_on_failure=True,
+    )
     data.notify()
     _LOGGER.info("Adjusted snooze for %s: new resume at %s", entity_id, new_resume_at)
 
@@ -109,16 +119,23 @@ async def async_adjust_snooze_batch(
 
                 updates.append((entity_id, paused, new_resume_at))
 
+        def _commit_adjust_batch() -> None:
             for entity_id, paused, new_resume_at in updates:
                 paused.resume_at = new_resume_at
                 paused.days = 0
                 paused.hours = 0
                 paused.minutes = 0
+                runtime_ports.schedule_resume(hass, data, entity_id, new_resume_at)
+                runtime_ports.schedule_pre_resume_notification(hass, data, paused)
 
-                schedule_resume(hass, data, entity_id, new_resume_at)
-                schedule_pre_resume_notification(hass, data, paused)
-            if not await async_save(data):
-                _raise_save_failed()
+        if updates:
+            await commit_and_persist(
+                data,
+                lifecycle_generation=data.lifecycle_generation,
+                mutate=_commit_adjust_batch,
+                affected_entity_ids=[entity_id for entity_id, _, _ in updates],
+                raise_on_failure=True,
+            )
         data.notify()
         _LOGGER.info("Adjusted snooze for %d automations", len(entity_ids))
     except Exception:

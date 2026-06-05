@@ -61,6 +61,7 @@ module.exports = {
       comment: 'Feature slices should not depend directly on one another.',
       from: {
         path: '^src/features/',
+        pathNot: '^src/features/card-controller/',
       },
       to: {
         path: '^src/features/',

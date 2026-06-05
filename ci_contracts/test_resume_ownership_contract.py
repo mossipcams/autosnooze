@@ -7,21 +7,24 @@ from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 CARD_PATH = PROJECT_ROOT / "src" / "components" / "autosnooze-card.ts"
+CARD_CONTROLLER_PATH = PROJECT_ROOT / "src" / "features" / "card-controller" / "index.ts"
 RESUME_FEATURE_PATH = PROJECT_ROOT / "src" / "features" / "resume" / "index.ts"
 SCHEDULED_SNOOZE_FEATURE_PATH = PROJECT_ROOT / "src" / "features" / "scheduled-snooze" / "index.ts"
 ACTIONS_CONTROLLER_PATH = PROJECT_ROOT / "src" / "components" / "autosnooze-actions-controller.ts"
 
 
-def test_card_delegates_resume_behavior_to_resume_feature() -> None:
-    """Wake/undo orchestration should live in the resume feature, not the card component."""
-    source = CARD_PATH.read_text(encoding="utf-8")
+def test_card_delegates_resume_behavior_through_card_controller() -> None:
+    """The card should bind events while its feature-owned controller composes resume workflows."""
+    card_source = CARD_PATH.read_text(encoding="utf-8")
+    controller_source = CARD_CONTROLLER_PATH.read_text(encoding="utf-8")
 
-    assert "../features/resume/index.js" in source
-    assert "runWakeFeature" in source
-    assert "runWakeAllFeature" in source
-    assert "runUndoFeature" in source
-    assert "Promise.allSettled" not in source
-    assert "const undoCall" not in source
+    assert "../features/card-controller/index.js" in card_source
+    assert "../features/resume/index.js" not in card_source
+    assert "runWakeFeature" in controller_source
+    assert "runWakeAllFeature" in controller_source
+    assert "runUndoFeature" in controller_source
+    assert "Promise.allSettled" not in card_source
+    assert "const undoCall" not in card_source
 
 
 def test_legacy_actions_controller_removed() -> None:

@@ -1,117 +1,28 @@
-"""Low-level Home Assistant and persistence ports for AutoSnooze."""
+"""Backward-compatible re-exports for runtime adapters."""
 
 from __future__ import annotations
 
-import asyncio
-from datetime import datetime
-from inspect import isawaitable
-import logging
-
-from homeassistant.const import ATTR_ENTITY_ID, ATTR_FRIENDLY_NAME
-from homeassistant.core import HomeAssistant
 from homeassistant.helpers.event import async_track_point_in_time
 
-from ..infrastructure.storage import async_save as infrastructure_async_save
-from ..models import ScheduledSnooze
-from .state import AutomationPauseData
-from .timers import (
-    NotificationCallback,
-    ResumeCallback,
-    ScheduledDisableCallback,
-    schedule_disable as runtime_schedule_disable,
-    schedule_pre_resume_notification as runtime_schedule_pre_resume_notification,
-    schedule_resume as runtime_schedule_resume,
+from .adapters.automation_state import (
+    async_set_automation_state,
+    get_friendly_name,
+    is_automation_enabled,
+)
+from .adapters.persistence import async_save
+from .adapters.timer_scheduling import (
+    schedule_disable,
+    schedule_pre_resume_notification,
+    schedule_resume,
 )
 
-_LOGGER = logging.getLogger(__name__)
-
-
-async def async_set_automation_state(hass: HomeAssistant, entity_id: str, *, enabled: bool) -> bool:
-    """Enable or disable an automation."""
-    state = hass.states.get(entity_id)
-    if state is None:
-        _LOGGER.warning("Automation not found: %s", entity_id)
-        return False
-
-    try:
-        result = hass.services.async_call(
-            "automation",
-            "turn_on" if enabled else "turn_off",
-            {ATTR_ENTITY_ID: entity_id},
-            blocking=True,
-        )
-        if isawaitable(result):
-            await result
-        return True
-    except Exception as err:
-        _LOGGER.error("Failed to %s %s: %s", "wake" if enabled else "snooze", entity_id, err)
-        return False
-
-
-def get_friendly_name(hass: HomeAssistant, entity_id: str) -> str:
-    """Get friendly name for entity."""
-    if state := hass.states.get(entity_id):
-        return state.attributes.get(ATTR_FRIENDLY_NAME, entity_id)
-    return entity_id
-
-
-def schedule_resume(
-    hass: HomeAssistant,
-    data: AutomationPauseData,
-    entity_id: str,
-    resume_at: datetime,
-    *,
-    resume_callback: ResumeCallback | None = None,
-    reason: str = "expired",
-) -> None:
-    """Schedule automation to resume at specified time."""
-    runtime_schedule_resume(
-        hass,
-        data,
-        entity_id,
-        resume_at,
-        reason=reason,  # type: ignore[arg-type]
-        resume_callback=resume_callback,
-        track_point_in_time=async_track_point_in_time,
-    )
-
-
-def schedule_disable(
-    hass: HomeAssistant,
-    data: AutomationPauseData,
-    entity_id: str,
-    scheduled: ScheduledSnooze,
-    *,
-    disable_callback: ScheduledDisableCallback | None = None,
-) -> None:
-    """Schedule automation to be disabled at a future time."""
-    runtime_schedule_disable(
-        hass,
-        data,
-        entity_id,
-        scheduled,
-        disable_callback=disable_callback,
-        track_point_in_time=async_track_point_in_time,
-    )
-
-
-def schedule_pre_resume_notification(
-    hass: HomeAssistant,
-    data: AutomationPauseData,
-    paused,
-    *,
-    notification_callback: NotificationCallback | None = None,
-) -> bool:
-    """Schedule a notification before an active snooze resumes."""
-    return runtime_schedule_pre_resume_notification(
-        hass,
-        data,
-        paused,
-        notification_callback=notification_callback,
-        track_point_in_time=async_track_point_in_time,
-    )
-
-
-async def async_save(data: AutomationPauseData) -> bool:
-    """Save runtime state to storage with retry logic."""
-    return await infrastructure_async_save(data, sleep=asyncio.sleep)
+__all__ = [
+    "async_save",
+    "async_set_automation_state",
+    "async_track_point_in_time",
+    "get_friendly_name",
+    "is_automation_enabled",
+    "schedule_disable",
+    "schedule_pre_resume_notification",
+    "schedule_resume",
+]

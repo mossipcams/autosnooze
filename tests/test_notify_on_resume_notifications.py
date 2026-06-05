@@ -49,14 +49,22 @@ def test_schedule_resume_timer_uses_expired_reason() -> None:
 
     with (
         patch("custom_components.autosnooze.runtime.timers.async_track_point_in_time") as mock_track,
-        patch("custom_components.autosnooze.runtime.timers.async_resume", new_callable=AsyncMock) as async_resume,
+        patch(
+            "custom_components.autosnooze.runtime.timers.async_dispatch_deadline_resume_timer",
+            new_callable=AsyncMock,
+        ) as async_resume,
     ):
         mock_track.return_value = MagicMock()
         schedule_resume(hass, data, "automation.kitchen", resume_at)
         callback = mock_track.call_args.args[1]
         callback(resume_at)
 
-    async_resume.assert_called_once_with(hass, data, "automation.kitchen", reason="expired")
+    async_resume.assert_called_once_with(
+        hass,
+        data,
+        ["automation.kitchen"],
+        reason="expired",
+    )
 
 
 @pytest.mark.asyncio
@@ -293,8 +301,8 @@ async def test_async_resume_sends_notification_for_expired_end_trigger() -> None
     )
 
     with (
-        patch("custom_components.autosnooze.coordinator.async_set_automation_state", AsyncMock(return_value=True)),
-        patch("custom_components.autosnooze.coordinator.async_save", AsyncMock(return_value=True)),
+        patch("custom_components.autosnooze.runtime.ports.async_set_automation_state", AsyncMock(return_value=True)),
+        patch("custom_components.autosnooze.runtime.ports.async_save", AsyncMock(return_value=True)),
     ):
         await async_resume(hass, data, "automation.kitchen", reason="expired")
 
@@ -324,8 +332,8 @@ async def test_async_resume_suppresses_notification_for_manual_and_failed_wake()
     )
 
     with (
-        patch("custom_components.autosnooze.coordinator.async_set_automation_state", AsyncMock(return_value=True)),
-        patch("custom_components.autosnooze.coordinator.async_save", AsyncMock(return_value=True)),
+        patch("custom_components.autosnooze.runtime.ports.async_set_automation_state", AsyncMock(return_value=True)),
+        patch("custom_components.autosnooze.runtime.ports.async_save", AsyncMock(return_value=True)),
     ):
         await async_resume(manual_hass, manual_data, "automation.kitchen", reason="manual")
 
@@ -343,9 +351,9 @@ async def test_async_resume_suppresses_notification_for_manual_and_failed_wake()
     )
 
     with (
-        patch("custom_components.autosnooze.coordinator.async_set_automation_state", AsyncMock(return_value=False)),
-        patch("custom_components.autosnooze.coordinator.async_save", AsyncMock(return_value=True)),
-        patch("custom_components.autosnooze.coordinator.schedule_resume"),
+        patch("custom_components.autosnooze.runtime.ports.async_set_automation_state", AsyncMock(return_value=False)),
+        patch("custom_components.autosnooze.runtime.ports.async_save", AsyncMock(return_value=True)),
+        patch("custom_components.autosnooze.runtime.ports.schedule_resume"),
     ):
         await async_resume(failed_hass, failed_data, "automation.kitchen", reason="expired")
 
@@ -370,8 +378,8 @@ async def test_async_resume_skips_notification_when_trigger_is_not_end() -> None
     )
 
     with (
-        patch("custom_components.autosnooze.coordinator.async_set_automation_state", AsyncMock(return_value=True)),
-        patch("custom_components.autosnooze.coordinator.async_save", AsyncMock(return_value=True)),
+        patch("custom_components.autosnooze.runtime.ports.async_set_automation_state", AsyncMock(return_value=True)),
+        patch("custom_components.autosnooze.runtime.ports.async_save", AsyncMock(return_value=True)),
     ):
         await async_resume(hass, data, "automation.kitchen", reason="expired")
 
@@ -396,8 +404,8 @@ async def test_async_resume_raises_and_skips_notification_when_save_fails_after_
     )
 
     with (
-        patch("custom_components.autosnooze.coordinator.async_set_automation_state", AsyncMock(return_value=True)),
-        patch("custom_components.autosnooze.coordinator.async_save", AsyncMock(return_value=False)),
+        patch("custom_components.autosnooze.runtime.ports.async_set_automation_state", AsyncMock(return_value=True)),
+        patch("custom_components.autosnooze.runtime.ports.async_save", AsyncMock(return_value=False)),
         pytest.raises(ServiceValidationError, match="Failed to persist autosnooze state"),
     ):
         await async_resume(hass, data, "automation.kitchen", reason="expired")
@@ -431,8 +439,8 @@ async def test_async_resume_batch_sends_one_summary_notification_for_expired_rea
     )
 
     with (
-        patch("custom_components.autosnooze.coordinator.async_set_automation_state", AsyncMock(return_value=True)),
-        patch("custom_components.autosnooze.coordinator.async_save", AsyncMock(return_value=True)),
+        patch("custom_components.autosnooze.runtime.ports.async_set_automation_state", AsyncMock(return_value=True)),
+        patch("custom_components.autosnooze.runtime.ports.async_save", AsyncMock(return_value=True)),
         patch("custom_components.autosnooze.coordinator.cancel_timer"),
     ):
         await async_resume_batch(hass, data, ["automation.kitchen", "automation.hallway"], reason="expired")
@@ -469,8 +477,8 @@ async def test_async_resume_batch_only_notifies_eligible_automations() -> None:
     )
 
     with (
-        patch("custom_components.autosnooze.coordinator.async_set_automation_state", AsyncMock(return_value=True)),
-        patch("custom_components.autosnooze.coordinator.async_save", AsyncMock(return_value=True)),
+        patch("custom_components.autosnooze.runtime.ports.async_set_automation_state", AsyncMock(return_value=True)),
+        patch("custom_components.autosnooze.runtime.ports.async_save", AsyncMock(return_value=True)),
         patch("custom_components.autosnooze.coordinator.cancel_timer"),
     ):
         await async_resume_batch(hass, data, ["automation.kitchen", "automation.hallway"], reason="expired")
@@ -561,13 +569,15 @@ async def test_async_pause_automations_does_not_notify_when_future_start_is_only
 @pytest.mark.asyncio
 async def test_async_execute_scheduled_disable_sends_start_notification_for_start_trigger() -> None:
     """Scheduled activation should notify when the snooze actually starts."""
+    from custom_components.autosnooze.application.runtime_wiring import wire_runtime_callbacks
     from custom_components.autosnooze.coordinator import async_execute_scheduled_disable
     from custom_components.autosnooze.models import ScheduledSnooze
 
     hass = MagicMock()
-    hass.states.get.return_value = MagicMock(attributes={"friendly_name": "Kitchen Lights"})
+    hass.states.get.return_value = MagicMock(state="on", attributes={"friendly_name": "Kitchen Lights"})
     hass.services.async_call = AsyncMock()
     data = AutomationPauseData(store=MagicMock())
+    wire_runtime_callbacks(data)
     now = datetime.now(UTC)
     data.scheduled["automation.kitchen"] = ScheduledSnooze(
         entity_id="automation.kitchen",
@@ -578,10 +588,10 @@ async def test_async_execute_scheduled_disable_sends_start_notification_for_star
     )
 
     with (
-        patch("custom_components.autosnooze.coordinator.async_set_automation_state", AsyncMock(return_value=True)),
-        patch("custom_components.autosnooze.coordinator.schedule_resume"),
-        patch("custom_components.autosnooze.coordinator.schedule_pre_resume_notification"),
-        patch("custom_components.autosnooze.coordinator.async_save", AsyncMock(return_value=True)),
+        patch("custom_components.autosnooze.runtime.ports.async_set_automation_state", AsyncMock(return_value=True)),
+        patch("custom_components.autosnooze.runtime.ports.schedule_resume"),
+        patch("custom_components.autosnooze.runtime.ports.schedule_pre_resume_notification"),
+        patch("custom_components.autosnooze.runtime.ports.async_save", AsyncMock(return_value=True)),
     ):
         await async_execute_scheduled_disable(hass, data, "automation.kitchen", now + timedelta(hours=1))
 

@@ -108,12 +108,14 @@ async def test_async_pause_automations_sets_notification_trigger_for_scheduled_p
 @pytest.mark.asyncio
 async def test_async_execute_scheduled_disable_copies_notification_trigger() -> None:
     """Scheduled activation should copy notification trigger settings into the paused entry."""
+    from custom_components.autosnooze.application.runtime_wiring import wire_runtime_callbacks
     from custom_components.autosnooze.coordinator import async_execute_scheduled_disable
 
     mock_hass = MagicMock()
-    mock_hass.states.get.return_value = MagicMock(attributes={"friendly_name": "Kitchen"})
+    mock_hass.states.get.return_value = MagicMock(state="on", attributes={"friendly_name": "Kitchen"})
     mock_hass.services.async_call = AsyncMock()
     data = AutomationPauseData(store=MagicMock(async_save=AsyncMock()))
+    wire_runtime_callbacks(data)
 
     now = datetime.now(UTC)
     data.scheduled["automation.kitchen"] = ScheduledSnooze(
@@ -126,8 +128,8 @@ async def test_async_execute_scheduled_disable_copies_notification_trigger() -> 
     )
 
     with (
-        patch("custom_components.autosnooze.coordinator.schedule_resume"),
-        patch("custom_components.autosnooze.coordinator.schedule_pre_resume_notification") as schedule_notification,
+        patch("custom_components.autosnooze.runtime.ports.schedule_resume"),
+        patch("custom_components.autosnooze.runtime.ports.schedule_pre_resume_notification") as schedule_notification,
     ):
         await async_execute_scheduled_disable(mock_hass, data, "automation.kitchen", now + timedelta(hours=1))
 
