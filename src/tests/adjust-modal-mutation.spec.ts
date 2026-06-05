@@ -3,11 +3,11 @@ import type { AutoSnoozeAdjustModal } from '../components/autosnooze-adjust-moda
 
 const cardShellMocks = vi.hoisted(() => ({
   lastTick: undefined as undefined | (() => void),
-  startCardShellCountdown: vi.fn((onTick: () => void) => {
+  unsubscribe: vi.fn(),
+  subscribeCardShellCountdown: vi.fn((onTick: () => void) => {
     cardShellMocks.lastTick = onTick;
-    return { interval: 55, syncTimeout: null };
+    return cardShellMocks.unsubscribe;
   }),
-  stopCardShellCountdown: vi.fn(),
 }));
 
 vi.mock('../features/card-shell/index.js', () => cardShellMocks);
@@ -44,8 +44,8 @@ describe('adjust modal mutation boundaries', () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date(2026, 3, 29, 12, 0, 0));
     cardShellMocks.lastTick = undefined;
-    cardShellMocks.startCardShellCountdown.mockClear();
-    cardShellMocks.stopCardShellCountdown.mockClear();
+    cardShellMocks.subscribeCardShellCountdown.mockClear();
+    cardShellMocks.unsubscribe.mockClear();
   });
 
   afterEach(() => {
@@ -54,22 +54,25 @@ describe('adjust modal mutation boundaries', () => {
     vi.useRealTimers();
   });
 
-  test('starts and stops synchronized countdowns and ticks request an update', () => {
+  test('starts and stops shared countdowns and ticks update countdown text only', async () => {
     const modal = createModal();
     const requestUpdate = vi.spyOn(modal, 'requestUpdate');
+    modal.open = true;
+    modal.resumeAt = new Date(Date.now() + 60_000).toISOString();
+    document.body.append(modal);
+    await modal.updateComplete;
 
     modal._startSynchronizedCountdown();
 
-    expect(cardShellMocks.stopCardShellCountdown).toHaveBeenCalledTimes(1);
-    expect(cardShellMocks.startCardShellCountdown).toHaveBeenCalledTimes(1);
+    expect(cardShellMocks.subscribeCardShellCountdown).toHaveBeenCalled();
     requestUpdate.mockClear();
     cardShellMocks.lastTick?.();
-    expect(requestUpdate).toHaveBeenCalledTimes(1);
+    expect(requestUpdate).not.toHaveBeenCalled();
+    expect(modal.shadowRoot?.querySelector('.remaining-time')?.textContent).toBeTruthy();
 
     modal._stopCountdown();
-    expect(cardShellMocks.stopCardShellCountdown).toHaveBeenCalledTimes(2);
+    expect(cardShellMocks.unsubscribe).toHaveBeenCalled();
     modal.disconnectedCallback();
-    expect(cardShellMocks.stopCardShellCountdown).toHaveBeenCalledTimes(3);
   });
 
   test('open property changes start and stop countdown lifecycle', () => {
@@ -77,15 +80,15 @@ describe('adjust modal mutation boundaries', () => {
 
     modal.open = true;
     modal.updated(new Map([['open', false]]) as never);
-    expect(cardShellMocks.startCardShellCountdown).toHaveBeenCalledTimes(1);
+    expect(cardShellMocks.subscribeCardShellCountdown).toHaveBeenCalledTimes(1);
 
     modal.open = false;
     modal.updated(new Map([['open', true]]) as never);
-    expect(cardShellMocks.stopCardShellCountdown).toHaveBeenCalledTimes(2);
+    expect(cardShellMocks.unsubscribe).toHaveBeenCalled();
 
     modal.open = true;
     modal.updated(new Map([['resumeAt', 'old']]) as never);
-    expect(cardShellMocks.startCardShellCountdown).toHaveBeenCalledTimes(1);
+    expect(cardShellMocks.subscribeCardShellCountdown).toHaveBeenCalledTimes(1);
   });
 
   test('decrement disabled boundary keeps at least one minute remaining', () => {

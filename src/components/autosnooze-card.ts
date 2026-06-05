@@ -411,10 +411,11 @@ export class AutomationPauseCard extends LitElement {
               <button
                 type="button"
                 class="cancel-scheduled-btn"
+                ?disabled=${this._viewModel.local.pendingActions.includes(`cancel:${id}`)}
                 @click=${() => this._cancelScheduled(id)}
                 aria-label="${localize(this.hass, 'a11y.cancel_scheduled_for', { name: data.friendly_name || id })}"
               >
-                ${localize(this.hass, 'button.cancel')}
+                ${this._viewModel.local.pendingActions.includes(`cancel:${id}`) ? 'Cancelling...' : localize(this.hass, 'button.cancel')}
               </button>
             </div>
           `,
@@ -567,6 +568,7 @@ export class AutomationPauseCard extends LitElement {
               .hass=${this.hass}
               .pauseGroups=${server.groups}
               .pausedCount=${server.pausedCount}
+              .pendingActions=${local.pendingActions}
               @wake-automation=${this._handleWakeEvent}
               @wake-all=${this._handleWakeAllEvent}
               @clear-notification=${this._handleClearNotificationEvent}
@@ -575,6 +577,9 @@ export class AutomationPauseCard extends LitElement {
             ></autosnooze-active-pauses>`
           : ''}
         ${this._renderScheduledPauses(server.scheduledCount, server.scheduled)}
+        ${this._viewModel.persistentStatus
+          ? html`<div class="command-status" role="status" aria-live="polite">${this._viewModel.persistentStatus}</div>`
+          : ''}
         <autosnooze-adjust-modal
           .hass=${this.hass}
           .open=${modal.open}
@@ -583,6 +588,7 @@ export class AutomationPauseCard extends LitElement {
           .resumeAt=${modal.resumeAt}
           .entityIds=${modal.entityIds}
           .friendlyNames=${modal.friendlyNames}
+          .pending=${local.pendingActions.includes(`adjust:${[...modal.entityIds, ...(modal.entityId ? [modal.entityId] : [])].sort().join(',')}`)}
           @adjust-time=${this._handleAdjustTimeEvent}
           @close-modal=${this._handleCloseModalEvent}
         ></autosnooze-adjust-modal>

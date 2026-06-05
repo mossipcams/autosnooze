@@ -39,6 +39,9 @@ export class AutoSnoozeActivePauses extends LitElement {
   @property({ type: Boolean })
   readonly: boolean = false;
 
+  @property({ attribute: false })
+  pendingActions: string[] = [];
+
   @state() private _wakeAllPending: boolean = false;
 
   private _wakeAllTimeout: number | null = null;
@@ -80,8 +83,12 @@ export class AutoSnoozeActivePauses extends LitElement {
   }
 
   private _updateCountdownIfNeeded(): void {
-    if (this.pauseGroups.length > 0) {
-      this.requestUpdate();
+    const countdowns = this.shadowRoot?.querySelectorAll<HTMLElement>('.countdown[data-resume-at]');
+    for (const countdown of countdowns ?? []) {
+      const resumeAt = countdown.dataset.resumeAt;
+      if (resumeAt) {
+        countdown.textContent = formatCountdown(resumeAt, localize(this.hass, 'status.resuming'));
+      }
     }
   }
 
@@ -91,7 +98,6 @@ export class AutoSnoozeActivePauses extends LitElement {
 
   private _startSharedCountdown(): void {
     this._unsubscribeCountdown = subscribeCardShellCountdown(() => this._updateCountdownIfNeeded());
-    this._countdownState.interval = globalThis.setInterval(() => {}, UI_TIMING.COUNTDOWN_INTERVAL_MS);
   }
 
   private _syncCountdownLifecycle(): void {
@@ -203,7 +209,7 @@ export class AutoSnoozeActivePauses extends LitElement {
                   <ha-icon icon="mdi:timer-outline" aria-hidden="true"></ha-icon>
                   ${group.disableAt
                     ? html`${localize(this.hass, 'status.resumes')} ${formatDateTime(group.resumeAt, locale)}`
-                    : html`<span class="countdown">${formatCountdown(group.resumeAt, localize(this.hass, 'status.resuming'))}</span>`}
+                    : html`<span class="countdown" data-resume-at=${group.resumeAt}>${formatCountdown(group.resumeAt, localize(this.hass, 'status.resuming'))}</span>`}
                 </div>`
               : html`<div class="pause-group-header"
                   @click=${() => this._fireAdjustGroup(group)}
@@ -212,7 +218,7 @@ export class AutoSnoozeActivePauses extends LitElement {
                   <ha-icon icon="mdi:timer-outline" aria-hidden="true"></ha-icon>
                   ${group.disableAt
                     ? html`${localize(this.hass, 'status.resumes')} ${formatDateTime(group.resumeAt, locale)}`
-                    : html`<span class="countdown">${formatCountdown(group.resumeAt, localize(this.hass, 'status.resuming'))}</span>`}
+                    : html`<span class="countdown" data-resume-at=${group.resumeAt}>${formatCountdown(group.resumeAt, localize(this.hass, 'status.resuming'))}</span>`}
                 </div>`}
             ${group.automations.map((auto) => this.readonly
               ? html`<div class="paused-item">
@@ -240,16 +246,19 @@ export class AutoSnoozeActivePauses extends LitElement {
                       <ha-icon icon="mdi:bell-off-outline" aria-hidden="true"></ha-icon>
                     </button>
                   ` : ''}
-                  <button type="button" class="wake-btn" @click=${(e: Event) => { e.stopPropagation(); this._fireWake(auto.entity_id); }}>
-                    ${localize(this.hass, 'button.resume')}
+                  <button type="button" class="wake-btn"
+                    ?disabled=${this.pendingActions.includes(`resume:${auto.entity_id}`)}
+                    @click=${(e: Event) => { e.stopPropagation(); this._fireWake(auto.entity_id); }}>
+                    ${this.pendingActions.includes(`resume:${auto.entity_id}`) ? 'Resuming...' : localize(this.hass, 'button.resume')}
                   </button>
                 </div>`)}
           </div>
         `)}
         ${!this.readonly && this.pausedCount > 1 ? html`
           <button type="button" class="wake-all ${this._wakeAllPending ? 'pending' : ''}"
+            ?disabled=${this.pendingActions.includes('resume-all')}
             @click=${() => this._handleWakeAll()}>
-            ${this._wakeAllPending ? localize(this.hass, 'button.confirm_resume_all') : localize(this.hass, 'button.resume_all')}
+            ${this.pendingActions.includes('resume-all') ? 'Resuming...' : this._wakeAllPending ? localize(this.hass, 'button.confirm_resume_all') : localize(this.hass, 'button.resume_all')}
           </button>
         ` : ''}
       </div>

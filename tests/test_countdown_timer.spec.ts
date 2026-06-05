@@ -56,4 +56,25 @@ describe('Shared Countdown Clock', () => {
 
     unsubscribe();
   });
+
+  test('document visibility automatically pauses and resumes without waiting for a stale interval', () => {
+    const subscriber = vi.fn();
+    const hiddenSpy = vi.spyOn(document, 'hidden', 'get').mockReturnValue(false);
+    const unsubscribe = subscribeCountdownClock(subscriber);
+
+    vi.advanceTimersByTime(1500);
+    const visibleTicks = subscriber.mock.calls.length;
+
+    hiddenSpy.mockReturnValue(true);
+    document.dispatchEvent(new Event('visibilitychange'));
+    vi.advanceTimersByTime(3000);
+    expect(subscriber).toHaveBeenCalledTimes(visibleTicks);
+
+    hiddenSpy.mockReturnValue(false);
+    document.dispatchEvent(new Event('visibilitychange'));
+    expect(subscriber).toHaveBeenCalledTimes(visibleTicks + 1);
+
+    unsubscribe();
+    hiddenSpy.mockRestore();
+  });
 });

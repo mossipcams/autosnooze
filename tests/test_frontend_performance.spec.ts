@@ -31,17 +31,21 @@ describe('frontend performance baseline', () => {
     expect(rebuildCount).toBe(1);
   });
 
-  test('records active-pause countdown update count', () => {
+  test('countdown_tick_does_not_rerender_unrelated_card_sections', async () => {
     const ActiveClass = customElements.get('autosnooze-active-pauses');
     const active = new ActiveClass();
     active.pauseGroups = [{
       resumeAt: new Date(Date.now() + 60_000).toISOString(),
       automations: [],
     }];
+    active.pausedCount = 1;
+    document.body.append(active);
+    await active.updateComplete;
     const requestUpdate = vi.spyOn(active, 'requestUpdate');
 
     active._updateCountdownIfNeeded();
 
-    expect(requestUpdate).toHaveBeenCalledTimes(1);
+    expect(requestUpdate).not.toHaveBeenCalled();
+    expect(active.shadowRoot.querySelector('.countdown')?.textContent).toBeTruthy();
   });
 });

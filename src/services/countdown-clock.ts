@@ -60,6 +60,19 @@ function syncClockLifecycle(): void {
   startClock();
 }
 
+function handleVisibilityChange(): void {
+  const wasHidden = clock.hidden;
+  clock.hidden = document.hidden;
+  syncClockLifecycle();
+  if (wasHidden && !clock.hidden) {
+    notifySubscribers();
+  }
+}
+
+if (typeof document !== 'undefined') {
+  document.addEventListener('visibilitychange', handleVisibilityChange);
+}
+
 export function subscribeCountdownClock(subscriber: CountdownSubscriber): () => void {
   clock.subscribers.add(subscriber);
   syncClockLifecycle();

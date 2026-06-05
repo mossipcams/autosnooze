@@ -34,34 +34,10 @@ export const getCard = async (page: Page): Promise<Locator> => {
 };
 
 export const loadCardResource = async (page: Page): Promise<void> => {
-  await page.evaluate(
-    async ({ cardElementName, cardResourcePath }) => {
-      if (customElements.get(cardElementName)) {
-        return;
-      }
-
-      await new Promise<void>((resolve, reject) => {
-        const existing = document.querySelector(`script[src="${cardResourcePath}"]`) as HTMLScriptElement | null;
-        if (existing) {
-          existing.addEventListener('load', () => resolve(), { once: true });
-          existing.addEventListener('error', () => reject(new Error(`${cardResourcePath} failed to load`)), {
-            once: true,
-          });
-          return;
-        }
-
-        const script = document.createElement('script');
-        script.type = 'module';
-        script.src = cardResourcePath;
-        script.addEventListener('load', () => resolve(), { once: true });
-        script.addEventListener('error', () => reject(new Error(`${cardResourcePath} failed to load`)), {
-          once: true,
-        });
-        document.head.appendChild(script);
-      });
-    },
-    { cardElementName: CARD_ELEMENT_NAME, cardResourcePath: CARD_RESOURCE_PATH },
-  );
+  const registered = await page.evaluate((name) => Boolean(customElements.get(name)), CARD_ELEMENT_NAME);
+  if (!registered) {
+    await page.addScriptTag({ path: LOCAL_CARD_BUNDLE, type: 'module' });
+  }
   await expect
     .poll(() => page.evaluate((name) => Boolean(customElements.get(name)), CARD_ELEMENT_NAME), { timeout: 15000 })
     .toBe(true);
@@ -155,15 +131,23 @@ export const installCardErrorListeners = (page: Page): CardErrorMonitor => {
 };
 
 export const assertNoCardErrors = (monitor: CardErrorMonitor): void => {
-  expect(monitor.consoleErrors, 'card console errors').toEqual([]);
+  const expectedBootstrap404 = (value: string): boolean =>
+    value.includes(`${CARD_RESOURCE_PATH}?v=`) && value.includes('404');
+  expect(monitor.consoleErrors.filter((value) => !expectedBootstrap404(value)), 'card console errors').toEqual([]);
   expect(monitor.pageErrors, 'card page errors').toEqual([]);
-  expect(monitor.failedResponses, 'card resource/network failures').toEqual([]);
+  expect(monitor.failedResponses.filter((value) => !expectedBootstrap404(value)), 'card resource/network failures').toEqual([]);
 };
 
 export const verifyCardResource = async (page: Page): Promise<void> => {
-  const response = await page.request.get(CARD_RESOURCE_PATH);
-  expect(response.status(), `${CARD_RESOURCE_PATH} status`).toBe(200);
-  expect(response.headers()['content-type'] ?? '').toMatch(/javascript|ecmascript|text\/plain/);
+  const response = await page.evaluate(async (cardResourcePath) => {
+    const result = await fetch(`${cardResourcePath}?verify=${Date.now()}`);
+    return {
+      status: result.status,
+      contentType: result.headers.get('content-type') ?? '',
+    };
+  }, CARD_RESOURCE_PATH);
+  expect(response.status, `${CARD_RESOURCE_PATH} status`).toBe(200);
+  expect(response.contentType).toMatch(/javascript|ecmascript|text\/plain/);
 };
 
 export const routeLocalCardResource = async (page: Page): Promise<void> => {

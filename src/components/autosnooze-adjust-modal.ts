@@ -8,8 +8,7 @@ import { LitElement, html } from 'lit';
 import { property } from 'lit/decorators.js';
 import { localize } from '../localization/localize.js';
 import { TIME_MS } from '../constants/index.js';
-import { startCardShellCountdown, stopCardShellCountdown } from '../features/card-shell/index.js';
-import type { CountdownState } from '../utils/countdown-timer.js';
+import { subscribeCardShellCountdown } from '../features/card-shell/index.js';
 import { formatCountdown } from '../utils/time-formatting.js';
 import { adjustModalStyles } from '../styles/adjust-modal.styles.js';
 import { defineAutoSnoozeElement } from '../utils/custom-element-registration.js';
@@ -66,11 +65,14 @@ export class AutoSnoozeAdjustModal extends LitElement {
   @property({ attribute: false })
   friendlyNames: string[] = [];
 
+  @property({ type: Boolean })
+  pending: boolean = false;
+
   get _isGroupMode(): boolean {
     return this.entityIds.length > 1;
   }
 
-  private _countdownState: CountdownState = { interval: null, syncTimeout: null };
+  private _unsubscribeCountdown?: () => void;
 
   updated(changedProps: PropertyValues): void {
     if (changedProps.has('open')) {
@@ -88,12 +90,18 @@ export class AutoSnoozeAdjustModal extends LitElement {
   }
 
   _startSynchronizedCountdown(): void {
-    stopCardShellCountdown(this._countdownState);
-    this._countdownState = startCardShellCountdown(() => this.requestUpdate());
+    this._stopCountdown();
+    this._unsubscribeCountdown = subscribeCardShellCountdown(() => {
+      const countdown = this.shadowRoot?.querySelector<HTMLElement>('.remaining-time');
+      if (countdown) {
+        countdown.textContent = formatCountdown(this.resumeAt, localize(this.hass, 'status.resuming'));
+      }
+    });
   }
 
   _stopCountdown(): void {
-    stopCardShellCountdown(this._countdownState);
+    this._unsubscribeCountdown?.();
+    this._unsubscribeCountdown = undefined;
   }
 
   _isDecrementDisabled(thresholdMs: number): boolean {
@@ -169,6 +177,7 @@ export class AutoSnoozeAdjustModal extends LitElement {
                 ${ADJUST_INCREMENTS.map((inc) => html`
                   <button type="button"
                     class="adjust-btn increment"
+                    ?disabled=${this.pending}
                     @click=${() => this._fireAdjustTime(inc.hours ? { hours: inc.hours } : { minutes: inc.minutes })}
                     aria-label="${localize(this.hass, 'a11y.add_minutes', { label: inc.label })}">
                     ${inc.label}
@@ -183,7 +192,7 @@ export class AutoSnoozeAdjustModal extends LitElement {
                 ${ADJUST_DECREMENTS.map((dec) => html`
                   <button type="button"
                     class="adjust-btn decrement"
-                    ?disabled=${this._isDecrementDisabled(dec.thresholdMs)}
+                    ?disabled=${this.pending || this._isDecrementDisabled(dec.thresholdMs)}
                     @click=${() => this._fireAdjustTime({ minutes: dec.minutes })}
                     aria-label="${localize(this.hass, 'a11y.reduce_minutes', { label: dec.label })}">
                     ${dec.label}

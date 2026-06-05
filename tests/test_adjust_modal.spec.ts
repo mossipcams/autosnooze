@@ -247,19 +247,17 @@ describe('AutoSnoozeAdjustModal', () => {
     expect(el._isDecrementDisabled(15 * 60 * 1000)).toBe(true);
   });
 
-  it('should clean up timers on disconnect', async () => {
+  it('should clean up shared countdown subscription on disconnect', async () => {
     const el = await createAndConnectElement('autosnooze-adjust-modal', {
       open: true,
       entityId: 'automation.test',
       friendlyName: 'Test',
       resumeAt: futureResumeAt(),
     });
-    // Timer should be running
-    expect(el._countdownState.interval !== null || el._countdownState.syncTimeout !== null).toBe(true);
+    expect(el._unsubscribeCountdown).toBeTypeOf('function');
     // Disconnect
     el.remove();
-    expect(el._countdownState.interval).toBeNull();
-    expect(el._countdownState.syncTimeout).toBeNull();
+    expect(el._unsubscribeCountdown).toBeUndefined();
   });
 
   it('should have entityIds and friendlyNames properties defaulting to empty arrays', () => {

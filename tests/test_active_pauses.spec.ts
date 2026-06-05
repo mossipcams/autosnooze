@@ -264,7 +264,7 @@ describe('AutoSnoozeActivePauses Component', () => {
     el.disconnectedCallback();
   });
 
-  it('should set interval after sync timeout fires', async () => {
+  it('should subscribe to the shared clock after sync timeout fires', async () => {
     vi.useFakeTimers();
     const { AutoSnoozeActivePauses } = await import('../src/components/autosnooze-active-pauses.js');
     if (!customElements.get('autosnooze-active-pauses')) {
@@ -287,8 +287,8 @@ describe('AutoSnoozeActivePauses Component', () => {
     // Advance past sync timeout (max 1000ms)
     vi.advanceTimersByTime(1000);
 
-    // After sync fires, interval should be set
-    expect(internal._countdownState.interval).not.toBeNull();
+    // The component no longer owns an interval after sync fires.
+    expect(internal._countdownState.interval).toBeNull();
 
     vi.useRealTimers();
     el.disconnectedCallback();

@@ -199,15 +199,18 @@ describe('active pauses mutation boundaries', () => {
     expect(adjustEvents).toHaveLength(3);
   });
 
-  test('starts countdowns only when at least one group has a live countdown and ticks request updates', () => {
+  test('starts countdowns only when at least one group has a live countdown and ticks update countdown text only', async () => {
     const element = createElement();
     const requestUpdate = vi.spyOn(element, 'requestUpdate');
     element.pauseGroups = [
       createGroup({ disableAt: '2026-04-29T12:30:00' }),
       createGroup({ resumeAt: '2026-04-29T12:05:00' }),
     ];
+    element.pausedCount = 2;
 
     element.connectedCallback();
+    document.body.append(element);
+    await element.updateComplete;
 
     vi.runOnlyPendingTimers();
     expect(cardShellMocks.subscribeCardShellCountdown).toHaveBeenCalledTimes(1);
@@ -215,7 +218,8 @@ describe('active pauses mutation boundaries', () => {
 
     requestUpdate.mockClear();
     cardShellMocks.lastTick?.();
-    expect(requestUpdate).toHaveBeenCalledTimes(1);
+    expect(requestUpdate).not.toHaveBeenCalled();
+    expect(element.shadowRoot?.querySelector('.countdown')?.textContent).toBeTruthy();
 
     element.pauseGroups = [];
     requestUpdate.mockClear();

@@ -25,6 +25,8 @@ vi.mock('../src/features/card-shell/index.js', async (importOriginal) => {
 
 import { createCardController } from '../src/features/card-controller/index.js';
 import { runPauseFeature } from '../src/features/pause/index.js';
+import * as resumeFeature from '../src/features/resume/index.js';
+import * as scheduledFeature from '../src/features/scheduled-snooze/index.js';
 
 describe('Command Feedback', () => {
   let controller;
@@ -70,6 +72,45 @@ describe('Command Feedback', () => {
     await second;
   });
 
+  test.each([
+    ['resume entity', 'runWake', ['automation.ok'], resumeFeature, 'runWakeFeature'],
+    ['resume all', 'runWakeAll', [], resumeFeature, 'runWakeAllFeature'],
+    ['cancel scheduled', 'runCancelScheduled', ['automation.ok'], scheduledFeature, 'runCancelScheduledFeature'],
+  ])('duplicate %s submission invokes the backend once', async (_label, method, args, feature, featureMethod) => {
+    let resolveCommand;
+    const command = vi.spyOn(feature, featureMethod).mockImplementation(() => new Promise((resolve) => {
+      resolveCommand = resolve;
+    }));
+
+    const first = controller[method](...args);
+    const second = controller[method](...args);
+
+    expect(command).toHaveBeenCalledTimes(1);
+    resolveCommand({ succeeded: ['automation.ok'], failed: [] });
+    await first;
+    await second;
+  });
+
+  test('duplicate adjust submission invokes the backend once', async () => {
+    let resolveCommand;
+    const command = vi.spyOn(scheduledFeature, 'runAdjustFeature').mockImplementation(() => new Promise((resolve) => {
+      resolveCommand = resolve;
+    }));
+    controller.openAdjustAutomation({
+      entityId: 'automation.ok',
+      friendlyName: 'OK',
+      resumeAt: new Date(Date.now() + 60_000).toISOString(),
+    });
+
+    const first = controller.runAdjustTime({ entityId: 'automation.ok', minutes: 15 });
+    const second = controller.runAdjustTime({ entityId: 'automation.ok', minutes: 15 });
+
+    expect(command).toHaveBeenCalledTimes(1);
+    resolveCommand({ nextResumeAt: new Date(Date.now() + 120_000).toISOString() });
+    await first;
+    await second;
+  });
+
   test('partial_failure_preserves_failed_selection_and_displays_status', async () => {
     runPauseFeature.mockResolvedValue({
       status: 'submitted',
@@ -82,7 +123,7 @@ describe('Command Feedback', () => {
     await controller.runSnooze();
 
     const vm = controller.getViewModel();
-    expect(vm.local.selected).toEqual([]);
+    expect(vm.local.selected).toEqual(['automation.failed']);
     expect(vm.toast?.message).toBe('Partial pause');
   });
 
@@ -99,6 +140,7 @@ describe('Command Feedback', () => {
 
     const firstToast = controller.getViewModel().toast?.message;
     expect(firstToast).toContain('Recovery required');
+    expect(controller.getViewModel().persistentStatus).toContain('Recovery required');
 
     runPauseFeature.mockResolvedValue({
       status: 'submitted',
@@ -110,5 +152,6 @@ describe('Command Feedback', () => {
     await controller.runSnooze();
 
     expect(controller.getViewModel().toast?.message).toBe('Paused');
+    expect(controller.getViewModel().persistentStatus).toBeNull();
   });
 });

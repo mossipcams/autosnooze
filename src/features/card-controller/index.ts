@@ -87,6 +87,7 @@ export interface CardLocalUiState {
   customDuration: ParsedDuration;
   customDurationInput: string;
   loading: boolean;
+  pendingActions: string[];
   scheduleMode: boolean;
   notificationsEnabled: boolean;
   notificationTrigger: Exclude<NotificationTrigger, 'none'>;
@@ -119,6 +120,7 @@ export interface CardControllerViewModel {
   derived: CardDerivedState;
   modal: CardAdjustModalState;
   toast: CardToastState | null;
+  persistentStatus: string | null;
 }
 
 type CardControllerListener = () => void;
@@ -143,6 +145,7 @@ function cloneViewModel(model: CardControllerViewModel): CardControllerViewModel
       selected: [...model.local.selected],
       customDuration: { ...model.local.customDuration },
       recentSnoozeIds: [...model.local.recentSnoozeIds],
+      pendingActions: [...model.local.pendingActions],
     },
     registry: {
       labels: { ...model.registry.labels },
@@ -159,6 +162,7 @@ function cloneViewModel(model: CardControllerViewModel): CardControllerViewModel
       friendlyNames: [...model.modal.friendlyNames],
     },
     toast: model.toast ? { ...model.toast } : null,
+    persistentStatus: model.persistentStatus,
   };
 }
 
@@ -203,6 +207,7 @@ export class CardController {
   private _undoToken = 0;
   private _pendingUndo: PendingUndoContext | null = null;
   private _connected = false;
+  private _pendingActions = new Set<string>();
 
   private _viewModel: CardControllerViewModel = this._buildViewModel();
 
@@ -721,8 +726,9 @@ export class CardController {
         count,
       };
       this._showToast(pauseResult.toastMessage, { showUndo: true });
+      this._recordCommandOutcome(pauseResult.commandResponse, pauseResult.toastMessage, pauseResult.failed ?? []);
 
-      this.setSelection([]);
+      this.setSelection(pauseResult.failed ?? []);
       this._viewModel.local.notificationsEnabled = false;
       this._viewModel.local.notificationTrigger = 'end';
       this._viewModel.local.notificationLeadMinutes = DEFAULT_NOTIFICATION_LEAD_MINUTES;
@@ -746,11 +752,13 @@ export class CardController {
   }
 
   async runWake(entityId: string): Promise<void> {
-    if (!this._hass) {
+    const pendingKey = `resume:${entityId}`;
+    if (!this._hass || !this._beginPending(pendingKey)) {
       return;
     }
     try {
-      await runWakeFeature(this._hass, entityId);
+      const result = await runWakeFeature(this._hass, entityId);
+      this._recordCommandOutcome(result.commandResponse, undefined, result.failed);
       hapticFeedback('success');
       if (this._connected) {
         this._showToast(localize(this._hass, 'toast.success.resumed'));
@@ -758,15 +766,19 @@ export class CardController {
     } catch (error) {
       console.error('Wake failed:', error);
       hapticFeedback('failure');
+    } finally {
+      this._endPending(pendingKey);
     }
   }
 
   async runWakeAll(): Promise<void> {
-    if (!this._hass) {
+    const pendingKey = 'resume-all';
+    if (!this._hass || !this._beginPending(pendingKey)) {
       return;
     }
     try {
-      await runWakeAllFeature(this._hass);
+      const result = await runWakeAllFeature(this._hass);
+      this._recordCommandOutcome(result.commandResponse, undefined, result.failed);
       hapticFeedback('success');
       if (this._connected) {
         this._showToast(localize(this._hass, 'toast.success.resumed_all'));
@@ -774,6 +786,8 @@ export class CardController {
     } catch (error) {
       console.error('Wake all failed:', error);
       hapticFeedback('failure');
+    } finally {
+      this._endPending(pendingKey);
     }
   }
 
@@ -797,7 +811,8 @@ export class CardController {
     hours?: number;
     minutes?: number;
   }): Promise<void> {
-    if (!this._hass) {
+    const pendingKey = `adjust:${[...(detail.entityIds ?? []), ...(detail.entityId ? [detail.entityId] : [])].sort().join(',')}`;
+    if (!this._hass || !this._beginPending(pendingKey)) {
       return;
     }
     try {
@@ -811,11 +826,14 @@ export class CardController {
     } catch (error) {
       console.error('Adjust failed:', error);
       hapticFeedback('failure');
+    } finally {
+      this._endPending(pendingKey);
     }
   }
 
   async runCancelScheduled(entityId: string): Promise<void> {
-    if (!this._hass) {
+    const pendingKey = `cancel:${entityId}`;
+    if (!this._hass || !this._beginPending(pendingKey)) {
       return;
     }
     try {
@@ -827,7 +845,49 @@ export class CardController {
     } catch (error) {
       console.error('Cancel scheduled failed:', error);
       hapticFeedback('failure');
+    } finally {
+      this._endPending(pendingKey);
     }
+  }
+
+  private _beginPending(key: string): boolean {
+    if (this._pendingActions.has(key)) {
+      return false;
+    }
+    this._pendingActions.add(key);
+    this._viewModel.local.pendingActions = [...this._pendingActions];
+    this._notify();
+    return true;
+  }
+
+  private _endPending(key: string): void {
+    this._pendingActions.delete(key);
+    this._viewModel.local.pendingActions = [...this._pendingActions];
+    this._notify();
+  }
+
+  private _recordCommandOutcome(
+    response?: import('../../types/service-response.js').CommandServiceResponse,
+    fallbackMessage?: string,
+    failed: string[] = [],
+  ): void {
+    const recoveryRequired = response?.recovery_required_entities ?? (
+      fallbackMessage?.toLowerCase().includes('recovery required') ? failed : []
+    );
+    const retrying = response?.entities
+      .filter((entity) => entity.recovery_status === 'retrying')
+      .map((entity) => entity.entity_id) ?? [];
+
+    if (recoveryRequired.length > 0) {
+      this._viewModel.persistentStatus = `Recovery required: ${recoveryRequired.join(', ')}`;
+    } else if (retrying.length > 0) {
+      this._viewModel.persistentStatus = `Retrying: ${retrying.join(', ')}`;
+    } else if (failed.length > 0) {
+      this._viewModel.persistentStatus = `Partial success. Retry: ${failed.join(', ')}`;
+    } else {
+      this._viewModel.persistentStatus = null;
+    }
+    this._notify();
   }
 
   async runToastUndo(): Promise<void> {
@@ -894,6 +954,7 @@ export class CardController {
         customDuration: { ...storeState.customDuration },
         customDurationInput: storeState.customDurationInput,
         loading: false,
+        pendingActions: [],
         scheduleMode: false,
         notificationsEnabled: false,
         notificationTrigger: 'end',
@@ -925,6 +986,7 @@ export class CardController {
         friendlyNames: [],
       },
       toast: null,
+      persistentStatus: null,
     };
   }
 

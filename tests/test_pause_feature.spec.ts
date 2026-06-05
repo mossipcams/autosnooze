@@ -117,7 +117,7 @@ describe('Pause Feature Delegation', () => {
     await card._snooze();
 
     expect(runPauseFeature).toHaveBeenCalledOnce();
-    expect(card._selected).toEqual([]);
+    expect(card._selected).toEqual(['automation.failed']);
   });
 
   test('keeps retry state intact when the delegated pause feature fails', async () => {

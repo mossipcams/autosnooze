@@ -2,7 +2,6 @@
  * Card shell helpers for local UI state transitions.
  */
 
-import { startCountdownSync, stopCountdownSync } from '../../services/countdown-sync.js';
 import {
   setCountdownClockHidden,
   subscribeCountdownClock,
@@ -31,7 +30,6 @@ import type {
   PausedAutomationAttribute,
   ScheduledSnoozeAttribute,
 } from '../../types/hass.js';
-import type { CountdownState } from '../../utils/countdown-timer.js';
 
 export type { LastDurationData };
 export const SNOOZE_SENSOR_ENTITY_ID = SENSOR_ENTITY_ID;
@@ -115,14 +113,6 @@ export function createClosedAdjustModalState(): AdjustModalState {
     adjustModalEntityIds: [],
     adjustModalFriendlyNames: [],
   };
-}
-
-export function startCardShellCountdown(onTick: () => void): CountdownState {
-  return startCountdownSync(onTick);
-}
-
-export function stopCardShellCountdown(state: CountdownState): void {
-  stopCountdownSync(state);
 }
 
 export function subscribeCardShellCountdown(onTick: () => void): () => void {
