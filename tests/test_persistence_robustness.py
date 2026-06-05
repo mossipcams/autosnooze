@@ -8,6 +8,7 @@ These tests verify:
 
 from __future__ import annotations
 
+import asyncio
 from datetime import datetime, timedelta, timezone
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -15,6 +16,68 @@ import pytest
 
 UTC = timezone.utc
 
+
+@pytest.mark.asyncio
+async def test_restore_load_error_is_not_treated_as_empty_storage() -> None:
+    """Storage load failures must be observable to integration setup."""
+    from custom_components.autosnooze.application.restore import async_restore_stored as async_load_stored
+    from custom_components.autosnooze.runtime.state import AutomationPauseData
+
+    store = MagicMock()
+    store.async_load = AsyncMock(side_effect=OSError("storage unavailable"))
+    data = AutomationPauseData(store=store)
+
+    with pytest.raises(RuntimeError, match="Failed to load stored AutoSnooze data"):
+        await async_load_stored(MagicMock(), data)
+
+
+@pytest.mark.asyncio
+async def test_restore_only_removes_record_after_confirmed_enabled_state() -> None:
+    """Failed restore wake retains the record; confirmed wake removes it."""
+    from custom_components.autosnooze.models import PausedAutomation
+    from custom_components.autosnooze.application.restore import async_restore_stored as async_load_stored
+    from custom_components.autosnooze.runtime.state import AutomationPauseData
+
+    entity_id = "automation.expired_restore"
+    now = datetime.now(UTC)
+    stored_pause = PausedAutomation(
+        entity_id=entity_id,
+        friendly_name=entity_id,
+        resume_at=now - timedelta(minutes=1),
+        paused_at=now - timedelta(hours=1),
+    )
+
+    stored_payload = {"paused": {entity_id: stored_pause.to_dict()}, "scheduled": {}}
+
+    mock_hass = MagicMock()
+    mock_hass.states.get.return_value = MagicMock()
+
+    failed_store = MagicMock()
+    failed_store.async_load = AsyncMock(return_value=stored_payload)
+    failed_store.async_save = AsyncMock()
+    failed_data = AutomationPauseData(store=failed_store)
+
+    with patch(
+        "custom_components.autosnooze.runtime.ports.async_set_automation_state",
+        AsyncMock(return_value=False),
+    ):
+        await async_load_stored(mock_hass, failed_data)
+
+    assert entity_id in failed_data.paused
+
+    success_store = MagicMock()
+    success_store.async_load = AsyncMock(return_value=stored_payload)
+    success_store.async_save = AsyncMock()
+    success_data = AutomationPauseData(store=success_store)
+
+    with patch(
+        "custom_components.autosnooze.runtime.ports.async_set_automation_state",
+        AsyncMock(return_value=True),
+    ):
+        await async_load_stored(mock_hass, success_data)
+
+    assert entity_id not in success_data.paused
+    success_store.async_save.assert_called()
 
 class TestDeletedAutomationCleanup:
     """Tests that verify deleted automations are cleaned up from storage on load."""
@@ -96,7 +159,7 @@ class TestDeletedAutomationCleanup:
         mock_state.attributes = {"friendly_name": "Existing Automation"}
         mock_hass.states.get.return_value = mock_state
 
-        with patch("custom_components.autosnooze.coordinator.schedule_resume"):
+        with patch("custom_components.autosnooze.runtime.ports.schedule_resume"):
             await _async_load_stored(mock_hass, data)
 
         # Existing automation SHOULD be in paused dict
@@ -161,7 +224,7 @@ class TestDeletedAutomationCleanup:
         mock_state.attributes = {"friendly_name": "Existing Scheduled"}
         mock_hass.states.get.return_value = mock_state
 
-        with patch("custom_components.autosnooze.coordinator.schedule_disable"):
+        with patch("custom_components.autosnooze.runtime.ports.schedule_disable"):
             await _async_load_stored(mock_hass, data)
 
         # Existing automation SHOULD be in scheduled dict
@@ -197,7 +260,7 @@ class TestDeletedAutomationCleanup:
         mock_hass.states.get.return_value = mock_state
 
         with (
-            patch("custom_components.autosnooze.coordinator.schedule_resume"),
+            patch("custom_components.autosnooze.runtime.ports.schedule_resume"),
             patch(
                 "custom_components.autosnooze.runtime.ports.schedule_pre_resume_notification"
             ) as schedule_notification,
@@ -256,8 +319,8 @@ class TestDeletedAutomationCleanup:
         mock_hass.states.get.side_effect = get_state
 
         with (
-            patch("custom_components.autosnooze.coordinator.schedule_resume"),
-            patch("custom_components.autosnooze.coordinator.schedule_disable"),
+            patch("custom_components.autosnooze.runtime.ports.schedule_resume"),
+            patch("custom_components.autosnooze.runtime.ports.schedule_disable"),
         ):
             await _async_load_stored(mock_hass, data)
 
@@ -358,12 +421,155 @@ class TestStorageValidation:
         mock_state.attributes = {"friendly_name": "Test"}
         mock_hass.states.get.return_value = mock_state
 
-        with patch("custom_components.autosnooze.coordinator.schedule_resume"):
+        with patch("custom_components.autosnooze.runtime.ports.schedule_resume"):
             await _async_load_stored(mock_hass, data)
 
         # Valid entry should be loaded, invalid should be skipped
         assert "automation.valid" in data.paused
         assert "automation.invalid" not in data.paused
+
+
+@pytest.mark.asyncio
+async def test_slow_persistence_does_not_hold_runtime_lock() -> None:
+    """A blocked save must not prevent unrelated transitions from acquiring the lock."""
+    import asyncio
+    from unittest.mock import AsyncMock, MagicMock
+
+    from custom_components.autosnooze.application.pause import async_pause_automations
+    from custom_components.autosnooze.runtime.state import AutomationPauseData
+
+    entity_id = "automation.slow_save"
+    data = AutomationPauseData(store=MagicMock())
+    hass = MagicMock()
+    enabled_state = MagicMock()
+    enabled_state.state = "on"
+    hass.states.get.return_value = enabled_state
+
+    save_started = asyncio.Event()
+    allow_save_finish = asyncio.Event()
+
+    async def set_state(_hass: MagicMock, _entity_id: str, enabled: bool) -> bool:
+        return True
+
+    async def slow_save(_data: AutomationPauseData, **_kwargs: object) -> bool:
+        save_started.set()
+        await allow_save_finish.wait()
+        return True
+
+    pause_task = asyncio.create_task(
+        async_pause_automations(
+            hass,
+            data,
+            [entity_id],
+            minutes=30,
+            set_automation_state=set_state,
+            save_data=slow_save,
+            schedule_resume_callback=MagicMock(),
+        )
+    )
+
+    await save_started.wait()
+    acquired_during_save = False
+    try:
+        await asyncio.wait_for(data.lock.acquire(), timeout=0.05)
+        acquired_during_save = True
+    finally:
+        if acquired_during_save:
+            data.lock.release()
+
+    allow_save_finish.set()
+    await pause_task
+
+    assert acquired_during_save is True
+
+
+@pytest.mark.asyncio
+async def test_persistence_failure_after_ha_effect_creates_recovery_state() -> None:
+    """A post-effect save failure must mark recovery state instead of only raising."""
+    from custom_components.autosnooze.application.pause import async_pause_automations
+    from custom_components.autosnooze.domain.transitions import RecoveryStatus
+    from custom_components.autosnooze.runtime.state import AutomationPauseData
+
+    entity_id = "automation.save_failed"
+    data = AutomationPauseData(store=MagicMock())
+    hass = MagicMock()
+    enabled_state = MagicMock()
+    enabled_state.state = "on"
+    hass.states.get.return_value = enabled_state
+
+    async def set_state(_hass: MagicMock, _entity_id: str, enabled: bool) -> bool:
+        return True
+
+    async def failing_save(_data: AutomationPauseData, **_kwargs: object) -> bool:
+        return False
+
+    with pytest.raises(Exception, match="Failed to persist autosnooze state"):
+        await async_pause_automations(
+            hass,
+            data,
+            [entity_id],
+            minutes=30,
+            set_automation_state=set_state,
+            save_data=failing_save,
+            schedule_resume_callback=MagicMock(),
+        )
+
+    assert entity_id in data.paused
+    assert data.paused[entity_id].recovery_status is RecoveryStatus.REQUIRED
+
+
+@pytest.mark.asyncio
+async def test_coalesced_writer_preserves_latest_snapshot_and_safety_writes() -> None:
+    """Coalescing keeps the latest snapshot while immediate writes stay durable."""
+    from custom_components.autosnooze.infrastructure.storage import async_save, async_save_coalesced
+    from custom_components.autosnooze.models import PausedAutomation
+    from custom_components.autosnooze.runtime.state import AutomationPauseData
+
+    now = datetime.now(UTC)
+    store = MagicMock()
+    allow_first_save = asyncio.Event()
+    saved_payloads: list[dict[str, object]] = []
+
+    async def slow_save(payload: dict[str, object]) -> None:
+        saved_payloads.append(payload)
+        if len(saved_payloads) == 1:
+            await allow_first_save.wait()
+
+    store.async_save = AsyncMock(side_effect=slow_save)
+    data = AutomationPauseData(store=store)
+    data.paused["automation.one"] = PausedAutomation(
+        entity_id="automation.one",
+        friendly_name="One",
+        resume_at=now + timedelta(hours=1),
+        paused_at=now,
+    )
+
+    first_save = asyncio.create_task(async_save_coalesced(data))
+    await asyncio.sleep(0)
+    data.paused["automation.two"] = PausedAutomation(
+        entity_id="automation.two",
+        friendly_name="Two",
+        resume_at=now + timedelta(hours=2),
+        paused_at=now,
+    )
+    second_save = asyncio.create_task(async_save_coalesced(data))
+    allow_first_save.set()
+    assert await first_save is True
+    assert await second_save is True
+
+    assert len(saved_payloads) == 2
+    assert "automation.one" in saved_payloads[0]["paused"]
+    assert "automation.two" in saved_payloads[1]["paused"]
+
+    store.async_save = AsyncMock()
+    data.paused["automation.three"] = PausedAutomation(
+        entity_id="automation.three",
+        friendly_name="Three",
+        resume_at=now + timedelta(hours=3),
+        paused_at=now,
+    )
+    assert await async_save(data, coalesce=False) is True
+    store.async_save.assert_awaited_once()
 
 
 class TestSaveFailureRecovery:

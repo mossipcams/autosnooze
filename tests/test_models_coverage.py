@@ -18,6 +18,7 @@ from custom_components.autosnooze.models import (
     ensure_utc_aware,
     parse_datetime_utc,
 )
+from custom_components.autosnooze.domain.transitions import RecoveryStatus
 from custom_components.autosnooze.runtime.state import AutomationPauseData
 
 UTC = timezone.utc
@@ -348,3 +349,21 @@ class TestAutomationPauseDataEdgeCases:
         assert len(result) == 2
         assert "automation.test1" in result
         assert "automation.test2" in result
+def test_resume_retry_and_recovery_state_round_trips_storage() -> None:
+    """Retry, recovery, and original-state data survive persistence."""
+    now = datetime.now(UTC)
+    paused = PausedAutomation(
+        entity_id="automation.recovery",
+        friendly_name="Recovery",
+        resume_at=now + timedelta(hours=1),
+        paused_at=now,
+        resume_retries=4,
+        recovery_status=RecoveryStatus.REQUIRED,
+        originally_enabled=False,
+    )
+
+    restored = PausedAutomation.from_dict(paused.entity_id, paused.to_dict())
+
+    assert restored.resume_retries == 4
+    assert restored.recovery_status is RecoveryStatus.REQUIRED
+    assert restored.originally_enabled is False

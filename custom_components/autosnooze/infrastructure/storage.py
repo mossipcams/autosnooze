@@ -13,19 +13,28 @@ from ..runtime.state import AutomationPauseData
 _LOGGER = logging.getLogger(__name__)
 
 
-async def async_save(
+def _build_save_payload(data: AutomationPauseData) -> dict[str, dict[str, dict[str, object]]]:
+    pending_snapshot = data._pending_persistence_snapshot
+    if pending_snapshot is not None:
+        return {
+            "paused": pending_snapshot.paused,
+            "scheduled": pending_snapshot.scheduled,
+        }
+    return {
+        "paused": data.get_paused_dict(),
+        "scheduled": data.get_scheduled_dict(),
+    }
+
+
+async def _write_save_payload(
     data: AutomationPauseData,
     *,
     sleep: Callable[[float], Awaitable[object]] = asyncio.sleep,
 ) -> bool:
-    """Save snoozed automations to storage with retry logic."""
     if data.store is None:
         return True
 
-    save_data = {
-        "paused": data.get_paused_dict(),
-        "scheduled": data.get_scheduled_dict(),
-    }
+    save_data = _build_save_payload(data)
 
     for attempt, delay in enumerate(SAVE_RETRY_DELAYS, start=1):
         try:
@@ -60,3 +69,33 @@ async def async_save(
     except Exception as err:
         _LOGGER.error("Failed to save data: %s", err)
         return False
+
+
+async def async_save(
+    data: AutomationPauseData,
+    *,
+    sleep: Callable[[float], Awaitable[object]] = asyncio.sleep,
+    coalesce: bool = False,
+) -> bool:
+    """Save snoozed automations to storage with retry logic."""
+    if not coalesce:
+        return await _write_save_payload(data, sleep=sleep)
+
+    if data._save_in_flight:
+        data._pending_followup_save = True
+        return True
+
+    data._save_in_flight = True
+    try:
+        result = await _write_save_payload(data, sleep=sleep)
+        while data._pending_followup_save:
+            data._pending_followup_save = False
+            result = await _write_save_payload(data, sleep=sleep) and result
+        return result
+    finally:
+        data._save_in_flight = False
+
+
+async def async_save_coalesced(data: AutomationPauseData) -> bool:
+    """Coalesce overlapping save requests and flush the latest snapshot."""
+    return await async_save(data, coalesce=True)
