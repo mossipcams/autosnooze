@@ -34,6 +34,40 @@ class TestDeletedAutomationCleanup:
         return hass
 
     @pytest.mark.asyncio
+    async def test_failed_expired_restore_keeps_recovery_record_and_retry_timer(
+        self, mock_hass: MagicMock, mock_store: MagicMock
+    ) -> None:
+        """A failed expired restore wake must keep automatic recovery alive."""
+        from custom_components.autosnooze.coordinator import async_load_stored as _async_load_stored
+        from custom_components.autosnooze.models import PausedAutomation
+        from custom_components.autosnooze.runtime.state import AutomationPauseData
+
+        entity_id = "automation.expired_restore"
+        now = datetime.now(UTC)
+        stored_pause = PausedAutomation(
+            entity_id=entity_id,
+            friendly_name=entity_id,
+            resume_at=now - timedelta(minutes=1),
+            paused_at=now - timedelta(hours=1),
+        )
+        data = AutomationPauseData(store=mock_store)
+        mock_store.async_load = AsyncMock(return_value={"paused": {entity_id: stored_pause.to_dict()}, "scheduled": {}})
+        mock_hass.states.get.return_value = MagicMock()
+
+        with (
+            patch(
+                "custom_components.autosnooze.runtime.ports.async_set_automation_state", AsyncMock(return_value=False)
+            ),
+            patch("custom_components.autosnooze.runtime.ports.schedule_resume") as schedule_resume,
+        ):
+            await _async_load_stored(mock_hass, data)
+
+        assert entity_id in data.paused
+        assert data.paused[entity_id].resume_retries == 1
+        assert data.paused[entity_id].resume_at > now
+        schedule_resume.assert_called_once()
+
+    @pytest.mark.asyncio
     async def test_deleted_paused_automation_is_cleaned_up(self, mock_hass: MagicMock, mock_store: MagicMock) -> None:
         """Test that deleted automations are removed from paused storage on load."""
         from custom_components.autosnooze.coordinator import async_load_stored as _async_load_stored
