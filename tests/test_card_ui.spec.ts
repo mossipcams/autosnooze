@@ -905,7 +905,7 @@ describe('AutoSnooze Card Main Component', () => {
 
     test('parent _handleWakeAllEvent calls wakeAll service', async () => {
       await card._handleWakeAllEvent();
-      expect(card.hass.callService).toHaveBeenCalledWith('autosnooze', 'cancel_all', {});
+      expect(card.hass.callService).toHaveBeenCalledWith('autosnooze', 'cancel_all', {}, { return_response: true });
     });
   });
 
@@ -1457,12 +1457,17 @@ describe('Snooze Operations', () => {
 
       await card._snooze();
 
-      expect(mockHass.callService).toHaveBeenCalledWith('autosnooze', 'pause', {
-        entity_id: ['automation.test'],
-        days: 0,
-        hours: 1,
-        minutes: 30,
-      });
+      expect(mockHass.callService).toHaveBeenCalledWith(
+        'autosnooze',
+        'pause',
+        {
+          entity_id: ['automation.test'],
+          days: 0,
+          hours: 1,
+          minutes: 30,
+        },
+        { return_response: true },
+      );
     });
 
     test('clears selection after snooze', async () => {
@@ -1640,9 +1645,14 @@ describe('Snooze Operations', () => {
     test('calls cancel service for entity', async () => {
       await card._wake('automation.test');
 
-      expect(mockHass.callService).toHaveBeenCalledWith('autosnooze', 'cancel', {
-        entity_id: 'automation.test',
-      });
+      expect(mockHass.callService).toHaveBeenCalledWith(
+        'autosnooze',
+        'cancel',
+        {
+          entity_id: 'automation.test',
+        },
+        { return_response: true },
+      );
     });
 
     test('handles service error gracefully', async () => {
@@ -1710,41 +1720,46 @@ describe('Toast Notifications', () => {
     }
   });
 
-  test('_showToast creates toast element', () => {
+  test('_showToast creates toast element', async () => {
     card._showToast('Test message');
+    await card.updateComplete;
 
     const toast = card.shadowRoot.querySelector('.toast');
     expect(toast).not.toBeNull();
     expect(toast.textContent).toContain('Test message');
   });
 
-  test('_showToast removes existing toast', () => {
+  test('_showToast removes existing toast', async () => {
     card._showToast('First message');
+    await card.updateComplete;
     card._showToast('Second message');
+    await card.updateComplete;
 
     const toasts = card.shadowRoot.querySelectorAll('.toast');
     expect(toasts.length).toBe(1);
     expect(toasts[0].textContent).toContain('Second message');
   });
 
-  test('_showToast with undo option creates undo button', () => {
+  test('_showToast with undo option creates undo button', async () => {
     card._showToast('Test message', {
       showUndo: true,
       onUndo: vi.fn(),
     });
+    await card.updateComplete;
 
     const toast = card.shadowRoot.querySelector('.toast');
     const undoBtn = toast.querySelector('.toast-undo-btn');
     expect(undoBtn).not.toBeNull();
-    expect(undoBtn.textContent).toBe('Undo');
+    expect(undoBtn.textContent.trim()).toBe('Undo');
   });
 
-  test('clicking undo button calls onUndo callback', () => {
+  test('clicking undo button calls onUndo callback', async () => {
     const onUndoMock = vi.fn();
     card._showToast('Test message', {
       showUndo: true,
       onUndo: onUndoMock,
     });
+    await card.updateComplete;
 
     const undoBtn = card.shadowRoot.querySelector('.toast-undo-btn');
     undoBtn.click();
@@ -1752,27 +1767,31 @@ describe('Toast Notifications', () => {
     expect(onUndoMock).toHaveBeenCalled();
   });
 
-  test('clicking undo button removes toast', () => {
+  test('clicking undo button removes toast', async () => {
     card._showToast('Test message', {
       showUndo: true,
       onUndo: vi.fn(),
     });
+    await card.updateComplete;
 
     const undoBtn = card.shadowRoot.querySelector('.toast-undo-btn');
     undoBtn.click();
+    await card.updateComplete;
 
     const toast = card.shadowRoot.querySelector('.toast');
     expect(toast).toBeNull();
   });
 
-  test('toast auto-removes after timeout', () => {
+  test('toast auto-removes after timeout', async () => {
     vi.useFakeTimers();
 
     card._showToast('Test message');
+    await card.updateComplete;
 
     expect(card.shadowRoot.querySelector('.toast')).not.toBeNull();
 
     vi.advanceTimersByTime(5300);
+    await card.updateComplete;
 
     expect(card.shadowRoot.querySelector('.toast')).toBeNull();
 
@@ -2311,11 +2330,18 @@ describe('Undo Functionality in Snooze', () => {
     const undoBtn = card.shadowRoot.querySelector('.toast-undo-btn');
     undoBtn.click();
 
-    await new Promise((resolve) => setTimeout(resolve, 10));
-
-    expect(mockHass.callService).toHaveBeenCalledWith('autosnooze', 'cancel', {
-      entity_id: 'automation.test',
+    await vi.waitFor(() => {
+      expect(mockHass.callService.mock.calls.some((call) => call[1] === 'cancel')).toBe(true);
     });
+
+    expect(mockHass.callService).toHaveBeenCalledWith(
+      'autosnooze',
+      'cancel',
+      {
+        entity_id: ['automation.test'],
+      },
+      { return_response: true },
+    );
   });
 
   test('undo after scheduled snooze calls cancel_scheduled service', async () => {
@@ -2377,23 +2403,40 @@ describe('Undo Functionality in Snooze', () => {
     card._customDuration = { days: 0, hours: 0, minutes: 30 };
 
     mockHass.callService.mockResolvedValueOnce(undefined); // snooze
-    mockHass.callService.mockRejectedValueOnce(new Error('Cancel failed')); // undo first entity
-    mockHass.callService.mockResolvedValueOnce(undefined); // undo second entity
+    mockHass.callService.mockResolvedValueOnce({
+      schema_version: 1,
+      command: 'cancel',
+      status: 'partial_success',
+      complete_success: false,
+      partial_success: true,
+      entities: [
+        { entity_id: 'automation.test', outcome: 'retrying', recovery_status: 'retrying' },
+        { entity_id: 'automation.second', outcome: 'succeeded', recovery_status: 'none' },
+      ],
+      recovery_required_entities: [],
+    });
 
     await card._snooze();
 
     const undoBtn = card.shadowRoot.querySelector('.toast-undo-btn');
     undoBtn.click();
-    await new Promise((resolve) => setTimeout(resolve, 10));
+    await vi.waitFor(() => {
+      expect(mockHass.callService.mock.calls.some((call) => call[1] === 'cancel')).toBe(true);
+    });
 
-    expect(mockHass.callService).toHaveBeenCalledTimes(3);
-    expect(mockHass.callService).toHaveBeenNthCalledWith(2, 'autosnooze', 'cancel', {
-      entity_id: 'automation.test',
+    expect(mockHass.callService).toHaveBeenCalledTimes(2);
+    expect(mockHass.callService).toHaveBeenNthCalledWith(
+      2,
+      'autosnooze',
+      'cancel',
+      {
+        entity_id: ['automation.test', 'automation.second'],
+      },
+      { return_response: true },
+    );
+    await vi.waitFor(() => {
+      expect(card._selected).toEqual(['automation.test']);
     });
-    expect(mockHass.callService).toHaveBeenNthCalledWith(3, 'autosnooze', 'cancel', {
-      entity_id: 'automation.second',
-    });
-    expect(card._selected).toEqual(['automation.test']);
   });
 });
 
@@ -2833,6 +2876,9 @@ describe('shouldUpdate optimization', () => {
   });
 
   test('_fetchLabelRegistry keeps retry enabled when fetch fails', async () => {
+    const { invalidateRegistryCaches } = await import('../src/services/registry.js');
+    invalidateRegistryCaches();
+
     card._labelsFetched = false;
     card._labelRegistry = {};
     card.hass.connection = {
@@ -2845,6 +2891,9 @@ describe('shouldUpdate optimization', () => {
   });
 
   test('_fetchLabelRegistry reuses in-flight request', async () => {
+    const { invalidateRegistryCaches } = await import('../src/services/registry.js');
+    invalidateRegistryCaches();
+
     card._labelsFetched = false;
     card._labelRegistry = {};
     let resolveFetch;

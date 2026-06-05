@@ -45,6 +45,8 @@ describe('Pause Feature Delegation', () => {
     runPauseFeature.mockResolvedValue({
       status: 'submitted',
       toastMessage: 'Snoozed',
+      succeeded: ['automation.test'],
+      failed: [],
       lastDuration: {
         minutes: 60,
         duration: { days: 0, hours: 1, minutes: 0 },
@@ -87,6 +89,35 @@ describe('Pause Feature Delegation', () => {
     expect(runPauseFeature).toHaveBeenCalledOnce();
     expect(card._guardrailConfirmOpen).toBe(true);
     expect(card._selected).toEqual(['automation.test']);
+  });
+
+  test('preserves partial pause outcomes from the feature facade', async () => {
+    runPauseFeature.mockResolvedValue({
+      status: 'submitted',
+      toastMessage: 'Partial snooze',
+      succeeded: ['automation.ok'],
+      failed: ['automation.failed'],
+      commandResponse: {
+        schema_version: 1,
+        command: 'pause',
+        status: 'partial_success',
+        complete_success: false,
+        partial_success: true,
+        entities: [
+          { entity_id: 'automation.ok', outcome: 'succeeded', recovery_status: 'none' },
+          { entity_id: 'automation.failed', outcome: 'rejected', recovery_status: 'none' },
+        ],
+        recovery_required_entities: [],
+      },
+    });
+
+    card._selected = ['automation.ok', 'automation.failed'];
+    card._customDuration = { days: 0, hours: 1, minutes: 0 };
+
+    await card._snooze();
+
+    expect(runPauseFeature).toHaveBeenCalledOnce();
+    expect(card._selected).toEqual([]);
   });
 
   test('keeps retry state intact when the delegated pause feature fails', async () => {

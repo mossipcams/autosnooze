@@ -16,6 +16,7 @@ vi.mock('../services/storage.js', () => ({
 }));
 
 vi.mock('../services/registry.js', () => ({
+  invalidateRegistryCaches: vi.fn(),
   fetchLabelRegistry: vi.fn().mockResolvedValue({}),
   fetchCategoryRegistry: vi.fn().mockResolvedValue({}),
   fetchEntityRegistry: vi.fn().mockResolvedValue([]),

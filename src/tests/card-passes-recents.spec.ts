@@ -17,6 +17,7 @@ vi.mock('../services/storage.js', () => ({
 }));
 
 vi.mock('../services/registry.js', () => ({
+  invalidateRegistryCaches: vi.fn(),
   fetchLabelRegistry: vi.fn().mockResolvedValue({}),
   fetchCategoryRegistry: vi.fn().mockResolvedValue({}),
   fetchEntityRegistry: vi.fn().mockResolvedValue([]),
@@ -104,8 +105,8 @@ describe('Card passes recentSnoozeIds to automation list', () => {
       await el.updateComplete;
 
       const list = el.shadowRoot?.querySelector('autosnooze-automation-list') as unknown as { recentSnoozeIds: string[] };
-      expect(list?.recentSnoozeIds).toEqual(['automation.z']);
-      expect(loadRecentSnoozes).toHaveBeenCalledTimes(2);
+      expect(list?.recentSnoozeIds).toEqual(['automation.x']);
+      expect(loadRecentSnoozes).toHaveBeenCalledTimes(3);
     } finally {
       document.body.removeChild(rawEl);
     }

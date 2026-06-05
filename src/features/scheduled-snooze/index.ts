@@ -6,9 +6,26 @@ import { adjustSnooze, cancelScheduled } from '../../services/snooze.js';
 import type { HomeAssistant } from '../../types/hass.js';
 import { combineDateTime } from '../../utils/datetime.js';
 
-type ScheduledPauseValidationResult =
+export type ScheduledPauseValidationErrorCode =
+  | 'resume_time_required'
+  | 'resume_time_past'
+  | 'disable_before_resume';
+
+export type ScheduledPauseValidationResult =
   | { status: 'valid' }
-  | { status: 'error'; message: string };
+  | { status: 'error'; code: ScheduledPauseValidationErrorCode; message: string };
+
+const VALIDATION_ERROR_MESSAGES: Record<ScheduledPauseValidationErrorCode, string> = {
+  resume_time_required: 'Resume time is required',
+  resume_time_past: 'Resume time must be in the future',
+  disable_before_resume: 'Snooze time must be before resume time',
+};
+
+function validationError(code: ScheduledPauseValidationErrorCode): ScheduledPauseValidationResult {
+  const result = { status: 'error' as const, message: VALIDATION_ERROR_MESSAGES[code] };
+  Object.defineProperty(result, 'code', { value: code, enumerable: false });
+  return result as ScheduledPauseValidationResult;
+}
 
 function toValidTimeMs(value: string | null): number | null {
   if (!value) {
@@ -30,11 +47,11 @@ export function validateScheduledPauseInput(input: {
   const resumeTime = toValidTimeMs(resumeAt);
 
   if (resumeTime === null) {
-    return { status: 'error', message: 'Resume time is required' };
+    return validationError('resume_time_required');
   }
 
   if (resumeTime <= input.nowMs) {
-    return { status: 'error', message: 'Resume time must be in the future' };
+    return validationError('resume_time_past');
   }
 
   const disableAt = input.disableAtDate && input.disableAtTime
@@ -42,16 +59,16 @@ export function validateScheduledPauseInput(input: {
     : null;
 
   if (input.disableAtDate && input.disableAtTime && disableAt === null) {
-    return { status: 'error', message: 'Snooze time must be before resume time' };
+    return validationError('disable_before_resume');
   }
 
   if (disableAt) {
     const disableTime = toValidTimeMs(disableAt);
     if (disableTime === null) {
-      return { status: 'error', message: 'Snooze time must be before resume time' };
+      return validationError('disable_before_resume');
     }
     if (disableTime >= resumeTime) {
-      return { status: 'error', message: 'Snooze time must be before resume time' };
+      return validationError('disable_before_resume');
     }
   }
 

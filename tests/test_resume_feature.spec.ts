@@ -44,7 +44,10 @@ describe('Resume Feature Delegation', () => {
   });
 
   test('delegates single wake execution to the resume feature', async () => {
-    runWakeFeature.mockResolvedValue(undefined);
+    runWakeFeature.mockResolvedValue({
+      succeeded: ['automation.test'],
+      failed: [],
+    });
 
     await card._wake('automation.test');
 
@@ -52,11 +55,37 @@ describe('Resume Feature Delegation', () => {
   });
 
   test('delegates wake-all execution to the resume feature', async () => {
-    runWakeAllFeature.mockResolvedValue(undefined);
+    runWakeAllFeature.mockResolvedValue({
+      succeeded: ['automation.test'],
+      failed: [],
+    });
 
     await card._handleWakeAllEvent();
 
     expect(runWakeAllFeature).toHaveBeenCalledWith(mockHass);
+  });
+
+  test('preserves partial wake outcomes from the feature facade', async () => {
+    runWakeFeature.mockResolvedValue({
+      succeeded: ['automation.ok'],
+      failed: ['automation.failed'],
+      commandResponse: {
+        schema_version: 1,
+        command: 'cancel',
+        status: 'partial_success',
+        complete_success: false,
+        partial_success: true,
+        entities: [
+          { entity_id: 'automation.ok', outcome: 'succeeded', recovery_status: 'none' },
+          { entity_id: 'automation.failed', outcome: 'retrying', recovery_status: 'retrying' },
+        ],
+        recovery_required_entities: [],
+      },
+    });
+
+    await card._wake('automation.ok');
+
+    expect(runWakeFeature).toHaveBeenCalledWith(mockHass, 'automation.ok');
   });
 
   test('delegates undo to the resume feature and re-selects only failed entities', async () => {

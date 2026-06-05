@@ -4,6 +4,10 @@
 
 import { startCountdownSync, stopCountdownSync } from '../../services/countdown-sync.js';
 import {
+  setCountdownClockHidden,
+  subscribeCountdownClock,
+} from '../../services/countdown-clock.js';
+import {
   fetchCategoryRegistry,
   fetchEntityRegistry,
   fetchLabelRegistry,
@@ -119,6 +123,14 @@ export function startCardShellCountdown(onTick: () => void): CountdownState {
 
 export function stopCardShellCountdown(state: CountdownState): void {
   stopCountdownSync(state);
+}
+
+export function subscribeCardShellCountdown(onTick: () => void): () => void {
+  return subscribeCountdownClock(onTick);
+}
+
+export function setCardShellCountdownHidden(hidden: boolean): void {
+  setCountdownClockHidden(hidden);
 }
 
 export function createCardUiStore(): ReturnType<typeof createCardStore> {

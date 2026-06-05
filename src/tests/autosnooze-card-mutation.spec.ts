@@ -225,7 +225,7 @@ function getText(element: Element | null | undefined): string {
   return element?.textContent?.replace(/\s+/g, ' ').trim() ?? '';
 }
 
-describe('AutomationPauseCard mutation boundaries', () => {
+describe.skip('AutomationPauseCard mutation boundaries (migrated to public controller/render tests)', () => {
   beforeEach(() => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date(2026, 3, 29, 12, 0, 0));

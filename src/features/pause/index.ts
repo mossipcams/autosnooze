@@ -7,6 +7,7 @@ import { localize } from '../../localization/localize.js';
 import { saveLastDuration, saveRecentSnoozes, type LastDurationData } from '../../services/storage.js';
 import { pauseAutomations } from '../../services/snooze.js';
 import type { AutomationItem, NotificationTrigger, ParsedDuration, PauseServiceParams } from '../../types/automation.js';
+import type { CommandServiceResponse } from '../../types/service-response.js';
 import type { HassLabel, HomeAssistant } from '../../types/hass.js';
 import { combineDateTime } from '../../utils/datetime.js';
 import { durationToMinutes } from '../../utils/duration-parsing.js';
@@ -49,6 +50,9 @@ type RunPauseFeatureResult =
       status: 'submitted';
       toastMessage: string;
       lastDuration?: LastDurationData;
+      commandResponse?: CommandServiceResponse;
+      succeeded: string[];
+      failed: string[];
     };
 
 type SchedulePauseBuild = {
@@ -186,8 +190,17 @@ export async function runPauseFeature(input: RunPauseFeatureInput): Promise<RunP
     return { status: 'aborted' };
   }
 
+  let commandResponse: CommandServiceResponse | undefined;
+
   try {
-    await pauseAutomations(input.hass, built.request);
+    commandResponse = await pauseAutomations(input.hass, built.request, { returnResponse: true });
+    if (
+      commandResponse
+      && !commandResponse.complete_success
+      && commandResponse.entities.every((entity) => entity.outcome !== 'succeeded')
+    ) {
+      throw new Error('pause_command_failed');
+    }
   } catch (error) {
     if (getConfirmTranslationKey(error) === 'confirm_required') {
       return { status: 'confirm_required' };
@@ -195,7 +208,14 @@ export async function runPauseFeature(input: RunPauseFeatureInput): Promise<RunP
     throw error;
   }
 
-  saveRecentSnoozes(input.selected);
+  const succeeded = commandResponse?.entities
+    .filter((entity) => entity.outcome === 'succeeded')
+    .map((entity) => entity.entity_id) ?? input.selected;
+  const failed = commandResponse?.entities
+    .filter((entity) => entity.outcome !== 'succeeded')
+    .map((entity) => entity.entity_id) ?? [];
+
+  saveRecentSnoozes(succeeded);
 
   if (hasLastDuration(built)) {
     saveLastDuration(built.lastDuration.duration, built.lastDuration.minutes);
@@ -203,12 +223,18 @@ export async function runPauseFeature(input: RunPauseFeatureInput): Promise<RunP
       status: 'submitted',
       toastMessage: built.toastMessage,
       lastDuration: built.lastDuration,
+      commandResponse,
+      succeeded,
+      failed,
     };
   }
 
   return {
     status: 'submitted',
     toastMessage: built.toastMessage,
+    commandResponse,
+    succeeded,
+    failed,
   };
 }
 

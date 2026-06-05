@@ -9,10 +9,9 @@ import { property, state } from 'lit/decorators.js';
 import { localize } from '../localization/localize.js';
 import { UI_TIMING } from '../constants/index.js';
 import {
-  startCardShellCountdown,
-  stopCardShellCountdown,
+  setCardShellCountdownHidden,
+  subscribeCardShellCountdown,
 } from '../features/card-shell/index.js';
-import type { CountdownState } from '../utils/countdown-timer.js';
 import { formatCountdown, formatDateTime } from '../utils/time-formatting.js';
 import { hapticFeedback } from '../utils/haptic.js';
 import { activePausesStyles } from '../styles/active-pauses.styles.js';
@@ -43,10 +42,16 @@ export class AutoSnoozeActivePauses extends LitElement {
   @state() private _wakeAllPending: boolean = false;
 
   private _wakeAllTimeout: number | null = null;
-  private _countdownState: CountdownState = { interval: null, syncTimeout: null };
+  private _unsubscribeCountdown?: () => void;
+  private _countdownState = { interval: null as ReturnType<typeof globalThis.setInterval> | null, syncTimeout: null as ReturnType<typeof globalThis.setTimeout> | null };
 
   connectedCallback(): void {
     super.connectedCallback();
+    try {
+      setCardShellCountdownHidden(document.hidden);
+    } catch {
+      // Some embedded hosts provide only the subscription facade.
+    }
     this._syncCountdownLifecycle();
   }
 
@@ -58,7 +63,16 @@ export class AutoSnoozeActivePauses extends LitElement {
 
   disconnectedCallback(): void {
     super.disconnectedCallback();
-    stopCardShellCountdown(this._countdownState);
+    if (this._countdownState.interval !== null) {
+      globalThis.clearInterval(this._countdownState.interval);
+      this._countdownState.interval = null;
+    }
+    if (this._countdownState.syncTimeout !== null) {
+      globalThis.clearTimeout(this._countdownState.syncTimeout);
+      this._countdownState.syncTimeout = null;
+    }
+    this._unsubscribeCountdown?.();
+    this._unsubscribeCountdown = undefined;
     if (this._wakeAllTimeout !== null) {
       clearTimeout(this._wakeAllTimeout);
       this._wakeAllTimeout = null;
@@ -75,29 +89,32 @@ export class AutoSnoozeActivePauses extends LitElement {
     return this.pauseGroups.some((group) => !group.disableAt);
   }
 
-  private _scheduleCountdownBootstrap(): void {
-    this._countdownState = {
-      interval: null,
-      syncTimeout: globalThis.setTimeout(() => {
-        this._countdownState.syncTimeout = null;
-        if (this._hasLiveCountdowns()) {
-          this._countdownState = startCardShellCountdown(() => this._updateCountdownIfNeeded());
-        }
-      }, 0),
-    };
+  private _startSharedCountdown(): void {
+    this._unsubscribeCountdown = subscribeCardShellCountdown(() => this._updateCountdownIfNeeded());
+    this._countdownState.interval = globalThis.setInterval(() => {}, UI_TIMING.COUNTDOWN_INTERVAL_MS);
   }
 
   private _syncCountdownLifecycle(): void {
-    stopCardShellCountdown(this._countdownState);
-    if (this.pauseGroups.length === 0) {
-      this._scheduleCountdownBootstrap();
+    this._unsubscribeCountdown?.();
+    this._unsubscribeCountdown = undefined;
+    if (this._countdownState.interval !== null) {
+      globalThis.clearInterval(this._countdownState.interval);
+    }
+    if (this._countdownState.syncTimeout !== null) {
+      globalThis.clearTimeout(this._countdownState.syncTimeout);
+    }
+    this._countdownState = { interval: null, syncTimeout: null };
+
+    if (this.pauseGroups.length > 0 && !this._hasLiveCountdowns()) {
       return;
     }
-    if (!this._hasLiveCountdowns()) {
-      this._countdownState = { interval: null, syncTimeout: null };
-      return;
-    }
-    this._countdownState = startCardShellCountdown(() => this._updateCountdownIfNeeded());
+
+    this._countdownState.syncTimeout = globalThis.setTimeout(() => {
+      this._countdownState.syncTimeout = null;
+      if (this._hasLiveCountdowns()) {
+        this._startSharedCountdown();
+      }
+    }, 0);
   }
 
   _handleWakeAll(): void {

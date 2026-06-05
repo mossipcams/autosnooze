@@ -133,13 +133,17 @@ describe('pause feature mutation boundaries', () => {
       forceConfirm: true,
     });
 
-    expect(pauseAutomationsMock).toHaveBeenCalledWith(hass, {
-      entity_id: ['automation.a'],
-      days: 1,
-      hours: 2,
-      minutes: 3,
-      confirm: true,
-    });
+    expect(pauseAutomationsMock).toHaveBeenCalledWith(
+      hass,
+      {
+        entity_id: ['automation.a'],
+        days: 1,
+        hours: 2,
+        minutes: 3,
+        confirm: true,
+      },
+      { returnResponse: true },
+    );
     expect(saveRecentSnoozesMock).toHaveBeenCalledWith(['automation.a']);
     expect(saveLastDurationMock).toHaveBeenCalledWith({ days: 1, hours: 2, minutes: 3 }, 1563);
     expect(result).toMatchObject({
@@ -166,12 +170,16 @@ describe('pause feature mutation boundaries', () => {
 
     expect(result.status).toBe('submitted');
     expect(result.status === 'submitted' ? result.toastMessage : '').toContain('2');
-    expect(pauseAutomationsMock).toHaveBeenCalledWith(hass, {
-      entity_id: ['automation.a', 'automation.b'],
-      days: 0,
-      hours: 0,
-      minutes: 30,
-    });
+    expect(pauseAutomationsMock).toHaveBeenCalledWith(
+      hass,
+      {
+        entity_id: ['automation.a', 'automation.b'],
+        days: 0,
+        hours: 0,
+        minutes: 30,
+      },
+      { returnResponse: true },
+    );
   });
 
   test('runPauseFeature aborts invalid scheduled requests before calling services', async () => {
@@ -207,11 +215,15 @@ describe('pause feature mutation boundaries', () => {
 
     expect(result.status).toBe('submitted');
     expect(result.status === 'submitted' ? result.toastMessage : '').toContain('2');
-    expect(pauseAutomationsMock).toHaveBeenCalledWith(hass, {
-      entity_id: ['automation.a', 'automation.b'],
-      resume_at: expect.stringMatching(/^2026-05-01T09:05[+-]\d{2}:\d{2}$/),
-      confirm: true,
-    });
+    expect(pauseAutomationsMock).toHaveBeenCalledWith(
+      hass,
+      {
+        entity_id: ['automation.a', 'automation.b'],
+        resume_at: expect.stringMatching(/^2026-05-01T09:05[+-]\d{2}:\d{2}$/),
+        confirm: true,
+      },
+      { returnResponse: true },
+    );
     expect(saveRecentSnoozesMock).toHaveBeenCalledWith(['automation.a', 'automation.b']);
     expect(saveLastDurationMock).not.toHaveBeenCalled();
   });
@@ -229,11 +241,15 @@ describe('pause feature mutation boundaries', () => {
     });
 
     expect(result.status).toBe('submitted');
-    expect(pauseAutomationsMock).toHaveBeenCalledWith(hass, {
-      entity_id: ['automation.a'],
-      disable_at: expect.stringMatching(/^2026-04-30T08:00[+-]\d{2}:\d{2}$/),
-      resume_at: expect.stringMatching(/^2026-04-30T09:00[+-]\d{2}:\d{2}$/),
-    });
+    expect(pauseAutomationsMock).toHaveBeenCalledWith(
+      hass,
+      {
+        entity_id: ['automation.a'],
+        disable_at: expect.stringMatching(/^2026-04-30T08:00[+-]\d{2}:\d{2}$/),
+        resume_at: expect.stringMatching(/^2026-04-30T09:00[+-]\d{2}:\d{2}$/),
+      },
+      { returnResponse: true },
+    );
   });
 
   test('runPauseFeature maps confirm-required service errors and rethrows other failures', async () => {
