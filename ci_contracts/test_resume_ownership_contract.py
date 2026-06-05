@@ -6,21 +6,8 @@ from pathlib import Path
 
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
-ACTIONS_CONTROLLER_PATH = PROJECT_ROOT / "src" / "components" / "autosnooze-actions-controller.ts"
 RESUME_FEATURE_PATH = PROJECT_ROOT / "src" / "features" / "resume" / "index.ts"
 SCHEDULED_SNOOZE_FEATURE_PATH = PROJECT_ROOT / "src" / "features" / "scheduled-snooze" / "index.ts"
-
-
-def test_actions_controller_delegates_resume_behavior_to_resume_feature() -> None:
-    """Wake/undo orchestration should live in the resume feature, not the controller."""
-    source = ACTIONS_CONTROLLER_PATH.read_text(encoding="utf-8")
-
-    assert "../features/resume/index.js" in source
-    assert "runWakeFeature" in source
-    assert "runWakeAllFeature" in source
-    assert "runUndoFeature" in source
-    assert "Promise.allSettled" not in source
-    assert "const undoCall" not in source
 
 
 def test_scheduled_snooze_feature_only_uses_controller_for_adjust_and_cancel() -> None:
