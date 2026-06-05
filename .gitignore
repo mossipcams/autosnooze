@@ -37,3 +37,6 @@ e2e/storageState.json
 e2e/playwright-report/
 playwright-report/
 test-results/
+
+# Graphify build output (durable graph artifacts live in .planning/graphs/)
+graphify-out/
