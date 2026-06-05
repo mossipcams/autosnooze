@@ -1155,12 +1155,17 @@ describe('Snooze Validation - Mutation Killing', () => {
       card._selected = ['automation.test'];
       card._customDuration = { days: 1, hours: 2, minutes: 30 };
       await card._snooze();
-      expect(mockHass.callService).toHaveBeenCalledWith('autosnooze', 'pause', {
-        entity_id: ['automation.test'],
-        days: 1,
-        hours: 2,
-        minutes: 30,
-      });
+      expect(mockHass.callService).toHaveBeenCalledWith(
+        'autosnooze',
+        'pause',
+        {
+          entity_id: ['automation.test'],
+          days: 1,
+          hours: 2,
+          minutes: 30,
+        },
+        { return_response: true },
+      );
     });
   });
 

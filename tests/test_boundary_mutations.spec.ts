@@ -13,7 +13,7 @@
  */
 
 import { vi } from 'vitest';
-import '../custom_components/autosnooze/www/autosnooze-card.js';
+import '../src/index.js';
 import { formatCountdown } from '../src/utils/index.js';
 import { formatRegistryId } from '../src/state/automations.js';
 import { queryAutomationList } from './helpers/query-helpers.js';

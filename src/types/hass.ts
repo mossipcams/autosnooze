@@ -69,8 +69,9 @@ export interface HomeAssistant {
   callService(
     domain: string,
     service: string,
-    serviceData?: Record<string, unknown>
-  ): Promise<void>;
+    serviceData?: Record<string, unknown>,
+    options?: { return_response?: boolean },
+  ): Promise<unknown>;
 }
 
 export interface PausedAutomationAttribute {

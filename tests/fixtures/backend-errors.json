@@ -37,6 +37,13 @@
     "confirm_required": {
       "translation_key": "confirm_required",
       "message": "Some selected automations are tagged autosnooze_confirm or detected as critical and require confirmation before snoozing"
+    },
+    "recovery_required": {
+      "translation_key": "recovery_required",
+      "message": "One or more automations require manual recovery before they can be used again",
+      "translation_placeholders": {
+        "entity_ids": "automation.stuck"
+      }
     }
   }
 }

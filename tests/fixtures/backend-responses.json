@@ -1,15 +1,36 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "description": "Captured backend responses for frontend testing - mirrors actual Home Assistant error structures. NOTE: Dates in this file are examples only. Tests should generate dynamic dates using getFutureISODateTime() helpers.",
+  "command_response_schema_version": 1,
+  "command_response_schema": {
+    "schema_version": 1,
+    "command": "pause",
+    "status": "partial_success",
+    "complete_success": false,
+    "partial_success": true,
+    "entities": [
+      {
+        "entity_id": "automation.ok",
+        "outcome": "succeeded",
+        "recovery_status": "none"
+      },
+      {
+        "entity_id": "automation.failed",
+        "outcome": "rejected",
+        "recovery_status": "none"
+      }
+    ],
+    "recovery_required_entities": []
+  },
   "success_responses": {
     "pause": {
-      "description": "Successful pause service call returns undefined/null"
+      "description": "Pause service may return a versioned command response when return_response=true"
     },
     "cancel": {
-      "description": "Successful cancel service call returns undefined/null"
+      "description": "Cancel service may return a versioned command response when return_response=true"
     },
     "cancel_all": {
-      "description": "Successful cancel_all service call returns undefined/null"
+      "description": "Cancel_all service may return a versioned command response when return_response=true"
     },
     "cancel_scheduled": {
       "description": "Successful cancel_scheduled service call returns undefined/null"
@@ -182,6 +203,35 @@
         {
           "note": "Response with translation key in error object",
           "translation_key": "adjust_time_too_short"
+        }
+      ]
+    },
+    "recovery_required": {
+      "description": "Error when one or more automations require manual recovery after resume retries are exhausted",
+      "example_triggers": [
+        {
+          "entity_id": "automation.stuck"
+        }
+      ],
+      "response": {
+        "code": "service_validation_error",
+        "message": "One or more automations require manual recovery before they can be used again",
+        "translation_domain": "autosnooze",
+        "translation_key": "recovery_required",
+        "translation_placeholders": {
+          "entity_ids": "automation.stuck"
+        }
+      },
+      "response_variants": [
+        {
+          "note": "Response embedded in a versioned command service response",
+          "translation_key": "recovery_required",
+          "data": {
+            "translation_key": "recovery_required",
+            "translation_placeholders": {
+              "entity_ids": "automation.stuck"
+            }
+          }
         }
       ]
     }

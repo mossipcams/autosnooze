@@ -4,16 +4,44 @@
 
 import type { HomeAssistant } from '../types/hass.js';
 import type { PauseServiceParams } from '../types/automation.js';
+import type { CommandServiceResponse } from '../types/service-response.js';
+import { isCommandServiceResponse } from '../types/service-response.js';
+
+type ServiceCallOptions = {
+  returnResponse?: boolean;
+};
+
+async function callAutosnoozeService(
+  hass: HomeAssistant,
+  service: string,
+  params: Record<string, unknown>,
+  options: ServiceCallOptions = {},
+): Promise<CommandServiceResponse | undefined> {
+  const response = await hass.callService('autosnooze', service, params, options.returnResponse
+    ? { return_response: true }
+    : undefined);
+
+  if (response === undefined || response === null) {
+    return undefined;
+  }
+
+  if (!isCommandServiceResponse(response)) {
+    throw new Error(`[AutoSnooze] Unexpected ${service} service response shape`);
+  }
+
+  return response;
+}
 
 /**
  * Pause (snooze) one or more automations.
  */
 export async function pauseAutomations(
   hass: HomeAssistant,
-  params: PauseServiceParams
-): Promise<void> {
+  params: PauseServiceParams,
+  options: ServiceCallOptions = {},
+): Promise<CommandServiceResponse | undefined> {
   try {
-    await hass.callService('autosnooze', 'pause', params);
+    return await callAutosnoozeService(hass, 'pause', params, options);
   } catch (error) {
     console.error('[AutoSnooze] Failed to pause automations:', error);
     throw error;
@@ -25,12 +53,16 @@ export async function pauseAutomations(
  */
 export async function wakeAutomation(
   hass: HomeAssistant,
-  entityId: string | string[]
-): Promise<void> {
+  entityId: string | string[],
+  options: ServiceCallOptions = {},
+): Promise<CommandServiceResponse | undefined> {
   try {
-    await hass.callService('autosnooze', 'cancel', {
-      entity_id: entityId,
-    });
+    return await callAutosnoozeService(
+      hass,
+      'cancel',
+      { entity_id: entityId },
+      options,
+    );
   } catch (error) {
     console.error('[AutoSnooze] Failed to wake automation:', error);
     throw error;
@@ -40,9 +72,12 @@ export async function wakeAutomation(
 /**
  * Wake all snoozed automations.
  */
-export async function wakeAll(hass: HomeAssistant): Promise<void> {
+export async function wakeAll(
+  hass: HomeAssistant,
+  options: ServiceCallOptions = {},
+): Promise<CommandServiceResponse | undefined> {
   try {
-    await hass.callService('autosnooze', 'cancel_all', {});
+    return await callAutosnoozeService(hass, 'cancel_all', {}, options);
   } catch (error) {
     console.error('[AutoSnooze] Failed to wake all automations:', error);
     throw error;
@@ -54,7 +89,7 @@ export async function wakeAll(hass: HomeAssistant): Promise<void> {
  */
 export async function cancelScheduled(
   hass: HomeAssistant,
-  entityId: string | string[]
+  entityId: string | string[],
 ): Promise<void> {
   try {
     await hass.callService('autosnooze', 'cancel_scheduled', {
@@ -71,7 +106,7 @@ export async function cancelScheduled(
  */
 export async function clearNotification(
   hass: HomeAssistant,
-  entityId: string | string[]
+  entityId: string | string[],
 ): Promise<void> {
   try {
     await hass.callService('autosnooze', 'clear_notification', {
@@ -90,7 +125,7 @@ export async function clearNotification(
 export async function adjustSnooze(
   hass: HomeAssistant,
   entityId: string | string[],
-  params: { days?: number; hours?: number; minutes?: number }
+  params: { days?: number; hours?: number; minutes?: number },
 ): Promise<void> {
   try {
     await hass.callService('autosnooze', 'adjust', {

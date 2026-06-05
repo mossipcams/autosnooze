@@ -273,6 +273,7 @@
     "invalid_duration",
     "invalid_adjustment",
     "adjust_time_too_short",
-    "confirm_required"
+    "confirm_required",
+    "recovery_required"
   ]
 }

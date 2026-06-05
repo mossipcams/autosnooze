@@ -290,7 +290,7 @@ describe('Comparison Operator Mutations', () => {
             state: '1',
             attributes: {
               paused_automations: {
-                a: { resume_at: new Date(Date.now() + 3600000).toISOString() },
+                'automation.a': { resume_at: new Date(Date.now() + 3600000).toISOString() },
               },
               scheduled_snoozes: {},
             },
@@ -310,7 +310,7 @@ describe('Comparison Operator Mutations', () => {
             state: '1',
             attributes: {
               paused_automations: {
-                a: { resume_at: new Date(Date.now() + 3600000).toISOString() },
+                'automation.a': { resume_at: new Date(Date.now() + 3600000).toISOString() },
               },
               scheduled_snoozes: {},
             },
@@ -734,7 +734,11 @@ describe('Object Operation Mutations', () => {
           'sensor.autosnooze_snoozed_automations': {
             state: '3',
             attributes: {
-              paused_automations: { a: {}, b: {}, c: {} },
+              paused_automations: {
+                'automation.a': { resume_at: '2026-04-29T13:00:00Z' },
+                'automation.b': { resume_at: '2026-04-29T14:00:00Z' },
+                'automation.c': { resume_at: '2026-04-29T15:00:00Z' },
+              },
               scheduled_snoozes: {},
             },
           },
@@ -750,7 +754,10 @@ describe('Object Operation Mutations', () => {
             state: '2',
             attributes: {
               paused_automations: {},
-              scheduled_snoozes: { a: {}, b: {} },
+              scheduled_snoozes: {
+                'automation.a': { resume_at: '2026-04-29T13:00:00Z' },
+                'automation.b': { resume_at: '2026-04-29T14:00:00Z' },
+              },
             },
           },
         },

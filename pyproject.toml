@@ -19,8 +19,12 @@ select = [
     "F",      # Pyflakes
     "B",      # flake8-bugbear
     "C4",     # flake8-comprehensions
+    "C901",   # mccabe complexity budget for production backend workflows
     "SIM",    # flake8-simplify
 ]
+
+[tool.ruff.lint.mccabe]
+max-complexity = 30
 
 # Ignore specific rules that are too strict for this project
 ignore = [

@@ -46,8 +46,8 @@ describe('Feature service delegation', () => {
     await runWakeFeature(hass, 'automation.a');
     await runWakeAllFeature(hass);
 
-    expect(wakeAutomation).toHaveBeenCalledWith(hass, 'automation.a');
-    expect(wakeAll).toHaveBeenCalledWith(hass);
+    expect(wakeAutomation).toHaveBeenCalledWith(hass, 'automation.a', { returnResponse: true });
+    expect(wakeAll).toHaveBeenCalledWith(hass, { returnResponse: true });
   });
 
   test('runCancelScheduledActionFeature and runAdjustActionFeature call expected services', async () => {
@@ -68,7 +68,12 @@ describe('Feature service delegation', () => {
       hadDisableAt: false,
     });
 
-    expect(wakeAutomation).toHaveBeenCalledTimes(2);
+    expect(wakeAutomation).toHaveBeenCalledOnce();
+    expect(wakeAutomation).toHaveBeenCalledWith(
+      hass,
+      ['automation.a', 'automation.b'],
+      { returnResponse: true },
+    );
     expect(cancelScheduled).not.toHaveBeenCalled();
     expect(result).toEqual({ succeeded: ['automation.a', 'automation.b'], failed: [] });
   });

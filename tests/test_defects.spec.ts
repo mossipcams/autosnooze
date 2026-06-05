@@ -12,7 +12,7 @@
  */
 
 import { vi } from 'vitest';
-import '../custom_components/autosnooze/www/autosnooze-card.js';
+import '../src/index.js';
 import { queryAutomationList, queryDurationSelector, queryInDurationSelector } from './helpers/query-helpers.js';
 
 describe('Defect Fixes - Regression Tests', () => {

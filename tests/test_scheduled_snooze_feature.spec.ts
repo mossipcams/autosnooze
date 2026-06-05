@@ -57,7 +57,7 @@ describe('Scheduled Snooze Feature Delegation', () => {
   test('delegates schedule-mode validation before attempting a pause', async () => {
     validateScheduledPauseInput.mockReturnValue({
       status: 'error',
-      message: 'Schedule invalid',
+      code: 'disable_before_resume',
     });
 
     card._selected = ['automation.test'];

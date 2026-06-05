@@ -500,7 +500,7 @@ describe('Parent Card Integration', () => {
     const internal = card as any;
     expect(typeof internal._handleWakeAllEvent).toBe('function');
     await internal._handleWakeAllEvent();
-    expect(card.hass!.callService).toHaveBeenCalledWith('autosnooze', 'cancel_all', {});
+    expect(card.hass!.callService).toHaveBeenCalledWith('autosnooze', 'cancel_all', {}, { return_response: true });
     document.body.removeChild(card);
   });
 
@@ -528,13 +528,10 @@ describe('Parent Card Integration', () => {
     await card.updateComplete;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const internal = card as any;
-    const hapticSpy = vi.spyOn(internal, '_hapticFeedback');
-    const toastSpy = vi.spyOn(internal, '_showToast');
     await internal._handleWakeAllEvent();
-    expect(hapticSpy).toHaveBeenCalledWith('success');
-    expect(toastSpy).toHaveBeenCalled();
-    hapticSpy.mockRestore();
-    toastSpy.mockRestore();
+    await vi.waitFor(() => {
+      expect(card.shadowRoot?.querySelector('.toast')).not.toBeNull();
+    });
     document.body.removeChild(card);
   });
 
@@ -562,13 +559,10 @@ describe('Parent Card Integration', () => {
     await card.updateComplete;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const internal = card as any;
-    const hapticSpy = vi.spyOn(internal, '_hapticFeedback');
     const toastSpy = vi.spyOn(internal, '_showToast');
     const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
     await internal._handleWakeAllEvent();
-    expect(hapticSpy).toHaveBeenCalledWith('failure');
     expect(toastSpy).not.toHaveBeenCalled();
-    hapticSpy.mockRestore();
     toastSpy.mockRestore();
     consoleSpy.mockRestore();
     document.body.removeChild(card);

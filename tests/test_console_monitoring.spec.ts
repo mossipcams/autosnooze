@@ -6,7 +6,7 @@
  */
 
 import { vi } from 'vitest';
-import '../custom_components/autosnooze/www/autosnooze-card.js';
+import '../src/index.js';
 import { queryAutomationList } from './helpers/query-helpers.js';
 
 describe('Console Error Monitoring', () => {

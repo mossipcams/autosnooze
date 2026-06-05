@@ -5,7 +5,7 @@
  * Tests for tab switching stability, state preservation, and concurrent updates.
  */
 
-import '../custom_components/autosnooze/www/autosnooze-card.js';
+import '../src/index.js';
 import { queryAutomationList } from './helpers/query-helpers.js';
 
 describe('Layout Switching', () => {

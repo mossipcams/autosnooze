@@ -56,7 +56,7 @@ class TestGetAutomationsByArea:
         }
 
         with patch(
-            "custom_components.autosnooze.services.er.async_get",
+            "custom_components.autosnooze.application.pause.er.async_get",
             return_value=mock_entity_reg,
         ):
             result = get_automations_by_area(mock_hass, ["living_room"])
@@ -74,7 +74,7 @@ class TestGetAutomationsByArea:
         }
 
         with patch(
-            "custom_components.autosnooze.services.er.async_get",
+            "custom_components.autosnooze.application.pause.er.async_get",
             return_value=mock_entity_reg,
         ):
             result = get_automations_by_area(mock_hass, ["living_room"])
@@ -92,7 +92,7 @@ class TestGetAutomationsByArea:
         }
 
         with patch(
-            "custom_components.autosnooze.services.er.async_get",
+            "custom_components.autosnooze.application.pause.er.async_get",
             return_value=mock_entity_reg,
         ):
             result = get_automations_by_area(mock_hass, ["living_room"])
@@ -110,7 +110,7 @@ class TestGetAutomationsByArea:
         }
 
         with patch(
-            "custom_components.autosnooze.services.er.async_get",
+            "custom_components.autosnooze.application.pause.er.async_get",
             return_value=mock_entity_reg,
         ):
             result = get_automations_by_area(mock_hass, ["living_room", "bedroom"])
@@ -129,7 +129,7 @@ class TestGetAutomationsByArea:
         }
 
         with patch(
-            "custom_components.autosnooze.services.er.async_get",
+            "custom_components.autosnooze.application.pause.er.async_get",
             return_value=mock_entity_reg,
         ):
             result = get_automations_by_area(mock_hass, ["living_room"])
@@ -151,7 +151,7 @@ class TestGetAutomationsByLabel:
         }
 
         with patch(
-            "custom_components.autosnooze.services.er.async_get",
+            "custom_components.autosnooze.application.pause.er.async_get",
             return_value=mock_entity_reg,
         ):
             result = get_automations_by_label(mock_hass, ["snooze"])
@@ -169,7 +169,7 @@ class TestGetAutomationsByLabel:
         }
 
         with patch(
-            "custom_components.autosnooze.services.er.async_get",
+            "custom_components.autosnooze.application.pause.er.async_get",
             return_value=mock_entity_reg,
         ):
             result = get_automations_by_label(mock_hass, ["snooze"])
@@ -186,7 +186,7 @@ class TestGetAutomationsByLabel:
         }
 
         with patch(
-            "custom_components.autosnooze.services.er.async_get",
+            "custom_components.autosnooze.application.pause.er.async_get",
             return_value=mock_entity_reg,
         ):
             result = get_automations_by_label(mock_hass, ["snooze"])
@@ -204,7 +204,7 @@ class TestGetAutomationsByLabel:
         }
 
         with patch(
-            "custom_components.autosnooze.services.er.async_get",
+            "custom_components.autosnooze.application.pause.er.async_get",
             return_value=mock_entity_reg,
         ):
             result = get_automations_by_label(mock_hass, ["label1", "label2"])
@@ -230,7 +230,7 @@ class TestGetAutomationsByLabel:
         }
 
         with patch(
-            "custom_components.autosnooze.services.er.async_get",
+            "custom_components.autosnooze.application.pause.er.async_get",
             return_value=mock_entity_reg,
         ):
             result = get_automations_by_label(mock_hass, ["snooze"])
@@ -246,7 +246,7 @@ class TestGetAutomationsByLabel:
         }
 
         with patch(
-            "custom_components.autosnooze.services.er.async_get",
+            "custom_components.autosnooze.application.pause.er.async_get",
             return_value=mock_entity_reg,
         ):
             result = get_automations_by_label(mock_hass, ["b"])
@@ -527,7 +527,10 @@ class TestAsyncPauseAutomations:
         from custom_components.autosnooze.runtime.state import AutomationPauseData
 
         mock_hass = MagicMock()
-        mock_hass.states.get.return_value = MagicMock(attributes={"friendly_name": "Test"})
+        enabled_state = MagicMock()
+        enabled_state.state = "on"
+        enabled_state.attributes = {"friendly_name": "Test"}
+        mock_hass.states.get.return_value = enabled_state
         mock_store = MagicMock()
         mock_store.async_save = AsyncMock()
         data = AutomationPauseData(store=mock_store)
@@ -646,8 +649,10 @@ class TestUnloadGuards:
 
         mock_hass = MagicMock()
         handlers: dict[str, object] = {}
-        mock_hass.services.async_register = lambda _domain, name, handler, schema=None: handlers.setdefault(
-            name, handler
+        mock_hass.services.async_register = (
+            lambda _domain, name, handler, schema=None, supports_response=None: handlers.setdefault(
+                name, handler
+            )
         )
 
         data = AutomationPauseData(store=MagicMock())
@@ -659,9 +664,9 @@ class TestUnloadGuards:
         call.data = {ATTR_ENTITY_ID: ["automation.test"], "hours": 1}
 
         with (
-            patch("custom_components.autosnooze.services._validate_guardrails") as validate_guardrails,
+            patch("custom_components.autosnooze.application.pause.validate_guardrails") as validate_guardrails,
             patch(
-                "custom_components.autosnooze.services.async_pause_automations", new_callable=AsyncMock
+                "custom_components.autosnooze.application.pause.async_pause_automations", new_callable=AsyncMock
             ) as pause_automations,
         ):
             await pause_handler(call)
@@ -677,8 +682,10 @@ class TestUnloadGuards:
 
         mock_hass = MagicMock()
         handlers: dict[str, object] = {}
-        mock_hass.services.async_register = lambda _domain, name, handler, schema=None: handlers.setdefault(
-            name, handler
+        mock_hass.services.async_register = (
+            lambda _domain, name, handler, schema=None, supports_response=None: handlers.setdefault(
+                name, handler
+            )
         )
 
         data = AutomationPauseData(store=MagicMock())
@@ -691,11 +698,11 @@ class TestUnloadGuards:
 
         with (
             patch(
-                "custom_components.autosnooze.services.get_automations_by_area", return_value=["automation.test"]
+                "custom_components.autosnooze.application.pause.get_automations_by_area", return_value=["automation.test"]
             ) as get_by_area,
-            patch("custom_components.autosnooze.services._validate_guardrails") as validate_guardrails,
+            patch("custom_components.autosnooze.application.pause.validate_guardrails") as validate_guardrails,
             patch(
-                "custom_components.autosnooze.services.async_pause_automations", new_callable=AsyncMock
+                "custom_components.autosnooze.application.pause.async_pause_automations", new_callable=AsyncMock
             ) as pause_automations,
         ):
             await pause_by_area_handler(call)
@@ -714,8 +721,10 @@ class TestServiceHandlerContracts:
 
         mock_hass = MagicMock()
         handlers: dict[str, object] = {}
-        mock_hass.services.async_register = lambda _domain, name, handler, schema=None: handlers.setdefault(
-            name, handler
+        mock_hass.services.async_register = (
+            lambda _domain, name, handler, schema=None, supports_response=None: handlers.setdefault(
+                name, handler
+            )
         )
         data = AutomationPauseData(store=MagicMock())
         register_services(mock_hass, data)
@@ -741,9 +750,9 @@ class TestServiceHandlerContracts:
         }
 
         with (
-            patch("custom_components.autosnooze.services._validate_guardrails") as validate_guardrails,
+            patch("custom_components.autosnooze.application.pause.validate_guardrails") as validate_guardrails,
             patch(
-                "custom_components.autosnooze.services.async_pause_automations",
+                "custom_components.autosnooze.application.pause.async_pause_automations",
                 new_callable=AsyncMock,
             ) as pause_automations,
         ):
@@ -787,9 +796,9 @@ class TestServiceHandlerContracts:
         }
 
         with (
-            patch("custom_components.autosnooze.services._validate_guardrails") as validate_guardrails,
+            patch("custom_components.autosnooze.application.pause.validate_guardrails") as validate_guardrails,
             patch(
-                "custom_components.autosnooze.services.async_pause_automations",
+                "custom_components.autosnooze.application.pause.async_pause_automations",
                 new_callable=AsyncMock,
             ) as pause_automations,
         ):
@@ -825,12 +834,12 @@ class TestServiceHandlerContracts:
 
         with (
             patch(
-                "custom_components.autosnooze.services.get_automations_by_area",
+                "custom_components.autosnooze.application.pause.get_automations_by_area",
                 return_value=["automation.kitchen"],
             ),
-            patch("custom_components.autosnooze.services._validate_guardrails"),
+            patch("custom_components.autosnooze.application.pause.validate_guardrails"),
             patch(
-                "custom_components.autosnooze.services.async_pause_automations",
+                "custom_components.autosnooze.application.pause.async_pause_automations",
                 new_callable=AsyncMock,
             ) as pause_automations,
         ):
@@ -850,8 +859,8 @@ class TestServiceHandlerContracts:
         )
 
     @pytest.mark.asyncio
-    async def test_cancel_handler_filters_unknown_and_batches_valid(self) -> None:
-        """cancel should only batch-resume paused automations."""
+    async def test_cancel_handler_batches_all_requested_entities(self) -> None:
+        """cancel should batch-resume every requested entity, including unknown ones."""
         mock_hass, data, handlers = self._register_handlers()
         cancel_handler = handlers["cancel"]
 
@@ -872,7 +881,12 @@ class TestServiceHandlerContracts:
         ) as batch_resume:
             await cancel_handler(call)
 
-        batch_resume.assert_called_once_with(mock_hass, data, ["automation.exists"], reason="manual")
+        batch_resume.assert_called_once_with(
+            mock_hass,
+            data,
+            ["automation.exists", "automation.unknown"],
+            reason="manual",
+        )
 
     @pytest.mark.asyncio
     async def test_cancel_all_batches_every_paused_automation(self) -> None:
@@ -981,3 +995,125 @@ class TestSaveFailurePropagation:
             await async_pause_automations(mock_hass, data, ["automation.test"], hours=1)
 
         assert exc_info.value.translation_key == "save_failed"
+
+
+@pytest.mark.asyncio
+async def test_pause_service_returns_per_entity_outcomes() -> None:
+    """Pause service responses include every requested entity and its explicit result."""
+    from custom_components.autosnooze.application.pause import async_handle_pause_service
+    from custom_components.autosnooze.runtime.state import AutomationPauseData
+    from custom_components.autosnooze.service_responses import transition_result_to_service_response
+
+    mock_hass = MagicMock()
+    mock_hass.states.get.return_value = MagicMock(state="on", attributes={"friendly_name": "Test"})
+    data = AutomationPauseData(store=MagicMock())
+    call = MagicMock()
+    call.data = {ATTR_ENTITY_ID: ["automation.ok", "automation.blocked"], "minutes": 30}
+    call.return_response = True
+
+    async def set_state(_hass, entity_id, *, enabled):
+        del enabled
+        return entity_id == "automation.ok"
+
+    with (
+        patch("custom_components.autosnooze.application.pause.validate_guardrails"),
+        patch("custom_components.autosnooze.runtime.ports.is_automation_enabled", return_value=True),
+        patch("custom_components.autosnooze.runtime.ports.get_friendly_name", side_effect=lambda _h, eid: eid),
+        patch("custom_components.autosnooze.runtime.ports.async_set_automation_state", side_effect=set_state),
+        patch("custom_components.autosnooze.runtime.ports.async_save", AsyncMock(return_value=True)),
+        patch("custom_components.autosnooze.runtime.ports.schedule_resume"),
+    ):
+        result = await async_handle_pause_service(mock_hass, data, call)
+
+    response = transition_result_to_service_response(result)
+    assert response["schema_version"] == 1
+    assert response["command"] == "pause"
+    assert [entity["entity_id"] for entity in response["entities"]] == [
+        "automation.ok",
+        "automation.blocked",
+    ]
+    assert [entity["outcome"] for entity in response["entities"]] == ["succeeded", "rejected"]
+
+
+@pytest.mark.asyncio
+async def test_partial_resume_service_response_is_not_complete_success() -> None:
+    """Mixed resume results are represented as partial success."""
+    from custom_components.autosnooze.application.resume import async_handle_cancel_service
+    from custom_components.autosnooze.domain.transitions import (
+        EntityTransitionResult,
+        TransitionOutcome,
+        TransitionResult,
+    )
+    from custom_components.autosnooze.runtime.state import AutomationPauseData
+    from custom_components.autosnooze.service_responses import transition_result_to_service_response
+
+    hass = MagicMock()
+    data = AutomationPauseData(store=MagicMock())
+    call = MagicMock()
+    call.data = {ATTR_ENTITY_ID: ["automation.ok", "automation.failed"]}
+    call.return_response = True
+
+    with patch(
+        "custom_components.autosnooze.application.resume.async_resume_batch",
+        new_callable=AsyncMock,
+        return_value=TransitionResult(
+            "cancel",
+            (
+                EntityTransitionResult("automation.ok", TransitionOutcome.SUCCEEDED),
+                EntityTransitionResult("automation.failed", TransitionOutcome.RETRYING),
+            ),
+        ),
+    ):
+        result = await async_handle_cancel_service(hass, data, call)
+
+    response = transition_result_to_service_response(result)
+    assert response["complete_success"] is False
+    assert response["partial_success"] is True
+    assert response["status"] == "partial_success"
+    assert [entity["outcome"] for entity in response["entities"]] == ["succeeded", "retrying"]
+
+
+@pytest.mark.asyncio
+async def test_recovery_required_service_error_is_actionable_and_translated() -> None:
+    """Recovery-required failures expose a stable translation key and entity context."""
+    from homeassistant.exceptions import ServiceValidationError
+
+    from custom_components.autosnooze.const import DOMAIN
+    from custom_components.autosnooze.service_responses import (
+        raise_recovery_required_error,
+        recovery_required_error_payload,
+        transition_result_to_service_response,
+    )
+    from custom_components.autosnooze.domain.transitions import (
+        EntityTransitionResult,
+        RecoveryStatus,
+        TransitionOutcome,
+        TransitionResult,
+    )
+
+    result = TransitionResult(
+        "cancel",
+        (
+            EntityTransitionResult(
+                "automation.stuck",
+                TransitionOutcome.RECOVERY_REQUIRED,
+                RecoveryStatus.REQUIRED,
+            ),
+        ),
+    )
+    response = transition_result_to_service_response(result)
+    assert response["status"] == "recovery_required"
+    assert response["recovery_required_entities"] == ["automation.stuck"]
+    assert response["error"]["translation_domain"] == DOMAIN
+    assert response["error"]["translation_key"] == "recovery_required"
+    assert "automation.stuck" in response["error"]["translation_placeholders"]["entity_ids"]
+
+    payload = recovery_required_error_payload(["automation.stuck"])
+    assert payload["translation_key"] == "recovery_required"
+
+    with pytest.raises(ServiceValidationError) as exc_info:
+        raise_recovery_required_error(["automation.stuck"])
+
+    assert exc_info.value.translation_domain == DOMAIN
+    assert exc_info.value.translation_key == "recovery_required"
+    assert "automation.stuck" in exc_info.value.translation_placeholders["entity_ids"]

@@ -233,6 +233,9 @@
     },
     "confirm_required": {
       "message": "Some selected automations are tagged autosnooze_confirm or detected as critical and require confirmation before snoozing."
+    },
+    "recovery_required": {
+      "message": "Manual recovery is required for: {entity_ids}. Check Home Assistant logs and the AutoSnooze card for details."
     }
   }
 }

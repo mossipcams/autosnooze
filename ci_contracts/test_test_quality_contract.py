@@ -32,6 +32,24 @@ def test_lovelace_registration_tests_do_not_parse_function_source() -> None:
     )
 
 
+def test_card_controller_tests_do_not_access_private_card_members() -> None:
+    """New controller tests should use public feature contracts instead of private card fields."""
+    source = (PROJECT_ROOT / "tests" / "test_card_controller.spec.ts").read_text(encoding="utf-8")
+    private_card_access = [
+        "card._snooze(",
+        "card._cancelScheduled(",
+        "card._handleAdjustTimeEvent(",
+        "card._adjustModalResumeAt",
+        "card._labelRegistry",
+    ]
+
+    offenders = [marker for marker in private_card_access if marker in source]
+    assert offenders == [], (
+        "Card controller tests should assert controller/view-model behavior, not private card members. "
+        f"Offenders: {offenders}"
+    )
+
+
 def test_frontend_architecture_tests_do_not_assert_dependency_cruiser_source_text() -> None:
     """Frontend architecture tests should validate parsed config behavior, not brittle source substrings."""
     offenders: list[str] = []

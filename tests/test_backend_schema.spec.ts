@@ -15,7 +15,7 @@ import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 
 // Import the built card to test error handling
-import '../custom_components/autosnooze/www/autosnooze-card.js';
+import '../src/index.js';
 import { getErrorMessage } from '../src/utils/index.js';
 import { queryAutomationList, queryDurationSelector } from './helpers/query-helpers.js';
 
@@ -105,6 +105,24 @@ function createDynamicSensorState(options = {}) {
 // =============================================================================
 // ERROR SCHEMA ALIGNMENT TESTS
 // =============================================================================
+
+describe('Backend command response schema', () => {
+  test('backend response fixture matches service response schema', () => {
+    const response = backendResponses.command_response_schema;
+    expect(response.schema_version).toBe(backendResponses.command_response_schema_version);
+    expect(response.command).toBe('pause');
+    expect(response.status).toBe('partial_success');
+    expect(response.complete_success).toBe(false);
+    expect(response.partial_success).toBe(true);
+    expect(response.entities).toHaveLength(2);
+    expect(response.entities[0]).toMatchObject({
+      entity_id: 'automation.ok',
+      outcome: 'succeeded',
+      recovery_status: 'none',
+    });
+    expect(response.recovery_required_entities).toEqual([]);
+  });
+});
 
 describe('Backend Error Schema Alignment', () => {
   describe('Translation keys synchronization', () => {
@@ -470,12 +488,17 @@ describe('Frontend Service Calls with Captured Responses', () => {
       await card._snooze();
 
       expect(mockCallService).toHaveBeenCalledTimes(1);
-      expect(mockCallService).toHaveBeenCalledWith('autosnooze', 'pause', {
-        entity_id: ['automation.test'],
-        days: 1,
-        hours: 2,
-        minutes: 30,
-      });
+      expect(mockCallService).toHaveBeenCalledWith(
+        'autosnooze',
+        'pause',
+        {
+          entity_id: ['automation.test'],
+          days: 1,
+          hours: 2,
+          minutes: 30,
+        },
+        { return_response: true },
+      );
 
       // Verify state was cleared after snooze
       expect(card._selected).toEqual([]);
@@ -581,9 +604,14 @@ describe('Frontend Service Calls with Captured Responses', () => {
       await card._wake('automation.test');
 
       expect(mockCallService).toHaveBeenCalledTimes(1);
-      expect(mockCallService).toHaveBeenCalledWith('autosnooze', 'cancel', {
-        entity_id: 'automation.test',
-      });
+      expect(mockCallService).toHaveBeenCalledWith(
+        'autosnooze',
+        'cancel',
+        {
+          entity_id: 'automation.test',
+        },
+        { return_response: true },
+      );
     });
 
     test('handles error during wake gracefully', async () => {
@@ -599,7 +627,7 @@ describe('Frontend Service Calls with Captured Responses', () => {
       await card._handleWakeAllEvent();
 
       expect(mockCallService).toHaveBeenCalledTimes(1);
-      expect(mockCallService).toHaveBeenCalledWith('autosnooze', 'cancel_all', {});
+      expect(mockCallService).toHaveBeenCalledWith('autosnooze', 'cancel_all', {}, { return_response: true });
     });
 
     test('two-tap confirmation handled by child component', () => {
@@ -1053,16 +1081,22 @@ describe('Integration State Changes', () => {
 
     undoBtn.click();
 
-    // Wait for async operations
-    await new Promise((resolve) => setTimeout(resolve, 10));
-
-    // Verify cancel was called
-    expect(mockCallService).toHaveBeenCalledWith('autosnooze', 'cancel', {
-      entity_id: 'automation.test',
+    await vi.waitFor(() => {
+      expect(mockCallService.mock.calls.some((call) => call[1] === 'cancel')).toBe(true);
     });
 
-    // Selection should be restored
-    expect(card._selected).toContain('automation.test');
+    expect(mockCallService).toHaveBeenCalledWith(
+      'autosnooze',
+      'cancel',
+      {
+        entity_id: ['automation.test'],
+      },
+      { return_response: true },
+    );
+
+    await vi.waitFor(() => {
+      expect(card._selected).toContain('automation.test');
+    });
   });
 });
 
@@ -1494,6 +1528,7 @@ describe('Selector Correctness', () => {
       // Verify undo callback works
       undoBtn.click();
       expect(undoCalled).toBe(true);
+      await card.updateComplete;
 
       // Toast should be removed after undo
       expect(card.shadowRoot.querySelector('.toast')).toBeNull();
