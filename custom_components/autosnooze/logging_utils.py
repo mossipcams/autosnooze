@@ -22,7 +22,14 @@ def _latency_bucket(latency_ms: float) -> str:
     return "gte_1000ms"
 
 
-def _log_command(command: str, outcome: str, started_at: float, *, operation_id: str = "n/a") -> None:
+def _log_command(
+    command: str,
+    outcome: str,
+    started_at: float,
+    *,
+    operation_id: str = "n/a",
+    metrics: dict[str, int | float] | None = None,
+) -> None:
     latency_ms = (perf_counter() - started_at) * 1000
     _LOGGER.info(
         "autosnooze_command",
@@ -31,6 +38,7 @@ def _log_command(command: str, outcome: str, started_at: float, *, operation_id:
             "command": command,
             "outcome": outcome,
             "latency_bucket": _latency_bucket(latency_ms),
+            **(metrics or {}),
         },
     )
 

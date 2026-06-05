@@ -1,92 +1,59 @@
-// @ts-nocheck -- timer behavior tests use fake clocks/mocked Date.now
-/**
- * Tests for countdown sync service.
- */
+// @ts-nocheck -- shared countdown clock contract tests
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 
-import { afterEach, describe, expect, test, vi } from 'vitest';
-import { startCountdownSync, stopCountdownSync } from '../src/services/countdown-sync.js';
+import {
+  getCountdownSubscriberCount,
+  resetCountdownClockForTests,
+  setCountdownClockHidden,
+  subscribeCountdownClock,
+} from '../src/services/countdown-clock.js';
 
-describe('Countdown Sync Service', () => {
+describe('Shared Countdown Clock', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    resetCountdownClockForTests();
+  });
+
   afterEach(() => {
+    resetCountdownClockForTests();
     vi.useRealTimers();
-    vi.restoreAllMocks();
   });
 
-  test('ticks on next second boundary then every second', () => {
-    vi.useFakeTimers();
-    vi.setSystemTime(new Date('2030-01-01T00:00:00.250Z'));
-    const onTick = vi.fn();
+  test('shared countdown clock uses one interval for multiple subscribers', () => {
+    const first = vi.fn();
+    const second = vi.fn();
 
-    const state = startCountdownSync(onTick);
+    const unsubscribeFirst = subscribeCountdownClock(first);
+    const unsubscribeSecond = subscribeCountdownClock(second);
 
-    vi.advanceTimersByTime(749);
-    expect(onTick).toHaveBeenCalledTimes(0);
+    expect(getCountdownSubscriberCount()).toBe(2);
 
-    vi.advanceTimersByTime(1);
-    expect(onTick).toHaveBeenCalledTimes(1);
+    vi.advanceTimersByTime(2000);
+    expect(first.mock.calls.length).toBeGreaterThan(0);
+    expect(second.mock.calls.length).toBe(first.mock.calls.length);
 
-    vi.advanceTimersByTime(1000);
-    expect(onTick).toHaveBeenCalledTimes(2);
-
-    stopCountdownSync(state);
+    unsubscribeFirst();
+    unsubscribeSecond();
+    expect(getCountdownSubscriberCount()).toBe(0);
   });
 
-  test('detects drift and schedules resync', () => {
-    vi.useFakeTimers();
-    vi.setSystemTime(new Date('2030-01-01T00:00:00.100Z'));
+  test('hidden_document_pauses_or_reduces_countdown_ticks', () => {
+    const subscriber = vi.fn();
+    const unsubscribe = subscribeCountdownClock(subscriber);
 
-    const state = startCountdownSync(() => {});
+    vi.advanceTimersByTime(1500);
+    const visibleTicks = subscriber.mock.calls.length;
+    expect(visibleTicks).toBeGreaterThan(0);
 
-    vi.advanceTimersByTime(900); // first boundary tick + interval start
+    setCountdownClockHidden(true);
+    vi.advanceTimersByTime(3000);
+    const ticksWhileHidden = subscriber.mock.calls.length;
+    expect(ticksWhileHidden).toBe(visibleTicks);
 
-    // Simulate wall-clock drift while interval is running.
-    vi.setSystemTime(new Date('2030-01-01T00:00:02.700Z'));
-    vi.advanceTimersByTime(1000); // interval tick, drift correction path
+    setCountdownClockHidden(false);
+    vi.advanceTimersByTime(1500);
+    expect(subscriber.mock.calls.length).toBeGreaterThan(ticksWhileHidden);
 
-    expect(state.interval).toBeNull();
-    expect(state.syncTimeout).not.toBeNull();
-
-    stopCountdownSync(state);
-  });
-
-  test('unsubscribe cleanup stops further ticks', () => {
-    vi.useFakeTimers();
-    vi.setSystemTime(new Date('2030-01-01T00:00:00.100Z'));
-    const onTick = vi.fn();
-
-    const state = startCountdownSync(onTick);
-    vi.advanceTimersByTime(900);
-    expect(onTick).toHaveBeenCalledTimes(1);
-
-    stopCountdownSync(state);
-    expect(state.interval).toBeNull();
-    expect(state.syncTimeout).toBeNull();
-
-    vi.advanceTimersByTime(5000);
-    expect(onTick).toHaveBeenCalledTimes(1);
-  });
-
-  test('uses global timers when window is unavailable during a deferred tick', () => {
-    vi.useFakeTimers();
-    vi.setSystemTime(new Date('2030-01-01T00:00:00.250Z'));
-    const onTick = vi.fn();
-
-    const state = startCountdownSync(onTick);
-
-    const originalWindow = globalThis.window;
-    // Simulate the jsdom teardown edge that CI surfaced during suite shutdown.
-    Reflect.deleteProperty(globalThis, 'window');
-
-    try {
-      expect(() => vi.advanceTimersByTime(750)).not.toThrow();
-      expect(onTick).toHaveBeenCalledTimes(1);
-      stopCountdownSync(state);
-    } finally {
-      Object.defineProperty(globalThis, 'window', {
-        configurable: true,
-        value: originalWindow,
-        writable: true,
-      });
-    }
+    unsubscribe();
   });
 });
