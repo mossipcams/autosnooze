@@ -67,10 +67,15 @@ export default [
   },
   {
     files: ["src/**/*.ts"],
+    ignores: ["src/tests/**"],
     languageOptions: {
       parserOptions: {
         project: ["./tsconfig.json"],
       },
+    },
+    rules: {
+      complexity: ["error", 30],
+      "max-lines": ["error", { max: 1350, skipBlankLines: true, skipComments: true }],
     },
   },
   {

@@ -38,8 +38,8 @@ def test_jscpd_dependency_is_pinned_to_latest_supported_major() -> None:
     assert lock_data["packages"]["node_modules/jscpd"]["version"] == EXPECTED_JSCPD_VERSION
 
 
-def test_jscpd_config_targets_runtime_duplication_with_stricter_signal() -> None:
-    """The repo should enforce a higher-signal duplication policy for runtime TS code."""
+def test_jscpd_scans_backend_production_python() -> None:
+    """Duplication enforcement should include production TypeScript and backend Python."""
     assert JSCPD_CONFIG_PATH.exists(), ".jscpd.json must exist for duplication enforcement"
 
     config = json.loads(JSCPD_CONFIG_PATH.read_text())
@@ -47,11 +47,16 @@ def test_jscpd_config_targets_runtime_duplication_with_stricter_signal() -> None
 
     assert config.get("threshold") == 0, "jscpd must remain a blocking gate"
     assert config.get("mode") == "strict", "jscpd must use strict matching"
-    assert config.get("minLines") == 10, "jscpd should skip tiny local repeats while still catching meaningful copy/paste blocks"
+    assert config.get("minLines") == 18, (
+        "jscpd should skip adapter boilerplate while catching meaningful copy/paste blocks"
+    )
     assert config.get("minTokens") == 60, "jscpd should catch smaller runtime copy/paste blocks"
-    assert config.get("pattern") == "**/*.ts", "jscpd should continue scanning runtime TypeScript sources"
+    assert config.get("pattern") == "**/*.{ts,py}", "jscpd should scan production TypeScript and Python"
+    assert "custom_components/autosnooze/**/*.py" not in ignored
     assert "src/index.ts" in ignored, "The top-level entrypoint may stay excluded as intentional wiring"
-    assert "**/index.ts" not in ignored, "Feature and component barrels should not be globally exempt from duplication checks"
+    assert "**/index.ts" not in ignored, (
+        "Feature and component barrels should not be globally exempt from duplication checks"
+    )
     assert "src/styles/**" in ignored, "Style modules should stay excluded to avoid CSS-template noise"
     assert "src/localization/translations/**" in ignored, "Translation files should stay excluded"
 

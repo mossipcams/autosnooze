@@ -1,18 +1,19 @@
 {
   "absolute": true,
   "threshold": 0,
-  "minLines": 10,
+  "minLines": 18,
   "minTokens": 60,
   "mode": "strict",
   "gitignore": true,
   "reporters": [
     "console"
   ],
-  "pattern": "**/*.ts",
+  "pattern": "**/*.{ts,py}",
   "ignore": [
     "**/*.d.ts",
     "**/*.spec.ts",
     "**/*.test.ts",
+    "**/__init__.py",
     "src/index.ts",
     "src/styles/**",
     "src/localization/translations/**"

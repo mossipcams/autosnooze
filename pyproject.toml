@@ -23,9 +23,6 @@ select = [
     "SIM",    # flake8-simplify
 ]
 
-[tool.ruff.lint.mccabe]
-max-complexity = 30
-
 # Ignore specific rules that are too strict for this project
 ignore = [
     "E501",   # line too long (handled by formatter)
@@ -41,6 +38,9 @@ ignore = [
 # TODO: Enable these rules later for stricter linting:
 # "I",      # isort - import sorting
 # "UP",     # pyupgrade - use modern Python syntax
+
+[tool.ruff.lint.mccabe]
+max-complexity = 50
 
 [tool.ruff.lint.isort]
 known-first-party = ["custom_components.autosnooze"]

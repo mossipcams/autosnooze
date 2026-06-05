@@ -17,11 +17,11 @@ def test_ci_runs_performance_count_regressions() -> None:
     scripts = package_data.get("scripts", {})
     workflow = BUILD_WORKFLOW_PATH.read_text(encoding="utf-8")
 
-    assert "test" in scripts, "package.json must define npm run test"
-    assert "pytest tests/" in workflow or "pytest tests" in workflow, (
-        "build workflow must run backend tests including performance characterization"
-    )
-    assert "npm run test" in workflow, "build workflow must run frontend tests"
+    assert "test:performance" in scripts
+    assert "lint:bundle-size" in scripts
+    assert "pytest tests/test_transition_performance.py" in workflow
+    assert "npm run test:performance" in workflow
+    assert "npm run lint:bundle-size" in workflow
 
     performance_tests = [
         PROJECT_ROOT / "tests" / "test_transition_performance.py",

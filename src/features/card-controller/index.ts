@@ -56,14 +56,14 @@ import {
 
 export type { ScheduledPauseValidationErrorCode };
 
-export interface CardToastState {
+interface CardToastState {
   message: string;
   showUndo?: boolean;
   undoToken?: number;
   onUndo?: () => void;
 }
 
-export interface CardAdjustModalState {
+interface CardAdjustModalState {
   open: boolean;
   entityId: string;
   friendlyName: string;
@@ -72,7 +72,7 @@ export interface CardAdjustModalState {
   friendlyNames: string[];
 }
 
-export interface CardServerSnapshot {
+interface CardServerSnapshot {
   paused: Record<string, PausedAutomationAttribute>;
   scheduled: Record<string, ScheduledSnoozeAttribute>;
   groups: PauseGroup[];
@@ -81,7 +81,7 @@ export interface CardServerSnapshot {
   sensorAvailable: boolean;
 }
 
-export interface CardLocalUiState {
+interface CardLocalUiState {
   selected: string[];
   durationMs: number;
   customDuration: ParsedDuration;
@@ -102,14 +102,14 @@ export interface CardLocalUiState {
   guardrailConfirmOpen: boolean;
 }
 
-export interface CardRegistryState {
+interface CardRegistryState {
   labels: Record<string, HassLabel>;
   categories: Record<string, HassCategory>;
   entities: Record<string, HassEntityRegistryEntry>;
   labelRegistryUnavailable: boolean;
 }
 
-export interface CardDerivedState {
+interface CardDerivedState {
   automations: AutomationItem[];
 }
 

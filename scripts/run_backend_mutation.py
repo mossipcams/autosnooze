@@ -15,10 +15,13 @@ from typing import Iterable
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_HA_PYTEST = Path("/Users/matt/Desktop/Projects/autodoctor/venv_test/bin/pytest")
-DEFAULT_HA_SITE_PACKAGES = Path(
-    "/Users/matt/Desktop/Projects/autodoctor/venv_test/lib/python3.14/site-packages"
-)
+DEFAULT_HA_SITE_PACKAGES = Path("/Users/matt/Desktop/Projects/autodoctor/venv_test/lib/python3.14/site-packages")
 SOURCE_INSPECTION_EXCLUSION = "not TestLovelaceResourceSafety"
+MUTATION_TARGET_PATHS = (
+    "custom_components/autosnooze/application/pause.py",
+    "custom_components/autosnooze/application/resume.py",
+    "custom_components/autosnooze/application/scheduled.py",
+)
 
 STATUS_KILLED = "killed"
 STATUS_SURVIVED = "survived"
@@ -56,9 +59,7 @@ def _ensure_mutmut_importable() -> None:
 
         mutmut_python = _find_mutmut_python()
         if mutmut_python is None:
-            raise SystemExit(
-                "mutmut is not importable and no mutmut executable with a Python shebang was found"
-            )
+            raise SystemExit("mutmut is not importable and no mutmut executable with a Python shebang was found")
 
         env = os.environ.copy()
         env["AUTOSNOOZE_MUTATION_REEXEC"] = "1"
@@ -209,9 +210,7 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--ha-site-packages",
         type=Path,
-        default=Path(
-            os.environ.get("AUTOSNOOZE_HA_SITE_PACKAGES", DEFAULT_HA_SITE_PACKAGES)
-        ),
+        default=Path(os.environ.get("AUTOSNOOZE_HA_SITE_PACKAGES", DEFAULT_HA_SITE_PACKAGES)),
         help="site-packages path containing Home Assistant test dependencies",
     )
     parser.add_argument(
@@ -229,6 +228,9 @@ def _parse_args() -> argparse.Namespace:
 
 def main() -> int:
     args = _parse_args()
+    missing_targets = [path for path in MUTATION_TARGET_PATHS if not (PROJECT_ROOT / path).exists()]
+    if missing_targets:
+        raise SystemExit(f"mutation target paths not found: {missing_targets}")
     if not args.pytest.exists():
         raise SystemExit(f"pytest executable not found: {args.pytest}")
     if not args.ha_site_packages.exists():
