@@ -2,12 +2,21 @@
 
 from __future__ import annotations
 
+from typing import Any, TypedDict, cast
+
+from homeassistant.core import ServiceResponse
 from homeassistant.exceptions import ServiceValidationError
 
 from .const import DOMAIN
 from .domain.transitions import EntityTransitionResult, TransitionOutcome, TransitionResult
 
 SERVICE_RESPONSE_SCHEMA_VERSION = 1
+
+
+class RecoveryRequiredErrorPayload(TypedDict):
+    translation_domain: str
+    translation_key: str
+    translation_placeholders: dict[str, str]
 
 
 def command_status(result: TransitionResult) -> str:
@@ -35,14 +44,12 @@ def entity_result_to_dict(entity: EntityTransitionResult) -> dict[str, str | Non
     return payload
 
 
-def transition_result_to_service_response(result: TransitionResult) -> dict[str, object]:
+def transition_result_to_service_response(result: TransitionResult) -> ServiceResponse:
     """Build a versioned service response for pause/resume commands."""
     recovery_required_entities = [
-        entity.entity_id
-        for entity in result.entities
-        if entity.outcome is TransitionOutcome.RECOVERY_REQUIRED
+        entity.entity_id for entity in result.entities if entity.outcome is TransitionOutcome.RECOVERY_REQUIRED
     ]
-    response: dict[str, object] = {
+    response: dict[str, Any] = {
         "schema_version": SERVICE_RESPONSE_SCHEMA_VERSION,
         "command": result.command,
         "status": command_status(result),
@@ -53,10 +60,10 @@ def transition_result_to_service_response(result: TransitionResult) -> dict[str,
     }
     if recovery_required_entities:
         response["error"] = recovery_required_error_payload(recovery_required_entities)
-    return response
+    return cast(ServiceResponse, response)
 
 
-def recovery_required_error_payload(entity_ids: list[str]) -> dict[str, str]:
+def recovery_required_error_payload(entity_ids: list[str]) -> RecoveryRequiredErrorPayload:
     """Build actionable recovery metadata for service consumers."""
     return {
         "translation_domain": DOMAIN,
@@ -72,7 +79,6 @@ def raise_recovery_required_error(entity_ids: list[str]) -> None:
     if not entity_ids:
         return
     placeholders = recovery_required_error_payload(entity_ids)["translation_placeholders"]
-    assert isinstance(placeholders, dict)
     raise ServiceValidationError(
         "One or more automations require manual recovery before they can be used again",
         translation_domain=DOMAIN,

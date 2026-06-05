@@ -195,7 +195,9 @@ async def test_stale_result_during_concurrent_batch_is_compensated() -> None:
             await allow_service_finish.wait()
         return True
 
-    with patch("custom_components.autosnooze.runtime.ports.async_set_automation_state", side_effect=record_state_change):
+    with patch(
+        "custom_components.autosnooze.runtime.ports.async_set_automation_state", side_effect=record_state_change
+    ):
         resume_task = asyncio.create_task(async_resume_batch(hass, data, ["automation.test"]))
         await asyncio.wait_for(service_started.wait(), timeout=1)
         data.paused["automation.test"] = newer_pause

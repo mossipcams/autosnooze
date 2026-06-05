@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+import re
 
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
@@ -48,6 +49,18 @@ def test_card_controller_tests_do_not_access_private_card_members() -> None:
         "Card controller tests should assert controller/view-model behavior, not private card members. "
         f"Offenders: {offenders}"
     )
+
+
+def test_new_frontend_behavior_tests_avoid_private_component_access() -> None:
+    """Performance and controller tests should use public behavior instead of underscore fields."""
+    offenders: list[str] = []
+    private_access = re.compile(r"\b(?:card|list|active)\._[A-Za-z]")
+    for relative in ("tests/test_card_controller.spec.ts", "tests/test_frontend_performance.spec.ts"):
+        path = PROJECT_ROOT / relative
+        for line_number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), start=1):
+            if private_access.search(line):
+                offenders.append(f"{relative}:{line_number}")
+    assert offenders == [], f"Frontend behavior tests access private component fields: {offenders}"
 
 
 def test_frontend_architecture_tests_do_not_assert_dependency_cruiser_source_text() -> None:

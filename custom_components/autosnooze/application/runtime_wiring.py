@@ -21,11 +21,7 @@ async def _deadline_resume_callback(
     reason: ResumeReason = "expired",
 ) -> None:
     """Run one batch resume for every entity sharing a deadline."""
-    expected_pauses = {
-        entity_id: data.paused[entity_id]
-        for entity_id in entity_ids
-        if entity_id in data.paused
-    }
+    expected_pauses = {entity_id: data.paused[entity_id] for entity_id in entity_ids if entity_id in data.paused}
     result = await async_resume_batch(hass, data, entity_ids, reason=reason)
     if reason != "expired":
         return

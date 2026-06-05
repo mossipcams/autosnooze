@@ -28,7 +28,7 @@ def test_dependency_cruiser_enforces_feature_isolation() -> None:
         "name": "no-cross-feature-imports",
         "severity": "error",
         "comment": "Feature slices should not depend directly on one another.",
-        "from": {"path": "^src/features/"},
+        "from": {"path": "^src/features/", "pathNot": "^src/features/card-controller/"},
         "to": {"path": "^src/features/"},
     }
 

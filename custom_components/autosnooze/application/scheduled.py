@@ -64,7 +64,11 @@ async def _execute_scheduled_disable(
     else:
         disabled_successfully = True
     if data.unloaded:
-        if originally_enabled and disabled_successfully and not await runtime_ports.async_set_automation_state(hass, entity_id, enabled=True):
+        if (
+            originally_enabled
+            and disabled_successfully
+            and not await runtime_ports.async_set_automation_state(hass, entity_id, enabled=True)
+        ):
             _LOGGER.warning("Failed to compensate scheduled disable crossing unload for %s", entity_id)
         return
 
@@ -184,6 +188,7 @@ async def async_cancel_scheduled(hass: HomeAssistant, data: AutomationPauseData,
     """Cancel a scheduled snooze."""
     if data.unloaded:
         return
+
     def _cancel_scheduled() -> None:
         cancel_scheduled_timer(data, entity_id)
         data.scheduled.pop(entity_id, None)

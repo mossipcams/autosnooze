@@ -7,7 +7,11 @@ from typing import Literal
 
 from homeassistant.core import HomeAssistant
 
-from ..domain.notifications import NOTIFICATION_TRIGGER_ABOUT_TO_END, NOTIFICATION_TRIGGER_END, NOTIFICATION_TRIGGER_START
+from ..domain.notifications import (
+    NOTIFICATION_TRIGGER_ABOUT_TO_END,
+    NOTIFICATION_TRIGGER_END,
+    NOTIFICATION_TRIGGER_START,
+)
 from ..models import PausedAutomation
 from ..runtime.state import AutomationPauseData
 

@@ -163,7 +163,6 @@ describe('Card renders controller view model', () => {
 
     expect(card.shadowRoot.querySelector('autosnooze-automation-list')).not.toBeNull();
     expect(card.shadowRoot.querySelector('autosnooze-duration-selector')).not.toBeNull();
-    expect(card.shadowRoot.querySelector('.snooze-btn')).not.toBeNull();
-    expect(card._selected).toEqual([]);
+    expect(card.shadowRoot.querySelector<HTMLButtonElement>('.snooze-btn')?.disabled).toBe(true);
   });
 });

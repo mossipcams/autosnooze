@@ -6,7 +6,7 @@ from datetime import datetime
 import logging
 
 from homeassistant.const import ATTR_ENTITY_ID
-from homeassistant.core import HomeAssistant, ServiceCall, SupportsResponse
+from homeassistant.core import HomeAssistant, ServiceCall, ServiceResponse, SupportsResponse
 from .application import pause as pause_application
 from .domain.notifications import NOTIFICATION_TRIGGER_NONE, NotificationTrigger
 from .application.adjust import async_handle_adjust_service
@@ -93,7 +93,7 @@ async def async_clear_notification_config(
 def _service_response_from_result(
     call: ServiceCall,
     result: TransitionResult | None,
-) -> dict[str, object] | None:
+) -> ServiceResponse:
     if not call.return_response or result is None:
         return None
     return transition_result_to_service_response(result)
@@ -102,15 +102,15 @@ def _service_response_from_result(
 def register_services(hass: HomeAssistant, data: AutomationPauseData) -> None:
     """Register integration services."""
 
-    async def handle_pause(call: ServiceCall) -> dict[str, object] | None:
+    async def handle_pause(call: ServiceCall) -> ServiceResponse:
         result = await async_handle_pause_service(hass, data, call)
         return _service_response_from_result(call, result)
 
-    async def handle_cancel(call: ServiceCall) -> dict[str, object] | None:
+    async def handle_cancel(call: ServiceCall) -> ServiceResponse:
         result = await async_handle_cancel_service(hass, data, call)
         return _service_response_from_result(call, result)
 
-    async def handle_cancel_all(call: ServiceCall) -> dict[str, object] | None:
+    async def handle_cancel_all(call: ServiceCall) -> ServiceResponse:
         result = await async_handle_cancel_all_service(hass, data)
         return _service_response_from_result(call, result)
 

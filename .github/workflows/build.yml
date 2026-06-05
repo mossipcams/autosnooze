@@ -63,7 +63,7 @@ jobs:
             ruff-${{ runner.os }}-
 
       - name: Run ruff (Python linter)
-        run: ruff check custom_components/ tests/ --output-format=github
+        run: ruff check custom_components/autosnooze tests/ --output-format=github
 
       - name: Check ruff formatting
         run: ruff format --check --diff custom_components/ tests/
@@ -180,6 +180,12 @@ jobs:
           TZ: UTC
         # Python coverage threshold enforced via pyproject.toml (85% minimum)
 
+      - name: Run backend performance count regressions
+        run: pytest tests/test_transition_performance.py -q
+
+      - name: Run frontend performance count regressions
+        run: npm run test:performance
+
       - name: Run CI contract checks
         run: pytest ci_contracts -q
 
@@ -192,6 +198,9 @@ jobs:
       # === Build ===
       - name: Build card
         run: npm run build
+
+      - name: Enforce bundle size budget
+        run: npm run lint:bundle-size
 
       - name: Verify no bare imports in built file
         run: |

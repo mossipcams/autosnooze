@@ -178,16 +178,18 @@ async def test_batch_latency_is_bounded_by_concurrency_not_entity_count() -> Non
             wave_started.set()
         return True
 
-    with patch("custom_components.autosnooze.runtime.ports.async_set_automation_state", side_effect=resume_state):
-        with patch("custom_components.autosnooze.runtime.ports.async_save", AsyncMock(return_value=True)):
-            task = asyncio.create_task(async_resume_batch(hass, resume_data, entity_ids))
-            await wave_started.wait()
-            wave_started.clear()
-            release.set()
-            await wave_started.wait()
-            wave_started.clear()
-            release.set()
-            await task
+    with (
+        patch("custom_components.autosnooze.runtime.ports.async_set_automation_state", side_effect=resume_state),
+        patch("custom_components.autosnooze.runtime.ports.async_save", AsyncMock(return_value=True)),
+    ):
+        task = asyncio.create_task(async_resume_batch(hass, resume_data, entity_ids))
+        await wave_started.wait()
+        wave_started.clear()
+        release.set()
+        await wave_started.wait()
+        wave_started.clear()
+        release.set()
+        await task
 
     assert resume_waves == 2
 

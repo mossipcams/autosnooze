@@ -349,6 +349,8 @@ class TestAutomationPauseDataEdgeCases:
         assert len(result) == 2
         assert "automation.test1" in result
         assert "automation.test2" in result
+
+
 def test_resume_retry_and_recovery_state_round_trips_storage() -> None:
     """Retry, recovery, and original-state data survive persistence."""
     now = datetime.now(UTC)

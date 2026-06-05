@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Callable, Coroutine
 from datetime import datetime, timedelta
-from typing import Any, Literal
+from typing import Any, Literal, Protocol
 
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.event import async_track_point_in_time as ha_async_track_point_in_time
@@ -14,11 +14,29 @@ from ..domain.notifications import NOTIFICATION_TRIGGER_ABOUT_TO_END
 from ..models import PausedAutomation, ScheduledSnooze, ensure_utc_aware
 from .state import AutomationPauseData, ResumeReason
 
-ResumeCallback = Callable[[HomeAssistant, AutomationPauseData, str], Coroutine[Any, Any, None]]
-DeadlineResumeCallback = Callable[
-    [HomeAssistant, AutomationPauseData, list[str], ResumeReason],
-    Coroutine[Any, Any, None],
-]
+
+class ResumeCallback(Protocol):
+    def __call__(
+        self,
+        hass: HomeAssistant,
+        data: AutomationPauseData,
+        entity_id: str,
+        *,
+        reason: ResumeReason = "manual",
+    ) -> Coroutine[Any, Any, None]: ...
+
+
+class DeadlineResumeCallback(Protocol):
+    def __call__(
+        self,
+        hass: HomeAssistant,
+        data: AutomationPauseData,
+        entity_ids: list[str],
+        *,
+        reason: ResumeReason = "expired",
+    ) -> Coroutine[Any, Any, None]: ...
+
+
 ScheduledDisableCallback = Callable[[HomeAssistant, AutomationPauseData, str, datetime], Coroutine[Any, Any, None]]
 NotificationCallback = Callable[[HomeAssistant, AutomationPauseData, str], Coroutine[Any, Any, None]]
 

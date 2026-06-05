@@ -79,6 +79,7 @@ async def test_restore_only_removes_record_after_confirmed_enabled_state() -> No
     assert entity_id not in success_data.paused
     success_store.async_save.assert_called()
 
+
 class TestDeletedAutomationCleanup:
     """Tests that verify deleted automations are cleaned up from storage on load."""
 

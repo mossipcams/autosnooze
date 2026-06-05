@@ -43,9 +43,7 @@ class TransitionResult:
 
     @property
     def complete_success(self) -> bool:
-        return bool(self.entities) and all(
-            entity.outcome is TransitionOutcome.SUCCEEDED for entity in self.entities
-        )
+        return bool(self.entities) and all(entity.outcome is TransitionOutcome.SUCCEEDED for entity in self.entities)
 
     @property
     def partial_success(self) -> bool:

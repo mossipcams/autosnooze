@@ -49,7 +49,10 @@ def test_backend_mutation_runner_knows_home_assistant_pytest_and_source_test_exc
 def test_package_json_exposes_backend_mutation_script() -> None:
     package_json = json.loads(PACKAGE_JSON_PATH.read_text(encoding="utf-8"))
 
-    assert (
-        package_json["scripts"].get("mutation:backend")
-        == "python3 scripts/run_backend_mutation.py"
-    )
+    assert package_json["scripts"].get("mutation:backend") == "python3 scripts/run_backend_mutation.py"
+
+
+def test_mutation_runner_targets_application_transition_owner() -> None:
+    source = _runner_source()
+    for owner in ("application/pause.py", "application/resume.py", "application/scheduled.py"):
+        assert owner in source

@@ -649,10 +649,8 @@ class TestUnloadGuards:
 
         mock_hass = MagicMock()
         handlers: dict[str, object] = {}
-        mock_hass.services.async_register = (
-            lambda _domain, name, handler, schema=None, supports_response=None: handlers.setdefault(
-                name, handler
-            )
+        mock_hass.services.async_register = lambda _domain, name, handler, schema=None, supports_response=None: (
+            handlers.setdefault(name, handler)
         )
 
         data = AutomationPauseData(store=MagicMock())
@@ -682,10 +680,8 @@ class TestUnloadGuards:
 
         mock_hass = MagicMock()
         handlers: dict[str, object] = {}
-        mock_hass.services.async_register = (
-            lambda _domain, name, handler, schema=None, supports_response=None: handlers.setdefault(
-                name, handler
-            )
+        mock_hass.services.async_register = lambda _domain, name, handler, schema=None, supports_response=None: (
+            handlers.setdefault(name, handler)
         )
 
         data = AutomationPauseData(store=MagicMock())
@@ -698,7 +694,8 @@ class TestUnloadGuards:
 
         with (
             patch(
-                "custom_components.autosnooze.application.pause.get_automations_by_area", return_value=["automation.test"]
+                "custom_components.autosnooze.application.pause.get_automations_by_area",
+                return_value=["automation.test"],
             ) as get_by_area,
             patch("custom_components.autosnooze.application.pause.validate_guardrails") as validate_guardrails,
             patch(
@@ -721,10 +718,8 @@ class TestServiceHandlerContracts:
 
         mock_hass = MagicMock()
         handlers: dict[str, object] = {}
-        mock_hass.services.async_register = (
-            lambda _domain, name, handler, schema=None, supports_response=None: handlers.setdefault(
-                name, handler
-            )
+        mock_hass.services.async_register = lambda _domain, name, handler, schema=None, supports_response=None: (
+            handlers.setdefault(name, handler)
         )
         data = AutomationPauseData(store=MagicMock())
         register_services(mock_hass, data)

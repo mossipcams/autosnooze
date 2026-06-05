@@ -259,8 +259,7 @@ async def async_pause_automations(
         if immediate_candidates:
             async with data.lock:
                 expected_generations = {
-                    entity_id: data.entity_generation(entity_id)
-                    for entity_id, _, _ in immediate_candidates
+                    entity_id: data.entity_generation(entity_id) for entity_id, _, _ in immediate_candidates
                 }
 
             disable_targets = [
@@ -372,7 +371,9 @@ async def async_pause_automations(
                 )
 
             for paused in paused_entries:
-                if not data.is_entity_generation_current(paused.entity_id, expected_generations.get(paused.entity_id, -1)):
+                if not data.is_entity_generation_current(
+                    paused.entity_id, expected_generations.get(paused.entity_id, -1)
+                ):
                     if paused.originally_enabled and disable_results.get(paused.entity_id, False):
                         re_enable_stale_pauses.append(paused.entity_id)
                     continue

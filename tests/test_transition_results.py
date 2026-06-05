@@ -35,9 +35,7 @@ def test_transition_result_models_represent_all_terminal_and_recovery_outcomes()
             entity_id=f"automation.{outcome.value}",
             outcome=outcome,
             recovery_status=(
-                RecoveryStatus.REQUIRED
-                if outcome is TransitionOutcome.RECOVERY_REQUIRED
-                else RecoveryStatus.NONE
+                RecoveryStatus.REQUIRED if outcome is TransitionOutcome.RECOVERY_REQUIRED else RecoveryStatus.NONE
             ),
         )
         for outcome in outcomes

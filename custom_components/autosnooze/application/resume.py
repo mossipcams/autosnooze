@@ -151,26 +151,21 @@ async def async_resume_batch(
     try:
         if data.unloaded:
             return TransitionResult(
-                "resume", tuple(EntityTransitionResult(entity_id, TransitionOutcome.REJECTED) for entity_id in entity_ids)
+                "resume",
+                tuple(EntityTransitionResult(entity_id, TransitionOutcome.REJECTED) for entity_id in entity_ids),
             )
         if not entity_ids:
             return TransitionResult("resume", ())
 
         async with data.lock:
             candidates = {
-                entity_id: data.paused[entity_id]
-                for entity_id in dict.fromkeys(entity_ids)
-                if entity_id in data.paused
+                entity_id: data.paused[entity_id] for entity_id in dict.fromkeys(entity_ids) if entity_id in data.paused
             }
-            expected_generations = {
-                entity_id: data.entity_generation(entity_id) for entity_id in candidates
-            }
+            expected_generations = {entity_id: data.entity_generation(entity_id) for entity_id in candidates}
             candidate_ids = list(candidates)
 
         wake_results = await set_automation_states_bounded(
-            lambda hass, entity_id, enabled: runtime_ports.async_set_automation_state(
-                hass, entity_id, enabled=enabled
-            ),
+            lambda hass, entity_id, enabled: runtime_ports.async_set_automation_state(hass, entity_id, enabled=enabled),
             hass,
             candidate_ids,
             enabled=True,
@@ -207,7 +202,9 @@ async def async_resume_batch(
                     if paused.resume_retries >= MAX_RESUME_RETRIES:
                         cancel_timer(data, entity_id)
                         paused.recovery_status = RecoveryStatus.REQUIRED
-                        _LOGGER.error("Automatic wake exhausted for %s after %d retries", entity_id, paused.resume_retries)
+                        _LOGGER.error(
+                            "Automatic wake exhausted for %s after %d retries", entity_id, paused.resume_retries
+                        )
                     else:
                         failed += 1
                         paused.resume_retries += 1
