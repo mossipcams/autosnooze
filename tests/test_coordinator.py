@@ -27,6 +27,8 @@ from custom_components.autosnooze.coordinator import (
     get_friendly_name,
     schedule_disable,
     schedule_resume,
+)
+from custom_components.autosnooze.runtime.restore import (
     validate_stored_data,
     validate_stored_entry,
 )
