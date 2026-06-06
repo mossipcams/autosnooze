@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.25](https://github.com/mossipcams/autosnooze/compare/v0.2.24...v0.2.25) (2026-06-06)
+
+
+### Bug Fixes
+
+* **ci:** keep graph cache out of hassfest discovery ([#426](https://github.com/mossipcams/autosnooze/issues/426)) ([e338cf6](https://github.com/mossipcams/autosnooze/commit/e338cf673bb29ae66617fbffa3afe28d1880f627))
+
 ## [0.2.24](https://github.com/mossipcams/autosnooze/compare/v0.2.23...v0.2.24) (2026-06-06)
 
 
