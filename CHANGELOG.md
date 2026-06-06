@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.2.24](https://github.com/mossipcams/autosnooze/compare/v0.2.23...v0.2.24) (2026-06-06)
+
+
+### Bug Fixes
+
+* **ci:** include refactors in release notes ([#425](https://github.com/mossipcams/autosnooze/issues/425)) ([130a14c](https://github.com/mossipcams/autosnooze/commit/130a14c455531875caa7baa98ab82fbd0e637bc3))
+* remove async_resume_batch coordinator duplicate ([#422](https://github.com/mossipcams/autosnooze/issues/422)) ([5e34d07](https://github.com/mossipcams/autosnooze/commit/5e34d0776254450a33e442f179d14ab7b4bd6df9))
+
+
+### Refactoring
+
+* remove coordinator validate_stored_* passthrough wrappers ([#421](https://github.com/mossipcams/autosnooze/issues/421)) ([635191d](https://github.com/mossipcams/autosnooze/commit/635191dfaec9c12758281d3e52ccbb1e21260b36))
+* remove dead actions-controller layer and trim backend imports ([#414](https://github.com/mossipcams/autosnooze/issues/414)) ([a91ae27](https://github.com/mossipcams/autosnooze/commit/a91ae27e8e5bda71964eacfa3333e7872764a777))
+* remove dead duplicated adjust/cancel coordinator functions ([#420](https://github.com/mossipcams/autosnooze/issues/420)) ([52fe97b](https://github.com/mossipcams/autosnooze/commit/52fe97bd0e3a94837042d5548d7a39bbe7d4208c))
+
 ## [0.2.23](https://github.com/mossipcams/autosnooze/compare/v0.2.22...v0.2.23) (2026-06-03)
 
 
