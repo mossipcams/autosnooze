@@ -14,7 +14,7 @@ export const sharedPausedStyles = css`
       font-size: 1em;
     }
     .list-header ha-icon {
-      color: #ff9800;
+      color: var(--warning-color, #ff9800);
     }
     .paused-info {
       flex: 1;

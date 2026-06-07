@@ -36,9 +36,9 @@ export const cardStyles = css`
     .sensor-health-banner {
       margin-bottom: 12px;
       padding: 10px 12px;
-      border: 1px solid color-mix(in srgb, #ff9800 45%, var(--divider-color));
+      border: 1px solid color-mix(in srgb, var(--warning-color, #ff9800) 45%, var(--divider-color));
       border-radius: 8px;
-      background: color-mix(in srgb, #ff9800 10%, var(--card-background-color));
+      background: color-mix(in srgb, var(--warning-color, #ff9800) 10%, var(--card-background-color));
       color: var(--primary-text-color);
       font-size: 0.85em;
     }
@@ -128,8 +128,8 @@ export const cardStyles = css`
       margin-top: 10px;
       padding: 12px;
       border-radius: 10px;
-      border: 1px solid color-mix(in srgb, #ff9800 40%, var(--divider-color));
-      background: color-mix(in srgb, #ff9800 8%, var(--card-background-color));
+      border: 1px solid color-mix(in srgb, var(--warning-color, #ff9800) 40%, var(--divider-color));
+      background: color-mix(in srgb, var(--warning-color, #ff9800) 8%, var(--card-background-color));
       display: flex;
       flex-direction: column;
       gap: 8px;
@@ -189,14 +189,14 @@ export const cardStyles = css`
 
     /* Scheduled Snoozes Section */
     .scheduled-list {
-      border: 2px solid #2196f3;
+      border: 2px solid var(--info-color, #2196f3);
       border-radius: 8px;
-      background: rgba(33, 150, 243, 0.05);
+      background: color-mix(in srgb, var(--info-color, #2196f3) 5%, transparent);
       padding: 12px;
       margin-top: 12px;
     }
     .scheduled-list .list-header ha-icon {
-      color: #2196f3;
+      color: var(--info-color, #2196f3);
     }
     .scheduled-item {
       display: flex;
@@ -211,12 +211,12 @@ export const cardStyles = css`
       margin-bottom: 12px;
     }
     .scheduled-icon {
-      color: #2196f3;
+      color: var(--info-color, #2196f3);
       opacity: 0.8;
     }
     .scheduled-time {
       font-size: 0.85em;
-      color: #2196f3;
+      color: var(--info-color, #2196f3);
       font-weight: 500;
     }
     .cancel-scheduled-btn {
@@ -232,9 +232,9 @@ export const cardStyles = css`
       box-sizing: border-box;
     }
     .cancel-scheduled-btn:hover {
-      background: #f44336;
+      background: var(--error-color, #f44336);
       color: white;
-      border-color: #f44336;
+      border-color: var(--error-color, #f44336);
     }
     .cancel-scheduled-btn:focus-visible {
       outline: 2px solid var(--primary-color);
@@ -415,17 +415,17 @@ export const cardStyles = css`
         padding: 14px;
         margin-top: 24px;
         border-radius: 16px;
-        border: 2px solid #2196f3;
+        border: 2px solid var(--info-color, #2196f3);
         background: linear-gradient(
           180deg,
-          rgba(33, 150, 243, 0.06) 0%,
-          rgba(33, 150, 243, 0.02) 100%
+          color-mix(in srgb, var(--info-color, #2196f3) 6%, transparent) 0%,
+          color-mix(in srgb, var(--info-color, #2196f3) 2%, transparent) 100%
         );
-        box-shadow: 0 4px 16px rgba(33, 150, 243, 0.08);
+        box-shadow: 0 4px 16px color-mix(in srgb, var(--info-color, #2196f3) 8%, transparent);
       }
 
       .scheduled-list .list-header ha-icon {
-        color: #2196f3;
+        color: var(--info-color, #2196f3);
       }
 
       .scheduled-item {
@@ -453,7 +453,7 @@ export const cardStyles = css`
       .scheduled-time {
         font-size: 0.72em;
         font-weight: 600;
-        color: #2196f3;
+        color: var(--info-color, #2196f3);
       }
 
       .cancel-scheduled-btn {
@@ -463,9 +463,9 @@ export const cardStyles = css`
         min-height: 44px;
         flex-shrink: 0;
         border-radius: 8px;
-        border: 1.5px solid color-mix(in srgb, #f44336 60%, var(--divider-color));
+        border: 1.5px solid color-mix(in srgb, var(--error-color, #f44336) 60%, var(--divider-color));
         background: var(--card-background-color);
-        color: #f44336;
+        color: var(--error-color, #f44336);
         transition: all 0.15s ease;
         touch-action: manipulation;
         -webkit-tap-highlight-color: transparent;
@@ -476,9 +476,9 @@ export const cardStyles = css`
       }
 
       .cancel-scheduled-btn:hover {
-        background: #f44336;
+        background: var(--error-color, #f44336);
         color: white;
-        border-color: #f44336;
+        border-color: var(--error-color, #f44336);
       }
 
       /* --- Toast: Refined notification --- */
