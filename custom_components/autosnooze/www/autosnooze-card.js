@@ -1248,7 +1248,9 @@ function e(e,t,a,o){var i,s=arguments.length,r=s<3?t:null===o?o=Object.getOwnPro
       padding: 10px 16px;
       border: 1px solid color-mix(in srgb, var(--primary-color) 45%, var(--divider-color));
       border-radius: 8px;
-      color: var(--primary-color);
+      /* Label uses primary-text-color for WCAG AA contrast; the accent
+         border and icon carry the visual emphasis instead. */
+      color: var(--primary-text-color);
       font-weight: 500;
       transition: background-color 0.15s ease, border-color 0.15s ease;
     }
