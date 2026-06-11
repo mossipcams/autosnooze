@@ -120,9 +120,9 @@ export const automationListStyles = css`
     .registry-warning {
       margin-bottom: 10px;
       padding: 8px 10px;
-      border: 1px solid color-mix(in srgb, #ff9800 45%, var(--divider-color));
+      border: 1px solid color-mix(in srgb, var(--warning-color, #ff9800) 45%, var(--divider-color));
       border-radius: 8px;
-      background: color-mix(in srgb, #ff9800 10%, var(--card-background-color));
+      background: color-mix(in srgb, var(--warning-color, #ff9800) 10%, var(--card-background-color));
       color: var(--primary-text-color);
       font-size: 0.82em;
     }

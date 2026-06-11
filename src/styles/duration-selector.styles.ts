@@ -148,7 +148,7 @@ export const durationSelectorStyles = css`
       border-color: var(--primary-color);
     }
     .duration-input.invalid {
-      border-color: #f44336;
+      border-color: var(--error-color, #f44336);
     }
     .duration-help {
       font-size: 0.8em;
@@ -188,6 +188,31 @@ export const durationSelectorStyles = css`
     .schedule-link ha-icon {
       --mdc-icon-size: 18px;
       color: var(--primary-text-color);
+    }
+
+    /* Entry-point variant: outlined secondary button so the
+       date/time option reads as a distinct, discoverable action. */
+    .schedule-link--enter {
+      display: flex;
+      width: 100%;
+      justify-content: center;
+      margin-top: 12px;
+      padding: 10px 16px;
+      border: 1px solid color-mix(in srgb, var(--primary-color) 45%, var(--divider-color));
+      border-radius: 8px;
+      /* Label uses primary-text-color for WCAG AA contrast; the accent
+         border and icon carry the visual emphasis instead. */
+      color: var(--primary-text-color);
+      font-weight: 500;
+      transition: background-color 0.15s ease, border-color 0.15s ease;
+    }
+    .schedule-link--enter:hover {
+      text-decoration: none;
+      border-color: var(--primary-color);
+      background: color-mix(in srgb, var(--primary-color) 8%, transparent);
+    }
+    .schedule-link--enter ha-icon {
+      color: var(--primary-color);
     }
 
     /* Field Hint */
@@ -254,9 +279,9 @@ export const durationSelectorStyles = css`
       padding: 8px 10px;
     }
     .schedule-summary.invalid {
-      color: #b71c1c;
-      background: color-mix(in srgb, #f44336 10%, transparent);
-      border-color: color-mix(in srgb, #f44336 36%, transparent);
+      color: var(--error-color, #f44336);
+      background: color-mix(in srgb, var(--error-color, #f44336) 10%, transparent);
+      border-color: color-mix(in srgb, var(--error-color, #f44336) 36%, transparent);
     }
 
     /* Mobile Responsive Styles */
@@ -383,6 +408,22 @@ export const durationSelectorStyles = css`
 
       .schedule-link:hover {
         opacity: 1;
+      }
+
+      .schedule-link--enter {
+        margin-top: 10px;
+        padding: 12px 16px;
+        min-height: 46px;
+        font-size: 0.88em;
+        font-weight: 600;
+        border-radius: 12px;
+        border-width: 1.5px;
+        opacity: 1;
+      }
+
+      .schedule-link--enter:active {
+        transform: scale(0.98);
+        background: color-mix(in srgb, var(--primary-color) 10%, transparent);
       }
 
       /* --- Schedule Inputs: Refined form layout --- */
