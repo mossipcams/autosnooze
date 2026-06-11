@@ -11,6 +11,7 @@ from homeassistant.config_entries import ConfigEntryState
 from homeassistant.const import ATTR_ENTITY_ID
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ServiceValidationError
+from homeassistant.helpers import entity_registry as er
 from homeassistant.util import dt as dt_util
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
@@ -21,6 +22,7 @@ SERVICES = {
     "cancel",
     "cancel_all",
     "cancel_scheduled",
+    "clear_notification",
     "pause",
     "pause_by_area",
     "pause_by_label",
@@ -44,9 +46,11 @@ async def smoke_hass(hass: HomeAssistant):
     hass.http.async_register_static_paths = AsyncMock()
     hass.config.components.update({"automation", "frontend", "http", "lovelace"})
 
-    hass.services.async_register("automation", "turn_off", AsyncMock())
-    hass.services.async_register("automation", "turn_on", AsyncMock())
-    yield hass
+    turn_off = AsyncMock()
+    turn_on = AsyncMock()
+    hass.services.async_register("automation", "turn_off", turn_off)
+    hass.services.async_register("automation", "turn_on", turn_on)
+    yield hass, turn_off, turn_on
 
 
 async def setup_entry(hass: HomeAssistant) -> MockConfigEntry:
@@ -76,52 +80,65 @@ def fake_disable_scheduler(unsub: MagicMock):
     return schedule
 
 
-async def test_import_and_minimal_setup_registers_core_surface(smoke_hass: HomeAssistant) -> None:
+async def test_import_and_minimal_setup_registers_core_surface(smoke_hass) -> None:
     """The integration imports, loads, and exposes its release-critical surface."""
     integration = importlib.import_module("custom_components.autosnooze")
     assert callable(integration.async_setup_entry)
 
-    entry = await setup_entry(smoke_hass)
+    hass, _, _ = smoke_hass
+    entry = await setup_entry(hass)
 
     assert entry.state is ConfigEntryState.LOADED
-    assert entry.runtime_data.hass is smoke_hass
-    assert smoke_hass.states.get("sensor.autosnooze_snoozed_automations") is not None
-    assert {service for service in SERVICES if smoke_hass.services.has_service(DOMAIN, service)} == SERVICES
+    assert entry.runtime_data.hass is hass
+    sensor = hass.states.get("sensor.autosnooze_snoozed_automations")
+    assert sensor is not None
+    assert sensor.state == "0"
+    assert sensor.attributes["paused"] == {}
+    assert sensor.attributes["scheduled"] == {}
+    assert {service for service in SERVICES if hass.services.has_service(DOMAIN, service)} == SERVICES
 
 
-async def test_pause_service_changes_state_and_schedules_resume(smoke_hass: HomeAssistant) -> None:
+async def test_pause_service_changes_state_and_schedules_resume(smoke_hass) -> None:
     """A basic snooze disables an automation, records it, and schedules its resume."""
-    entry = await setup_entry(smoke_hass)
-    smoke_hass.states.async_set("automation.kitchen", "on", {"friendly_name": "Kitchen"})
+    hass, turn_off, turn_on = smoke_hass
+    entry = await setup_entry(hass)
+    hass.states.async_set("automation.kitchen", "on", {"friendly_name": "Kitchen"})
 
     timer_unsub = MagicMock()
     with patch(
         "custom_components.autosnooze.services.schedule_resume", side_effect=fake_resume_scheduler(timer_unsub)
     ) as schedule:
-        await smoke_hass.services.async_call(
+        await hass.services.async_call(
             DOMAIN,
             "pause",
             {ATTR_ENTITY_ID: ["automation.kitchen"], "minutes": 5},
             blocking=True,
         )
-        await smoke_hass.async_block_till_done()
+        await hass.async_block_till_done()
 
     paused = entry.runtime_data.paused["automation.kitchen"]
-    assert paused.resume_at is not None
-    assert "automation.kitchen" in entry.runtime_data.timers
-    schedule.assert_called_once()
-    sensor_state = smoke_hass.states.get("sensor.autosnooze_snoozed_automations")
+    assert paused.entity_id == "automation.kitchen"
+    assert paused.friendly_name == "Kitchen"
+    assert timedelta(minutes=4, seconds=50) < paused.resume_at - paused.paused_at <= timedelta(minutes=5)
+    assert entry.runtime_data.timers == {"automation.kitchen": timer_unsub}
+    schedule.assert_called_once_with(hass, entry.runtime_data, "automation.kitchen", paused.resume_at)
+    turn_off.assert_awaited_once()
+    assert turn_off.await_args.args[0].data == {ATTR_ENTITY_ID: "automation.kitchen"}
+    turn_on.assert_not_awaited()
+    sensor_state = hass.states.get("sensor.autosnooze_snoozed_automations")
     assert sensor_state.state == "1"
-    assert "automation.kitchen" in sensor_state.attributes["paused"]
+    assert set(sensor_state.attributes["paused"]) == {"automation.kitchen"}
+    assert sensor_state.attributes["scheduled"] == {}
 
 
-async def test_invalid_pause_fails_without_mutating_runtime(smoke_hass: HomeAssistant) -> None:
+async def test_invalid_pause_fails_without_mutating_runtime(smoke_hass) -> None:
     """Invalid service input fails clearly and leaves no partial work behind."""
-    entry = await setup_entry(smoke_hass)
-    smoke_hass.states.async_set("automation.kitchen", "on", {"friendly_name": "Kitchen"})
+    hass, turn_off, turn_on = smoke_hass
+    entry = await setup_entry(hass)
+    hass.states.async_set("automation.kitchen", "on", {"friendly_name": "Kitchen"})
 
-    with pytest.raises(ServiceValidationError):
-        await smoke_hass.services.async_call(
+    with pytest.raises(ServiceValidationError) as exc_info:
+        await hass.services.async_call(
             DOMAIN,
             "pause",
             {ATTR_ENTITY_ID: ["automation.kitchen"], "minutes": 0},
@@ -129,50 +146,60 @@ async def test_invalid_pause_fails_without_mutating_runtime(smoke_hass: HomeAssi
         )
 
     assert entry.state is ConfigEntryState.LOADED
+    assert exc_info.value.translation_key == "invalid_duration"
     assert entry.runtime_data.paused == {}
     assert entry.runtime_data.timers == {}
+    turn_off.assert_not_awaited()
+    turn_on.assert_not_awaited()
 
 
-async def test_cancel_resumes_automation_and_cleans_runtime(smoke_hass: HomeAssistant) -> None:
+async def test_cancel_resumes_automation_and_cleans_runtime(smoke_hass) -> None:
     """A user can end a snooze and leave no timer or paused state behind."""
-    entry = await setup_entry(smoke_hass)
-    smoke_hass.states.async_set("automation.kitchen", "on", {"friendly_name": "Kitchen"})
+    hass, turn_off, turn_on = smoke_hass
+    entry = await setup_entry(hass)
+    hass.states.async_set("automation.kitchen", "on", {"friendly_name": "Kitchen"})
     timer_unsub = MagicMock()
 
     with patch("custom_components.autosnooze.services.schedule_resume", side_effect=fake_resume_scheduler(timer_unsub)):
-        await smoke_hass.services.async_call(
+        await hass.services.async_call(
             DOMAIN,
             "pause",
             {ATTR_ENTITY_ID: ["automation.kitchen"], "minutes": 5},
             blocking=True,
         )
 
-    await smoke_hass.services.async_call(
+    await hass.services.async_call(
         DOMAIN,
         "cancel",
         {ATTR_ENTITY_ID: ["automation.kitchen"]},
         blocking=True,
     )
-    await smoke_hass.async_block_till_done()
+    await hass.async_block_till_done()
 
     assert entry.runtime_data.paused == {}
     assert entry.runtime_data.timers == {}
     timer_unsub.assert_called_once()
-    assert smoke_hass.states.get("sensor.autosnooze_snoozed_automations").state == "0"
+    turn_off.assert_awaited_once()
+    turn_on.assert_awaited_once()
+    assert turn_on.await_args.args[0].data == {ATTR_ENTITY_ID: "automation.kitchen"}
+    sensor = hass.states.get("sensor.autosnooze_snoozed_automations")
+    assert sensor.state == "0"
+    assert sensor.attributes["paused"] == {}
 
 
-async def test_future_snooze_can_be_scheduled_and_canceled(smoke_hass: HomeAssistant) -> None:
+async def test_future_snooze_can_be_scheduled_and_canceled(smoke_hass) -> None:
     """A future snooze registers one schedule and can be removed cleanly."""
-    entry = await setup_entry(smoke_hass)
-    smoke_hass.states.async_set("automation.kitchen", "on", {"friendly_name": "Kitchen"})
+    hass, turn_off, turn_on = smoke_hass
+    entry = await setup_entry(hass)
+    hass.states.async_set("automation.kitchen", "on", {"friendly_name": "Kitchen"})
     timer_unsub = MagicMock()
     disable_at = dt_util.utcnow() + timedelta(minutes=10)
     resume_at = disable_at + timedelta(minutes=20)
 
     with patch(
         "custom_components.autosnooze.services.schedule_disable", side_effect=fake_disable_scheduler(timer_unsub)
-    ):
-        await smoke_hass.services.async_call(
+    ) as schedule:
+        await hass.services.async_call(
             DOMAIN,
             "pause",
             {
@@ -183,11 +210,19 @@ async def test_future_snooze_can_be_scheduled_and_canceled(smoke_hass: HomeAssis
             blocking=True,
         )
 
-    assert "automation.kitchen" in entry.runtime_data.scheduled
+    scheduled = entry.runtime_data.scheduled["automation.kitchen"]
+    assert scheduled.disable_at == disable_at
+    assert scheduled.resume_at == resume_at
     assert entry.runtime_data.paused == {}
-    assert entry.runtime_data.scheduled_timers["automation.kitchen"] is timer_unsub
+    assert entry.runtime_data.scheduled_timers == {"automation.kitchen": timer_unsub}
+    schedule.assert_called_once_with(hass, entry.runtime_data, "automation.kitchen", scheduled)
+    turn_off.assert_not_awaited()
+    turn_on.assert_not_awaited()
+    sensor = hass.states.get("sensor.autosnooze_snoozed_automations")
+    assert sensor.state == "0"
+    assert set(sensor.attributes["scheduled"]) == {"automation.kitchen"}
 
-    await smoke_hass.services.async_call(
+    await hass.services.async_call(
         DOMAIN,
         "cancel_scheduled",
         {ATTR_ENTITY_ID: ["automation.kitchen"]},
@@ -197,9 +232,10 @@ async def test_future_snooze_can_be_scheduled_and_canceled(smoke_hass: HomeAssis
     assert entry.runtime_data.scheduled == {}
     assert entry.runtime_data.scheduled_timers == {}
     timer_unsub.assert_called_once()
+    assert hass.states.get("sensor.autosnooze_snoozed_automations").attributes["scheduled"] == {}
 
 
-async def test_setup_recovers_active_storage_and_discards_expired(smoke_hass: HomeAssistant) -> None:
+async def test_setup_recovers_active_storage_and_discards_expired(smoke_hass) -> None:
     """Setup restores only active persisted work and schedules it exactly once."""
     now = dt_util.utcnow()
     stored = {
@@ -223,30 +259,46 @@ async def test_setup_recovers_active_storage_and_discards_expired(smoke_hass: Ho
             },
         },
     }
-    smoke_hass.states.async_set("automation.active", "off", {"friendly_name": "Active"})
-    smoke_hass.states.async_set("automation.expired", "off", {"friendly_name": "Expired"})
-    smoke_hass.states.async_set("automation.future", "on", {"friendly_name": "Future"})
+    hass, turn_off, turn_on = smoke_hass
+    hass.states.async_set("automation.active", "off", {"friendly_name": "Active"})
+    hass.states.async_set("automation.expired", "off", {"friendly_name": "Expired"})
+    hass.states.async_set("automation.future", "on", {"friendly_name": "Future"})
+    timer_unsubs = [MagicMock(), MagicMock()]
 
     with (
         patch("custom_components.autosnooze.Store.async_load", AsyncMock(return_value=stored)),
-        patch("custom_components.autosnooze.runtime.ports.async_track_point_in_time", return_value=MagicMock()),
+        patch(
+            "custom_components.autosnooze.runtime.ports.async_track_point_in_time", side_effect=timer_unsubs
+        ) as track,
     ):
-        entry = await setup_entry(smoke_hass)
+        entry = await setup_entry(hass)
 
     assert set(entry.runtime_data.paused) == {"automation.active"}
     assert set(entry.runtime_data.scheduled) == {"automation.future"}
     assert set(entry.runtime_data.timers) == {"automation.active"}
     assert set(entry.runtime_data.scheduled_timers) == {"automation.future"}
+    assert entry.runtime_data.paused["automation.active"].friendly_name == "Active"
+    assert entry.runtime_data.scheduled["automation.future"].disable_at == now + timedelta(minutes=10)
+    assert track.call_count == 2
+    turn_on.assert_awaited_once()
+    assert turn_on.await_args.args[0].data == {ATTR_ENTITY_ID: "automation.expired"}
+    turn_off.assert_awaited_once()
+    assert turn_off.await_args.args[0].data == {ATTR_ENTITY_ID: "automation.active"}
+    sensor = hass.states.get("sensor.autosnooze_snoozed_automations")
+    assert sensor.state == "1"
+    assert set(sensor.attributes["paused"]) == {"automation.active"}
+    assert set(sensor.attributes["scheduled"]) == {"automation.future"}
 
 
-async def test_unload_reload_cleans_up_without_duplicates(smoke_hass: HomeAssistant) -> None:
+async def test_unload_reload_cleans_up_without_duplicates(smoke_hass) -> None:
     """Unload/reload removes callbacks and restores exactly one core surface."""
-    entry = await setup_entry(smoke_hass)
-    smoke_hass.states.async_set("automation.kitchen", "on", {"friendly_name": "Kitchen"})
+    hass, _, _ = smoke_hass
+    entry = await setup_entry(hass)
+    hass.states.async_set("automation.kitchen", "on", {"friendly_name": "Kitchen"})
 
     timer_unsub = MagicMock()
     with patch("custom_components.autosnooze.services.schedule_resume", side_effect=fake_resume_scheduler(timer_unsub)):
-        await smoke_hass.services.async_call(
+        await hass.services.async_call(
             DOMAIN,
             "pause",
             {ATTR_ENTITY_ID: ["automation.kitchen"], "minutes": 5},
@@ -255,23 +307,24 @@ async def test_unload_reload_cleans_up_without_duplicates(smoke_hass: HomeAssist
 
     old_data = entry.runtime_data
     assert old_data.timers["automation.kitchen"] is timer_unsub
-    assert await smoke_hass.config_entries.async_unload(entry.entry_id)
-    await smoke_hass.async_block_till_done()
+    assert await hass.config_entries.async_unload(entry.entry_id)
+    await hass.async_block_till_done()
 
     assert old_data.unloaded
     assert old_data.timers == {}
     assert old_data.scheduled_timers == {}
     assert old_data.notification_timers == {}
+    assert old_data.listeners == []
     timer_unsub.assert_called_once()
-    assert not any(smoke_hass.services.has_service(DOMAIN, service) for service in SERVICES)
-    assert smoke_hass.states.get("sensor.autosnooze_snoozed_automations").state == "unavailable"
+    assert not any(hass.services.has_service(DOMAIN, service) for service in SERVICES)
+    assert hass.states.get("sensor.autosnooze_snoozed_automations").state == "unavailable"
 
-    assert await smoke_hass.config_entries.async_setup(entry.entry_id)
-    await smoke_hass.async_block_till_done()
+    assert await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done()
 
     assert entry.state is ConfigEntryState.LOADED
     assert entry.runtime_data is not old_data
-    assert (
-        len([state for state in smoke_hass.states.async_all() if state.entity_id.startswith("sensor.autosnooze")]) == 1
-    )
-    assert {service for service in SERVICES if smoke_hass.services.has_service(DOMAIN, service)} == SERVICES
+    assert len([state for state in hass.states.async_all() if state.entity_id.startswith("sensor.autosnooze")]) == 1
+    registry = er.async_get(hass)
+    assert len([entity for entity in registry.entities.values() if entity.platform == DOMAIN]) == 1
+    assert {service for service in SERVICES if hass.services.has_service(DOMAIN, service)} == SERVICES
