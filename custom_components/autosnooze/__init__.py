@@ -139,6 +139,7 @@ async def async_unload_entry(hass: HomeAssistant, entry: AutomationPauseConfigEn
                 "pause_by_area",
                 "pause_by_label",
                 "cancel_scheduled",
+                "clear_notification",
                 "adjust",
             ):
                 hass.services.async_remove(DOMAIN, service)

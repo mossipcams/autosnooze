@@ -17,6 +17,19 @@ The pytest suite blocks release unless these critical behaviors work:
 7. Stored active snoozes and schedules recover without duplicates.
 8. Unload/reload cleans callbacks and restores one non-duplicated core surface.
 
+## Assertion Standard
+
+Each mutating smoke path verifies all applicable observable outcomes:
+
+- The exact Home Assistant service call and resulting automation state.
+- Exact runtime paused, scheduled, and timer membership.
+- The public sensor state and attributes.
+- Independently decoded storage payload fields, without reusing production serializers for expected values.
+- Cleanup of callbacks, services, entities, and stale runtime data.
+
+`tests/test_smoke.py` is included in the backend mutation-test configuration so
+critical-path assertion strength is continuously exercised against production mutations.
+
 ## CI
 
 `.github/workflows/build.yml` always runs `smoke-backend`. Playwright is not
