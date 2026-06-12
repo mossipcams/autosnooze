@@ -17,7 +17,7 @@ if TYPE_CHECKING:
 
 import pytest
 
-from custom_components.autosnooze.services import (
+from custom_components.autosnooze.application.pause import (
     _contains_guardrail_term,
     _is_critical_automation,
     get_automations_by_area,
@@ -56,7 +56,7 @@ class TestGetAutomationsByArea:
         }
 
         with patch(
-            "custom_components.autosnooze.services.er.async_get",
+            "custom_components.autosnooze.application.pause.er.async_get",
             return_value=mock_entity_reg,
         ):
             result = get_automations_by_area(mock_hass, ["living_room"])
@@ -74,7 +74,7 @@ class TestGetAutomationsByArea:
         }
 
         with patch(
-            "custom_components.autosnooze.services.er.async_get",
+            "custom_components.autosnooze.application.pause.er.async_get",
             return_value=mock_entity_reg,
         ):
             result = get_automations_by_area(mock_hass, ["living_room"])
@@ -92,7 +92,7 @@ class TestGetAutomationsByArea:
         }
 
         with patch(
-            "custom_components.autosnooze.services.er.async_get",
+            "custom_components.autosnooze.application.pause.er.async_get",
             return_value=mock_entity_reg,
         ):
             result = get_automations_by_area(mock_hass, ["living_room"])
@@ -110,7 +110,7 @@ class TestGetAutomationsByArea:
         }
 
         with patch(
-            "custom_components.autosnooze.services.er.async_get",
+            "custom_components.autosnooze.application.pause.er.async_get",
             return_value=mock_entity_reg,
         ):
             result = get_automations_by_area(mock_hass, ["living_room", "bedroom"])
@@ -129,7 +129,7 @@ class TestGetAutomationsByArea:
         }
 
         with patch(
-            "custom_components.autosnooze.services.er.async_get",
+            "custom_components.autosnooze.application.pause.er.async_get",
             return_value=mock_entity_reg,
         ):
             result = get_automations_by_area(mock_hass, ["living_room"])
@@ -151,7 +151,7 @@ class TestGetAutomationsByLabel:
         }
 
         with patch(
-            "custom_components.autosnooze.services.er.async_get",
+            "custom_components.autosnooze.application.pause.er.async_get",
             return_value=mock_entity_reg,
         ):
             result = get_automations_by_label(mock_hass, ["snooze"])
@@ -169,7 +169,7 @@ class TestGetAutomationsByLabel:
         }
 
         with patch(
-            "custom_components.autosnooze.services.er.async_get",
+            "custom_components.autosnooze.application.pause.er.async_get",
             return_value=mock_entity_reg,
         ):
             result = get_automations_by_label(mock_hass, ["snooze"])
@@ -186,7 +186,7 @@ class TestGetAutomationsByLabel:
         }
 
         with patch(
-            "custom_components.autosnooze.services.er.async_get",
+            "custom_components.autosnooze.application.pause.er.async_get",
             return_value=mock_entity_reg,
         ):
             result = get_automations_by_label(mock_hass, ["snooze"])
@@ -204,7 +204,7 @@ class TestGetAutomationsByLabel:
         }
 
         with patch(
-            "custom_components.autosnooze.services.er.async_get",
+            "custom_components.autosnooze.application.pause.er.async_get",
             return_value=mock_entity_reg,
         ):
             result = get_automations_by_label(mock_hass, ["label1", "label2"])
@@ -230,7 +230,7 @@ class TestGetAutomationsByLabel:
         }
 
         with patch(
-            "custom_components.autosnooze.services.er.async_get",
+            "custom_components.autosnooze.application.pause.er.async_get",
             return_value=mock_entity_reg,
         ):
             result = get_automations_by_label(mock_hass, ["snooze"])
@@ -246,7 +246,7 @@ class TestGetAutomationsByLabel:
         }
 
         with patch(
-            "custom_components.autosnooze.services.er.async_get",
+            "custom_components.autosnooze.application.pause.er.async_get",
             return_value=mock_entity_reg,
         ):
             result = get_automations_by_label(mock_hass, ["b"])
@@ -260,7 +260,7 @@ class TestAsyncPauseAutomations:
     @pytest.mark.asyncio
     async def test_schedule_mode_sets_disable_at_to_now_when_past(self) -> None:
         """Test that schedule mode sets disable_at appropriately for immediate disable."""
-        from custom_components.autosnooze.services import async_pause_automations
+        from custom_components.autosnooze.application.pause import async_pause_automations
         from custom_components.autosnooze.runtime.state import AutomationPauseData
 
         mock_hass = MagicMock()
@@ -276,7 +276,7 @@ class TestAsyncPauseAutomations:
         disable_at = now - timedelta(hours=1)
         resume_at = now + timedelta(hours=2)
 
-        with patch("custom_components.autosnooze.services.schedule_resume"):
+        with patch("custom_components.autosnooze.application.pause.schedule_resume"):
             await async_pause_automations(
                 mock_hass,
                 data,
@@ -294,7 +294,7 @@ class TestAsyncPauseAutomations:
     @pytest.mark.asyncio
     async def test_future_schedule_creates_scheduled_snooze(self) -> None:
         """Test that future schedule creates a scheduled snooze."""
-        from custom_components.autosnooze.services import async_pause_automations
+        from custom_components.autosnooze.application.pause import async_pause_automations
         from custom_components.autosnooze.runtime.state import AutomationPauseData
 
         mock_hass = MagicMock()
@@ -309,7 +309,7 @@ class TestAsyncPauseAutomations:
         disable_at = now + timedelta(hours=1)  # Future
         resume_at = now + timedelta(hours=2)
 
-        with patch("custom_components.autosnooze.services.schedule_disable"):
+        with patch("custom_components.autosnooze.application.pause.schedule_disable"):
             await async_pause_automations(
                 mock_hass,
                 data,
@@ -325,7 +325,7 @@ class TestAsyncPauseAutomations:
     @pytest.mark.asyncio
     async def test_immediate_pause_clears_existing_scheduled_snooze(self) -> None:
         """A fresh immediate pause should replace a pending scheduled snooze."""
-        from custom_components.autosnooze.services import async_pause_automations
+        from custom_components.autosnooze.application.pause import async_pause_automations
         from custom_components.autosnooze.runtime.state import AutomationPauseData
         from custom_components.autosnooze.models import ScheduledSnooze
 
@@ -347,7 +347,7 @@ class TestAsyncPauseAutomations:
         scheduled_unsub = MagicMock()
         data.scheduled_timers["automation.test"] = scheduled_unsub
 
-        with patch("custom_components.autosnooze.services.schedule_resume"):
+        with patch("custom_components.autosnooze.application.pause.schedule_resume"):
             await async_pause_automations(mock_hass, data, ["automation.test"], hours=1)
 
         assert "automation.test" in data.paused
@@ -357,7 +357,7 @@ class TestAsyncPauseAutomations:
     @pytest.mark.asyncio
     async def test_future_schedule_clears_existing_active_pause(self) -> None:
         """A fresh future schedule should replace an active pause for the same entity."""
-        from custom_components.autosnooze.services import async_pause_automations
+        from custom_components.autosnooze.application.pause import async_pause_automations
         from custom_components.autosnooze.runtime.state import AutomationPauseData
         from custom_components.autosnooze.models import PausedAutomation
 
@@ -387,10 +387,10 @@ class TestAsyncPauseAutomations:
 
         with (
             patch(
-                "custom_components.autosnooze.services.async_set_automation_state",
+                "custom_components.autosnooze.application.pause.async_set_automation_state",
                 side_effect=record_state_change,
             ),
-            patch("custom_components.autosnooze.services.schedule_disable"),
+            patch("custom_components.autosnooze.application.pause.schedule_disable"),
         ):
             await async_pause_automations(
                 mock_hass,
@@ -408,7 +408,7 @@ class TestAsyncPauseAutomations:
     @pytest.mark.asyncio
     async def test_failed_wake_keeps_active_pause_when_future_schedule_replaces_it(self) -> None:
         """A failed replacement wake must not strand the automation disabled."""
-        from custom_components.autosnooze.services import async_pause_automations
+        from custom_components.autosnooze.application.pause import async_pause_automations
         from custom_components.autosnooze.runtime.state import AutomationPauseData
         from custom_components.autosnooze.models import PausedAutomation
 
@@ -437,8 +437,8 @@ class TestAsyncPauseAutomations:
             return False
 
         with (
-            patch("custom_components.autosnooze.services.async_set_automation_state", side_effect=fail_wake),
-            patch("custom_components.autosnooze.services.schedule_disable") as schedule_disable,
+            patch("custom_components.autosnooze.application.pause.async_set_automation_state", side_effect=fail_wake),
+            patch("custom_components.autosnooze.application.pause.schedule_disable") as schedule_disable,
         ):
             await async_pause_automations(
                 mock_hass,
@@ -458,7 +458,7 @@ class TestAsyncPauseAutomations:
     @pytest.mark.asyncio
     async def test_continues_on_failed_automation(self) -> None:
         """Test that other automations are still paused if one fails."""
-        from custom_components.autosnooze.services import async_pause_automations
+        from custom_components.autosnooze.application.pause import async_pause_automations
         from custom_components.autosnooze.runtime.state import AutomationPauseData
 
         mock_hass = MagicMock()
@@ -482,7 +482,7 @@ class TestAsyncPauseAutomations:
         mock_store.async_save = AsyncMock()
         data = AutomationPauseData(store=mock_store)
 
-        with patch("custom_components.autosnooze.services.schedule_resume"):
+        with patch("custom_components.autosnooze.application.pause.schedule_resume"):
             await async_pause_automations(
                 mock_hass,
                 data,
@@ -496,7 +496,7 @@ class TestAsyncPauseAutomations:
     @pytest.mark.asyncio
     async def test_notifies_listeners_after_pause(self) -> None:
         """Test that listeners are notified after pausing."""
-        from custom_components.autosnooze.services import async_pause_automations
+        from custom_components.autosnooze.application.pause import async_pause_automations
         from custom_components.autosnooze.runtime.state import AutomationPauseData
 
         mock_hass = MagicMock()
@@ -510,7 +510,7 @@ class TestAsyncPauseAutomations:
         listener = MagicMock()
         data.add_listener(listener)
 
-        with patch("custom_components.autosnooze.services.schedule_resume"):
+        with patch("custom_components.autosnooze.application.pause.schedule_resume"):
             await async_pause_automations(
                 mock_hass,
                 data,
@@ -523,7 +523,7 @@ class TestAsyncPauseAutomations:
     @pytest.mark.asyncio
     async def test_releases_lock_before_waiting_on_turn_off_service(self) -> None:
         """Pause should not hold data.lock while awaiting automation turn-off."""
-        from custom_components.autosnooze.services import async_pause_automations
+        from custom_components.autosnooze.application.pause import async_pause_automations
         from custom_components.autosnooze.runtime.state import AutomationPauseData
 
         mock_hass = MagicMock()
@@ -540,7 +540,9 @@ class TestAsyncPauseAutomations:
             await allow_service_finish.wait()
             return True
 
-        with patch("custom_components.autosnooze.services.async_set_automation_state", side_effect=slow_turn_off):
+        with patch(
+            "custom_components.autosnooze.application.pause.async_set_automation_state", side_effect=slow_turn_off
+        ):
             pause_task = asyncio.create_task(async_pause_automations(mock_hass, data, ["automation.test"], hours=1))
 
             await asyncio.wait_for(service_started.wait(), timeout=1)
@@ -613,7 +615,7 @@ class TestUnloadGuards:
     async def test_async_pause_automations_noops_when_unloaded(self) -> None:
         """Pause entrypoint should skip all work when data.unloaded is True."""
         from custom_components.autosnooze.runtime.state import AutomationPauseData
-        from custom_components.autosnooze.services import async_pause_automations
+        from custom_components.autosnooze.application.pause import async_pause_automations
 
         mock_hass = MagicMock()
         mock_hass.states.get.return_value = MagicMock(attributes={"friendly_name": "Test"})
@@ -624,7 +626,7 @@ class TestUnloadGuards:
         data.unloaded = True
 
         with patch(
-            "custom_components.autosnooze.services.async_set_automation_state", new_callable=AsyncMock
+            "custom_components.autosnooze.application.pause.async_set_automation_state", new_callable=AsyncMock
         ) as set_state:
             await async_pause_automations(
                 mock_hass,
@@ -659,9 +661,9 @@ class TestUnloadGuards:
         call.data = {ATTR_ENTITY_ID: ["automation.test"], "hours": 1}
 
         with (
-            patch("custom_components.autosnooze.services._validate_guardrails") as validate_guardrails,
+            patch("custom_components.autosnooze.application.pause._validate_guardrails") as validate_guardrails,
             patch(
-                "custom_components.autosnooze.services.async_pause_automations", new_callable=AsyncMock
+                "custom_components.autosnooze.application.pause.async_pause_automations", new_callable=AsyncMock
             ) as pause_automations,
         ):
             await pause_handler(call)
@@ -691,11 +693,12 @@ class TestUnloadGuards:
 
         with (
             patch(
-                "custom_components.autosnooze.services.get_automations_by_area", return_value=["automation.test"]
+                "custom_components.autosnooze.application.pause.get_automations_by_area",
+                return_value=["automation.test"],
             ) as get_by_area,
-            patch("custom_components.autosnooze.services._validate_guardrails") as validate_guardrails,
+            patch("custom_components.autosnooze.application.pause._validate_guardrails") as validate_guardrails,
             patch(
-                "custom_components.autosnooze.services.async_pause_automations", new_callable=AsyncMock
+                "custom_components.autosnooze.application.pause.async_pause_automations", new_callable=AsyncMock
             ) as pause_automations,
         ):
             await pause_by_area_handler(call)
@@ -741,9 +744,9 @@ class TestServiceHandlerContracts:
         }
 
         with (
-            patch("custom_components.autosnooze.services._validate_guardrails") as validate_guardrails,
+            patch("custom_components.autosnooze.application.pause._validate_guardrails") as validate_guardrails,
             patch(
-                "custom_components.autosnooze.services.async_pause_automations",
+                "custom_components.autosnooze.application.pause.async_pause_automations",
                 new_callable=AsyncMock,
             ) as pause_automations,
         ):
@@ -787,9 +790,9 @@ class TestServiceHandlerContracts:
         }
 
         with (
-            patch("custom_components.autosnooze.services._validate_guardrails") as validate_guardrails,
+            patch("custom_components.autosnooze.application.pause._validate_guardrails") as validate_guardrails,
             patch(
-                "custom_components.autosnooze.services.async_pause_automations",
+                "custom_components.autosnooze.application.pause.async_pause_automations",
                 new_callable=AsyncMock,
             ) as pause_automations,
         ):
@@ -825,12 +828,12 @@ class TestServiceHandlerContracts:
 
         with (
             patch(
-                "custom_components.autosnooze.services.get_automations_by_area",
+                "custom_components.autosnooze.application.pause.get_automations_by_area",
                 return_value=["automation.kitchen"],
             ),
-            patch("custom_components.autosnooze.services._validate_guardrails"),
+            patch("custom_components.autosnooze.application.pause._validate_guardrails"),
             patch(
-                "custom_components.autosnooze.services.async_pause_automations",
+                "custom_components.autosnooze.application.pause.async_pause_automations",
                 new_callable=AsyncMock,
             ) as pause_automations,
         ):
@@ -961,7 +964,7 @@ class TestSaveFailurePropagation:
     async def test_pause_raises_when_save_fails(self) -> None:
         """Pause should raise ServiceValidationError when async_save returns False."""
         from custom_components.autosnooze.runtime.state import AutomationPauseData
-        from custom_components.autosnooze.services import async_pause_automations
+        from custom_components.autosnooze.application.pause import async_pause_automations
 
         mock_hass = MagicMock()
         mock_hass.states.get.return_value = MagicMock(attributes={"friendly_name": "Test"})
@@ -970,12 +973,16 @@ class TestSaveFailurePropagation:
 
         with (
             patch(
-                "custom_components.autosnooze.services.async_set_automation_state",
+                "custom_components.autosnooze.application.pause.async_set_automation_state",
                 new_callable=AsyncMock,
                 return_value=True,
             ),
-            patch("custom_components.autosnooze.services.schedule_resume"),
-            patch("custom_components.autosnooze.services.async_save", new_callable=AsyncMock, return_value=False),
+            patch("custom_components.autosnooze.application.pause.schedule_resume"),
+            patch(
+                "custom_components.autosnooze.application.pause.runtime_async_save",
+                new_callable=AsyncMock,
+                return_value=False,
+            ),
             pytest.raises(ServiceValidationError) as exc_info,
         ):
             await async_pause_automations(mock_hass, data, ["automation.test"], hours=1)

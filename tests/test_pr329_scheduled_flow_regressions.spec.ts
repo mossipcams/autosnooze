@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest';
 
-import { validateScheduledPauseInput } from '../src/features/scheduled-snooze/index.js';
+import { validateScheduledPauseInput } from '../src/features/pause/index.js';
 
 describe('PR #329 Scheduled Flow Regressions', () => {
   test('rejects invalid resume date strings instead of treating them as valid', () => {

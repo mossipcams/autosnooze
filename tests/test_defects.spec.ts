@@ -141,30 +141,30 @@ describe('Defect Fixes - Regression Tests', () => {
 
   describe('Defect #4: Entity Registry fetch for categories', () => {
     test('card has _entityRegistry property', () => {
-      expect(card._entityRegistry).toBeDefined();
+      expect(card._shell.entities).toBeDefined();
     });
 
     test('card has _entityRegistryFetched flag', () => {
-      expect(typeof card._entityRegistryFetched).toBe('boolean');
+      expect(typeof card._shell.entitiesLoaded).toBe('boolean');
     });
 
     test('_fetchEntityRegistry method exists', () => {
-      expect(typeof card._fetchEntityRegistry).toBe('function');
+      expect(typeof card._shell.loadEntities).toBe('function');
     });
 
     test('_fetchEntityRegistry populates registry when called', async () => {
-      card._entityRegistryFetched = false;
-      card._entityRegistry = {};
+      card._shell.entitiesLoaded = false;
+      card._shell.entities = {};
       card.hass.connection = {
         sendMessagePromise: vi.fn().mockResolvedValue([
           { entity_id: 'automation.test', categories: {}, labels: [] },
         ]),
       };
 
-      await card._fetchEntityRegistry();
+      await card._shell.loadEntities(card.hass);
 
-      expect(card._entityRegistryFetched).toBe(true);
-      expect(card._entityRegistry['automation.test']).toBeDefined();
+      expect(card._shell.entitiesLoaded).toBe(true);
+      expect(card._shell.entities['automation.test']).toBeDefined();
     });
   });
 

@@ -36,7 +36,7 @@ class TestDeletedAutomationCleanup:
     @pytest.mark.asyncio
     async def test_deleted_paused_automation_is_cleaned_up(self, mock_hass: MagicMock, mock_store: MagicMock) -> None:
         """Test that deleted automations are removed from paused storage on load."""
-        from custom_components.autosnooze.coordinator import async_load_stored as _async_load_stored
+        from custom_components.autosnooze import async_load_stored as _async_load_stored
         from custom_components.autosnooze.runtime.state import AutomationPauseData
 
         now = datetime.now(UTC)
@@ -70,7 +70,7 @@ class TestDeletedAutomationCleanup:
     @pytest.mark.asyncio
     async def test_existing_paused_automation_is_loaded(self, mock_hass: MagicMock, mock_store: MagicMock) -> None:
         """Test that existing automations are still loaded from paused storage."""
-        from custom_components.autosnooze.coordinator import async_load_stored as _async_load_stored
+        from custom_components.autosnooze import async_load_stored as _async_load_stored
         from custom_components.autosnooze.runtime.state import AutomationPauseData
 
         now = datetime.now(UTC)
@@ -96,7 +96,7 @@ class TestDeletedAutomationCleanup:
         mock_state.attributes = {"friendly_name": "Existing Automation"}
         mock_hass.states.get.return_value = mock_state
 
-        with patch("custom_components.autosnooze.coordinator.schedule_resume"):
+        with patch("custom_components.autosnooze.runtime.ports.schedule_resume"):
             await _async_load_stored(mock_hass, data)
 
         # Existing automation SHOULD be in paused dict
@@ -107,7 +107,7 @@ class TestDeletedAutomationCleanup:
         self, mock_hass: MagicMock, mock_store: MagicMock
     ) -> None:
         """Test that deleted automations are removed from scheduled storage on load."""
-        from custom_components.autosnooze.coordinator import async_load_stored as _async_load_stored
+        from custom_components.autosnooze import async_load_stored as _async_load_stored
         from custom_components.autosnooze.runtime.state import AutomationPauseData
 
         now = datetime.now(UTC)
@@ -138,7 +138,7 @@ class TestDeletedAutomationCleanup:
     @pytest.mark.asyncio
     async def test_existing_scheduled_automation_is_loaded(self, mock_hass: MagicMock, mock_store: MagicMock) -> None:
         """Test that existing automations are still loaded from scheduled storage."""
-        from custom_components.autosnooze.coordinator import async_load_stored as _async_load_stored
+        from custom_components.autosnooze import async_load_stored as _async_load_stored
         from custom_components.autosnooze.runtime.state import AutomationPauseData
 
         now = datetime.now(UTC)
@@ -161,7 +161,7 @@ class TestDeletedAutomationCleanup:
         mock_state.attributes = {"friendly_name": "Existing Scheduled"}
         mock_hass.states.get.return_value = mock_state
 
-        with patch("custom_components.autosnooze.coordinator.schedule_disable"):
+        with patch("custom_components.autosnooze.runtime.ports.schedule_disable"):
             await _async_load_stored(mock_hass, data)
 
         # Existing automation SHOULD be in scheduled dict
@@ -172,7 +172,7 @@ class TestDeletedAutomationCleanup:
         self, mock_hass: MagicMock, mock_store: MagicMock
     ) -> None:
         """Test that due scheduled snoozes preserve pre-end notification config during restore."""
-        from custom_components.autosnooze.coordinator import async_load_stored as _async_load_stored
+        from custom_components.autosnooze import async_load_stored as _async_load_stored
         from custom_components.autosnooze.runtime.state import AutomationPauseData
 
         now = datetime.now(UTC)
@@ -197,7 +197,7 @@ class TestDeletedAutomationCleanup:
         mock_hass.states.get.return_value = mock_state
 
         with (
-            patch("custom_components.autosnooze.coordinator.schedule_resume"),
+            patch("custom_components.autosnooze.runtime.ports.schedule_resume"),
             patch(
                 "custom_components.autosnooze.runtime.ports.schedule_pre_resume_notification"
             ) as schedule_notification,
@@ -211,7 +211,7 @@ class TestDeletedAutomationCleanup:
     @pytest.mark.asyncio
     async def test_mixed_deleted_and_existing_automations(self, mock_hass: MagicMock, mock_store: MagicMock) -> None:
         """Test that only deleted automations are cleaned up, existing ones remain."""
-        from custom_components.autosnooze.coordinator import async_load_stored as _async_load_stored
+        from custom_components.autosnooze import async_load_stored as _async_load_stored
         from custom_components.autosnooze.runtime.state import AutomationPauseData
 
         now = datetime.now(UTC)
@@ -256,8 +256,8 @@ class TestDeletedAutomationCleanup:
         mock_hass.states.get.side_effect = get_state
 
         with (
-            patch("custom_components.autosnooze.coordinator.schedule_resume"),
-            patch("custom_components.autosnooze.coordinator.schedule_disable"),
+            patch("custom_components.autosnooze.runtime.ports.schedule_resume"),
+            patch("custom_components.autosnooze.runtime.ports.schedule_disable"),
         ):
             await _async_load_stored(mock_hass, data)
 
@@ -290,7 +290,7 @@ class TestStorageValidation:
     @pytest.mark.asyncio
     async def test_handles_empty_storage(self, mock_hass: MagicMock, mock_store: MagicMock) -> None:
         """Test that empty storage is handled gracefully."""
-        from custom_components.autosnooze.coordinator import async_load_stored as _async_load_stored
+        from custom_components.autosnooze import async_load_stored as _async_load_stored
         from custom_components.autosnooze.runtime.state import AutomationPauseData
 
         data = AutomationPauseData(store=mock_store)
@@ -304,7 +304,7 @@ class TestStorageValidation:
     @pytest.mark.asyncio
     async def test_handles_missing_paused_key(self, mock_hass: MagicMock, mock_store: MagicMock) -> None:
         """Test that missing 'paused' key is handled gracefully."""
-        from custom_components.autosnooze.coordinator import async_load_stored as _async_load_stored
+        from custom_components.autosnooze import async_load_stored as _async_load_stored
         from custom_components.autosnooze.runtime.state import AutomationPauseData
 
         data = AutomationPauseData(store=mock_store)
@@ -317,7 +317,7 @@ class TestStorageValidation:
     @pytest.mark.asyncio
     async def test_handles_missing_scheduled_key(self, mock_hass: MagicMock, mock_store: MagicMock) -> None:
         """Test that missing 'scheduled' key is handled gracefully."""
-        from custom_components.autosnooze.coordinator import async_load_stored as _async_load_stored
+        from custom_components.autosnooze import async_load_stored as _async_load_stored
         from custom_components.autosnooze.runtime.state import AutomationPauseData
 
         data = AutomationPauseData(store=mock_store)
@@ -330,7 +330,7 @@ class TestStorageValidation:
     @pytest.mark.asyncio
     async def test_skips_entries_with_invalid_datetime(self, mock_hass: MagicMock, mock_store: MagicMock) -> None:
         """Test that entries with invalid datetime are skipped."""
-        from custom_components.autosnooze.coordinator import async_load_stored as _async_load_stored
+        from custom_components.autosnooze import async_load_stored as _async_load_stored
         from custom_components.autosnooze.runtime.state import AutomationPauseData
 
         now = datetime.now(UTC)
@@ -358,7 +358,7 @@ class TestStorageValidation:
         mock_state.attributes = {"friendly_name": "Test"}
         mock_hass.states.get.return_value = mock_state
 
-        with patch("custom_components.autosnooze.coordinator.schedule_resume"):
+        with patch("custom_components.autosnooze.runtime.ports.schedule_resume"):
             await _async_load_stored(mock_hass, data)
 
         # Valid entry should be loaded, invalid should be skipped
@@ -379,7 +379,7 @@ class TestSaveFailureRecovery:
     @pytest.mark.asyncio
     async def test_save_failure_does_not_corrupt_runtime_state(self, mock_store: MagicMock) -> None:
         """Test that failed saves don't affect runtime data."""
-        from custom_components.autosnooze.coordinator import async_save as _async_save
+        from custom_components.autosnooze.runtime.ports import async_save as _async_save
         from custom_components.autosnooze.runtime.state import AutomationPauseData
         from custom_components.autosnooze.models import PausedAutomation
 

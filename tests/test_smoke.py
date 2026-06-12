@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import importlib
 from datetime import timedelta
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import ANY, AsyncMock, MagicMock, patch
 
 import pytest
 from homeassistant.config_entries import ConfigEntryState
@@ -89,7 +89,7 @@ def domain_services(hass: HomeAssistant) -> set[str]:
 def fake_resume_scheduler(unsub: MagicMock):
     """Return a scheduler fake that records the cancellation callback."""
 
-    def schedule(_hass, data, entity_id, _resume_at):
+    def schedule(_hass, data, entity_id, _resume_at, **_kwargs):
         data.timers[entity_id] = unsub
 
     return schedule
@@ -98,7 +98,7 @@ def fake_resume_scheduler(unsub: MagicMock):
 def fake_disable_scheduler(unsub: MagicMock):
     """Return a scheduler fake that records the scheduled-disable cancellation callback."""
 
-    def schedule(_hass, data, entity_id, _scheduled):
+    def schedule(_hass, data, entity_id, _scheduled, **_kwargs):
         data.scheduled_timers[entity_id] = unsub
 
     return schedule
@@ -131,7 +131,7 @@ async def test_pause_service_changes_state_and_schedules_resume(smoke_hass) -> N
 
     timer_unsub = MagicMock()
     with patch(
-        "custom_components.autosnooze.services.schedule_resume", side_effect=fake_resume_scheduler(timer_unsub)
+        "custom_components.autosnooze.application.pause.schedule_resume", side_effect=fake_resume_scheduler(timer_unsub)
     ) as schedule:
         await hass.services.async_call(
             DOMAIN,
@@ -147,7 +147,13 @@ async def test_pause_service_changes_state_and_schedules_resume(smoke_hass) -> N
     assert (paused.days, paused.hours, paused.minutes) == (0, 0, 5)
     assert timedelta(minutes=4, seconds=50) < paused.resume_at - paused.paused_at <= timedelta(minutes=5)
     assert entry.runtime_data.timers == {"automation.kitchen": timer_unsub}
-    schedule.assert_called_once_with(hass, entry.runtime_data, "automation.kitchen", paused.resume_at)
+    schedule.assert_called_once_with(
+        hass,
+        entry.runtime_data,
+        "automation.kitchen",
+        paused.resume_at,
+        resume_callback=ANY,
+    )
     turn_off.assert_awaited_once()
     assert turn_off.await_args.args[0].data == {ATTR_ENTITY_ID: "automation.kitchen"}
     turn_on.assert_not_awaited()
@@ -207,7 +213,9 @@ async def test_cancel_resumes_automation_and_cleans_runtime(smoke_hass) -> None:
     hass.states.async_set("automation.kitchen", "on", {"friendly_name": "Kitchen"})
     timer_unsub = MagicMock()
 
-    with patch("custom_components.autosnooze.services.schedule_resume", side_effect=fake_resume_scheduler(timer_unsub)):
+    with patch(
+        "custom_components.autosnooze.application.pause.schedule_resume", side_effect=fake_resume_scheduler(timer_unsub)
+    ):
         await hass.services.async_call(
             DOMAIN,
             "pause",
@@ -249,7 +257,8 @@ async def test_future_snooze_can_be_scheduled_and_canceled(smoke_hass) -> None:
     resume_at = disable_at + timedelta(minutes=20)
 
     with patch(
-        "custom_components.autosnooze.services.schedule_disable", side_effect=fake_disable_scheduler(timer_unsub)
+        "custom_components.autosnooze.application.pause.schedule_disable",
+        side_effect=fake_disable_scheduler(timer_unsub),
     ) as schedule:
         await hass.services.async_call(
             DOMAIN,
@@ -267,7 +276,13 @@ async def test_future_snooze_can_be_scheduled_and_canceled(smoke_hass) -> None:
     assert scheduled.resume_at == resume_at
     assert entry.runtime_data.paused == {}
     assert entry.runtime_data.scheduled_timers == {"automation.kitchen": timer_unsub}
-    schedule.assert_called_once_with(hass, entry.runtime_data, "automation.kitchen", scheduled)
+    schedule.assert_called_once_with(
+        hass,
+        entry.runtime_data,
+        "automation.kitchen",
+        scheduled,
+        disable_callback=ANY,
+    )
     turn_off.assert_not_awaited()
     turn_on.assert_not_awaited()
     assert hass.states.get("automation.kitchen").state == "on"
@@ -382,7 +397,9 @@ async def test_unload_reload_cleans_up_without_duplicates(smoke_hass) -> None:
     hass.states.async_set("automation.kitchen", "on", {"friendly_name": "Kitchen"})
 
     timer_unsub = MagicMock()
-    with patch("custom_components.autosnooze.services.schedule_resume", side_effect=fake_resume_scheduler(timer_unsub)):
+    with patch(
+        "custom_components.autosnooze.application.pause.schedule_resume", side_effect=fake_resume_scheduler(timer_unsub)
+    ):
         await hass.services.async_call(
             DOMAIN,
             "pause",

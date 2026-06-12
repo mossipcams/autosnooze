@@ -17,6 +17,8 @@ from ..logging_utils import _log_command, _raise_save_failed
 from ..models import PausedAutomation
 from ..runtime.ports import async_save, schedule_pre_resume_notification, schedule_resume
 from ..runtime.state import AutomationPauseData
+from .notifications import send_pre_resume_notification
+from .resume import async_resume
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -57,8 +59,8 @@ async def async_adjust_snooze(
         paused.hours = 0
         paused.minutes = 0
 
-        schedule_resume(hass, data, entity_id, new_resume_at)
-        schedule_pre_resume_notification(hass, data, paused)
+        schedule_resume(hass, data, entity_id, new_resume_at, resume_callback=async_resume)
+        schedule_pre_resume_notification(hass, data, paused, notification_callback=send_pre_resume_notification)
         if not await async_save(data):
             _raise_save_failed()
     data.notify()
@@ -115,8 +117,8 @@ async def async_adjust_snooze_batch(
                 paused.hours = 0
                 paused.minutes = 0
 
-                schedule_resume(hass, data, entity_id, new_resume_at)
-                schedule_pre_resume_notification(hass, data, paused)
+                schedule_resume(hass, data, entity_id, new_resume_at, resume_callback=async_resume)
+                schedule_pre_resume_notification(hass, data, paused, notification_callback=send_pre_resume_notification)
             if not await async_save(data):
                 _raise_save_failed()
         data.notify()

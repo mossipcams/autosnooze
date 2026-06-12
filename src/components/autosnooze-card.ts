@@ -6,7 +6,7 @@
 import { LitElement, html, PropertyValues, TemplateResult } from 'lit';
 import { property, state } from 'lit/decorators.js';
 import { localize } from '../localization/localize.js';
-import type { HomeAssistant, HassLabel, HassCategory, HassEntityRegistryEntry, HassEntities, PausedAutomationAttribute, ScheduledSnoozeAttribute } from '../types/hass.js';
+import type { HomeAssistant, PausedAutomationAttribute, ScheduledSnoozeAttribute } from '../types/hass.js';
 import type { AutoSnoozeCardConfig, HapticFeedbackType } from '../types/card.js';
 import type { AutomationItem, NotificationTrigger, ParsedDuration, PauseGroup } from '../types/automation.js';
 import { cardStyles } from '../styles/card.styles.js';
@@ -22,14 +22,10 @@ import {
   createCardUiStore,
   createAdjustModalState,
   createClosedAdjustModalState,
-  fetchCardCategoryRegistry,
-  fetchCardEntityRegistry,
-  fetchCardLabelRegistry,
   getCardPausedSnapshot,
   isCardSnoozeSensorAvailable,
   loadCardLastDuration,
   loadCardRecentSnoozeIds,
-  SNOOZE_SENSOR_ENTITY_ID,
   createScheduleModeState,
   type LastDurationData,
 } from '../features/card-shell/index.js';
@@ -37,7 +33,7 @@ import { formatDateTime, formatDuration } from '../utils/time-formatting.js';
 import { isDurationValid, minutesToDuration } from '../utils/duration-parsing.js';
 import { hapticFeedback } from '../utils/haptic.js';
 import { defineAutoSnoozeElement } from '../utils/custom-element-registration.js';
-import { requiresPauseConfirmation, runPauseFeature } from '../features/pause/index.js';
+import { runPauseFeature } from '../features/pause/index.js';
 import {
   runUndoFeature,
   runClearNotificationFeature,
@@ -47,11 +43,11 @@ import {
 import {
   runAdjustFeature,
   runCancelScheduledFeature,
-  validateScheduledPauseInput,
 } from '../features/scheduled-snooze/index.js';
-import {
-  getAutomations,
-} from '../features/automation-list/index.js';
+import { CardShellController } from '../features/card-shell/controller.js';
+import type { AutoSnoozeToast } from './autosnooze-toast.js';
+import './autosnooze-toast.js';
+import './autosnooze-scheduled-pauses.js';
 
 
 export class AutomationPauseCard extends LitElement {
@@ -64,6 +60,7 @@ export class AutomationPauseCard extends LitElement {
   config: AutoSnoozeCardConfig = {} as AutoSnoozeCardConfig;
 
   private _cardStore = createCardUiStore();
+  private _shell = new CardShellController(() => this.requestUpdate());
 
   @state() private _selected: string[] = [];
   @state() private _duration: number = DEFAULT_SNOOZE_MINUTES * TIME_MS.MINUTE;
@@ -78,13 +75,7 @@ export class AutomationPauseCard extends LitElement {
   @state() private _disableAtTime: string = '';
   @state() private _resumeAtDate: string = '';
   @state() private _resumeAtTime: string = '';
-  @state() private _labelRegistry: Record<string, HassLabel> = {};
-  @state() private _labelRegistryUnavailable: boolean = false;
-  @state() private _categoryRegistry: Record<string, HassCategory> = {};
-  @state() private _entityRegistry: Record<string, HassEntityRegistryEntry> = {};
   @state() private _showCustomInput: boolean = false;
-  @state() private _automationsCache: AutomationItem[] | null = null;
-  @state() private _automationsCacheVersion: number = 0;
   @state() private _lastDuration: LastDurationData | null = null;
   @state() _recentSnoozeIds: string[] = [];
   @state() private _adjustModalOpen: boolean = false;
@@ -95,20 +86,6 @@ export class AutomationPauseCard extends LitElement {
   @state() private _adjustModalFriendlyNames: string[] = [];
   @state() private _guardrailConfirmOpen: boolean = false;
 
-  private _labelsFetched: boolean = false;
-  private _categoriesFetched: boolean = false;
-  private _entityRegistryFetched: boolean = false;
-  private _labelRegistryFetchPromise: Promise<void> | null = null;
-  private _categoryRegistryFetchPromise: Promise<void> | null = null;
-  private _entityRegistryFetchPromise: Promise<void> | null = null;
-  private _lastAutomationFingerprintStates: HassEntities | null = null;
-  private _lastAutomationFingerprint: string = '';
-  private _lastHassStates: HassEntities | null = null;
-  private _lastCacheVersion: number = 0;
-  private _toastTimeout: number | null = null;
-  private _toastFadeTimeout: number | null = null;
-  private _labelRegistryRetryTimeout: number | null = null;
-  private _labelRegistryRetryDelayMs: number = UI_TIMING.REGISTRY_RETRY_MIN_MS;
 
   static getConfigElement(): HTMLElement {
     return document.createElement('autosnooze-card-editor');
@@ -130,50 +107,8 @@ export class AutomationPauseCard extends LitElement {
   }
 
   shouldUpdate(changedProps: PropertyValues): boolean {
-    if (!changedProps.has('hass')) {
-      return true;
-    }
-
-    const oldHass = changedProps.get('hass') as HomeAssistant | undefined;
-    const newHass = this.hass;
-
-    if (!oldHass || !newHass) {
-      return true;
-    }
-
-    const oldSensor = oldHass.states?.[SNOOZE_SENSOR_ENTITY_ID];
-    const newSensor = newHass.states?.[SNOOZE_SENSOR_ENTITY_ID];
-    if (oldSensor !== newSensor) {
-      return true;
-    }
-
-    if (oldHass.entities !== newHass.entities) {
-      return true;
-    }
-
-    if (oldHass.areas !== newHass.areas) {
-      return true;
-    }
-
-    // Check for language changes
-    const oldLanguage = oldHass.language ?? oldHass.locale?.language;
-    const newLanguage = newHass.language ?? newHass.locale?.language;
-    if (oldLanguage !== newLanguage) {
-      return true;
-    }
-
-    const newStates = newHass.states;
-    const oldStates = oldHass.states;
-    if (!newStates || !oldStates) {
-      return true;
-    }
-
-    // Fast path: no state object churn means no automation change scan needed.
-    if (oldStates === newStates) {
-      return false;
-    }
-
-    return this._haveAutomationStatesChanged(oldStates, newStates);
+    return !changedProps.has('hass')
+      || this._shell.shouldUpdate(changedProps.get('hass') as HomeAssistant | undefined, this.hass);
   }
 
   willUpdate(changedProps: PropertyValues): void {
@@ -185,17 +120,7 @@ export class AutomationPauseCard extends LitElement {
 
   updated(changedProps: PropertyValues): void {
     super.updated(changedProps);
-    if (changedProps.has('hass') && this.hass?.connection) {
-      if (!this._labelsFetched && this._labelRegistryRetryTimeout === null) {
-        this._fetchLabelRegistry();
-      }
-      if (!this._categoriesFetched) {
-        this._fetchCategoryRegistry();
-      }
-      if (!this._entityRegistryFetched) {
-        this._fetchEntityRegistry();
-      }
-    }
+    if (changedProps.has('hass') && this.hass) void this._shell.connect(this.hass);
   }
 
   private _syncAdjustModalWithPausedState(): void {
@@ -236,112 +161,14 @@ export class AutomationPauseCard extends LitElement {
   connectedCallback(): void {
     super.connectedCallback();
 
-    this._fetchLabelRegistry();
-    this._fetchCategoryRegistry();
-    this._fetchEntityRegistry();
+    if (this.hass) void this._shell.connect(this.hass);
     this._lastDuration = loadCardLastDuration();
     this._refreshRecentSnoozeIds();
   }
 
   disconnectedCallback(): void {
     super.disconnectedCallback();
-    if (this._toastTimeout !== null) {
-      clearTimeout(this._toastTimeout);
-      this._toastTimeout = null;
-    }
-    if (this._toastFadeTimeout !== null) {
-      clearTimeout(this._toastFadeTimeout);
-      this._toastFadeTimeout = null;
-    }
-    if (this._labelRegistryRetryTimeout !== null) {
-      clearTimeout(this._labelRegistryRetryTimeout);
-      this._labelRegistryRetryTimeout = null;
-    }
-  }
-
-
-  private async _fetchLabelRegistry(): Promise<void> {
-    if (this._labelsFetched || !this.hass?.connection) return;
-    if (this._labelRegistryFetchPromise) {
-      await this._labelRegistryFetchPromise;
-      return;
-    }
-
-    this._labelRegistryFetchPromise = (async () => {
-      const labels = await fetchCardLabelRegistry(this.hass!);
-      if (labels === null) {
-        this._labelsFetched = false;
-        this._labelRegistryUnavailable = true;
-        if (this._labelRegistryRetryTimeout === null) {
-          const delay = this._labelRegistryRetryDelayMs;
-          this._labelRegistryRetryTimeout = window.setTimeout(() => {
-            this._labelRegistryRetryTimeout = null;
-            if (!this.isConnected) return;
-            void this._fetchLabelRegistry();
-          }, delay);
-          this._labelRegistryRetryDelayMs = Math.min(
-            this._labelRegistryRetryDelayMs * 2,
-            UI_TIMING.REGISTRY_RETRY_MAX_MS,
-          );
-        }
-        return;
-      }
-
-      this._labelRegistry = labels;
-      this._labelsFetched = true;
-      this._labelRegistryUnavailable = false;
-      this._automationsCacheVersion++;
-      this._labelRegistryRetryDelayMs = UI_TIMING.REGISTRY_RETRY_MIN_MS;
-      if (this._labelRegistryRetryTimeout !== null) {
-        clearTimeout(this._labelRegistryRetryTimeout);
-        this._labelRegistryRetryTimeout = null;
-      }
-    })();
-
-    try {
-      await this._labelRegistryFetchPromise;
-    } finally {
-      this._labelRegistryFetchPromise = null;
-    }
-  }
-
-  private async _fetchCategoryRegistry(): Promise<void> {
-    if (this._categoriesFetched || !this.hass?.connection) return;
-    if (this._categoryRegistryFetchPromise) {
-      await this._categoryRegistryFetchPromise;
-      return;
-    }
-
-    this._categoryRegistryFetchPromise = (async () => {
-      this._categoryRegistry = await fetchCardCategoryRegistry(this.hass!);
-      this._categoriesFetched = true;
-    })();
-
-    try {
-      await this._categoryRegistryFetchPromise;
-    } finally {
-      this._categoryRegistryFetchPromise = null;
-    }
-  }
-
-  private async _fetchEntityRegistry(): Promise<void> {
-    if (this._entityRegistryFetched || !this.hass?.connection) return;
-    if (this._entityRegistryFetchPromise) {
-      await this._entityRegistryFetchPromise;
-      return;
-    }
-
-    this._entityRegistryFetchPromise = (async () => {
-      this._entityRegistry = await fetchCardEntityRegistry(this.hass!);
-      this._entityRegistryFetched = true;
-      this._automationsCacheVersion++;
-    })();
-
-    try {
-      await this._entityRegistryFetchPromise;
-    } finally {
-      this._entityRegistryFetchPromise = null;
-    }
+    this._shell.disconnect();
   }
 
   private _refreshRecentSnoozeIds(): void {
@@ -349,74 +176,7 @@ export class AutomationPauseCard extends LitElement {
   }
 
   private _getAutomations(): AutomationItem[] {
-    if (!this.hass?.states) return [];
-
-    const statesRef = this.hass.states;
-    const currentVersion = this._automationsCacheVersion;
-
-    if (
-      this._lastHassStates === statesRef &&
-      this._lastCacheVersion === currentVersion &&
-      this._automationsCache
-    ) {
-      return this._automationsCache;
-    }
-
-    const result = getAutomations(this.hass, this._entityRegistry);
-    this._automationsCache = result;
-    this._lastCacheVersion = currentVersion;
-    this._lastHassStates = statesRef;
-
-    return result;
-  }
-
-  private _getAutomationStateFingerprint(states: HassEntities): string {
-    if (this._lastAutomationFingerprintStates === states) {
-      return this._lastAutomationFingerprint;
-    }
-
-    const automationIds = Object.keys(states)
-      .filter((entityId) => entityId.startsWith('automation.'))
-      .sort();
-
-    const fingerprint = automationIds
-      .map((entityId) => {
-        const entity = states[entityId] as { state?: string; last_changed?: string; last_updated?: string } | undefined;
-        return `${entityId}:${entity?.state ?? ''}:${entity?.last_changed ?? ''}:${entity?.last_updated ?? ''}`;
-      })
-      .join('|');
-
-    this._lastAutomationFingerprintStates = states;
-    this._lastAutomationFingerprint = fingerprint;
-    return fingerprint;
-  }
-
-  private _haveAutomationStatesChanged(oldStates: HassEntities, newStates: HassEntities): boolean {
-    let oldAutomationCount = 0;
-
-    for (const [entityId, oldState] of Object.entries(oldStates)) {
-      if (!entityId.startsWith('automation.')) {
-        continue;
-      }
-
-      oldAutomationCount += 1;
-      if (!(entityId in newStates)) {
-        return true;
-      }
-
-      if (newStates[entityId] !== oldState) {
-        return true;
-      }
-    }
-
-    let newAutomationCount = 0;
-    for (const entityId of Object.keys(newStates)) {
-      if (entityId.startsWith('automation.')) {
-        newAutomationCount += 1;
-      }
-    }
-
-    return oldAutomationCount !== newAutomationCount;
+    return this.hass ? this._shell.getAutomations(this.hass) : [];
   }
 
   private _getPaused(): Record<string, PausedAutomationAttribute> {
@@ -473,98 +233,18 @@ export class AutomationPauseCard extends LitElement {
   }
 
   private _showToast(message: string, options: { showUndo?: boolean; onUndo?: (() => void) | null } = {}): void {
-    const { showUndo = false, onUndo = null } = options;
-
-    if (!this.shadowRoot) return;
-
-    const existingToast = this.shadowRoot.querySelector('.toast');
-    if (existingToast) {
-      existingToast.remove();
-    }
-
-    const toast = document.createElement('div');
-    toast.className = 'toast';
-    toast.setAttribute('role', 'alert');
-    toast.setAttribute('aria-live', 'polite');
-    toast.setAttribute('aria-atomic', 'true');
-
-    if (showUndo && onUndo) {
-      const textSpan = document.createElement('span');
-      textSpan.textContent = message;
-      toast.appendChild(textSpan);
-
-      const undoBtn = document.createElement('button');
-      undoBtn.className = 'toast-undo-btn';
-      undoBtn.textContent = localize(this.hass, 'button.undo');
-      undoBtn.setAttribute('aria-label', localize(this.hass, 'a11y.undo_action'));
-      undoBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        onUndo();
-        toast.remove();
-      });
-      toast.appendChild(undoBtn);
-    } else {
-      toast.textContent = message;
-    }
-
-    this.shadowRoot.appendChild(toast);
-
-    if (this._toastTimeout !== null) {
-      clearTimeout(this._toastTimeout);
-    }
-    if (this._toastFadeTimeout !== null) {
-      clearTimeout(this._toastFadeTimeout);
-    }
-
-    this._toastTimeout = window.setTimeout(() => {
-      this._toastTimeout = null;
-      if (!this.shadowRoot || !toast.parentNode) return;
-      toast.style.animation = `slideUp ${UI_TIMING.TOAST_FADE_MS}ms ease-out reverse`;
-      this._toastFadeTimeout = window.setTimeout(() => {
-        this._toastFadeTimeout = null;
-        if (toast.parentNode) toast.remove();
-      }, UI_TIMING.TOAST_FADE_MS);
-    }, UI_TIMING.TOAST_DURATION_MS);
+    this.shadowRoot?.querySelector<AutoSnoozeToast>('autosnooze-toast')?.show(
+      message,
+      localize(this.hass, 'button.undo'),
+      localize(this.hass, 'a11y.undo_action'),
+      options.showUndo ? options.onUndo ?? undefined : undefined,
+    );
   }
 
   private async _snooze(forceConfirm: boolean = false): Promise<void> {
     if (this._selected.length === 0 || this._loading) return;
 
-    if (this._scheduleMode) {
-      if (!this._hasResumeAt()) {
-        this._showToast(localize(this.hass, 'toast.error.resume_time_required'));
-        return;
-      }
-
-      const scheduleValidation = validateScheduledPauseInput({
-        disableAtDate: this._disableAtDate,
-        disableAtTime: this._disableAtTime,
-        resumeAtDate: this._resumeAtDate,
-        resumeAtTime: this._resumeAtTime,
-        nowMs: Date.now() + UI_TIMING.TIME_VALIDATION_BUFFER_MS,
-      });
-
-      if (scheduleValidation.status === 'error') {
-        const message = scheduleValidation.message === 'Resume time is required'
-          ? localize(this.hass, 'toast.error.invalid_datetime')
-          : scheduleValidation.message === 'Resume time must be in the future'
-            ? localize(this.hass, 'toast.error.resume_time_past')
-            : localize(this.hass, 'toast.error.snooze_before_resume');
-        this._showToast(message);
-        return;
-      }
-    } else {
-      if (this._duration === 0) return;
-    }
-
-    if (!forceConfirm && requiresPauseConfirmation({
-      selected: this._selected,
-      automations: this._getAutomations(),
-      labelRegistry: this._labelRegistry,
-    })) {
-      this._guardrailConfirmOpen = true;
-      return;
-    }
+    if (!this._scheduleMode && this._duration === 0) return;
 
     this._loading = true;
     this._guardrailConfirmOpen = false;
@@ -588,6 +268,9 @@ export class AutomationPauseCard extends LitElement {
         resumeAtDate: this._resumeAtDate,
         resumeAtTime: this._resumeAtTime,
         forceConfirm,
+        automations: this._getAutomations(),
+        labelRegistry: this._shell.labels,
+        nowMs: Date.now() + UI_TIMING.TIME_VALIDATION_BUFFER_MS,
         ...(this._notificationsEnabled && {
           notificationTrigger: this._notificationTrigger,
           ...(this._notificationTrigger === 'about_to_end' && {
@@ -598,6 +281,12 @@ export class AutomationPauseCard extends LitElement {
 
       if (pauseResult.status === 'confirm_required') {
         this._guardrailConfirmOpen = true;
+        this._loading = false;
+        return;
+      }
+
+      if (pauseResult.status === 'validation_error') {
+        this._showToast(pauseResult.toastMessage);
         this._loading = false;
         return;
       }
@@ -873,41 +562,6 @@ export class AutomationPauseCard extends LitElement {
     await this._snooze(true);
   }
 
-  private _renderScheduledPauses(scheduledCount: number, scheduled: Record<string, { friendly_name?: string; disable_at?: string; resume_at: string }>): TemplateResult | string {
-    if (scheduledCount === 0) return '';
-
-    return html`
-      <div class="scheduled-list" role="region" aria-label="${localize(this.hass, 'a11y.scheduled_region')}">
-        <div class="list-header">
-          <ha-icon icon="mdi:calendar-clock" aria-hidden="true"></ha-icon>
-          ${localize(this.hass, 'section.scheduled_count', { count: scheduledCount })}
-        </div>
-
-        ${Object.entries(scheduled).map(
-          ([id, data]) => html`
-            <div class="scheduled-item" role="article" aria-label="${localize(this.hass, 'a11y.scheduled_pause_for', { name: data.friendly_name || id })}">
-              <ha-icon class="scheduled-icon" icon="mdi:clock-outline" aria-hidden="true"></ha-icon>
-              <div class="paused-info">
-                <div class="paused-name">
-                  ${data.friendly_name || id}
-                </div>
-                <div class="scheduled-time">
-                  ${localize(this.hass, 'status.disables')} ${this._formatDateTime(data.disable_at || 'now')}
-                </div>
-                <div class="paused-time">
-                  ${localize(this.hass, 'status.resumes_at')} ${this._formatDateTime(data.resume_at)}
-                </div>
-              </div>
-              <button type="button" class="cancel-scheduled-btn" @click=${() => this._cancelScheduled(id)} aria-label="${localize(this.hass, 'a11y.cancel_scheduled_for', { name: data.friendly_name || id })}">
-                ${localize(this.hass, 'button.cancel')}
-              </button>
-            </div>
-          `
-        )}
-      </div>
-    `;
-  }
-
   render(): TemplateResult {
     if (!this.hass || !this.config) {
       return html``;
@@ -946,9 +600,9 @@ export class AutomationPauseCard extends LitElement {
             .hass=${this.hass}
             .automations=${automations}
             .selected=${this._selected}
-            .labelRegistry=${this._labelRegistry}
-            .labelRegistryUnavailable=${this._labelRegistryUnavailable}
-            .categoryRegistry=${this._categoryRegistry}
+            .labelRegistry=${this._shell.labels}
+            .labelRegistryUnavailable=${this._shell.labelsUnavailable}
+            .categoryRegistry=${this._shell.categories}
             .recentSnoozeIds=${this._recentSnoozeIds}
             @selection-change=${this._handleSelectionChange}
           ></autosnooze-automation-list>
@@ -1064,7 +718,11 @@ export class AutomationPauseCard extends LitElement {
               @adjust-group=${this._handleAdjustGroupEvent}
             ></autosnooze-active-pauses>`
           : ''}
-        ${this._renderScheduledPauses(scheduledCount, scheduled)}
+        <autosnooze-scheduled-pauses
+          .hass=${this.hass}
+          .scheduled=${scheduled}
+          @cancel-scheduled=${(event: CustomEvent<{ entityId: string }>) => this._cancelScheduled(event.detail.entityId)}
+        ></autosnooze-scheduled-pauses>
         <autosnooze-adjust-modal
           .hass=${this.hass}
           .open=${this._adjustModalOpen}
@@ -1076,6 +734,7 @@ export class AutomationPauseCard extends LitElement {
           @adjust-time=${this._handleAdjustTimeEvent}
           @close-modal=${this._handleCloseModalEvent}
         ></autosnooze-adjust-modal>
+        <autosnooze-toast></autosnooze-toast>
       </ha-card>
     `;
   }

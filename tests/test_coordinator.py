@@ -15,18 +15,17 @@ from homeassistant.const import ATTR_ENTITY_ID, ATTR_FRIENDLY_NAME
 
 from homeassistant.exceptions import ServiceValidationError
 
-from custom_components.autosnooze.coordinator import (
-    async_execute_scheduled_disable,
-    async_load_stored,
-    async_resume,
+from custom_components.autosnooze import async_load_stored
+from custom_components.autosnooze.application.resume import async_resume
+from custom_components.autosnooze.application.scheduled import async_execute_scheduled_disable
+from custom_components.autosnooze.runtime.ports import (
     async_save,
     async_set_automation_state,
-    cancel_scheduled_timer,
-    cancel_timer,
     get_friendly_name,
     schedule_disable,
     schedule_resume,
 )
+from custom_components.autosnooze.runtime.timers import cancel_scheduled_timer, cancel_timer
 from custom_components.autosnooze.runtime.restore import (
     validate_stored_data,
     validate_stored_entry,
@@ -356,7 +355,7 @@ class TestAsyncSave:
         mock_store.async_save = failing_save
         data = AutomationPauseData(store=mock_store)
 
-        with patch("custom_components.autosnooze.coordinator.asyncio.sleep", new_callable=AsyncMock):
+        with patch("custom_components.autosnooze.runtime.ports.asyncio.sleep", new_callable=AsyncMock):
             result = await async_save(data)
 
         if should_retry:
@@ -373,7 +372,7 @@ class TestAsyncSave:
         mock_store.async_save = AsyncMock(side_effect=IOError("Persistent error"))
         data = AutomationPauseData(store=mock_store)
 
-        with patch("custom_components.autosnooze.coordinator.asyncio.sleep", new_callable=AsyncMock):
+        with patch("custom_components.autosnooze.runtime.ports.asyncio.sleep", new_callable=AsyncMock):
             result = await async_save(data)
 
         assert result is False
@@ -385,7 +384,7 @@ class TestAsyncSave:
         data = AutomationPauseData()
 
         with patch(
-            "custom_components.autosnooze.coordinator.infrastructure_async_save",
+            "custom_components.autosnooze.runtime.ports.infrastructure_async_save",
             AsyncMock(return_value=True),
         ) as mock_save:
             result = await async_save(data)
@@ -581,9 +580,15 @@ class TestScheduleResume:
         old_unsub = MagicMock()
         data.timers["automation.test"] = old_unsub
 
-        with patch("custom_components.autosnooze.coordinator.async_track_point_in_time") as mock_track:
+        with patch("custom_components.autosnooze.runtime.ports.async_track_point_in_time") as mock_track:
             mock_track.return_value = MagicMock()
-            schedule_resume(mock_hass, data, "automation.test", datetime.now(UTC) + timedelta(hours=1))
+            schedule_resume(
+                mock_hass,
+                data,
+                "automation.test",
+                datetime.now(UTC) + timedelta(hours=1),
+                resume_callback=AsyncMock(),
+            )
 
         old_unsub.assert_called_once()
 
@@ -592,12 +597,12 @@ class TestScheduleResume:
         mock_hass = MagicMock()
         data = AutomationPauseData()
 
-        with patch("custom_components.autosnooze.coordinator.async_track_point_in_time") as mock_track:
+        with patch("custom_components.autosnooze.runtime.ports.async_track_point_in_time") as mock_track:
             new_unsub = MagicMock()
             mock_track.return_value = new_unsub
             resume_at = datetime.now(UTC) + timedelta(hours=1)
 
-            schedule_resume(mock_hass, data, "automation.test", resume_at)
+            schedule_resume(mock_hass, data, "automation.test", resume_at, resume_callback=AsyncMock())
 
         mock_track.assert_called_once()
         assert data.timers["automation.test"] == new_unsub
@@ -621,9 +626,9 @@ class TestScheduleDisable:
             resume_at=now + timedelta(hours=2),
         )
 
-        with patch("custom_components.autosnooze.coordinator.async_track_point_in_time") as mock_track:
+        with patch("custom_components.autosnooze.runtime.ports.async_track_point_in_time") as mock_track:
             mock_track.return_value = MagicMock()
-            schedule_disable(mock_hass, data, "automation.test", scheduled)
+            schedule_disable(mock_hass, data, "automation.test", scheduled, disable_callback=AsyncMock())
 
         old_unsub.assert_called_once()
 
@@ -640,10 +645,10 @@ class TestScheduleDisable:
             resume_at=now + timedelta(hours=2),
         )
 
-        with patch("custom_components.autosnooze.coordinator.async_track_point_in_time") as mock_track:
+        with patch("custom_components.autosnooze.runtime.ports.async_track_point_in_time") as mock_track:
             new_unsub = MagicMock()
             mock_track.return_value = new_unsub
-            schedule_disable(mock_hass, data, "automation.test", scheduled)
+            schedule_disable(mock_hass, data, "automation.test", scheduled, disable_callback=AsyncMock())
 
         mock_track.assert_called_once()
         assert data.scheduled_timers["automation.test"] == new_unsub
@@ -669,14 +674,14 @@ class TestScheduleDisable:
         data.scheduled["automation.test"] = original
 
         with (
-            patch("custom_components.autosnooze.coordinator.async_track_point_in_time") as mock_track,
+            patch("custom_components.autosnooze.runtime.ports.async_track_point_in_time") as mock_track,
             patch(
-                "custom_components.autosnooze.coordinator.async_execute_scheduled_disable",
+                "custom_components.autosnooze.application.scheduled.async_execute_scheduled_disable",
                 new_callable=AsyncMock,
             ) as execute_disable,
         ):
             mock_track.return_value = MagicMock()
-            schedule_disable(mock_hass, data, "automation.test", original)
+            schedule_disable(mock_hass, data, "automation.test", original, disable_callback=execute_disable)
             callback = mock_track.call_args.args[1]
 
             # Simulate state refresh/replacement before timer fires.
@@ -961,8 +966,10 @@ class TestAsyncResume:
         data.paused["automation.test"] = paused
 
         with (
-            patch("custom_components.autosnooze.coordinator.async_set_automation_state", AsyncMock(return_value=False)),
-            patch("custom_components.autosnooze.coordinator.schedule_resume") as mock_schedule_resume,
+            patch(
+                "custom_components.autosnooze.runtime.ports.async_set_automation_state", AsyncMock(return_value=False)
+            ),
+            patch("custom_components.autosnooze.runtime.ports.schedule_resume") as mock_schedule_resume,
         ):
             await async_resume(mock_hass, data, "automation.test")
 
@@ -990,8 +997,10 @@ class TestAsyncResume:
         data.paused["automation.test"] = paused
 
         with (
-            patch("custom_components.autosnooze.coordinator.async_set_automation_state", AsyncMock(return_value=False)),
-            patch("custom_components.autosnooze.coordinator.schedule_resume"),
+            patch(
+                "custom_components.autosnooze.runtime.ports.async_set_automation_state", AsyncMock(return_value=False)
+            ),
+            patch("custom_components.autosnooze.runtime.ports.schedule_resume"),
         ):
             await async_resume(mock_hass, data, "automation.test")
 
@@ -1014,8 +1023,10 @@ class TestAsyncResume:
         )
 
         with (
-            patch("custom_components.autosnooze.coordinator.async_set_automation_state", AsyncMock(return_value=False)),
-            patch("custom_components.autosnooze.coordinator.schedule_resume") as mock_schedule_resume,
+            patch(
+                "custom_components.autosnooze.runtime.ports.async_set_automation_state", AsyncMock(return_value=False)
+            ),
+            patch("custom_components.autosnooze.runtime.ports.schedule_resume") as mock_schedule_resume,
         ):
             await async_resume(mock_hass, data, "automation.test")
 
@@ -1047,7 +1058,7 @@ class TestAsyncResume:
             await allow_service_finish.wait()
             return True
 
-        with patch("custom_components.autosnooze.coordinator.async_set_automation_state", side_effect=slow_turn_on):
+        with patch("custom_components.autosnooze.runtime.ports.async_set_automation_state", side_effect=slow_turn_on):
             resume_task = asyncio.create_task(async_resume(mock_hass, data, "automation.test"))
 
             await asyncio.wait_for(service_started.wait(), timeout=1)
@@ -1105,7 +1116,7 @@ class TestAsyncResume:
             return True
 
         with patch(
-            "custom_components.autosnooze.coordinator.async_set_automation_state", side_effect=record_state_change
+            "custom_components.autosnooze.runtime.ports.async_set_automation_state", side_effect=record_state_change
         ):
             resume_task = asyncio.create_task(async_resume(mock_hass, data, "automation.test"))
             await asyncio.wait_for(service_started.wait(), timeout=1)
@@ -1155,7 +1166,7 @@ class TestAsyncResume:
             return True
 
         with patch(
-            "custom_components.autosnooze.application.resume.async_set_automation_state",
+            "custom_components.autosnooze.runtime.ports.async_set_automation_state",
             side_effect=record_state_change,
         ):
             resume_task = asyncio.create_task(app_resume(mock_hass, data, "automation.test"))
@@ -1192,7 +1203,7 @@ class TestAsyncExecuteScheduledDisable:
         data.scheduled_timers["automation.test"] = unsub
 
         now = datetime.now(UTC)
-        with patch("custom_components.autosnooze.coordinator.schedule_resume"):
+        with patch("custom_components.autosnooze.runtime.ports.schedule_resume"):
             await async_execute_scheduled_disable(mock_hass, data, "automation.test", now + timedelta(hours=1))
 
         unsub.assert_called_once()
@@ -1209,7 +1220,7 @@ class TestAsyncExecuteScheduledDisable:
         data = AutomationPauseData(store=mock_store)
 
         now = datetime.now(UTC)
-        with patch("custom_components.autosnooze.coordinator.schedule_resume"):
+        with patch("custom_components.autosnooze.runtime.ports.schedule_resume"):
             await async_execute_scheduled_disable(mock_hass, data, "automation.test", now + timedelta(hours=1))
 
         assert "automation.test" in data.paused
@@ -1232,7 +1243,7 @@ class TestAsyncExecuteScheduledDisable:
             resume_at=now + timedelta(hours=1),
         )
 
-        with patch("custom_components.autosnooze.coordinator.schedule_resume"):
+        with patch("custom_components.autosnooze.runtime.ports.schedule_resume"):
             await async_execute_scheduled_disable(mock_hass, data, "automation.test", now + timedelta(hours=1))
 
         assert data.paused["automation.test"].friendly_name == "Original Name"
@@ -1251,7 +1262,7 @@ class TestAsyncExecuteScheduledDisable:
         data.add_listener(listener)
 
         now = datetime.now(UTC)
-        with patch("custom_components.autosnooze.coordinator.schedule_resume"):
+        with patch("custom_components.autosnooze.runtime.ports.schedule_resume"):
             await async_execute_scheduled_disable(mock_hass, data, "automation.test", now + timedelta(hours=1))
 
         listener.assert_called()
@@ -1273,8 +1284,10 @@ class TestAsyncExecuteScheduledDisable:
         )
 
         with (
-            patch("custom_components.autosnooze.coordinator.async_set_automation_state", AsyncMock(return_value=False)),
-            patch("custom_components.autosnooze.coordinator.schedule_disable") as mock_schedule_disable,
+            patch(
+                "custom_components.autosnooze.runtime.ports.async_set_automation_state", AsyncMock(return_value=False)
+            ),
+            patch("custom_components.autosnooze.runtime.ports.schedule_disable") as mock_schedule_disable,
         ):
             await async_execute_scheduled_disable(mock_hass, data, "automation.test", now + timedelta(hours=1))
 
@@ -1300,9 +1313,11 @@ class TestAsyncExecuteScheduledDisable:
         )
 
         with (
-            patch("custom_components.autosnooze.coordinator.async_set_automation_state", AsyncMock(return_value=False)),
-            patch("custom_components.autosnooze.coordinator.schedule_disable") as mock_schedule_disable,
-            patch("custom_components.autosnooze.coordinator.dt_util.utcnow", return_value=now),
+            patch(
+                "custom_components.autosnooze.runtime.ports.async_set_automation_state", AsyncMock(return_value=False)
+            ),
+            patch("custom_components.autosnooze.runtime.ports.schedule_disable") as mock_schedule_disable,
+            patch("custom_components.autosnooze.application.scheduled.dt_util.utcnow", return_value=now),
         ):
             await async_execute_scheduled_disable(mock_hass, data, "automation.test", now - timedelta(minutes=1))
 
@@ -1328,9 +1343,11 @@ class TestAsyncExecuteScheduledDisable:
         )
 
         with (
-            patch("custom_components.autosnooze.coordinator.async_set_automation_state", AsyncMock(return_value=False)),
-            patch("custom_components.autosnooze.coordinator.schedule_disable") as mock_schedule_disable,
-            patch("custom_components.autosnooze.coordinator.dt_util.utcnow", return_value=now),
+            patch(
+                "custom_components.autosnooze.runtime.ports.async_set_automation_state", AsyncMock(return_value=False)
+            ),
+            patch("custom_components.autosnooze.runtime.ports.schedule_disable") as mock_schedule_disable,
+            patch("custom_components.autosnooze.application.scheduled.dt_util.utcnow", return_value=now),
         ):
             await async_execute_scheduled_disable(mock_hass, data, "automation.test", resume_at)
 
@@ -1357,9 +1374,11 @@ class TestAsyncExecuteScheduledDisable:
         )
 
         with (
-            patch("custom_components.autosnooze.coordinator.async_set_automation_state", AsyncMock(return_value=True)),
-            patch("custom_components.autosnooze.coordinator.schedule_resume"),
-            patch("custom_components.autosnooze.coordinator.async_save", AsyncMock(return_value=False)),
+            patch(
+                "custom_components.autosnooze.runtime.ports.async_set_automation_state", AsyncMock(return_value=True)
+            ),
+            patch("custom_components.autosnooze.runtime.ports.schedule_resume"),
+            patch("custom_components.autosnooze.runtime.ports.async_save", AsyncMock(return_value=False)),
             pytest.raises(ServiceValidationError, match="Failed to persist autosnooze state"),
         ):
             await async_execute_scheduled_disable(mock_hass, data, "automation.test", resume_at)
@@ -1389,8 +1408,8 @@ class TestAsyncExecuteScheduledDisable:
             return True
 
         with (
-            patch("custom_components.autosnooze.coordinator.async_set_automation_state", side_effect=slow_turn_off),
-            patch("custom_components.autosnooze.coordinator.schedule_resume"),
+            patch("custom_components.autosnooze.runtime.ports.async_set_automation_state", side_effect=slow_turn_off),
+            patch("custom_components.autosnooze.runtime.ports.schedule_resume"),
         ):
             disable_task = asyncio.create_task(
                 async_execute_scheduled_disable(mock_hass, data, "automation.test", now + timedelta(hours=1))
@@ -1446,10 +1465,10 @@ class TestAsyncExecuteScheduledDisable:
 
         with (
             patch(
-                "custom_components.autosnooze.application.scheduled.async_set_automation_state",
+                "custom_components.autosnooze.runtime.ports.async_set_automation_state",
                 side_effect=record_state_change,
             ),
-            patch("custom_components.autosnooze.application.scheduled.schedule_resume"),
+            patch("custom_components.autosnooze.runtime.ports.schedule_resume"),
         ):
             disable_task = asyncio.create_task(
                 app_execute_scheduled_disable(mock_hass, data, "automation.test", now + timedelta(hours=1))

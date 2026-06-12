@@ -322,11 +322,11 @@ describe('AutoSnooze Card Main Component', () => {
 
     test('_getFilteredAutomations excludes automations with autosnooze_exclude label', () => {
       // Set up label registry with exclude label
-      card._labelRegistry = {
+      card._shell.labels = {
         label_exclude: { name: 'autosnooze_exclude' },
       };
       // Set up entity registry with labels on one automation
-      card._entityRegistry = {
+      card._shell.entities = {
         'automation.test_automation': {
           entity_id: 'automation.test_automation',
           labels: ['label_exclude'],
@@ -336,7 +336,7 @@ describe('AutoSnooze Card Main Component', () => {
           labels: [],
         },
       };
-      card._automationsCache = null; // Clear cache to force recalculation
+      card._shell.cacheVersion += 1; // Clear cache to force recalculation
       queryAutomationList(card)._search = '';
 
       const filtered = queryAutomationList(card)._getFilteredAutomations();
@@ -346,11 +346,11 @@ describe('AutoSnooze Card Main Component', () => {
 
     test('_getFilteredAutomations uses whitelist mode when autosnooze_include label exists', () => {
       // Set up label registry with include label
-      card._labelRegistry = {
+      card._shell.labels = {
         label_include: { name: 'autosnooze_include' },
       };
       // Set up entity registry - only living_room has the include label
-      card._entityRegistry = {
+      card._shell.entities = {
         'automation.test_automation': {
           entity_id: 'automation.test_automation',
           labels: [],
@@ -360,7 +360,7 @@ describe('AutoSnooze Card Main Component', () => {
           labels: ['label_include'],
         },
       };
-      card._automationsCache = null;
+      card._shell.cacheVersion += 1;
       queryAutomationList(card)._search = '';
 
       const filtered = queryAutomationList(card)._getFilteredAutomations();
@@ -370,12 +370,12 @@ describe('AutoSnooze Card Main Component', () => {
 
     test('_getFilteredAutomations include label takes precedence over exclude label', () => {
       // Set up both labels
-      card._labelRegistry = {
+      card._shell.labels = {
         label_include: { name: 'autosnooze_include' },
         label_exclude: { name: 'autosnooze_exclude' },
       };
       // One automation has include, another has exclude
-      card._entityRegistry = {
+      card._shell.entities = {
         'automation.test_automation': {
           entity_id: 'automation.test_automation',
           labels: ['label_exclude'], // Would be excluded, but include mode takes over
@@ -385,7 +385,7 @@ describe('AutoSnooze Card Main Component', () => {
           labels: ['label_include'],
         },
       };
-      card._automationsCache = null;
+      card._shell.cacheVersion += 1;
       queryAutomationList(card)._search = '';
 
       const filtered = queryAutomationList(card)._getFilteredAutomations();
@@ -396,10 +396,10 @@ describe('AutoSnooze Card Main Component', () => {
 
     test('_getFilteredAutomations search works with label filtering', () => {
       // Set up exclude label
-      card._labelRegistry = {
+      card._shell.labels = {
         label_exclude: { name: 'autosnooze_exclude' },
       };
-      card._entityRegistry = {
+      card._shell.entities = {
         'automation.test_automation': {
           entity_id: 'automation.test_automation',
           labels: ['label_exclude'],
@@ -409,7 +409,7 @@ describe('AutoSnooze Card Main Component', () => {
           labels: [],
         },
       };
-      card._automationsCache = null;
+      card._shell.cacheVersion += 1;
       queryAutomationList(card)._search = 'living';
 
       const filtered = queryAutomationList(card)._getFilteredAutomations();
@@ -418,9 +418,9 @@ describe('AutoSnooze Card Main Component', () => {
     });
 
     test('_getFilteredAutomations falls back to visible list when label registry is unavailable', async () => {
-      card._labelRegistry = {};
-      card._labelRegistryUnavailable = true;
-      card._entityRegistry = {
+      card._shell.labels = {};
+      card._shell.labelsUnavailable = true;
+      card._shell.entities = {
         'automation.test_automation': {
           entity_id: 'automation.test_automation',
           labels: ['label_unknown'],
@@ -430,7 +430,7 @@ describe('AutoSnooze Card Main Component', () => {
           labels: [],
         },
       };
-      card._automationsCache = null;
+      card._shell.cacheVersion += 1;
       queryAutomationList(card).labelRegistryUnavailable = true;
       queryAutomationList(card)._search = '';
 
@@ -700,7 +700,7 @@ describe('AutoSnooze Card Main Component', () => {
     });
 
     test('_getLabelName returns label name from registry', () => {
-      card._labelRegistry = { lighting: { name: 'Lighting' } };
+      card._shell.labels = { lighting: { name: 'Lighting' } };
       expect(queryAutomationList(card)._getLabelName('lighting')).toBe('Lighting');
     });
 
@@ -1297,14 +1297,14 @@ describe('Label and Area Grouping', () => {
     card.setConfig({ title: 'AutoSnooze' });
     card.hass = mockHass;
 
-    card._labelRegistry = {
+    card._shell.labels = {
       lighting: { name: 'Lighting' },
       climate: { name: 'Climate Control' },
       comfort: { name: 'Comfort' },
     };
 
-    card._automationsCache = null;
-    card._automationsCacheKey = null;
+    card._shell.cacheVersion += 1;
+    card._shell.automationsKey = null;
 
     document.body.appendChild(card);
     await card.updateComplete;
@@ -2791,7 +2791,7 @@ describe('shouldUpdate optimization', () => {
     };
     card.hass = newHass;
 
-    const fingerprintSpy = vi.spyOn(card, '_getAutomationStateFingerprint');
+    const fingerprintSpy = vi.spyOn(card._shell, 'automationFingerprint');
     const changedProps = new Map();
     changedProps.set('hass', oldHass);
 
@@ -2833,20 +2833,20 @@ describe('shouldUpdate optimization', () => {
   });
 
   test('_fetchLabelRegistry keeps retry enabled when fetch fails', async () => {
-    card._labelsFetched = false;
-    card._labelRegistry = {};
+    card._shell.labelsLoaded = false;
+    card._shell.labels = {};
     card.hass.connection = {
       sendMessagePromise: vi.fn().mockRejectedValue(new Error('registry unavailable')),
     };
 
-    await card._fetchLabelRegistry();
+    await card._shell.loadLabels(card.hass);
 
-    expect(card._labelsFetched).toBe(false);
+    expect(card._shell.labelsLoaded).toBe(false);
   });
 
   test('_fetchLabelRegistry reuses in-flight request', async () => {
-    card._labelsFetched = false;
-    card._labelRegistry = {};
+    card._shell.labelsLoaded = false;
+    card._shell.labels = {};
     let resolveFetch;
     const pendingFetch = new Promise((resolve) => {
       resolveFetch = resolve;
@@ -2855,8 +2855,8 @@ describe('shouldUpdate optimization', () => {
       sendMessagePromise: vi.fn().mockReturnValue(pendingFetch),
     };
 
-    const firstFetch = card._fetchLabelRegistry();
-    const secondFetch = card._fetchLabelRegistry();
+    const firstFetch = card._shell.loadLabels(card.hass);
+    const secondFetch = card._shell.loadLabels(card.hass);
 
     expect(card.hass.connection.sendMessagePromise).toHaveBeenCalledTimes(1);
 
@@ -2865,21 +2865,22 @@ describe('shouldUpdate optimization', () => {
     ]);
 
     await Promise.all([firstFetch, secondFetch]);
-    expect(card._labelsFetched).toBe(true);
-    expect(card._labelRegistry['label.test']?.name).toBe('Test Label');
+    expect(card._shell.labelsLoaded).toBe(true);
+    expect(card._shell.labels['label.test']?.name).toBe('Test Label');
   });
 
   test('updated does not bypass label retry backoff when retry timer is active', () => {
-    card._labelsFetched = false;
-    card._labelRegistryRetryTimeout = 123;
+    card._shell.labelsLoaded = false;
+    card._shell.retryTimer = 123;
     card.hass.connection = { sendMessagePromise: vi.fn() };
 
-    const fetchSpy = vi.spyOn(card, '_fetchLabelRegistry');
     const changedProps = new Map();
     changedProps.set('hass', {});
 
     card.updated(changedProps);
 
-    expect(fetchSpy).not.toHaveBeenCalled();
+    expect(card.hass.connection.sendMessagePromise).not.toHaveBeenCalledWith({
+      type: 'config/label_registry/list',
+    });
   });
 });

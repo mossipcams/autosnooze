@@ -434,7 +434,7 @@ describe('Logical Operator Mutations', () => {
 
     test('_getAutomations returns empty array when no states', () => {
       card.hass = { states: {} };
-      card._automationsCache = null;
+      card._shell.cacheVersion += 1;
       expect(card._getAutomations()).toEqual([]);
     });
   });
@@ -526,7 +526,7 @@ describe('Array Operation Mutations', () => {
         state: 'on',
         attributes: { friendly_name: 'Light' },
       };
-      card._automationsCache = null;
+      card._shell.cacheVersion += 1;
       const automations = card._getAutomations();
       expect(automations.some((a) => a.id === 'light.test')).toBe(false);
     });
@@ -534,7 +534,7 @@ describe('Array Operation Mutations', () => {
 
   describe('Array map', () => {
     test('_getAutomations maps entity data correctly', () => {
-      card._automationsCache = null;
+      card._shell.cacheVersion += 1;
       const automations = card._getAutomations();
       const auto = automations.find((a) => a.id === 'automation.a');
       expect(auto).toBeDefined();
@@ -552,7 +552,7 @@ describe('Array Operation Mutations', () => {
     });
 
     test('grouped areas sorted alphabetically', () => {
-      card._entityRegistry = {
+      card._shell.entities = {
         'automation.a': { entity_id: 'automation.a', area_id: 'zone_b', labels: [], categories: {} },
         'automation.b': { entity_id: 'automation.b', area_id: 'area_a', labels: [], categories: {} },
       };
@@ -560,8 +560,8 @@ describe('Array Operation Mutations', () => {
         zone_b: { name: 'Zone B' },
         area_a: { name: 'Area A' },
       };
-      card._entityRegistryFetched = true;
-      card._automationsCache = null;
+      card._shell.entitiesLoaded = true;
+      card._shell.cacheVersion += 1;
 
       const grouped = queryAutomationList(card)._getGroupedByArea();
       const names = grouped.map(([name]) => name);
@@ -639,7 +639,7 @@ describe('String Operation Mutations', () => {
           attributes: { paused_automations: {}, scheduled_snoozes: {} },
         },
       };
-      card._automationsCache = null;
+      card._shell.cacheVersion += 1;
       const automations = card._getAutomations();
       expect(automations.every((a) => a.id.startsWith('automation.'))).toBe(true);
     });
@@ -691,7 +691,7 @@ describe('String Operation Mutations', () => {
         },
       });
       card.setConfig({ title: 'Test' });
-      card._automationsCache = null;
+      card._shell.cacheVersion += 1;
       document.body.appendChild(card);
       await card.updateComplete;
 
@@ -829,7 +829,7 @@ describe('Boolean Operation Mutations', () => {
     });
 
     test('_entityRegistryFetched tracks fetch state', () => {
-      expect(typeof card._entityRegistryFetched).toBe('boolean');
+      expect(typeof card._shell.entitiesLoaded).toBe('boolean');
     });
   });
 
