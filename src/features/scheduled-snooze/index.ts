@@ -4,69 +4,9 @@
 
 import { adjustSnooze, cancelScheduled } from '../../services/snooze.js';
 import type { HomeAssistant } from '../../types/hass.js';
-import { combineDateTime } from '../../utils/datetime.js';
-
-type ScheduledPauseValidationResult =
-  | { status: 'valid' }
-  | { status: 'error'; message: string };
-
-function toValidTimeMs(value: string | null): number | null {
-  if (!value) {
-    return null;
-  }
-
-  const timeMs = new Date(value).getTime();
-  return Number.isFinite(timeMs) ? timeMs : null;
-}
-
-export function validateScheduledPauseInput(input: {
-  disableAtDate: string;
-  disableAtTime: string;
-  resumeAtDate: string;
-  resumeAtTime: string;
-  nowMs: number;
-}): ScheduledPauseValidationResult {
-  const resumeAt = combineDateTime(input.resumeAtDate, input.resumeAtTime);
-  const resumeTime = toValidTimeMs(resumeAt);
-
-  if (resumeTime === null) {
-    return { status: 'error', message: 'Resume time is required' };
-  }
-
-  if (resumeTime <= input.nowMs) {
-    return { status: 'error', message: 'Resume time must be in the future' };
-  }
-
-  const disableAt = input.disableAtDate && input.disableAtTime
-    ? combineDateTime(input.disableAtDate, input.disableAtTime)
-    : null;
-
-  if (input.disableAtDate && input.disableAtTime && disableAt === null) {
-    return { status: 'error', message: 'Snooze time must be before resume time' };
-  }
-
-  if (disableAt) {
-    const disableTime = toValidTimeMs(disableAt);
-    if (disableTime === null) {
-      return { status: 'error', message: 'Snooze time must be before resume time' };
-    }
-    if (disableTime >= resumeTime) {
-      return { status: 'error', message: 'Snooze time must be before resume time' };
-    }
-  }
-
-  return { status: 'valid' };
-}
 
 export async function runCancelScheduledFeature(hass: HomeAssistant, entityId: string): Promise<void> {
   await cancelScheduled(hass, entityId);
-}
-
-export async function runCancelScheduledActionFeature(
-  hass: HomeAssistant,
-  entityId: string,
-): Promise<void> {
-  await runCancelScheduledFeature(hass, entityId);
 }
 
 export async function runAdjustFeature(
@@ -86,12 +26,4 @@ export async function runAdjustFeature(
 
   const nextResumeAt = new Date(new Date(currentResumeAt).getTime() + deltaMs).toISOString();
   return { nextResumeAt };
-}
-
-export async function runAdjustActionFeature(
-  hass: HomeAssistant,
-  entityId: string | string[],
-  params: { days?: number; hours?: number; minutes?: number },
-): Promise<void> {
-  await adjustSnooze(hass, entityId, params);
 }

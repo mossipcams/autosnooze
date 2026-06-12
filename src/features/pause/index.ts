@@ -40,10 +40,14 @@ interface RunPauseFeatureInput {
   forceConfirm?: boolean;
   notificationTrigger?: NotificationTrigger;
   notificationLeadMinutes?: number;
+  automations?: AutomationItem[];
+  labelRegistry?: Record<string, HassLabel>;
+  nowMs?: number;
 }
 
 type RunPauseFeatureResult =
   | { status: 'aborted' }
+  | { status: 'validation_error'; toastMessage: string }
   | { status: 'confirm_required' }
   | {
       status: 'submitted';
@@ -59,6 +63,48 @@ type SchedulePauseBuild = {
 type DurationPauseBuild = SchedulePauseBuild & {
   lastDuration: LastDurationData;
 };
+
+type ScheduledPauseValidationResult =
+  | { status: 'valid' }
+  | { status: 'error'; message: string };
+
+function toValidTimeMs(value: string | null): number | null {
+  if (!value) return null;
+  const timeMs = new Date(value).getTime();
+  return Number.isFinite(timeMs) ? timeMs : null;
+}
+
+export function validateScheduledPauseInput(input: {
+  disableAtDate: string;
+  disableAtTime: string;
+  resumeAtDate: string;
+  resumeAtTime: string;
+  nowMs: number;
+}): ScheduledPauseValidationResult {
+  const resumeTime = toValidTimeMs(combineDateTime(input.resumeAtDate, input.resumeAtTime));
+  if (resumeTime === null) return { status: 'error', message: 'Resume time is required' };
+  if (resumeTime <= input.nowMs) return { status: 'error', message: 'Resume time must be in the future' };
+  const disableAt = input.disableAtDate && input.disableAtTime
+    ? combineDateTime(input.disableAtDate, input.disableAtTime)
+    : null;
+  const disableTime = toValidTimeMs(disableAt);
+  if ((input.disableAtDate && input.disableAtTime && disableAt === null)
+      || (disableTime !== null && disableTime >= resumeTime)) {
+    return { status: 'error', message: 'Snooze time must be before resume time' };
+  }
+  return { status: 'valid' };
+}
+
+function validationToast(input: RunPauseFeatureInput, message: string): string {
+  if (message === 'Resume time is required') {
+    return localize(input.hass, input.resumeAtDate || input.resumeAtTime
+      ? 'toast.error.invalid_datetime'
+      : 'toast.error.resume_time_required');
+  }
+  return localize(input.hass, message === 'Resume time must be in the future'
+    ? 'toast.error.resume_time_past'
+    : 'toast.error.snooze_before_resume');
+}
 
 function getConfirmTranslationKey(error: unknown): string | undefined {
   const serviceError = error as { translation_key?: string; data?: { translation_key?: string } };
@@ -178,6 +224,22 @@ function hasLastDuration(built: SchedulePauseBuild | DurationPauseBuild): built 
 }
 
 export async function runPauseFeature(input: RunPauseFeatureInput): Promise<RunPauseFeatureResult> {
+  if (input.scheduleMode) {
+    const validation = validateScheduledPauseInput({
+      ...input,
+      nowMs: input.nowMs ?? 0,
+    });
+    if (validation.status === 'error') {
+      return { status: 'validation_error', toastMessage: validationToast(input, validation.message) };
+    }
+  }
+  if (!input.forceConfirm && input.automations && requiresPauseConfirmation({
+    selected: input.selected,
+    automations: input.automations,
+    labelRegistry: input.labelRegistry ?? {},
+  })) {
+    return { status: 'confirm_required' };
+  }
   const built = input.scheduleMode
     ? buildSchedulePauseRequest(input)
     : buildDurationPauseRequest(input);
@@ -210,11 +272,4 @@ export async function runPauseFeature(input: RunPauseFeatureInput): Promise<RunP
     status: 'submitted',
     toastMessage: built.toastMessage,
   };
-}
-
-export async function runPauseActionFeature(
-  hass: HomeAssistant,
-  params: PauseServiceParams,
-): Promise<void> {
-  await pauseAutomations(hass, params);
 }

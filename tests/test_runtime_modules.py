@@ -42,30 +42,17 @@ async def test_async_save_is_available_via_infrastructure_module() -> None:
     store.async_save.assert_awaited_once()
 
 
-def test_schedule_resume_is_available_via_runtime_module() -> None:
-    """Runtime timers module exposes the schedule helper."""
+def test_schedule_resume_requires_and_invokes_explicit_callback() -> None:
+    """Runtime resume timers invoke exactly the explicitly supplied workflow callback."""
     from custom_components.autosnooze.runtime.state import AutomationPauseData
-    from custom_components.autosnooze.runtime.timers import schedule_resume
-
-    hass = MagicMock()
-    hass.async_create_task = MagicMock()
-    data = AutomationPauseData()
-
-    with patch("custom_components.autosnooze.runtime.timers.async_track_point_in_time", return_value=MagicMock()):
-        schedule_resume(hass, data, "automation.test", datetime.now(UTC))
-
-    assert "automation.test" in data.timers
-
-
-def test_runtime_resume_timer_uses_injected_callback() -> None:
-    """Runtime resume timer schedules the injected workflow callback."""
-    from custom_components.autosnooze.runtime.state import AutomationPauseData
-    from custom_components.autosnooze.runtime.timers import schedule_resume
+    from custom_components.autosnooze.runtime import timers
 
     hass = MagicMock()
     data = AutomationPauseData()
-    created_tasks: list[object] = []
+    resume_at = datetime.now(UTC)
     scheduled_callbacks: list[object] = []
+    timer_unsubscribe = MagicMock()
+    created_tasks: list[object] = []
 
     def create_task(coro: object) -> None:
         created_tasks.append(coro)
@@ -73,25 +60,31 @@ def test_runtime_resume_timer_uses_injected_callback() -> None:
 
     def track_time(_hass: object, callback: object, _when: datetime) -> MagicMock:
         scheduled_callbacks.append(callback)
-        return MagicMock()
+        return timer_unsubscribe
 
-    async def resume_callback(*_args: object) -> None:
+    async def resume_workflow(*_args: object, **_kwargs: object) -> None:
         return None
 
+    resume_callback = MagicMock(side_effect=resume_workflow)
     hass.async_create_task = MagicMock(side_effect=create_task)
-    schedule_resume(
+    with pytest.raises(TypeError):
+        timers.schedule_resume(hass, data, "automation.missing", resume_at)
+
+    timers.schedule_resume(
         hass,
         data,
         "automation.test",
-        datetime.now(UTC),
+        resume_at,
         resume_callback=resume_callback,
         track_point_in_time=track_time,
     )
-
     scheduled_callbacks[0](datetime.now(UTC))
 
+    assert data.timers == {"automation.test": timer_unsubscribe}
     assert len(created_tasks) == 1
     hass.async_create_task.assert_called_once()
+    resume_callback.assert_called_once_with(hass, data, "automation.test", reason="expired")
+    assert not hasattr(timers, "async_resume")
 
 
 def test_runtime_resume_timer_runs_callback_unless_unloaded() -> None:
@@ -103,10 +96,11 @@ def test_runtime_resume_timer_runs_callback_unless_unloaded() -> None:
     hass.async_create_task = MagicMock()
     data = AutomationPauseData()
     scheduled_callbacks: list[object] = []
-    resume_calls: list[tuple[object, ...]] = []
 
-    async def resume_callback(_hass: object, _data: object, entity_id: str) -> None:
-        resume_calls.append((entity_id,))
+    async def resume_workflow(*_args: object, **_kwargs: object) -> None:
+        return None
+
+    resume_callback = MagicMock(side_effect=resume_workflow)
 
     def track_time(_hass: object, callback: object, _when: datetime) -> MagicMock:
         scheduled_callbacks.append(callback)
@@ -122,12 +116,14 @@ def test_runtime_resume_timer_runs_callback_unless_unloaded() -> None:
     )
     scheduled_callbacks[0](datetime.now(UTC))
     assert hass.async_create_task.call_count == 1
+    resume_callback.assert_called_once_with(hass, data, "automation.test", reason="expired")
 
     data.unloaded = True
     scheduled_callbacks[0](datetime.now(UTC))
 
     # Still only one task: the unloaded firing is a noop.
     assert hass.async_create_task.call_count == 1
+    resume_callback.assert_called_once()
     # Close the un-awaited coroutine created on the first firing.
     hass.async_create_task.call_args_list[0].args[0].close()
 
@@ -177,6 +173,22 @@ def test_runtime_disable_timer_runs_callback_unless_unloaded() -> None:
     hass.async_create_task.call_args_list[0].args[0].close()
 
 
+def test_schedule_disable_requires_explicit_callback() -> None:
+    """Disable timers reject missing callbacks at the scheduling boundary."""
+    from custom_components.autosnooze.models import ScheduledSnooze
+    from custom_components.autosnooze.runtime.state import AutomationPauseData
+    from custom_components.autosnooze.runtime.timers import schedule_disable
+
+    now = datetime.now(UTC)
+    with pytest.raises(TypeError):
+        schedule_disable(
+            MagicMock(),
+            AutomationPauseData(),
+            "automation.test",
+            ScheduledSnooze("automation.test", "Test", now, now + timedelta(hours=1)),
+        )
+
+
 def test_schedule_pre_resume_notification_creates_timer_for_about_to_end_trigger() -> None:
     """Runtime timer should schedule a callback before resume for valid about_to_end snoozes."""
     from custom_components.autosnooze.models import PausedAutomation
@@ -205,6 +217,7 @@ def test_schedule_pre_resume_notification_creates_timer_for_about_to_end_trigger
         hass,
         data,
         paused,
+        notification_callback=AsyncMock(),
         track_point_in_time=track_time,
     )
 
@@ -243,8 +256,13 @@ def test_schedule_pre_resume_notification_ignores_non_pre_end_or_invalid_config(
         scheduled_callbacks.append(callback)
         return MagicMock()
 
-    schedule_pre_resume_notification(hass, data, invalid, track_point_in_time=track_time)
-    schedule_pre_resume_notification(hass, data, missing_lead, track_point_in_time=track_time)
+    notification_callback = AsyncMock()
+    schedule_pre_resume_notification(
+        hass, data, invalid, notification_callback=notification_callback, track_point_in_time=track_time
+    )
+    schedule_pre_resume_notification(
+        hass, data, missing_lead, notification_callback=notification_callback, track_point_in_time=track_time
+    )
 
     assert data.notification_timers == {}
     assert scheduled_callbacks == []
@@ -294,6 +312,25 @@ def test_runtime_pre_resume_timer_uses_injected_callback() -> None:
 
     assert len(created_tasks) == 1
     hass.async_create_task.assert_called_once()
+
+
+def test_schedule_pre_resume_notification_requires_explicit_callback() -> None:
+    """Pre-resume timers reject missing callbacks at the scheduling boundary."""
+    from custom_components.autosnooze.models import PausedAutomation
+    from custom_components.autosnooze.runtime.state import AutomationPauseData
+    from custom_components.autosnooze.runtime.timers import schedule_pre_resume_notification
+
+    now = datetime.now(UTC)
+    paused = PausedAutomation(
+        entity_id="automation.test",
+        friendly_name="Test",
+        resume_at=now + timedelta(hours=1),
+        paused_at=now,
+        notification_trigger="about_to_end",
+        notification_lead_minutes=30,
+    )
+    with pytest.raises(TypeError):
+        schedule_pre_resume_notification(MagicMock(), AutomationPauseData(), paused)
 
 
 @pytest.mark.asyncio

@@ -13,15 +13,11 @@ from homeassistant.util import dt as dt_util
 from ..const import SCHEDULED_DISABLE_RETRY_DELAY
 from ..logging_utils import _log_command, _raise_save_failed
 from ..models import PausedAutomation, ScheduledSnooze
-from ..runtime.ports import (
-    async_save,
-    async_set_automation_state,
-    get_friendly_name,
-    schedule_disable,
-    schedule_resume,
-)
+from ..runtime import ports as runtime_ports
 from ..runtime.timers import cancel_scheduled_timer
 from ..runtime.state import AutomationPauseData
+from .notifications import notify_started, send_pre_resume_notification
+from .resume import async_resume
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -40,7 +36,7 @@ async def async_execute_scheduled_disable(
         cancel_scheduled_timer(data, entity_id)
         expected_scheduled = data.scheduled.get(entity_id)
 
-    disabled_successfully = await async_set_automation_state(hass, entity_id, enabled=False)
+    disabled_successfully = await runtime_ports.async_set_automation_state(hass, entity_id, enabled=False)
 
     stale_after_disable = False
     undo_stale_disable = False
@@ -60,7 +56,7 @@ async def async_execute_scheduled_disable(
 
                 if resume_at <= now or retry_at >= resume_at:
                     data.scheduled.pop(entity_id, None)
-                    if not await async_save(data):
+                    if not await runtime_ports.async_save(data):
                         _raise_save_failed()
                     _LOGGER.warning(
                         "Failed to execute scheduled disable for %s; skipping retry because resume time has passed",
@@ -72,7 +68,7 @@ async def async_execute_scheduled_disable(
                 if scheduled is None:
                     scheduled = ScheduledSnooze(
                         entity_id=entity_id,
-                        friendly_name=get_friendly_name(hass, entity_id),
+                        friendly_name=runtime_ports.get_friendly_name(hass, entity_id),
                         disable_at=retry_at,
                         resume_at=resume_at,
                     )
@@ -80,8 +76,10 @@ async def async_execute_scheduled_disable(
                     scheduled.disable_at = retry_at
 
                 data.scheduled[entity_id] = scheduled
-                schedule_disable(hass, data, entity_id, scheduled, disable_callback=async_execute_scheduled_disable)
-                if not await async_save(data):
+                runtime_ports.schedule_disable(
+                    hass, data, entity_id, scheduled, disable_callback=async_execute_scheduled_disable
+                )
+                if not await runtime_ports.async_save(data):
                     _raise_save_failed()
                 _LOGGER.warning(
                     "Failed to execute scheduled disable for %s, retrying at %s",
@@ -93,7 +91,7 @@ async def async_execute_scheduled_disable(
 
             scheduled = data.scheduled.pop(entity_id, None)
             now = dt_util.utcnow()
-            friendly_name = scheduled.friendly_name if scheduled else get_friendly_name(hass, entity_id)
+            friendly_name = scheduled.friendly_name if scheduled else runtime_ports.get_friendly_name(hass, entity_id)
             disable_at = scheduled.disable_at if scheduled else None
 
             data.paused[entity_id] = PausedAutomation(
@@ -102,18 +100,27 @@ async def async_execute_scheduled_disable(
                 resume_at=resume_at,
                 paused_at=now,
                 disable_at=disable_at,
+                notification_trigger=(scheduled.notification_trigger if scheduled is not None else "none"),
+                notification_lead_minutes=(scheduled.notification_lead_minutes if scheduled is not None else None),
             )
 
-            schedule_resume(hass, data, entity_id, resume_at)
-            if not await async_save(data):
+            runtime_ports.schedule_resume(hass, data, entity_id, resume_at, resume_callback=async_resume)
+            runtime_ports.schedule_pre_resume_notification(
+                hass,
+                data,
+                data.paused[entity_id],
+                notification_callback=send_pre_resume_notification,
+            )
+            if not await runtime_ports.async_save(data):
                 _raise_save_failed()
     if undo_stale_disable:
-        if not await async_set_automation_state(hass, entity_id, enabled=True):
+        if not await runtime_ports.async_set_automation_state(hass, entity_id, enabled=True):
             _LOGGER.warning("Failed to undo stale scheduled disable for %s", entity_id)
         return
     if stale_after_disable:
         return
     data.notify()
+    await notify_started(hass, [data.paused[entity_id]])
     _LOGGER.info("Executed scheduled snooze for %s until %s", entity_id, resume_at)
 
 
@@ -124,7 +131,7 @@ async def async_cancel_scheduled(hass: HomeAssistant, data: AutomationPauseData,
     async with data.lock:
         cancel_scheduled_timer(data, entity_id)
         data.scheduled.pop(entity_id, None)
-        if not await async_save(data):
+        if not await runtime_ports.async_save(data):
             _raise_save_failed()
     data.notify()
     _LOGGER.info("Cancelled scheduled snooze for: %s", entity_id)
@@ -148,7 +155,7 @@ async def async_cancel_scheduled_batch(
             for entity_id in entity_ids:
                 cancel_scheduled_timer(data, entity_id)
                 data.scheduled.pop(entity_id, None)
-            if not await async_save(data):
+            if not await runtime_ports.async_save(data):
                 _raise_save_failed()
         data.notify()
         _LOGGER.info("Cancelled %d scheduled snoozes", len(entity_ids))

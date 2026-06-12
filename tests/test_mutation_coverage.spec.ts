@@ -301,7 +301,7 @@ describe('String Literal Values - Mutation Killing', () => {
           },
         },
       };
-      card._automationsCache = null;
+      card._shell.cacheVersion += 1;
       const result = queryAutomationList(card)._getFilteredAutomations();
       expect(result).toEqual([]);
       // Restore
@@ -701,7 +701,7 @@ describe('Method Return Values - Mutation Killing', () => {
     card = new CardClass();
     card.setConfig({ title: 'AutoSnooze' });
     card.hass = mockHass;
-    card._entityRegistry = {
+    card._shell.entities = {
       'automation.living_room': {
         entity_id: 'automation.living_room',
         area_id: 'living_room',
@@ -715,7 +715,7 @@ describe('Method Return Values - Mutation Killing', () => {
         labels: [],
       },
     };
-    card._entityRegistryFetched = true;
+    card._shell.entitiesLoaded = true;
     document.body.appendChild(card);
     await card.updateComplete;
   });
@@ -734,11 +734,11 @@ describe('Method Return Values - Mutation Killing', () => {
 
     test('returns 0 when no areas assigned', () => {
       // Clear area_id from existing registry entries
-      card._entityRegistry = {
+      card._shell.entities = {
         'automation.living_room': { entity_id: 'automation.living_room', area_id: null, categories: {}, labels: [] },
         'automation.bedroom': { entity_id: 'automation.bedroom', area_id: null, categories: {}, labels: [] },
       };
-      card._automationsCache = null;
+      card._shell.cacheVersion += 1;
       expect(queryAutomationList(card)._getAreaCount()).toBe(0);
     });
   });
@@ -751,11 +751,11 @@ describe('Method Return Values - Mutation Killing', () => {
 
     test('returns 0 when no labels assigned', () => {
       // Clear labels from existing registry entries
-      card._entityRegistry = {
+      card._shell.entities = {
         'automation.living_room': { entity_id: 'automation.living_room', area_id: 'living_room', categories: {}, labels: [] },
         'automation.bedroom': { entity_id: 'automation.bedroom', area_id: 'bedroom', categories: {}, labels: [] },
       };
-      card._automationsCache = null;
+      card._shell.cacheVersion += 1;
       expect(queryAutomationList(card)._getLabelCount()).toBe(0);
     });
   });
@@ -768,11 +768,11 @@ describe('Method Return Values - Mutation Killing', () => {
 
     test('returns 0 when no categories assigned', () => {
       // Clear categories from existing registry entries
-      card._entityRegistry = {
+      card._shell.entities = {
         'automation.living_room': { entity_id: 'automation.living_room', area_id: 'living_room', categories: {}, labels: ['label_1'] },
         'automation.bedroom': { entity_id: 'automation.bedroom', area_id: 'bedroom', categories: {}, labels: [] },
       };
-      card._automationsCache = null;
+      card._shell.cacheVersion += 1;
       expect(queryAutomationList(card)._getCategoryCount()).toBe(0);
     });
   });
@@ -785,7 +785,7 @@ describe('Method Return Values - Mutation Killing', () => {
 
     test('returns empty array when states is empty', () => {
       card.hass.states = {};
-      card._automationsCache = null;
+      card._shell.cacheVersion += 1;
       expect(card._getAutomations()).toEqual([]);
     });
 
@@ -921,21 +921,21 @@ describe('Grouping Logic - Mutation Killing', () => {
     card = new CardClass();
     card.setConfig({ title: 'AutoSnooze' });
     card.hass = mockHass;
-    card._entityRegistry = {
+    card._shell.entities = {
       'automation.a': { entity_id: 'automation.a', area_id: 'area_1', categories: { automation: 'cat_1' }, labels: ['label_a'] },
       'automation.b': { entity_id: 'automation.b', area_id: 'area_2', categories: {}, labels: ['label_b'] },
       'automation.c': { entity_id: 'automation.c', area_id: null, categories: {}, labels: [] },
     };
-    card._entityRegistryFetched = true;
-    card._categoryRegistry = {
+    card._shell.entitiesLoaded = true;
+    card._shell.categories = {
       cat_1: { category_id: 'cat_1', name: 'Category One' },
     };
-    card._categoriesFetched = true;
-    card._labelRegistry = {
+    card._shell.categoriesLoaded = true;
+    card._shell.labels = {
       label_a: { label_id: 'label_a', name: 'Label A' },
       label_b: { label_id: 'label_b', name: 'Label B' },
     };
-    card._labelsFetched = true;
+    card._shell.labelsLoaded = true;
     document.body.appendChild(card);
     await card.updateComplete;
   });

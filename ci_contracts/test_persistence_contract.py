@@ -14,18 +14,20 @@ def _is_async_save_call(node: ast.AST) -> bool:
     return (
         isinstance(node, ast.Await)
         and isinstance(node.value, ast.Call)
-        and isinstance(node.value.func, ast.Name)
-        and node.value.func.id == "async_save"
+        and (
+            isinstance(node.value.func, ast.Name)
+            and node.value.func.id == "async_save"
+            or isinstance(node.value.func, ast.Attribute)
+            and node.value.func.attr == "async_save"
+        )
     )
 
 
 def test_runtime_state_saves_do_not_ignore_failures() -> None:
     """Runtime persistence writes should branch on async_save's boolean result."""
     unchecked: list[str] = []
-    for path in [
-        AUTOSNOOZE_ROOT / "coordinator.py",
-        AUTOSNOOZE_ROOT / "runtime" / "restore.py",
-    ]:
+    paths = [AUTOSNOOZE_ROOT / "runtime" / "restore.py", *(AUTOSNOOZE_ROOT / "application").glob("*.py")]
+    for path in paths:
         tree = ast.parse(path.read_text(encoding="utf-8"))
         for node in ast.walk(tree):
             if isinstance(node, ast.Expr) and _is_async_save_call(node.value):

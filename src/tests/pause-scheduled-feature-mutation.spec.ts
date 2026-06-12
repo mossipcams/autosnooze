@@ -27,17 +27,15 @@ vi.mock('../services/storage.js', () => ({
 
 import {
   requiresPauseConfirmation,
-  runPauseActionFeature,
   runPauseFeature,
+  validateScheduledPauseInput,
 } from '../features/pause/index.js';
 import {
-  runAdjustActionFeature,
   runAdjustFeature,
-  runCancelScheduledActionFeature,
   runCancelScheduledFeature,
-  validateScheduledPauseInput,
 } from '../features/scheduled-snooze/index.js';
 import { runClearNotificationFeature } from '../features/resume/index.js';
+import { pauseAutomations } from '../services/snooze.js';
 
 const hass = {
   locale: { language: 'en' },
@@ -186,7 +184,7 @@ describe('pause feature mutation boundaries', () => {
       resumeAtTime: '12:00',
     });
 
-    expect(result).toEqual({ status: 'aborted' });
+    expect(result).toEqual({ status: 'validation_error', toastMessage: 'Invalid resume date/time' });
     expect(pauseAutomationsMock).not.toHaveBeenCalled();
     expect(saveRecentSnoozesMock).not.toHaveBeenCalled();
     expect(saveLastDurationMock).not.toHaveBeenCalled();
@@ -267,10 +265,10 @@ describe('pause feature mutation boundaries', () => {
     ).rejects.toThrow(error);
   });
 
-  test('runPauseActionFeature delegates raw pause params unchanged', async () => {
+  test('pauseAutomations delegates raw pause params unchanged', async () => {
     const params = { entity_id: ['automation.a'], hours: 2, confirm: true };
 
-    await runPauseActionFeature(hass, params);
+    await pauseAutomations(hass, params);
 
     expect(pauseAutomationsMock).toHaveBeenCalledWith(hass, params);
   });
@@ -364,7 +362,7 @@ describe('scheduled snooze feature mutation boundaries', () => {
 
   test('cancel scheduled feature variants delegate entity ids unchanged', async () => {
     await runCancelScheduledFeature(hass, 'automation.a');
-    await runCancelScheduledActionFeature(hass, 'automation.b');
+    await runCancelScheduledFeature(hass, 'automation.b');
 
     expect(cancelScheduledMock).toHaveBeenNthCalledWith(1, hass, 'automation.a');
     expect(cancelScheduledMock).toHaveBeenNthCalledWith(2, hass, 'automation.b');
@@ -423,8 +421,12 @@ describe('scheduled snooze feature mutation boundaries', () => {
     expect(result).toEqual({ nextResumeAt: '2026-04-29T13:00:00.000Z' });
   });
 
-  test('runAdjustActionFeature delegates action params unchanged', async () => {
-    await runAdjustActionFeature(hass, ['automation.a'], { days: 0, hours: 1, minutes: 30 });
+  test('runAdjustFeature delegates action params unchanged', async () => {
+    await runAdjustFeature(
+      hass,
+      { entityIds: ['automation.a'], days: 0, hours: 1, minutes: 30 },
+      '2026-04-29T12:00:00.000Z',
+    );
 
     expect(adjustSnoozeMock).toHaveBeenCalledWith(hass, ['automation.a'], {
       days: 0,

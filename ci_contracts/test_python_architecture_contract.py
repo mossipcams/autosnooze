@@ -66,11 +66,7 @@ def test_service_registration_layer_does_not_own_pause_by_filter_workflow() -> N
         "get_automations_by_label",
         "_handle_pause_by_filter",
     }
-    defined = {
-        node.name
-        for node in ast.walk(tree)
-        if isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef)
-    }
+    defined = {node.name for node in ast.walk(tree) if isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef)}
 
     assert defined.isdisjoint(forbidden_defs), (
         "services.py should register handlers and delegate pause-by-area/label workflows to application code. "
@@ -93,14 +89,28 @@ def test_application_and_runtime_slices_do_not_import_coordinator_facade() -> No
     )
 
 
+def test_coordinator_facade_is_removed() -> None:
+    """Legacy coordinator must not survive as a compatibility facade."""
+    assert not (BACKEND_ROOT / "coordinator.py").exists()
+
+
+def test_no_test_module_imports_or_patches_coordinator_facade() -> None:
+    """Tests must patch behavior at its actual owner."""
+    offenders = [
+        str(path.relative_to(PROJECT_ROOT))
+        for path in sorted((PROJECT_ROOT / "tests").glob("*.py"))
+        if "custom_components.autosnooze.coordinator" in path.read_text(encoding="utf-8")
+    ]
+    assert offenders == [], f"Tests still reference coordinator facade: {offenders}"
+
+
 def test_runtime_slice_does_not_import_application_workflows() -> None:
     """Runtime helpers should receive workflow callbacks from higher layers."""
     offenders: list[str] = []
     for path in sorted((BACKEND_ROOT / "runtime").glob("*.py")):
         imports = _import_modules(path)
         if any(
-            module.startswith("..application")
-            or module.startswith("custom_components.autosnooze.application")
+            module.startswith("..application") or module.startswith("custom_components.autosnooze.application")
             for module in imports
         ):
             offenders.append(str(path.relative_to(PROJECT_ROOT)))
@@ -109,6 +119,59 @@ def test_runtime_slice_does_not_import_application_workflows() -> None:
         "Runtime modules must not import application workflows; inject callbacks from the application layer. "
         f"Offenders: {offenders}"
     )
+
+
+def test_runtime_timers_do_not_store_default_resume_callback() -> None:
+    """Resume timers must receive their application callback explicitly."""
+    timers_path = BACKEND_ROOT / "runtime" / "timers.py"
+    tree = ast.parse(timers_path.read_text(encoding="utf-8"))
+    forbidden_symbols = {"_default_resume_callback", "DefaultResumeCallback", "async_resume"}
+    offenders = sorted(
+        {
+            node.name
+            for node in ast.walk(tree)
+            if isinstance(node, ast.ClassDef | ast.FunctionDef | ast.AsyncFunctionDef)
+            and node.name in forbidden_symbols
+        }
+        | {
+            target.id
+            for node in ast.walk(tree)
+            if isinstance(node, ast.Assign | ast.AnnAssign)
+            for target in ([node.target] if isinstance(node, ast.AnnAssign) else node.targets)
+            if isinstance(target, ast.Name) and target.id in forbidden_symbols
+        }
+    )
+
+    assert offenders == [], f"Runtime timers retain default resume callback symbols: {offenders}"
+
+
+def test_runtime_timers_do_not_store_default_notification_or_disable_callbacks() -> None:
+    """Notification and disable timers must receive application callbacks explicitly."""
+    timers_path = BACKEND_ROOT / "runtime" / "timers.py"
+    tree = ast.parse(timers_path.read_text(encoding="utf-8"))
+    forbidden_symbols = {
+        "_default_notification_callback",
+        "_default_disable_callback",
+        "configure_default_timer_callbacks",
+        "async_send_pre_resume_notification",
+        "async_execute_scheduled_disable",
+    }
+    offenders = sorted(
+        {
+            node.name
+            for node in ast.walk(tree)
+            if isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef) and node.name in forbidden_symbols
+        }
+        | {
+            target.id
+            for node in ast.walk(tree)
+            if isinstance(node, ast.Assign | ast.AnnAssign)
+            for target in ([node.target] if isinstance(node, ast.AnnAssign) else node.targets)
+            if isinstance(target, ast.Name) and target.id in forbidden_symbols
+        }
+    )
+
+    assert offenders == [], f"Runtime timers retain default callback symbols: {offenders}"
 
 
 def test_models_module_does_not_import_runtime_state_container() -> None:
@@ -121,8 +184,7 @@ def test_models_module_does_not_import_runtime_state_container() -> None:
     ]
 
     assert offenders == [], (
-        "models.py should stay low-level and must not import runtime state containers. "
-        f"Runtime imports: {offenders}"
+        f"models.py should stay low-level and must not import runtime state containers. Runtime imports: {offenders}"
     )
 
 

@@ -5,8 +5,9 @@
 import { EXCLUDE_LABEL, INCLUDE_LABEL } from '../../constants/index.js';
 import type { AutomationItem } from '../../types/automation.js';
 import type { FilterTab } from '../../types/card.js';
-import type { HassCategory, HassEntityRegistryEntry, HassLabel, HomeAssistant } from '../../types/hass.js';
+import type { HassCategory, HassLabel, HomeAssistant } from '../../types/hass.js';
 import { formatRegistryId } from '../../utils/registry-formatting.js';
+export { getAutomations } from '../../state/automations.js';
 
 export interface AutomationListViewModel {
   filtered: AutomationItem[];
@@ -58,35 +59,6 @@ export function getCategoryName(
 ): string {
   if (!categoryId) return fallback;
   return categoryRegistry[categoryId]?.name ?? formatRegistryId(categoryId);
-}
-
-export function getAutomations(
-  hass: HomeAssistant,
-  entityRegistry: Record<string, HassEntityRegistryEntry>
-): AutomationItem[] {
-  const states = hass?.states;
-  const entities = hass?.entities;
-  if (!states) return [];
-
-  return Object.keys(states)
-    .filter((id) => id.startsWith('automation.'))
-    .map((id) => {
-      const state = states[id];
-      if (!state) return null;
-      const registryEntry = entityRegistry?.[id];
-      const hassEntry = entities?.[id];
-      const categories = registryEntry?.categories ?? {};
-
-      return {
-        id,
-        name: (state.attributes?.friendly_name as string | undefined) ?? id.replace('automation.', ''),
-        area_id: registryEntry?.area_id ?? hassEntry?.area_id ?? null,
-        category_id: categories['automation'] ?? null,
-        labels: registryEntry?.labels ?? hassEntry?.labels ?? [],
-      };
-    })
-    .filter((automation): automation is AutomationItem => automation !== null)
-    .sort((a, b) => a.name.localeCompare(b.name));
 }
 
 function getVisibleLabelNames(

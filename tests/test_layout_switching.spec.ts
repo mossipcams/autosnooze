@@ -169,7 +169,7 @@ describe('Layout Switching', () => {
     });
 
     test('categories tab handles no categories', async () => {
-      card._categoryRegistry = {};
+      card._shell.categories = {};
       queryAutomationList(card)._filterTab = 'categories';
       await card.updateComplete;
 
@@ -177,8 +177,8 @@ describe('Layout Switching', () => {
     });
 
     test('labels tab handles no labels', async () => {
-      card._labelRegistry = {};
-      card._entityRegistry = {};
+      card._shell.labels = {};
+      card._shell.entities = {};
       queryAutomationList(card)._filterTab = 'labels';
       await card.updateComplete;
 

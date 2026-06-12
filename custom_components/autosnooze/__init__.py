@@ -10,6 +10,9 @@ from homeassistant.helpers import label_registry as lr
 from homeassistant.helpers.storage import Store
 
 from .application.setup import async_setup_integration_entry
+from .application.notifications import notify_started, send_pre_resume_notification
+from .application.resume import async_resume
+from .application.scheduled import async_execute_scheduled_disable
 from .const import (
     DOMAIN,
     LABEL_CONFIRM_CONFIG,
@@ -19,7 +22,6 @@ from .const import (
     STORAGE_VERSION,
     VERSION,
 )
-from .coordinator import async_load_stored
 from .infrastructure import frontend as _frontend_resource_adapter
 from .infrastructure.frontend import (
     LOVELACE_REGISTER_MAX_RETRIES,
@@ -29,10 +31,34 @@ from .infrastructure.frontend import (
     _async_retry_or_fail,
 )
 from .runtime.state import AutomationPauseConfigEntry, AutomationPauseData
-from .services import register_services
+from .runtime import ports as runtime_ports
+from .runtime.restore import RestoreCallbacks, async_load_stored as runtime_async_load_stored
+from .services import register_services, unregister_services
 
 _LOGGER = logging.getLogger(__name__)
 asyncio = _frontend_resource_adapter.asyncio
+
+
+async def async_load_stored(hass: HomeAssistant, data: AutomationPauseData) -> None:
+    """Restore runtime state with explicitly composed application callbacks."""
+    await runtime_async_load_stored(
+        hass,
+        data,
+        RestoreCallbacks(
+            set_automation_state=runtime_ports.async_set_automation_state,
+            schedule_resume=lambda hass, data, entity_id, resume_at: runtime_ports.schedule_resume(
+                hass, data, entity_id, resume_at, resume_callback=async_resume
+            ),
+            schedule_disable=lambda hass, data, entity_id, scheduled: runtime_ports.schedule_disable(
+                hass, data, entity_id, scheduled, disable_callback=async_execute_scheduled_disable
+            ),
+            schedule_pre_resume_notification=lambda hass, data, paused: runtime_ports.schedule_pre_resume_notification(
+                hass, data, paused, notification_callback=send_pre_resume_notification
+            ),
+            notify_started=notify_started,
+        ),
+    )
+
 
 # Re-export for backwards compatibility
 __all__ = [
@@ -132,16 +158,6 @@ async def async_unload_entry(hass: HomeAssistant, entry: AutomationPauseConfigEn
         # Note: During unload, our entry is still LOADED until this function returns,
         # so we check for <= 1 (only our entry remains in the loaded list)
         if len(hass.config_entries.async_loaded_entries(DOMAIN)) <= 1:
-            for service in (
-                "pause",
-                "cancel",
-                "cancel_all",
-                "pause_by_area",
-                "pause_by_label",
-                "cancel_scheduled",
-                "clear_notification",
-                "adjust",
-            ):
-                hass.services.async_remove(DOMAIN, service)
+            unregister_services(hass)
 
     return unload_ok

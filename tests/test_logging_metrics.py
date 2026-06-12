@@ -32,12 +32,16 @@ async def test_pause_path_emits_structured_log_fields(caplog: pytest.LogCaptureF
 
     with (
         patch(
-            "custom_components.autosnooze.services.async_set_automation_state",
+            "custom_components.autosnooze.application.pause.async_set_automation_state",
             new_callable=AsyncMock,
             return_value=True,
         ),
-        patch("custom_components.autosnooze.services.schedule_resume"),
-        patch("custom_components.autosnooze.services.async_save", new_callable=AsyncMock, return_value=True),
+        patch("custom_components.autosnooze.application.pause.schedule_resume"),
+        patch(
+            "custom_components.autosnooze.application.pause.runtime_async_save",
+            new_callable=AsyncMock,
+            return_value=True,
+        ),
     ):
         await async_pause_automations(hass, data, ["automation.kitchen"], hours=1)
 
@@ -60,11 +64,11 @@ async def test_cancel_batch_path_emits_structured_log_fields(caplog: pytest.LogC
 
     with (
         patch(
-            "custom_components.autosnooze.application.resume.async_set_automation_state",
+            "custom_components.autosnooze.runtime.ports.async_set_automation_state",
             new_callable=AsyncMock,
             return_value=True,
         ),
-        patch("custom_components.autosnooze.application.resume.async_save", new_callable=AsyncMock, return_value=True),
+        patch("custom_components.autosnooze.runtime.ports.async_save", new_callable=AsyncMock, return_value=True),
         patch("custom_components.autosnooze.application.resume.cancel_timer"),
     ):
         await async_resume_batch(hass, data, ["automation.kitchen"])

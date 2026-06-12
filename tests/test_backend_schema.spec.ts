@@ -1113,7 +1113,7 @@ describe('Cache Behavior', () => {
     expect(result1.length).toBe(2);
 
     // Store cache reference
-    const cacheRef = card._automationsCache;
+    const cacheRef = card._shell.automations;
     expect(cacheRef).not.toBeNull();
 
     // Second call with same hass.states should return cached result
@@ -1146,7 +1146,7 @@ describe('Cache Behavior', () => {
     // First call populates cache
     const result1 = card._getAutomations();
     expect(result1.length).toBe(1);
-    const cacheRef1 = card._automationsCache;
+    const cacheRef1 = card._shell.automations;
 
     // Create new states object (new reference)
     const newStates = {
@@ -1191,18 +1191,18 @@ describe('Cache Behavior', () => {
     await card.updateComplete;
 
     // Get initial cache version
-    const initialVersion = card._automationsCacheVersion;
+    const initialVersion = card._shell.cacheVersion;
 
     // Populate cache
     card._getAutomations();
-    const cacheRef = card._automationsCache;
+    const cacheRef = card._shell.automations;
 
     // Simulate incrementing cache version (happens after entity registry fetch)
-    card._automationsCacheVersion++;
+    card._shell.cacheVersion++;
 
     // Call again - cache should be invalidated due to version change
     const result = card._getAutomations();
-    expect(card._automationsCacheVersion).toBe(initialVersion + 1);
+    expect(card._shell.cacheVersion).toBe(initialVersion + 1);
     expect(result).not.toBe(cacheRef); // Different reference = cache invalidated
   });
 
@@ -1225,7 +1225,7 @@ describe('Cache Behavior', () => {
 
     const result = card._getAutomations();
     expect(result).toEqual([]);
-    expect(card._automationsCache).toEqual([]);
+    expect(card._shell.automations).toEqual([]);
   });
 
   test('cache is not shared between card instances', async () => {
@@ -1251,7 +1251,7 @@ describe('Cache Behavior', () => {
     document.body.appendChild(card);
     await card.updateComplete;
     card._getAutomations();
-    const cache1 = card._automationsCache;
+    const cache1 = card._shell.automations;
 
     const card2 = new CardClass();
     card2.setConfig({ title: 'AutoSnooze 2' });
@@ -1259,7 +1259,7 @@ describe('Cache Behavior', () => {
     document.body.appendChild(card2);
     await card2.updateComplete;
     card2._getAutomations();
-    const cache2 = card2._automationsCache;
+    const cache2 = card2._shell.automations;
 
     // Each card should have its own cache
     expect(cache1).not.toBe(cache2);
