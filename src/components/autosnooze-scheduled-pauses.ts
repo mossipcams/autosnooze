@@ -5,7 +5,7 @@ import type { HomeAssistant, ScheduledSnoozeAttribute } from '../types/hass.js';
 import { defineAutoSnoozeElement } from '../utils/custom-element-registration.js';
 import { formatDateTime } from '../utils/time-formatting.js';
 
-export class AutoSnoozeScheduledPauses extends LitElement {
+class AutoSnoozeScheduledPauses extends LitElement {
   @property({ attribute: false }) hass?: HomeAssistant;
   @property({ attribute: false }) scheduled: Record<string, ScheduledSnoozeAttribute> = {};
 
