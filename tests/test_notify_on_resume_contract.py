@@ -62,6 +62,21 @@ def test_pause_schema_requires_valid_lead_for_about_to_end() -> None:
         )
 
 
+def test_pause_schema_allows_too_long_lead_for_translated_application_error() -> None:
+    """Window-length validation belongs to the application layer for i18n errors."""
+    validated = PAUSE_SCHEMA(
+        {
+            "entity_id": ["automation.kitchen"],
+            "minutes": 30,
+            "notification_trigger": "about_to_end",
+            "notification_lead_minutes": 60,
+        }
+    )
+
+    assert validated["notification_trigger"] == "about_to_end"
+    assert validated["notification_lead_minutes"] == 60
+
+
 def test_pause_schema_rejects_legacy_notify_on_resume_flag() -> None:
     """The legacy boolean notify flag should no longer be accepted."""
     with pytest.raises(vol.Invalid):

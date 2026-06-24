@@ -14,9 +14,11 @@ import {
   CARD_ELEMENT_NAME,
   EXISTING_DASHBOARD_PATH,
   assertNoCardErrors,
+  ensureCardResourceRegistered,
   expectCardReady,
   installCardErrorListeners,
   loadCardResource,
+  setState,
   verifyCardResource,
 } from '../helpers/ha';
 import {
@@ -27,6 +29,8 @@ import {
   volatileRegionMasks,
 } from '../helpers/visual';
 
+const AUTOSNOOZE_STATUS_ENTITY_ID = 'sensor.autosnooze_snoozed_automations';
+
 test.describe('Card registration and load @visual @critical', () => {
   test('loads the registered card without visual defects @visual @critical', async ({ page }) => {
     await test.step('freeze time and attach card error listeners', async () => {
@@ -36,6 +40,11 @@ test.describe('Card registration and load @visual @critical', () => {
 
     await test.step('navigate to the existing visual dashboard', async () => {
       await page.goto(EXISTING_DASHBOARD_PATH, { waitUntil: 'domcontentloaded' });
+    });
+
+    await test.step('ensure the Lovelace card resource is registered', async () => {
+      await ensureCardResourceRegistered(page);
+      await page.reload({ waitUntil: 'domcontentloaded' });
     });
 
     await test.step('verify the card JavaScript resource is served as JavaScript', async () => {
@@ -50,7 +59,12 @@ test.describe('Card registration and load @visual @critical', () => {
     });
 
     const card = await test.step('wait for the visible AutoSnooze card', async () => {
-      return await expectCardReady(page);
+      const loadedCard = await expectCardReady(page);
+      await setState(page, AUTOSNOOZE_STATUS_ENTITY_ID, 'idle', {
+        friendly_name: 'AutoSnooze Status',
+      });
+      await expect(loadedCard.locator('.sensor-health-banner')).toHaveCount(0);
+      return loadedCard;
     });
 
     await test.step('assert card-local layout integrity', async () => {

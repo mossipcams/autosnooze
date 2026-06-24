@@ -273,6 +273,7 @@ export class AutoSnoozeAutomationList extends LitElement {
         <button
           type="button"
           class="list-item ${selectedIds.has(a.id) ? 'selected' : ''} ${index < recentItems.length ? 'is-recent' : ''}"
+          data-entity-id=${a.id}
           @click=${() => this._toggleSelection(a.id)}
           role="option"
           aria-selected=${selectedIds.has(a.id)}
@@ -328,6 +329,7 @@ export class AutoSnoozeAutomationList extends LitElement {
                 <button
                   type="button"
                   class="list-item ${selectedIds.has(a.id) ? 'selected' : ''}"
+                  data-entity-id=${a.id}
                   @click=${() => this._toggleSelection(a.id)}
                   role="option"
                   aria-selected=${selectedIds.has(a.id)}

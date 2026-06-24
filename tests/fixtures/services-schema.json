@@ -273,6 +273,8 @@
     "invalid_duration",
     "invalid_adjustment",
     "adjust_time_too_short",
-    "confirm_required"
+    "save_failed",
+    "confirm_required",
+    "notification_lead_too_long"
   ]
 }

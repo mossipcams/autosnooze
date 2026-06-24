@@ -64,4 +64,4 @@ The visual matrix uses built-in light/dark CSS custom-property fixtures and a co
 
 ## Browser Project
 
-The visual configuration runs Chromium only with `fullyParallel: true`, `trace: 'on-first-retry'`, `screenshot: 'only-on-failure'`, `video: 'retain-on-failure'`, and `toHaveScreenshot.maxDiffPixelRatio: 0.01`.
+The visual configuration runs Chromium only with one worker because the suite targets a single mutable HA instance and dashboard. It uses `trace: 'on-first-retry'`, `screenshot: 'only-on-failure'`, `video: 'retain-on-failure'`, and `toHaveScreenshot.maxDiffPixelRatio: 0.01`.

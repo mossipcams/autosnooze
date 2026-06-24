@@ -6,7 +6,6 @@ import { describe, test, expect, beforeEach } from 'vitest';
 import {
   saveLastDuration,
   loadLastDuration,
-  clearLastDuration,
   type LastDurationData,
 } from '../src/services/storage.js';
 
@@ -133,34 +132,6 @@ describe('Storage Service', () => {
     });
   });
 
-  describe('clearLastDuration', () => {
-    test('removes duration from localStorage', () => {
-      localStorage.setItem('autosnooze_last_duration', JSON.stringify({ minutes: 60 }));
-      expect(localStorage.getItem('autosnooze_last_duration')).not.toBeNull();
-
-      clearLastDuration();
-
-      expect(localStorage.getItem('autosnooze_last_duration')).toBeNull();
-    });
-
-    test('does nothing when no duration stored', () => {
-      // Should not throw
-      expect(() => clearLastDuration()).not.toThrow();
-    });
-
-    test('handles localStorage errors gracefully', () => {
-      const originalRemoveItem = localStorage.removeItem;
-      localStorage.removeItem = () => {
-        throw new Error('SecurityError');
-      };
-
-      // Should not throw
-      expect(() => clearLastDuration()).not.toThrow();
-
-      localStorage.removeItem = originalRemoveItem;
-    });
-  });
-
   describe('Round-trip', () => {
     test('save then load returns equivalent data', () => {
       const duration = { days: 1, hours: 12, minutes: 45 };
@@ -174,12 +145,5 @@ describe('Storage Service', () => {
       expect(loaded!.duration).toEqual(duration);
     });
 
-    test('save, clear, load returns null', () => {
-      saveLastDuration({ days: 0, hours: 1, minutes: 0 }, 60);
-      clearLastDuration();
-      const result = loadLastDuration();
-
-      expect(result).toBeNull();
-    });
   });
 });

@@ -76,42 +76,6 @@ function ensureCustomCardsArray(): AutoSnoozeCardEntry[] {
   return [];
 }
 
-export function safeDefine(
-  tag: string,
-  ctor: CustomElementConstructor,
-  registry: CustomElementRegistry = customElements
-): void {
-  const existing = registry.get(tag);
-  if (existing) {
-    if (existing !== ctor) {
-      warnOnce(
-        `element-conflict:${tag}`,
-        `[AutoSnooze] Element tag "${tag}" is already registered with a different constructor.`
-      );
-    }
-    return;
-  }
-
-  try {
-    registry.define(tag, ctor);
-  } catch (error) {
-    const afterDefine = registry.get(tag);
-    if (afterDefine === ctor) {
-      return;
-    }
-
-    if (afterDefine) {
-      warnOnce(
-        `element-conflict:${tag}`,
-        `[AutoSnooze] Element tag "${tag}" was claimed by a different constructor during registration.`
-      );
-      return;
-    }
-
-    throw error;
-  }
-}
-
 export function registerCustomCardMetadata(version: string = CARD_VERSION): void {
   const entries = getCardMetadata(version);
   const cards = ensureCustomCardsArray();

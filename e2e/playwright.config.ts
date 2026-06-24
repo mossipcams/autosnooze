@@ -6,7 +6,8 @@ const useHeadedSnapshots = process.env.PLAYWRIGHT_HEADED_SNAPSHOTS === '1';
 
 export default defineConfig({
   testDir: '.',
-  fullyParallel: true,
+  fullyParallel: false,
+  workers: 1,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
   reporter: [

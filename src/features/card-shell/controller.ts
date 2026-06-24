@@ -1,6 +1,6 @@
 import { UI_TIMING } from '../../constants/index.js';
 import { getAutomations as listAutomations } from '../../state/automations.js';
-import { SENSOR_ENTITY_ID } from '../../state/paused.js';
+import { getPausedSensorEntity } from '../../state/paused.js';
 import { fetchCategoryRegistry, fetchEntityRegistry, fetchLabelRegistry } from '../../services/registry.js';
 import type { AutomationItem } from '../../types/automation.js';
 import type { HassCategory, HassEntityRegistryEntry, HassLabel, HomeAssistant } from '../../types/hass.js';
@@ -84,7 +84,7 @@ export class CardShellController {
 
   shouldUpdate(oldHass?: HomeAssistant, newHass?: HomeAssistant): boolean {
     if (!oldHass || !newHass) return true;
-    if (oldHass.states?.[SENSOR_ENTITY_ID] !== newHass.states?.[SENSOR_ENTITY_ID]
+    if (getPausedSensorEntity(oldHass) !== getPausedSensorEntity(newHass)
       || oldHass.entities !== newHass.entities
       || oldHass.areas !== newHass.areas
       || (oldHass.language ?? oldHass.locale?.language) !== (newHass.language ?? newHass.locale?.language)) {
@@ -96,13 +96,6 @@ export class CardShellController {
     const newCount = Object.keys(newHass.states).filter((id) => id.startsWith('automation.')).length;
     return oldEntries.length !== newCount
       || oldEntries.some(([id, state]) => newHass.states[id] !== state);
-  }
-
-  automationFingerprint(states: HomeAssistant['states']): string {
-    return Object.keys(states ?? {}).filter((id) => id.startsWith('automation.')).sort().map((id) => {
-      const entity = states?.[id];
-      return `${id}:${entity?.state ?? ''}:${entity?.last_changed ?? ''}:${entity?.last_updated ?? ''}`;
-    }).join('|');
   }
 
   loadLabels(hass?: HomeAssistant): Promise<void> {

@@ -8,7 +8,6 @@ vi.mock('../services/snooze.js', () => ({
 vi.mock('../services/storage.js', () => ({
   saveLastDuration: vi.fn(),
   loadLastDuration: vi.fn().mockReturnValue(null),
-  clearLastDuration: vi.fn(),
   saveRecentSnoozes: vi.fn(),
   loadRecentSnoozes: vi.fn().mockReturnValue([]),
 }));

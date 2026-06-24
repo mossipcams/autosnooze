@@ -2,13 +2,8 @@ import { vi } from 'vitest';
 import {
   registerAutoSnoozeCard,
   registerCustomCardMetadata,
-  safeDefine,
   _resetWarnedKeys,
 } from '../src/registration.js';
-
-function uniqueTag(prefix: string): string {
-  return `${prefix}-${Date.now()}-${Math.floor(Math.random() * 1000000)}`;
-}
 
 describe('Registration hardening', () => {
   beforeEach(() => {
@@ -24,58 +19,6 @@ describe('Registration hardening', () => {
     delete (globalThis as Record<PropertyKey, unknown>)[
       Symbol.for('autosnooze.registration.done.v1')
     ];
-  });
-
-  test('safeDefine registers unregistered elements', () => {
-    class TestElement extends HTMLElement {}
-
-    const tag = uniqueTag('autosnooze-reg-safe');
-    safeDefine(tag, TestElement);
-
-    expect(customElements.get(tag)).toBe(TestElement);
-  });
-
-  test('safeDefine does not warn for same constructor', () => {
-    class TestElement extends HTMLElement {}
-
-    const tag = uniqueTag('autosnooze-reg-same');
-    safeDefine(tag, TestElement);
-
-    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
-    safeDefine(tag, TestElement);
-
-    expect(warnSpy).not.toHaveBeenCalled();
-  });
-
-  test('safeDefine warns when a different constructor is already registered', () => {
-    class FirstElement extends HTMLElement {}
-    class SecondElement extends HTMLElement {}
-
-    const tag = uniqueTag('autosnooze-reg-conflict');
-    safeDefine(tag, FirstElement);
-
-    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
-    safeDefine(tag, SecondElement);
-
-    expect(warnSpy).toHaveBeenCalledTimes(1);
-  });
-
-  test('safeDefine tolerates define race failures when tag becomes available', () => {
-    class TestElement extends HTMLElement {}
-
-    let storedCtor: CustomElementConstructor | undefined;
-    const fakeRegistry = {
-      get: vi.fn().mockImplementation(() => storedCtor),
-      define: vi.fn().mockImplementation(() => {
-        storedCtor = TestElement;
-        throw new Error('already defined');
-      }),
-    } as unknown as CustomElementRegistry;
-
-    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
-    safeDefine(uniqueTag('autosnooze-reg-race'), TestElement, fakeRegistry);
-
-    expect(warnSpy).not.toHaveBeenCalled();
   });
 
   test('registerCustomCardMetadata normalizes malformed customCards value', () => {
@@ -150,35 +93,4 @@ describe('Registration hardening', () => {
     );
   });
 
-  test('safeDefine re-throws when define fails and tag remains unregistered', () => {
-    class TestElement extends HTMLElement {}
-
-    const defineError = new Error('Invalid constructor');
-    const fakeRegistry = {
-      get: vi.fn().mockReturnValue(undefined),
-      define: vi.fn().mockImplementation(() => {
-        throw defineError;
-      }),
-    } as unknown as CustomElementRegistry;
-
-    expect(() =>
-      safeDefine(uniqueTag('autosnooze-reg-real-error'), TestElement, fakeRegistry)
-    ).toThrow(defineError);
-  });
-
-  test('safeDefine conflict warning fires again after _resetWarnedKeys', () => {
-    class FirstElement extends HTMLElement {}
-    class SecondElement extends HTMLElement {}
-
-    const tag = uniqueTag('autosnooze-reg-reset');
-    safeDefine(tag, FirstElement);
-
-    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
-    safeDefine(tag, SecondElement);
-    expect(warnSpy).toHaveBeenCalledTimes(1);
-
-    _resetWarnedKeys();
-    safeDefine(tag, SecondElement);
-    expect(warnSpy).toHaveBeenCalledTimes(2);
-  });
 });

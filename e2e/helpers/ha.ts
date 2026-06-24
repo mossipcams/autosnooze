@@ -13,9 +13,50 @@ export interface CardErrorMonitor {
   warnings: string[];
 }
 
+type LovelaceResource = {
+  id: string;
+  url: string;
+  type?: string;
+  res_type?: string;
+};
+
 function referencesCardResource(value: string): boolean {
   return value.includes(CARD_RESOURCE_PATH) || value.includes(CARD_ELEMENT_NAME) || value.includes('AutoSnooze');
 }
+
+function isCardResource(resource: LovelaceResource): boolean {
+  return new URL(resource.url, 'http://localhost').pathname === CARD_RESOURCE_PATH;
+}
+
+const waitForHassConnection = async (page: Page): Promise<void> => {
+  await page.waitForSelector('home-assistant', { timeout: 30000 });
+  await page.waitForFunction(
+    () => {
+      const ha = document.querySelector('home-assistant') as {
+        hass?: { connection?: unknown };
+      } | null;
+      return ha?.hass?.connection !== undefined;
+    },
+    { timeout: 30000 },
+  );
+};
+
+const sendHassMessage = async <T>(page: Page, message: Record<string, unknown>): Promise<T> => {
+  await waitForHassConnection(page);
+  return await page.evaluate(async (msg) => {
+    const ha = document.querySelector('home-assistant') as {
+      hass?: {
+        connection?: {
+          sendMessagePromise: <Result>(message: Record<string, unknown>) => Promise<Result>;
+        };
+      };
+    } | null;
+    if (!ha?.hass?.connection) {
+      throw new Error('Home Assistant websocket connection is not available');
+    }
+    return await ha.hass.connection.sendMessagePromise(msg);
+  }, message);
+};
 
 export const getCard = async (page: Page): Promise<Locator> => {
   const lovelaceCard = page
@@ -31,6 +72,36 @@ export const getCard = async (page: Page): Promise<Locator> => {
   }
 
   return page.locator(CARD_ELEMENT_NAME).first();
+};
+
+export const ensureCardResourceRegistered = async (page: Page): Promise<void> => {
+  const resources = await sendHassMessage<LovelaceResource[]>(page, { type: 'lovelace/resources' });
+  const existing = resources.find(isCardResource);
+
+  if (!existing) {
+    await sendHassMessage(page, {
+      type: 'lovelace/resources/create',
+      url: CARD_RESOURCE_PATH,
+      res_type: 'module',
+    });
+  } else if ((existing.type ?? existing.res_type) !== 'module') {
+    await sendHassMessage(page, {
+      type: 'lovelace/resources/update',
+      resource_id: existing.id,
+      url: existing.url,
+      res_type: 'module',
+    });
+  }
+
+  await expect
+    .poll(
+      async () => {
+        const current = await sendHassMessage<LovelaceResource[]>(page, { type: 'lovelace/resources' });
+        return current.some((resource) => isCardResource(resource) && (resource.type ?? resource.res_type) === 'module');
+      },
+      { message: 'AutoSnooze Lovelace card resource should be registered', timeout: 15000 },
+    )
+    .toBe(true);
 };
 
 export const loadCardResource = async (page: Page): Promise<void> => {
@@ -221,7 +292,18 @@ export const setState = async (
           context: { id: `visual-${entityId}`, parent_id: null, user_id: null },
         },
       };
-      document.querySelectorAll('autosnooze-card').forEach((card) => {
+
+      const findAutosnoozeCards = (root: ParentNode): Element[] => {
+        const cards = Array.from(root.querySelectorAll('autosnooze-card'));
+        for (const element of Array.from(root.querySelectorAll('*'))) {
+          if (element.shadowRoot) {
+            cards.push(...findAutosnoozeCards(element.shadowRoot));
+          }
+        }
+        return cards;
+      };
+
+      findAutosnoozeCards(document).forEach((card) => {
         const autosnoozeCard = card as HTMLElement & {
           hass?: unknown;
           requestUpdate?: (name?: string) => void;
@@ -229,7 +311,6 @@ export const setState = async (
         autosnoozeCard.hass = { ...ha.hass, states: ha.hass.states };
         autosnoozeCard.requestUpdate?.('hass');
       });
-      ha.dispatchEvent(new CustomEvent('hass-more-info', { bubbles: true, composed: true, detail: { entityId } }));
     },
     { entityId, state, attributes, options },
   );

@@ -10,8 +10,8 @@ import {
 } from '../../services/storage.js';
 import { createCardStore } from '../../state/card-store.js';
 import {
+  getPausedSensorEntity,
   getPausedSnapshot,
-  SENSOR_ENTITY_ID,
 } from '../../state/paused.js';
 import type { DurationPreset, PauseGroup } from '../../types/automation.js';
 import type {
@@ -22,7 +22,6 @@ import type {
 import type { CountdownState } from '../../utils/countdown-timer.js';
 
 export type { LastDurationData };
-export const SNOOZE_SENSOR_ENTITY_ID = SENSOR_ENTITY_ID;
 
 interface AdjustModalState {
   adjustModalOpen: boolean;
@@ -134,13 +133,17 @@ export function getCardPausedSnapshot(hass: HomeAssistant): {
 }
 
 export function isCardSnoozeSensorAvailable(hass?: HomeAssistant): boolean {
-  return Boolean(hass?.states?.[SENSOR_ENTITY_ID]);
+  return Boolean(getPausedSensorEntity(hass));
 }
 
 export function getConfiguredDurationPresets(hass?: HomeAssistant): DurationPreset[] | null {
-  const configuredPresets = hass?.states?.[SENSOR_ENTITY_ID]?.attributes?.duration_presets as
+  const configuredPresets = getPausedSensorEntity(hass)?.attributes?.duration_presets as
     | DurationPreset[]
     | undefined;
 
   return configuredPresets?.length ? configuredPresets : null;
+}
+
+export function getCardSnoozeSensorEntity(hass?: HomeAssistant) {
+  return getPausedSensorEntity(hass);
 }

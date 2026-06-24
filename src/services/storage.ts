@@ -71,17 +71,6 @@ export function loadLastDuration(): LastDurationData | null {
   }
 }
 
-/**
- * Clear the last duration from localStorage.
- */
-export function clearLastDuration(): void {
-  try {
-    localStorage.removeItem(STORAGE_KEY);
-  } catch {
-    // Ignore errors
-  }
-}
-
 const RECENT_SNOOZES_KEY = 'autosnooze_recent_snoozes';
 const RECENT_MAX_ENTRIES = 10;
 const RECENT_EXPIRATION_MS = 30 * 24 * 60 * 60 * 1000;

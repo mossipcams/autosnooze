@@ -130,13 +130,6 @@ def validate_guardrails(hass: HomeAssistant, entity_ids: list[str], confirm: boo
         )
 
 
-async def _default_notify_started_automations(
-    hass: HomeAssistant,
-    paused_entries: list[PausedAutomation],
-) -> None:
-    del hass, paused_entries
-
-
 async def async_pause_automations(
     hass: HomeAssistant,
     data: AutomationPauseData,
@@ -233,7 +226,11 @@ async def async_pause_automations(
             notification_lead_minutes,
             window=resume_at - notification_window_start,
         ):
-            raise ServiceValidationError("notification_lead_minutes must be shorter than the snooze window")
+            raise ServiceValidationError(
+                "notification_lead_minutes must be shorter than the snooze window",
+                translation_domain=DOMAIN,
+                translation_key="notification_lead_too_long",
+            )
 
         scheduled_entries: list[ScheduledSnooze] = []
         paused_entries: list[PausedAutomation] = []

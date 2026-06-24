@@ -1,13 +1,11 @@
 import { describe, expect, test } from 'vitest';
 import {
   buildAutomationListViewModel,
-  filterAutomations,
   formatRegistryId,
   getAreaName,
   getAutomations,
   getCategoryName,
   getLabelName,
-  groupAutomationsBy,
 } from '../features/automation-list/index.js';
 import type { AutomationItem } from '../types/automation.js';
 import type { HassCategory, HassEntityRegistryEntry, HassLabel, HomeAssistant } from '../types/hass.js';
@@ -152,42 +150,6 @@ describe('automation list feature mutation boundaries', () => {
         category_id: null,
         labels: ['exclude'],
       },
-    ]);
-  });
-
-  test('filterAutomations applies include/exclude labels and case-insensitive name or id search', () => {
-    expect(filterAutomations(automations, '', labelRegistry).map((item) => item.id)).toEqual([
-      'automation.kitchen_lights',
-    ]);
-
-    const noIncludeRegistry = {
-      exclude: labelRegistry.exclude,
-      evening: labelRegistry.evening,
-      outdoor: labelRegistry.outdoor,
-    } as Record<string, HassLabel>;
-    expect(filterAutomations(automations, '', noIncludeRegistry).map((item) => item.id)).toEqual([
-      'automation.kitchen_lights',
-      'automation.porch',
-      'automation.no_labels',
-    ]);
-    expect(filterAutomations(automations, 'PORCH', noIncludeRegistry).map((item) => item.id)).toEqual([
-      'automation.porch',
-    ]);
-    expect(filterAutomations(automations, 'office_fan', noIncludeRegistry)).toEqual([]);
-  });
-
-  test('groupAutomationsBy creates default groups, supports multi-key groups, and sorts default last', () => {
-    expect(groupAutomationsBy(automations, (automation) => automation.area_id ? [automation.area_id] : null, 'none')).toEqual([
-      ['kitchen', [automations[0]]],
-      ['office', [automations[1]]],
-      ['none', [automations[2], automations[3]]],
-    ]);
-    expect(groupAutomationsBy(automations, (automation) => automation.labels, 'none')).toEqual([
-      ['evening', [automations[0], automations[2]]],
-      ['exclude', [automations[1]]],
-      ['include', [automations[0]]],
-      ['outdoor', [automations[2]]],
-      ['none', [automations[3]]],
     ]);
   });
 

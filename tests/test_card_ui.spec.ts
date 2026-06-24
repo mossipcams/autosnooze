@@ -2791,14 +2791,12 @@ describe('shouldUpdate optimization', () => {
     };
     card.hass = newHass;
 
-    const fingerprintSpy = vi.spyOn(card._shell, 'automationFingerprint');
     const changedProps = new Map();
     changedProps.set('hass', oldHass);
 
     const result = card.shouldUpdate(changedProps);
 
     expect(result).toBe(false);
-    expect(fingerprintSpy).not.toHaveBeenCalled();
   });
 
   test('shouldUpdate avoids automation fingerprint scans when states reference is unchanged', () => {
