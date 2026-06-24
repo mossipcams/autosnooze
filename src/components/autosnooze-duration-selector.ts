@@ -323,9 +323,10 @@ export class AutoSnoozeDurationSelector extends LitElement {
 
         <button
           type="button"
-          class="schedule-link"
+          class="schedule-link schedule-link--enter"
           @click=${() => this._fireScheduleModeChange(true)}
         >
+          <ha-icon icon="mdi:calendar-clock" aria-hidden="true"></ha-icon>
           ${localize(this.hass, 'schedule.pick_datetime')}
         </button>
       </div>
