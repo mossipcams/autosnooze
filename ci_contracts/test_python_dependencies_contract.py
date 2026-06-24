@@ -17,18 +17,18 @@ def test_pytest_homeassistant_custom_component_tracks_current_fixture() -> None:
     assert "pytest-homeassistant-custom-component>=0.13.338,<0.13.339" in requirements
 
 
-def test_pytest_matches_current_fixture_dependency() -> None:
-    """Avoid pip resolver conflicts with the current HA test fixture package."""
+def test_pytest_matches_homeassistant_2026_5_fixture_dependency() -> None:
+    """Avoid pip resolver conflicts with the HA 2026.5 test fixture package."""
     requirements = REQUIREMENTS_TEST_PATH.read_text(encoding="utf-8")
 
-    assert "pytest==9.1.1" in requirements
+    assert "pytest==9.0.3" in requirements
 
 
-def test_pytest_asyncio_matches_current_fixture_dependency() -> None:
-    """Avoid async-plugin conflicts with the current HA test fixture package."""
+def test_pytest_asyncio_matches_homeassistant_2026_5_fixture_dependency() -> None:
+    """Avoid pip resolver conflicts with the HA 2026.5 test fixture package."""
     requirements = REQUIREMENTS_TEST_PATH.read_text(encoding="utf-8")
 
-    assert "pytest-asyncio==1.4.0" in requirements
+    assert "pytest-asyncio==1.3.0" in requirements
 
 
 def test_pytest_cov_matches_homeassistant_2026_5_fixture_dependency() -> None:
