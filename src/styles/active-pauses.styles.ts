@@ -10,9 +10,9 @@ export const activePausesStyles = css`
       display: block;
     }
     .snooze-list {
-      border: 2px solid #ff9800;
+      border: 2px solid var(--warning-color, #ff9800);
       border-radius: 8px;
-      background: rgba(255, 152, 0, 0.05);
+      background: color-mix(in srgb, var(--warning-color, #ff9800) 5%, transparent);
       padding: 12px;
       margin-top: 20px;
     }
@@ -40,7 +40,7 @@ export const activePausesStyles = css`
     }
     .pause-group-header ha-icon {
       --mdc-icon-size: 18px;
-      color: #ff9800;
+      color: var(--warning-color, #ff9800);
     }
     .pause-group-header .countdown {
       font-weight: 600;
@@ -112,10 +112,10 @@ export const activePausesStyles = css`
     .wake-all {
       width: 100%;
       padding: 10px;
-      border: 1px solid #ff9800;
+      border: 1px solid var(--warning-color, #ff9800);
       border-radius: 6px;
       background: transparent;
-      color: #ff9800;
+      color: var(--warning-color, #ff9800);
       cursor: pointer;
       font-size: 0.9em;
       font-weight: 500;
@@ -123,15 +123,15 @@ export const activePausesStyles = css`
       min-height: 44px;
     }
     .wake-all:hover {
-      background: #ff9800;
+      background: var(--warning-color, #ff9800);
       color: white;
     }
     .wake-all:focus-visible {
-      outline: 2px solid #ff9800;
+      outline: 2px solid var(--warning-color, #ff9800);
       outline-offset: 2px;
     }
     .wake-all.pending {
-      background: #ff9800;
+      background: var(--warning-color, #ff9800);
       color: white;
     }
     @media (max-width: 480px) {
@@ -139,13 +139,13 @@ export const activePausesStyles = css`
         padding: 14px;
         margin-top: 24px;
         border-radius: 16px;
-        border: 2px solid #ff9800;
+        border: 2px solid var(--warning-color, #ff9800);
         background: linear-gradient(
           180deg,
-          rgba(255, 152, 0, 0.06) 0%,
-          rgba(255, 152, 0, 0.02) 100%
+          color-mix(in srgb, var(--warning-color, #ff9800) 6%, transparent) 0%,
+          color-mix(in srgb, var(--warning-color, #ff9800) 2%, transparent) 100%
         );
-        box-shadow: 0 4px 16px rgba(255, 152, 0, 0.08);
+        box-shadow: 0 4px 16px color-mix(in srgb, var(--warning-color, #ff9800) 8%, transparent);
       }
       .list-header {
         font-size: 0.95em;
@@ -215,9 +215,9 @@ export const activePausesStyles = css`
         flex-shrink: 0;
         align-self: center;
         border-radius: 8px;
-        border: 1.5px solid color-mix(in srgb, #4caf50 60%, var(--divider-color));
+        border: 1.5px solid color-mix(in srgb, var(--success-color, #4caf50) 60%, var(--divider-color));
         background: var(--card-background-color);
-        color: #4caf50;
+        color: var(--success-color, #4caf50);
         transition: all 0.15s ease;
         touch-action: manipulation;
         -webkit-tap-highlight-color: transparent;
@@ -226,9 +226,9 @@ export const activePausesStyles = css`
         transform: scale(0.95);
       }
       .wake-btn:hover {
-        background: #4caf50;
+        background: var(--success-color, #4caf50);
         color: white;
-        border-color: #4caf50;
+        border-color: var(--success-color, #4caf50);
       }
       .wake-all {
         padding: 14px;
@@ -237,19 +237,19 @@ export const activePausesStyles = css`
         min-height: 50px;
         margin-top: 12px;
         border-radius: 12px;
-        border: 2px solid #ff9800;
+        border: 2px solid var(--warning-color, #ff9800);
         transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
       }
       .wake-all:hover {
         transform: translateY(-1px);
-        box-shadow: 0 4px 12px rgba(255, 152, 0, 0.2);
+        box-shadow: 0 4px 12px color-mix(in srgb, var(--warning-color, #ff9800) 20%, transparent);
       }
       .wake-all.pending {
         animation: pulse-orange 1.5s infinite;
       }
       @keyframes pulse-orange {
-        0%, 100% { box-shadow: 0 0 0 0 rgba(255, 152, 0, 0.4); }
-        50% { box-shadow: 0 0 0 8px rgba(255, 152, 0, 0); }
+        0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--warning-color, #ff9800) 40%, transparent); }
+        50% { box-shadow: 0 0 0 8px transparent; }
       }
     }
 `;
