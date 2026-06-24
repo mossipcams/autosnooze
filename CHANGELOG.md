@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.2.26](https://github.com/mossipcams/autosnooze/compare/v0.2.25...v0.2.26) (2026-06-24)
+
+
+### Features
+
+* improve snooze setup card UI/UX ([#428](https://github.com/mossipcams/autosnooze/issues/428)) ([1a22152](https://github.com/mossipcams/autosnooze/commit/1a22152220d5e7dbc6594413d3d60f30402d832c))
+
+
+### Bug Fixes
+
+* **deps:** restore security and Playwright gates ([#450](https://github.com/mossipcams/autosnooze/issues/450)) ([4c7357e](https://github.com/mossipcams/autosnooze/commit/4c7357ecbc547e92e9e90b8685ea27381399a64f))
+* harden notifications, scheduling, and guardrails ([#449](https://github.com/mossipcams/autosnooze/issues/449)) ([e58d0e4](https://github.com/mossipcams/autosnooze/commit/e58d0e47be226c5730dba7917ac52264efc9d3bb))
+
 ## [0.2.25](https://github.com/mossipcams/autosnooze/compare/v0.2.24...v0.2.25) (2026-06-06)
 
 
