@@ -49,7 +49,7 @@
   "devDependencies": {
     "@axe-core/playwright": "^4.11.3",
     "@eslint/js": "^10.0.1",
-    "@playwright/test": "^1.61.0",
+    "@playwright/test": "^1.61.1",
     "@rollup/plugin-json": "^6.1.0",
     "@rollup/plugin-node-resolve": "^16.0.3",
     "@rollup/plugin-replace": "^6.0.3",
@@ -81,6 +81,9 @@
     "underscore": "1.13.8",
     "flatted": "3.4.2",
     "picomatch": "4.0.4",
+    "@anthropic-ai/claude-agent-sdk": {
+      "@anthropic-ai/sdk": "0.91.1"
+    },
     "micromatch": {
       "picomatch": "2.3.2"
     }
