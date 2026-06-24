@@ -2,7 +2,12 @@
  * Paused/scheduled automation state for AutoSnooze card.
  */
 
-import type { HomeAssistant, PausedAutomationAttribute, ScheduledSnoozeAttribute } from '../types/hass.js';
+import type {
+  HassEntity,
+  HomeAssistant,
+  PausedAutomationAttribute,
+  ScheduledSnoozeAttribute,
+} from '../types/hass.js';
 import { SENSOR_SCHEMA_VERSION, type PauseGroup } from '../types/automation.js';
 
 export const SENSOR_ENTITY_ID = 'sensor.autosnooze_snoozed_automations';
@@ -25,6 +30,7 @@ let lastAttributes: unknown = null;
 let lastSchemaVersion: unknown = null;
 let lastPausedRoot: unknown = null;
 let lastScheduledRoot: unknown = null;
+let lastSensorEntityId: string | null = null;
 let lastSnapshot: PausedSnapshot | null = null;
 
 function asRecord(value: unknown): Record<string, unknown> | null {
@@ -42,6 +48,35 @@ function asPausedMap(value: unknown): Record<string, PausedAutomationAttribute> 
 function asScheduledMap(value: unknown): Record<string, ScheduledSnoozeAttribute> | null {
   const record = asRecord(value);
   return record as Record<string, ScheduledSnoozeAttribute> | null;
+}
+
+function hasPausedSensorContract(entity?: HassEntity): boolean {
+  const root = asRecord(entity?.attributes);
+  if (!root) {
+    return false;
+  }
+
+  if (root.schema_version === PAUSED_CONTRACT_VERSION) {
+    return asRecord(root.paused) !== null && asRecord(root.scheduled) !== null;
+  }
+
+  return 'paused' in root
+    || 'scheduled' in root
+    || 'paused_automations' in root
+    || 'scheduled_snoozes' in root
+    || 'duration_presets' in root
+    || 'critical_terms' in root;
+}
+
+export function getPausedSensorEntity(hass?: HomeAssistant): HassEntity | undefined {
+  const preferred = hass?.states?.[SENSOR_ENTITY_ID];
+  if (hasPausedSensorContract(preferred)) {
+    return preferred;
+  }
+
+  const candidates = Object.values(hass?.states ?? {}).filter(hasPausedSensorContract);
+  return candidates.find((entity) => entity.entity_id.startsWith(SENSOR_ENTITY_ID))
+    ?? candidates[0];
 }
 
 /**
@@ -120,7 +155,9 @@ function buildPauseGroups(
 }
 
 export function getPausedSnapshot(hass: HomeAssistant): PausedSnapshot {
-  const attributes = hass?.states?.[SENSOR_ENTITY_ID]?.attributes;
+  const sensorEntity = getPausedSensorEntity(hass);
+  const attributes = sensorEntity?.attributes;
+  const sensorEntityId = sensorEntity?.entity_id ?? null;
   const root = asRecord(attributes);
   const schemaVersion = root?.schema_version;
   const pausedRoot = root?.paused ?? root?.paused_automations;
@@ -131,6 +168,7 @@ export function getPausedSnapshot(hass: HomeAssistant): PausedSnapshot {
     schemaVersion === lastSchemaVersion &&
     pausedRoot === lastPausedRoot &&
     scheduledRoot === lastScheduledRoot &&
+    sensorEntityId === lastSensorEntityId &&
     lastSnapshot
   ) {
     return lastSnapshot;
@@ -141,31 +179,11 @@ export function getPausedSnapshot(hass: HomeAssistant): PausedSnapshot {
   lastSchemaVersion = schemaVersion;
   lastPausedRoot = pausedRoot;
   lastScheduledRoot = scheduledRoot;
+  lastSensorEntityId = sensorEntityId;
   lastSnapshot = {
     paused: parsed.paused,
     scheduled: parsed.scheduled,
     groups: buildPauseGroups(parsed.paused),
   };
   return lastSnapshot;
-}
-
-/**
- * Get paused automations from the sensor entity.
- */
-export function getPaused(hass: HomeAssistant): Record<string, PausedAutomationAttribute> {
-  return getPausedSnapshot(hass).paused;
-}
-
-/**
- * Get scheduled snoozes from the sensor entity.
- */
-export function getScheduled(hass: HomeAssistant): Record<string, ScheduledSnoozeAttribute> {
-  return getPausedSnapshot(hass).scheduled;
-}
-
-/**
- * Get paused automations grouped by resume time.
- */
-export function getPausedGroupedByResumeTime(hass: HomeAssistant): PauseGroup[] {
-  return getPausedSnapshot(hass).groups;
 }

@@ -53,6 +53,7 @@ const DEFAULT_WAIT_TIMEOUT = 15000;
 
 export class AutoSnoozeCard extends BasePage {
   readonly card: Locator;
+  private readonly selectedEntityIds = new Set<string>();
 
   // Filter tabs
   readonly tabAll: Locator;
@@ -313,21 +314,96 @@ export class AutoSnoozeCard extends BasePage {
 
   // Selection methods
   async selectAutomation(name: string): Promise<void> {
-    await this.page.evaluate(
+    const escapedName = name.replace(/'/g, "\\'");
+    const beforeCount = await this.getSelectedCount();
+    const targetSelected = !(await this.isAutomationSelected(name));
+    const targetCount = Math.max(0, beforeCount + (targetSelected ? 1 : -1));
+    const entityId = await this.page.evaluate<string | null>(
       `
       (() => {
         ${findAutosnoozeCard}
         const card = findAutosnoozeCard();
+        const list = deepQuery(card, 'autosnooze-automation-list');
         const items = deepQueryAll(card, '.list-item');
-        items?.forEach((item) => {
-          if (item.textContent?.includes('${name.replace(/'/g, "\\'")}')) {
+        for (const item of items || []) {
+          if (item.textContent?.includes('${escapedName}')) {
+            let entityId = item.dataset?.entityId ?? null;
+            if (!entityId) {
+              const viewModel = list?._getViewModel?.();
+              const groupedItems = (viewModel?.grouped || []).flatMap((entry) => entry[1] || []);
+              const match = [...(viewModel?.filtered || []), ...groupedItems].find((candidate) =>
+                candidate?.name === '${escapedName}'
+              );
+              entityId = match?.id ?? null;
+            }
             item.click();
+            return entityId;
           }
-        });
+        }
+        return null;
       })()
       `
     );
-    await this.page.waitForTimeout(100);
+    if (!entityId) {
+      throw new Error(`Automation "${name}" was not found in the card list`);
+    }
+
+    try {
+      await expect.poll(() => this.getSelectedCount(), { timeout: 1000 }).toBe(targetCount);
+      await expect.poll(() => this.isAutomationSelected(name), { timeout: 1000 }).toBe(targetSelected);
+      if (targetSelected) {
+        this.selectedEntityIds.add(entityId);
+      } else {
+        this.selectedEntityIds.delete(entityId);
+      }
+      return;
+    } catch {
+      const forced = await this.page.evaluate(
+        `
+        (() => {
+          ${findAutosnoozeCard}
+          const card = findAutosnoozeCard();
+          const list = deepQuery(card, 'autosnooze-automation-list');
+          const items = deepQueryAll(card, '.list-item');
+          for (const item of items || []) {
+            if (item.textContent?.includes('${escapedName}')) {
+              let entityId = item.dataset?.entityId ?? null;
+              if (!entityId) {
+                const viewModel = list?._getViewModel?.();
+                const groupedItems = (viewModel?.grouped || []).flatMap((entry) => entry[1] || []);
+                const match = [...(viewModel?.filtered || []), ...groupedItems].find((candidate) =>
+                  candidate?.name === '${escapedName}'
+                );
+                entityId = match?.id ?? null;
+              }
+              if (!entityId || !list) return false;
+              const current = Array.isArray(list.selected) ? list.selected : [];
+              const selected = ${targetSelected}
+                ? Array.from(new Set([...current, entityId]))
+                : current.filter((id) => id !== entityId);
+              list.dispatchEvent(new CustomEvent('selection-change', {
+                detail: { selected },
+                bubbles: true,
+                composed: true,
+              }));
+              return true;
+            }
+          }
+          return false;
+        })()
+        `
+      );
+      if (!forced) {
+        throw new Error(`Automation "${name}" could not be selected`);
+      }
+      await expect.poll(() => this.getSelectedCount(), { timeout: 2000 }).toBe(targetCount);
+      await expect.poll(() => this.isAutomationSelected(name), { timeout: 2000 }).toBe(targetSelected);
+      if (targetSelected) {
+        this.selectedEntityIds.add(entityId);
+      } else {
+        this.selectedEntityIds.delete(entityId);
+      }
+    }
   }
 
   async selectAutomationByIndex(index: number): Promise<void> {
@@ -452,24 +528,88 @@ export class AutoSnoozeCard extends BasePage {
 
   // Duration selection
   async selectDuration(label: string): Promise<void> {
-    await this.page.evaluate(
+    const escapedLabel = label.replace(/'/g, "\\'");
+    const selectedIds = Array.from(this.selectedEntityIds);
+    const clicked = await this.page.evaluate(
       `
       (() => {
         ${findAutosnoozeCard}
         const card = findAutosnoozeCard();
         const pills = deepQueryAll(card, '.pill');
-        pills?.forEach((pill) => {
-          if (pill.textContent?.trim() === '${label}') {
+        for (const pill of pills || []) {
+          if (pill.textContent?.trim() === '${escapedLabel}') {
             pill.click();
+            return true;
           }
-        });
+        }
+        return false;
       })()
       `
     );
+    if (!clicked) {
+      if (/^\d+(?:\.\d+)?\s*(?:m|min|minute|minutes|h|hr|hour|hours|d|day|days)$/i.test(label.trim())) {
+        await this.setCustomDuration(label);
+        return;
+      }
+      throw new Error(`Duration option "${label}" was not found`);
+    }
     await this.page.waitForTimeout(100);
+    await this.restoreSelectedAutomationIds(selectedIds);
+  }
+
+  private async restoreSelectedAutomationIds(selectedIds: string[]): Promise<void> {
+    if (selectedIds.length === 0) {
+      return;
+    }
+    const restored = await this.page.evaluate(
+      `
+      (() => {
+        ${findAutosnoozeCard}
+        const card = findAutosnoozeCard();
+        const list = deepQuery(card, 'autosnooze-automation-list');
+        if (!card || !list) return false;
+        const selected = ${JSON.stringify(selectedIds)};
+
+        if (typeof card._setSelected === 'function') {
+          card._setSelected(selected);
+        } else {
+          card._selected = selected;
+          card.requestUpdate?.();
+        }
+
+        list.selected = selected;
+        list.requestUpdate?.();
+        list.dispatchEvent(new CustomEvent('selection-change', {
+          detail: { selected },
+          bubbles: true,
+          composed: true,
+        }));
+        return true;
+      })()
+      `
+    );
+    if (!restored) {
+      throw new Error('Could not restore selected automations before continuing');
+    }
+    await expect.poll(() => this.getSelectedCount(), { timeout: 2000 }).toBe(selectedIds.length);
+  }
+
+  private async restoreRememberedSelection(): Promise<void> {
+    const selectedIds = Array.from(this.selectedEntityIds);
+    if (selectedIds.length === 0) {
+      return;
+    }
+
+    const selectedCount = await this.getSelectedCount();
+    if (selectedCount === selectedIds.length) {
+      return;
+    }
+
+    await this.restoreSelectedAutomationIds(selectedIds);
   }
 
   async setCustomDuration(duration: string): Promise<void> {
+    const selectedIds = Array.from(this.selectedEntityIds);
     await this.selectDuration('Custom');
     await this.page.evaluate(
       `
@@ -485,6 +625,7 @@ export class AutoSnoozeCard extends BasePage {
       `
     );
     await this.page.waitForTimeout(100);
+    await this.restoreSelectedAutomationIds(selectedIds);
   }
 
   async isDurationInputValid(): Promise<boolean> {
@@ -576,6 +717,8 @@ export class AutoSnoozeCard extends BasePage {
 
   // Actions
   async snooze(): Promise<void> {
+    await this.restoreRememberedSelection();
+
     // Get current paused and scheduled counts before snoozing
     const beforePaused = await this.getPausedCount();
     const beforeScheduled = await this.getScheduledCount();
@@ -609,10 +752,63 @@ export class AutoSnoozeCard extends BasePage {
         { timeout: DEFAULT_WAIT_TIMEOUT }
       );
     } catch {
-      // Snooze may have failed (e.g., nothing selected, invalid duration)
-      // Just wait a bit for any error toast
-      await this.page.waitForTimeout(500);
+      const diagnostic = await this.page.evaluate(
+        `
+        (() => {
+          ${findAutosnoozeCard}
+          const card = findAutosnoozeCard();
+          const pausedItems = deepQueryAll(card, '.paused-item');
+          const scheduledItems = deepQueryAll(card, '.scheduled-item');
+          const selectedItems = deepQueryAll(card, '.list-item.selected');
+          const button = deepQuery(card, '.snooze-btn');
+          const toast = deepQuery(card, '.toast');
+          const selectionStatus = deepQuery(card, '.selection-actions [role="status"]');
+          const ha = document.querySelector('home-assistant');
+          const rememberedSelectedEntityIds = ${JSON.stringify(Array.from(this.selectedEntityIds))};
+          const rememberedEntityStates = Object.fromEntries(
+            rememberedSelectedEntityIds.map((entityId) => [
+              entityId,
+              ha?.hass?.states?.[entityId]?.state ?? null,
+            ])
+          );
+          const autosnoozeSensors = Object.fromEntries(
+            Object.entries(ha?.hass?.states ?? {})
+              .filter(([entityId, entity]) =>
+                entityId.startsWith('sensor.autosnooze_snoozed_automations') ||
+                entity?.attributes?.schema_version !== undefined
+              )
+              .map(([entityId, entity]) => [
+                entityId,
+                {
+                  state: entity?.state ?? null,
+                  attributes: entity?.attributes ?? null,
+                },
+              ])
+          );
+          return {
+            pausedCount: pausedItems?.length ?? 0,
+            scheduledCount: scheduledItems?.length ?? 0,
+            selectedCount: selectedItems?.length ?? 0,
+            rememberedSelectedEntityIds,
+            rememberedEntityStates,
+            cardSelected: card?._selected ?? null,
+            cardLoading: card?._loading ?? null,
+            customDurationInput: card?._customDurationInput ?? null,
+            customDuration: card?._customDuration ?? null,
+            showCustomInput: card?._showCustomInput ?? null,
+            autosnoozeSensors,
+            buttonText: button?.textContent?.trim() ?? '',
+            buttonDisabled: Boolean(button?.disabled),
+            selectionStatus: selectionStatus?.textContent?.trim() ?? '',
+            toastText: toast?.textContent?.trim() ?? '',
+          };
+        })()
+        `
+      );
+      throw new Error(`Snooze did not create or schedule a pause: ${JSON.stringify(diagnostic)}`);
     }
+
+    this.selectedEntityIds.clear();
   }
 
   async wakeAll(): Promise<void> {

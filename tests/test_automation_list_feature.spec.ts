@@ -2,9 +2,7 @@
 import { describe, expect, test } from 'vitest';
 import {
   buildAutomationListViewModel,
-  filterAutomations,
   getAutomations,
-  groupAutomationsBy,
 } from '../src/features/automation-list/index.js';
 
 describe('Automation List Feature', () => {
@@ -54,39 +52,6 @@ describe('Automation List Feature', () => {
         category_id: 'lighting',
         labels: ['include'],
       },
-    ]);
-  });
-
-  test('filters automations using include/exclude label semantics and search', () => {
-    const automations = [
-      { id: 'automation.kitchen', name: 'Kitchen', area_id: null, category_id: null, labels: ['include'] },
-      { id: 'automation.garage', name: 'Garage', area_id: null, category_id: null, labels: ['exclude'] },
-      { id: 'automation.alarm', name: 'Alarm', area_id: null, category_id: null, labels: [] },
-    ];
-
-    const result = filterAutomations(automations, 'kit', {
-      include: { label_id: 'include', name: 'autosnooze_include' },
-      exclude: { label_id: 'exclude', name: 'autosnooze_exclude' },
-    });
-
-    expect(result).toEqual([
-      { id: 'automation.kitchen', name: 'Kitchen', area_id: null, category_id: null, labels: ['include'] },
-    ]);
-  });
-
-  test('groups automations by feature-provided key and sorts fallback group last', () => {
-    const grouped = groupAutomationsBy(
-      [
-        { id: 'automation.b', name: 'B', area_id: null, category_id: null, labels: [] },
-        { id: 'automation.a', name: 'A', area_id: null, category_id: null, labels: [] },
-      ],
-      (automation) => (automation.id === 'automation.a' ? ['Alpha'] : null),
-      'Unassigned'
-    );
-
-    expect(grouped).toEqual([
-      ['Alpha', [{ id: 'automation.a', name: 'A', area_id: null, category_id: null, labels: [] }]],
-      ['Unassigned', [{ id: 'automation.b', name: 'B', area_id: null, category_id: null, labels: [] }]],
     ]);
   });
 

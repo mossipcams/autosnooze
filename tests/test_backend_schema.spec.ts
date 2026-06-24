@@ -161,6 +161,14 @@ describe('Backend Error Schema Alignment', () => {
         expect(result).not.toBe('Fallback. Check Home Assistant logs for details.');
       }
     });
+
+    test('services schema fixture lists every backend error translation key', () => {
+      const requiredKeys = new Set(servicesSchema.translation_keys);
+
+      for (const key of Object.keys(backendErrors.errors)) {
+        expect(requiredKeys.has(key)).toBe(true);
+      }
+    });
   });
 
   describe('Error response format handling', () => {

@@ -124,19 +124,6 @@ async def async_execute_scheduled_disable(
     _LOGGER.info("Executed scheduled snooze for %s until %s", entity_id, resume_at)
 
 
-async def async_cancel_scheduled(hass: HomeAssistant, data: AutomationPauseData, entity_id: str) -> None:
-    """Cancel a scheduled snooze."""
-    if data.unloaded:
-        return
-    async with data.lock:
-        cancel_scheduled_timer(data, entity_id)
-        data.scheduled.pop(entity_id, None)
-        if not await runtime_ports.async_save(data):
-            _raise_save_failed()
-    data.notify()
-    _LOGGER.info("Cancelled scheduled snooze for: %s", entity_id)
-
-
 async def async_cancel_scheduled_batch(
     hass: HomeAssistant,
     data: AutomationPauseData,

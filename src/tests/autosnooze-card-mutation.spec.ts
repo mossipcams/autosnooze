@@ -74,7 +74,6 @@ type TestCard = HTMLElement & {
     connect: (hass: HomeAssistant) => Promise<void>;
     disconnect: () => void;
     shouldUpdate: (oldHass?: HomeAssistant, newHass?: HomeAssistant) => boolean;
-    automationFingerprint: (states: HomeAssistant['states']) => string;
   };
   shouldUpdate: (changedProps: Map<string, unknown>) => boolean;
   updated: (changedProps: Map<string, unknown>) => void;
@@ -288,14 +287,8 @@ describe('AutomationPauseCard mutation boundaries', () => {
     }} as never)).toBe(true);
   });
 
-  test('automation fingerprint and cache reuse only stable state references and cache versions', () => {
+  test('automation cache reuse only stable state references and cache versions', () => {
     const card = createCard();
-    const states = card.hass!.states as never as Record<string, unknown>;
-
-    const firstFingerprint = card._shell.automationFingerprint(states as never);
-    expect(card._shell.automationFingerprint(states as never)).toBe(firstFingerprint);
-    expect(firstFingerprint).toContain('automation.kitchen_lights:on');
-    expect(firstFingerprint).not.toContain('light.kitchen');
 
     const firstAutomations = card._getAutomations();
     expect(card._getAutomations()).toBe(firstAutomations);

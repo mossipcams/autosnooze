@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta
+from datetime import timedelta
 import json
 import logging
 from pathlib import Path
@@ -11,15 +11,12 @@ import voluptuous as vol
 
 from homeassistant.const import ATTR_ENTITY_ID
 from homeassistant.helpers import config_validation as cv
-from homeassistant.util import dt as dt_util
 
 from .domain.notifications import (
     NOTIFICATION_LEAD_MINUTES_VALUES,
     NOTIFICATION_TRIGGER_NONE,
     NOTIFICATION_TRIGGER_VALUES,
-    notification_window_supports_lead,
 )
-from .models import ensure_utc_aware
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -94,33 +91,10 @@ def _validate_notification_schema(value: dict[str, object]) -> dict[str, object]
     if trigger == "about_to_end":
         if lead_minutes not in NOTIFICATION_LEAD_MINUTES_VALUES:
             raise vol.Invalid("notification_lead_minutes is required for notification_trigger=about_to_end")
-        window = _get_notification_window(value)
-        if not notification_window_supports_lead(trigger, lead_minutes, window=window):
-            raise vol.Invalid("notification_lead_minutes must be shorter than the snooze window")
     elif lead_minutes is not None:
         raise vol.Invalid("notification_lead_minutes is only allowed when notification_trigger=about_to_end")
 
     return value
-
-
-def _get_notification_window(value: dict[str, object]) -> timedelta:
-    resume_raw = value.get("resume_at")
-    disable_raw = value.get("disable_at")
-    resume_at = ensure_utc_aware(resume_raw) if isinstance(resume_raw, datetime) else None
-    disable_at = ensure_utc_aware(disable_raw) if isinstance(disable_raw, datetime) else None
-    if resume_at is not None:
-        now = dt_util.utcnow()
-        if disable_at is not None and disable_at > now:
-            return resume_at - disable_at
-        return resume_at - now
-    days = value.get("days", 0)
-    hours = value.get("hours", 0)
-    minutes = value.get("minutes", 0)
-    return timedelta(
-        days=days if isinstance(days, int) else 0,
-        hours=hours if isinstance(hours, int) else 0,
-        minutes=minutes if isinstance(minutes, int) else 0,
-    )
 
 
 PAUSE_SCHEMA = vol.All(

@@ -7,9 +7,7 @@ import { describe, test, expect } from 'vitest';
 import {
   SENSOR_ENTITY_ID,
   PAUSED_CONTRACT_VERSION,
-  getPaused,
-  getPausedGroupedByResumeTime,
-  getScheduled,
+  getPausedSnapshot,
   parsePausedContract,
 } from '../src/state/paused.js';
 import { SENSOR_SCHEMA_VERSION } from '../src/types/automation.js';
@@ -96,8 +94,8 @@ describe('Paused Contract Parser', () => {
       },
     });
 
-    expect(getPaused(hass)['automation.a']?.friendly_name).toBe('A');
-    expect(getScheduled(hass)['automation.b']?.friendly_name).toBe('B');
+    expect(getPausedSnapshot(hass).paused['automation.a']?.friendly_name).toBe('A');
+    expect(getPausedSnapshot(hass).scheduled['automation.b']?.friendly_name).toBe('B');
   });
 
   test('reuses paused and scheduled snapshots for the same sensor attributes object', () => {
@@ -120,12 +118,12 @@ describe('Paused Contract Parser', () => {
       },
     });
 
-    const pausedFirst = getPaused(hass);
-    const pausedSecond = getPaused(hass);
-    const scheduledFirst = getScheduled(hass);
-    const scheduledSecond = getScheduled(hass);
-    const groupsFirst = getPausedGroupedByResumeTime(hass);
-    const groupsSecond = getPausedGroupedByResumeTime(hass);
+    const pausedFirst = getPausedSnapshot(hass).paused;
+    const pausedSecond = getPausedSnapshot(hass).paused;
+    const scheduledFirst = getPausedSnapshot(hass).scheduled;
+    const scheduledSecond = getPausedSnapshot(hass).scheduled;
+    const groupsFirst = getPausedSnapshot(hass).groups;
+    const groupsSecond = getPausedSnapshot(hass).groups;
 
     expect(pausedSecond).toBe(pausedFirst);
     expect(scheduledSecond).toBe(scheduledFirst);
@@ -149,8 +147,8 @@ describe('Paused Contract Parser', () => {
       },
     });
 
-    const firstPaused = getPaused(hass);
-    const firstGroups = getPausedGroupedByResumeTime(hass);
+    const firstPaused = getPausedSnapshot(hass).paused;
+    const firstGroups = getPausedSnapshot(hass).groups;
 
     hass.states[SENSOR_ENTITY_ID] = {
       ...hass.states[SENSOR_ENTITY_ID],
@@ -165,9 +163,9 @@ describe('Paused Contract Parser', () => {
       },
     };
 
-    const secondPaused = getPaused(hass);
-    const secondScheduled = getScheduled(hass);
-    const secondGroups = getPausedGroupedByResumeTime(hass);
+    const secondPaused = getPausedSnapshot(hass).paused;
+    const secondScheduled = getPausedSnapshot(hass).scheduled;
+    const secondGroups = getPausedSnapshot(hass).groups;
 
     expect(secondPaused).not.toBe(firstPaused);
     expect(secondGroups).not.toBe(firstGroups);

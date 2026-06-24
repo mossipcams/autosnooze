@@ -83,6 +83,7 @@ export const ERROR_MESSAGES: Record<string, string> = {
   invalid_adjustment: 'Adjustment must be non-zero. Specify at least one of: days, hours, or minutes.',
   adjust_time_too_short: 'Cannot shorten snooze that much. Resume time must be at least 1 minute away.',
   confirm_required: 'Failed to snooze: Confirmation is required for one or more selected automations',
+  notification_lead_too_long: 'The notification lead time must be shorter than the snooze window.',
 };
 
 /**

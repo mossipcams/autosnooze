@@ -10,7 +10,6 @@ import {
   _resetWarnedKeys,
   registerAutoSnoozeCard,
   registerCustomCardMetadata,
-  safeDefine,
 } from '../registration.js';
 import {
   AutomationPauseCard,
@@ -22,9 +21,6 @@ import {
   AutoSnoozeDurationSelector,
 } from '../components/index.js';
 
-function uniqueTag(prefix: string): string {
-  return `${prefix}-${Date.now()}-${Math.floor(Math.random() * 1000000)}`;
-}
 
 function expectRegisteredSubclass(
   baseCtor: CustomElementConstructor,
@@ -149,47 +145,6 @@ describe('registration utility mutation boundaries', () => {
     delete (globalThis as Record<PropertyKey, unknown>)[
       Symbol.for('autosnooze.registration.done.v1')
     ];
-  });
-
-  test('safeDefine warns once with tag-specific conflict details', () => {
-    class FirstElement extends HTMLElement {}
-    class SecondElement extends HTMLElement {}
-
-    const tag = uniqueTag('autosnooze-reg-conflict-once');
-    safeDefine(tag, FirstElement);
-
-    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
-    safeDefine(tag, SecondElement);
-    safeDefine(tag, SecondElement);
-
-    expect(warnSpy).toHaveBeenCalledTimes(1);
-    expect(warnSpy).toHaveBeenCalledWith(
-      expect.stringContaining(`Element tag "${tag}" is already registered`)
-    );
-  });
-
-  test('safeDefine warns and returns when a define race claims the tag with another constructor', () => {
-    class ExpectedElement extends HTMLElement {}
-    class OtherElement extends HTMLElement {}
-
-    const tag = uniqueTag('autosnooze-reg-claimed');
-    let getCount = 0;
-    const fakeRegistry = {
-      get: vi.fn().mockImplementation(() => {
-        getCount += 1;
-        return getCount === 1 ? undefined : OtherElement;
-      }),
-      define: vi.fn().mockImplementation(() => {
-        throw new Error('already defined elsewhere');
-      }),
-    } as unknown as CustomElementRegistry;
-
-    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
-
-    expect(() => safeDefine(tag, ExpectedElement, fakeRegistry)).not.toThrow();
-    expect(warnSpy).toHaveBeenCalledWith(
-      expect.stringContaining(`Element tag "${tag}" was claimed by a different constructor`)
-    );
   });
 
   test('registerCustomCardMetadata does not warn for missing customCards and preserves other entries', () => {

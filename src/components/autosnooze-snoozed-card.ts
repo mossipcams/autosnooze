@@ -15,9 +15,9 @@ import { cardStyles } from '../styles/card.styles.js';
 import { sharedPausedStyles } from '../styles/shared.styles.js';
 import { defineAutoSnoozeElement } from '../utils/custom-element-registration.js';
 import {
+  getCardSnoozeSensorEntity,
   getCardPausedSnapshot,
   isCardSnoozeSensorAvailable,
-  SNOOZE_SENSOR_ENTITY_ID,
 } from '../features/card-shell/index.js';
 
 export class AutoSnoozeSnoozedCard extends LitElement {
@@ -52,7 +52,7 @@ export class AutoSnoozeSnoozedCard extends LitElement {
       return true;
     }
     const sensorChanged =
-      previous.states?.[SNOOZE_SENSOR_ENTITY_ID] !== this.hass.states?.[SNOOZE_SENSOR_ENTITY_ID];
+      getCardSnoozeSensorEntity(previous) !== getCardSnoozeSensorEntity(this.hass);
     const languageChanged =
       (previous.language ?? previous.locale?.language) !==
       (this.hass.language ?? this.hass.locale?.language);

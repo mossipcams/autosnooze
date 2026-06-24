@@ -18,6 +18,8 @@ from ..runtime.state import AutomationPauseData
 _LOGGER = logging.getLogger(__name__)
 ResumeReason = Literal["manual", "expired"]
 _RESUME_NOTIFICATION_ID = "autosnooze_resume_finished"
+_STARTED_NOTIFICATION_ID = "autosnooze_started"
+_PRE_RESUME_NOTIFICATION_ID = "autosnooze_pre_resume"
 _START_NOTIFICATION_TITLE = "AutoSnooze started"
 _PRE_RESUME_NOTIFICATION_TITLE = "AutoSnooze ending soon"
 _RESUME_NOTIFICATION_TITLE = "AutoSnooze finished"
@@ -49,12 +51,17 @@ def _build_pre_resume_notification(paused: PausedAutomation) -> tuple[str, str]:
     return _PRE_RESUME_NOTIFICATION_TITLE, f"{paused.friendly_name} will resume in {lead_minutes} {minute_label}."
 
 
-async def _send_resume_notification(hass: HomeAssistant, title: str, message: str) -> None:
+async def _send_resume_notification(
+    hass: HomeAssistant,
+    title: str,
+    message: str,
+    notification_id: str = _RESUME_NOTIFICATION_ID,
+) -> None:
     try:
         await hass.services.async_call(
             "persistent_notification",
             "dismiss",
-            {"notification_id": _RESUME_NOTIFICATION_ID},
+            {"notification_id": notification_id},
             blocking=True,
         )
     except Exception as err:
@@ -64,7 +71,7 @@ async def _send_resume_notification(hass: HomeAssistant, title: str, message: st
         await hass.services.async_call(
             "persistent_notification",
             "create",
-            {"title": title, "message": message, "notification_id": _RESUME_NOTIFICATION_ID},
+            {"title": title, "message": message, "notification_id": notification_id},
             blocking=True,
         )
     except Exception as err:
@@ -103,7 +110,7 @@ async def notify_started(
     title, message = (
         _build_started_notification(eligible[0]) if len(eligible) == 1 else _build_started_batch_notification(eligible)
     )
-    await _send_resume_notification(hass, title, message)
+    await _send_resume_notification(hass, title, message, _STARTED_NOTIFICATION_ID)
 
 
 async def send_pre_resume_notification(
@@ -120,4 +127,4 @@ async def send_pre_resume_notification(
         ):
             return
     title, message = _build_pre_resume_notification(paused)
-    await _send_resume_notification(hass, title, message)
+    await _send_resume_notification(hass, title, message, f"{_PRE_RESUME_NOTIFICATION_ID}_{entity_id}")

@@ -23,50 +23,6 @@ from .resume import async_resume
 _LOGGER = logging.getLogger(__name__)
 
 
-async def async_adjust_snooze(
-    hass: HomeAssistant,
-    data: AutomationPauseData,
-    entity_id: str,
-    delta: timedelta,
-) -> None:
-    """Adjust the resume time of a paused automation by a time delta."""
-    if data.unloaded:
-        return
-    async with data.lock:
-        paused = data.paused.get(entity_id)
-        if paused is None:
-            _LOGGER.warning("Cannot adjust %s: not currently snoozed", entity_id)
-            return
-
-        new_resume_at = paused.resume_at + delta
-        now = dt_util.utcnow()
-
-        if new_resume_at <= now + MIN_ADJUST_BUFFER:
-            raise ServiceValidationError(
-                "Adjusted time must be at least 1 minute in the future",
-                translation_domain=DOMAIN,
-                translation_key="adjust_time_too_short",
-            )
-        if not notification_window_supports_lead(
-            paused.notification_trigger,
-            paused.notification_lead_minutes,
-            window=new_resume_at - now,
-        ):
-            raise ServiceValidationError("notification_lead_minutes must be shorter than the remaining snooze window")
-
-        paused.resume_at = new_resume_at
-        paused.days = 0
-        paused.hours = 0
-        paused.minutes = 0
-
-        schedule_resume(hass, data, entity_id, new_resume_at, resume_callback=async_resume)
-        schedule_pre_resume_notification(hass, data, paused, notification_callback=send_pre_resume_notification)
-        if not await async_save(data):
-            _raise_save_failed()
-    data.notify()
-    _LOGGER.info("Adjusted snooze for %s: new resume at %s", entity_id, new_resume_at)
-
-
 async def async_adjust_snooze_batch(
     hass: HomeAssistant,
     data: AutomationPauseData,
@@ -106,7 +62,9 @@ async def async_adjust_snooze_batch(
                     window=new_resume_at - now,
                 ):
                     raise ServiceValidationError(
-                        "notification_lead_minutes must be shorter than the remaining snooze window"
+                        "notification_lead_minutes must be shorter than the remaining snooze window",
+                        translation_domain=DOMAIN,
+                        translation_key="notification_lead_too_long",
                     )
 
                 updates.append((entity_id, paused, new_resume_at))

@@ -6,6 +6,7 @@
 import { localize } from '../../localization/localize.js';
 import { saveLastDuration, saveRecentSnoozes, type LastDurationData } from '../../services/storage.js';
 import { pauseAutomations } from '../../services/snooze.js';
+import { getPausedSensorEntity } from '../../state/paused.js';
 import type { AutomationItem, NotificationTrigger, ParsedDuration, PauseServiceParams } from '../../types/automation.js';
 import type { HassLabel, HomeAssistant } from '../../types/hass.js';
 import { combineDateTime } from '../../utils/datetime.js';
@@ -118,19 +119,34 @@ function hasConfirmLabel(
   return labels.some((labelId) => labelId === CONFIRM_LABEL || labelRegistry[labelId]?.name === CONFIRM_LABEL);
 }
 
-function containsCriticalTerm(value: string): boolean {
-  return CRITICAL_AUTOMATION_TERMS.some((term) => {
+function containsCriticalTerm(value: string, terms: readonly string[]): boolean {
+  return terms.some((term) => {
     const escaped = term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     return new RegExp(`(?<![a-z0-9])${escaped}(?![a-z0-9])`, 'i').test(value);
   });
+}
+
+/**
+ * Critical-automation terms are owned by the backend (published on the snooze
+ * sensor) so the frontend pre-check and backend enforcement share one source.
+ * Falls back to the bundled defaults if the attribute is unavailable.
+ */
+export function getCriticalTerms(hass?: HomeAssistant): readonly string[] {
+  const attr = getPausedSensorEntity(hass)?.attributes?.critical_terms;
+  if (Array.isArray(attr) && attr.length > 0 && attr.every((term) => typeof term === 'string')) {
+    return attr as string[];
+  }
+  return CRITICAL_AUTOMATION_TERMS;
 }
 
 export function requiresPauseConfirmation(input: {
   selected: string[];
   automations: AutomationItem[];
   labelRegistry: Record<string, HassLabel>;
+  criticalTerms?: readonly string[];
 }): boolean {
   const selectedIds = new Set(input.selected);
+  const terms = input.criticalTerms ?? CRITICAL_AUTOMATION_TERMS;
 
   return input.automations.some((automation) => {
     if (!selectedIds.has(automation.id)) {
@@ -138,8 +154,8 @@ export function requiresPauseConfirmation(input: {
     }
 
     return hasConfirmLabel(automation.labels, input.labelRegistry)
-      || containsCriticalTerm(automation.id)
-      || containsCriticalTerm(automation.name);
+      || containsCriticalTerm(automation.id, terms)
+      || containsCriticalTerm(automation.name, terms);
   });
 }
 
@@ -237,6 +253,7 @@ export async function runPauseFeature(input: RunPauseFeatureInput): Promise<RunP
     selected: input.selected,
     automations: input.automations,
     labelRegistry: input.labelRegistry ?? {},
+    criticalTerms: getCriticalTerms(input.hass),
   })) {
     return { status: 'confirm_required' };
   }

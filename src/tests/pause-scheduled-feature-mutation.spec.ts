@@ -26,6 +26,7 @@ vi.mock('../services/storage.js', () => ({
 }));
 
 import {
+  getCriticalTerms,
   requiresPauseConfirmation,
   runPauseFeature,
   validateScheduledPauseInput,
@@ -116,6 +117,29 @@ describe('pause feature mutation boundaries', () => {
         labelRegistry: {},
       })
     ).toBe(false);
+  });
+
+  test('getCriticalTerms reads backend-published terms from the snooze sensor and falls back to defaults', () => {
+    const hassWithTerms = {
+      states: {
+        'sensor.autosnooze_snoozed_automations': { attributes: { critical_terms: ['greenhouse'] } },
+      },
+    } as unknown as HomeAssistant;
+
+    expect(getCriticalTerms(hassWithTerms)).toEqual(['greenhouse']);
+    // A backend-only term drives the frontend pre-check even when absent from the bundled defaults.
+    expect(
+      requiresPauseConfirmation({
+        selected: ['automation.gh'],
+        automations: [{ id: 'automation.gh', name: 'Greenhouse Vent', area_id: null, category_id: null, labels: [] }],
+        labelRegistry: {},
+        criticalTerms: getCriticalTerms(hassWithTerms),
+      })
+    ).toBe(true);
+
+    // Falls back to bundled defaults when the attribute is missing or invalid.
+    expect(getCriticalTerms(undefined)).toContain('alarm');
+    expect(getCriticalTerms({ states: {} } as unknown as HomeAssistant)).toContain('alarm');
   });
 
   test('runPauseFeature submits duration requests, saves recents and last duration, and returns last duration', async () => {

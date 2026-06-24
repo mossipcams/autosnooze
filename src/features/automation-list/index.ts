@@ -87,33 +87,6 @@ function hasLabel(
   });
 }
 
-export function filterAutomations(
-  automations: AutomationItem[],
-  search: string,
-  labelRegistry: Record<string, HassLabel>,
-): AutomationItem[] {
-  let filtered = automations;
-
-  const hasIncludeLabel = automations.some((automation) => hasLabel(automation, INCLUDE_LABEL, labelRegistry));
-
-  if (hasIncludeLabel) {
-    filtered = filtered.filter((automation) => hasLabel(automation, INCLUDE_LABEL, labelRegistry));
-  } else {
-    filtered = filtered.filter((automation) => !hasLabel(automation, EXCLUDE_LABEL, labelRegistry));
-  }
-
-  const searchLower = search.toLowerCase();
-  if (searchLower) {
-    filtered = filtered.filter(
-      (automation) =>
-        automation.name.toLowerCase().includes(searchLower) ||
-        automation.id.toLowerCase().includes(searchLower)
-    );
-  }
-
-  return filtered;
-}
-
 function groupDecoratedAutomations(
   automations: DecoratedAutomation[],
   getKeys: (automation: DecoratedAutomation) => string[] | null,
@@ -136,32 +109,6 @@ function groupDecoratedAutomations(
         groups[key] = [];
       }
       groups[key].push(item.automation);
-    });
-  });
-
-  return Object.entries(groups).sort((a, b) =>
-    a[0] === defaultGroupName ? 1 : b[0] === defaultGroupName ? -1 : a[0].localeCompare(b[0])
-  );
-}
-
-export function groupAutomationsBy(
-  automations: AutomationItem[],
-  getKeys: (auto: AutomationItem) => string[] | null,
-  defaultGroupName: string
-): [string, AutomationItem[]][] {
-  const groups: Record<string, AutomationItem[]> = {};
-
-  automations.forEach((automation) => {
-    const keys = getKeys(automation);
-    if (!keys || keys.length === 0) {
-      if (!groups[defaultGroupName]) groups[defaultGroupName] = [];
-      groups[defaultGroupName].push(automation);
-      return;
-    }
-
-    keys.forEach((key) => {
-      if (!groups[key]) groups[key] = [];
-      groups[key].push(automation);
     });
   });
 

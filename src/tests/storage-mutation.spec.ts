@@ -1,6 +1,5 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import {
-  clearLastDuration,
   loadLastDuration,
   loadRecentSnoozes,
   saveLastDuration,
@@ -78,16 +77,6 @@ describe('storage mutation boundaries', () => {
     localStorage.setItem(LAST_DURATION_KEY, JSON.stringify(expiredRecord));
     expect(loadLastDuration()).toBeNull();
     expect(localStorage.getItem(LAST_DURATION_KEY)).toBeNull();
-  });
-
-  test('clearLastDuration removes only the stored last duration key', () => {
-    localStorage.setItem(LAST_DURATION_KEY, 'duration');
-    localStorage.setItem(RECENT_SNOOZES_KEY, 'recent');
-
-    clearLastDuration();
-
-    expect(localStorage.getItem(LAST_DURATION_KEY)).toBeNull();
-    expect(localStorage.getItem(RECENT_SNOOZES_KEY)).toBe('recent');
   });
 
   test('loadRecentSnoozes returns an empty list for missing, corrupt, and non-array storage', () => {

@@ -15,14 +15,18 @@ from custom_components.autosnooze.models import PausedAutomation
 
 UTC = timezone.utc
 RESUME_NOTIFICATION_ID = "autosnooze_resume_finished"
+STARTED_NOTIFICATION_ID = "autosnooze_started"
+PRE_RESUME_NOTIFICATION_ID = "autosnooze_pre_resume"
 
 
-def _assert_resume_notification_calls(hass: MagicMock, *, title: str, message: str) -> None:
+def _assert_resume_notification_calls(
+    hass: MagicMock, *, title: str, message: str, notification_id: str = RESUME_NOTIFICATION_ID
+) -> None:
     assert hass.services.async_call.await_args_list == [
         call(
             "persistent_notification",
             "dismiss",
-            {"notification_id": RESUME_NOTIFICATION_ID},
+            {"notification_id": notification_id},
             blocking=True,
         ),
         call(
@@ -31,7 +35,7 @@ def _assert_resume_notification_calls(hass: MagicMock, *, title: str, message: s
             {
                 "title": title,
                 "message": message,
-                "notification_id": RESUME_NOTIFICATION_ID,
+                "notification_id": notification_id,
             },
             blocking=True,
         ),
@@ -434,6 +438,7 @@ async def test_async_pause_automations_sends_start_notification_for_immediate_st
         hass,
         title="AutoSnooze started",
         message="Kitchen Lights snooze started.",
+        notification_id=STARTED_NOTIFICATION_ID,
     )
 
 
@@ -495,6 +500,7 @@ async def test_async_execute_scheduled_disable_sends_start_notification_for_star
         hass,
         title="AutoSnooze started",
         message="Kitchen Lights snooze started.",
+        notification_id=STARTED_NOTIFICATION_ID,
     )
 
 
@@ -524,6 +530,7 @@ async def test_async_send_pre_resume_notification_sends_about_to_end_notificatio
         hass,
         title="AutoSnooze ending soon",
         message="Kitchen Lights will resume in 60 minutes.",
+        notification_id=f"{PRE_RESUME_NOTIFICATION_ID}_automation.kitchen",
     )
 
 

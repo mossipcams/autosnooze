@@ -6,10 +6,8 @@ import {
   parseDurationInput,
 } from '../utils/duration-parsing.js';
 import {
-  getPaused,
-  getPausedGroupedByResumeTime,
+  getPausedSensorEntity,
   getPausedSnapshot,
-  getScheduled,
   parsePausedContract,
   SENSOR_ENTITY_ID,
 } from '../state/paused.js';
@@ -174,6 +172,28 @@ describe('paused snapshot mutation boundaries', () => {
     expect(second.paused).toBe(nextPaused);
   });
 
+  test('getPausedSnapshot falls back to a suffixed AutoSnooze sensor entity when the base id is stale', () => {
+    const paused = { 'automation.early': pausedEarly };
+    const attributes = { schema_version: 1, paused, scheduled: {} };
+    const hass = {
+      states: {
+        [SENSOR_ENTITY_ID]: {
+          entity_id: SENSOR_ENTITY_ID,
+          state: 'idle',
+          attributes: { friendly_name: 'AutoSnooze Status' },
+        },
+        [`${SENSOR_ENTITY_ID}_2`]: {
+          entity_id: `${SENSOR_ENTITY_ID}_2`,
+          state: '1',
+          attributes,
+        },
+      },
+    } as unknown as HomeAssistant;
+
+    expect(getPausedSensorEntity(hass)?.entity_id).toBe(`${SENSOR_ENTITY_ID}_2`);
+    expect(getPausedSnapshot(hass).paused).toBe(paused);
+  });
+
   test('convenience accessors return the parsed maps and grouped view', () => {
     const paused = { 'automation.early': pausedEarly };
     const scheduled = {
@@ -184,9 +204,9 @@ describe('paused snapshot mutation boundaries', () => {
     };
     const hass = createHass({ schema_version: 1, paused, scheduled });
 
-    expect(getPaused(hass)).toBe(paused);
-    expect(getScheduled(hass)).toBe(scheduled);
-    expect(getPausedGroupedByResumeTime(hass)).toEqual([
+    expect(getPausedSnapshot(hass).paused).toBe(paused);
+    expect(getPausedSnapshot(hass).scheduled).toBe(scheduled);
+    expect(getPausedSnapshot(hass).groups).toEqual([
       {
         resumeAt: '2026-04-29T12:30:00',
         disableAt: undefined,

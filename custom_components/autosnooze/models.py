@@ -34,10 +34,12 @@ def parse_datetime_utc(dt_str: str) -> datetime:
     parsed = dt_util.parse_datetime(dt_str)
     if parsed is None:
         raise ValueError(f"Invalid datetime string: {dt_str}")
-    # If naive (no timezone info), assume UTC since we store datetimes in UTC
+    # Naive values from storage are assumed UTC (we always persist UTC). Aware
+    # values are normalized to UTC so every datetime in the system is genuinely
+    # UTC, matching ensure_utc_aware()'s handling of aware inputs.
     if parsed.tzinfo is None:
         parsed = parsed.replace(tzinfo=timezone.utc)
-    return parsed
+    return parsed.astimezone(timezone.utc)
 
 
 def ensure_utc_aware(dt: datetime | None) -> datetime | None:
@@ -86,7 +88,6 @@ class PausedAutomation:
 
     def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for storage/attributes."""
-        validate_notification_config(self.notification_trigger, self.notification_lead_minutes)
         result = {
             "friendly_name": self.friendly_name,
             "resume_at": self.resume_at.isoformat(),
@@ -138,7 +139,6 @@ class ScheduledSnooze:
 
     def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for storage/attributes."""
-        validate_notification_config(self.notification_trigger, self.notification_lead_minutes)
         result: dict[str, Any] = {
             "friendly_name": self.friendly_name,
             "disable_at": self.disable_at.isoformat(),

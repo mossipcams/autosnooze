@@ -11,7 +11,14 @@ from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.device_registry import DeviceEntryType, DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
-from .const import DEFAULT_DURATION_PRESETS, DOMAIN, SENSOR_SCHEMA_VERSION, SIGNAL_STATE_CHANGED, VERSION
+from .const import (
+    CRITICAL_AUTOMATION_TERMS,
+    DEFAULT_DURATION_PRESETS,
+    DOMAIN,
+    SENSOR_SCHEMA_VERSION,
+    SIGNAL_STATE_CHANGED,
+    VERSION,
+)
 from .runtime.state import AutomationPauseConfigEntry
 
 
@@ -84,4 +91,5 @@ class AutoSnoozeCountSensor(SensorEntity):
             "paused": paused,
             "scheduled": scheduled,
             "duration_presets": presets,
+            "critical_terms": list(CRITICAL_AUTOMATION_TERMS),
         }

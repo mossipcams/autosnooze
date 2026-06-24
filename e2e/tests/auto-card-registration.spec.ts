@@ -1,9 +1,11 @@
 import { expect, Page } from '@playwright/test';
+import * as path from 'path';
 import { test } from '../fixtures/hass.fixture';
 import { findCardScript } from '../helpers/shadow-dom';
 
 const AUTOSNOOZE_CARD_PATH = '/autosnooze-card.js';
 const DASHBOARD_PATH = 'dashboard-testing';
+const AUTH_STATE_PATH = path.join(__dirname, '..', 'storageState.json');
 const TEST_VIEW_PATH = 'autosnooze-registration-e2e';
 const HOLD_MS = Number(process.env.AUTOSNOOZE_E2E_HOLD_MS || '0');
 
@@ -325,6 +327,33 @@ async function restoreDashboard(page: Page, originalDashboardConfig: LovelaceCon
   await saveDashboardConfig(page, originalDashboardConfig);
 }
 
+async function ensureAutoSnoozeIntegration(page: Page): Promise<void> {
+  const existing = (await listAutoSnoozeEntries(page))[0];
+  if (existing?.state === 'loaded') {
+    return;
+  }
+
+  if (existing) {
+    try {
+      await reloadAutoSnoozeEntry(page, existing.entry_id);
+      return;
+    } catch {
+      await removeAutoSnoozeEntries(page);
+    }
+  }
+
+  await addAutoSnoozeIntegration(page);
+  await waitForAutoRegisteredResource(page);
+}
+
+async function restoreAutoSnoozeBaseline(
+  page: Page,
+  originalDashboardConfig: LovelaceConfig
+): Promise<void> {
+  await restoreDashboard(page, originalDashboardConfig);
+  await ensureAutoSnoozeIntegration(page);
+}
+
 async function gotoTestDashboard(page: Page): Promise<void> {
   await page.goto(`/${DASHBOARD_PATH}/${TEST_VIEW_PATH}`, { waitUntil: 'domcontentloaded' });
   await waitForHassConnection(page);
@@ -560,7 +589,7 @@ test.describe('Auto card registration', () => {
       expectRenderedCardIsHealthy(await inspectRenderedDashboard(page));
       await holdForVisualInspection(page);
     } finally {
-      await restoreDashboard(page, originalDashboardConfig);
+      await restoreAutoSnoozeBaseline(page, originalDashboardConfig);
     }
   });
 
@@ -589,7 +618,7 @@ test.describe('Auto card registration', () => {
       expectRenderedCardIsHealthy(await inspectRenderedDashboard(page));
       await holdForVisualInspection(page);
     } finally {
-      await restoreDashboard(page, originalDashboardConfig);
+      await restoreAutoSnoozeBaseline(page, originalDashboardConfig);
     }
   });
 
@@ -620,7 +649,7 @@ test.describe('Auto card registration', () => {
       expectRenderedCardIsHealthy(await inspectRenderedDashboard(page));
       await holdForVisualInspection(page);
     } finally {
-      await restoreDashboard(page, originalDashboardConfig);
+      await restoreAutoSnoozeBaseline(page, originalDashboardConfig);
     }
   });
 
@@ -657,7 +686,7 @@ test.describe('Auto card registration', () => {
       expectRenderedCardIsHealthy(await inspectRenderedDashboard(page));
       await holdForVisualInspection(page);
     } finally {
-      await restoreDashboard(page, originalDashboardConfig);
+      await restoreAutoSnoozeBaseline(page, originalDashboardConfig);
     }
   });
 
@@ -685,7 +714,7 @@ test.describe('Auto card registration', () => {
       expectRenderedCardIsHealthy(await inspectRenderedDashboard(page));
       await holdForVisualInspection(page);
     } finally {
-      await restoreDashboard(page, originalDashboardConfig);
+      await restoreAutoSnoozeBaseline(page, originalDashboardConfig);
     }
   });
 
@@ -698,7 +727,7 @@ test.describe('Auto card registration', () => {
     try {
       await saveDashboardConfig(page, withAutoSnoozeTestView(originalDashboardConfig));
 
-      const freshContext = await browser.newContext({ storageState: 'e2e/.auth/user.json' });
+      const freshContext = await browser.newContext({ storageState: AUTH_STATE_PATH });
       const freshPage = await freshContext.newPage();
       try {
         await gotoTestDashboard(freshPage);
@@ -756,7 +785,7 @@ test.describe('Auto card registration', () => {
         await freshContext.close();
       }
     } finally {
-      await restoreDashboard(page, originalDashboardConfig);
+      await restoreAutoSnoozeBaseline(page, originalDashboardConfig);
     }
   });
 });
