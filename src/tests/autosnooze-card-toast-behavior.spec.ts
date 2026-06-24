@@ -130,6 +130,10 @@ describe('AutomationPauseCard toast behavior', () => {
   });
 
   test('keeps local validation toasts for incomplete scheduled snoozes', async () => {
+    runPauseFeatureMock.mockResolvedValueOnce({
+      status: 'validation_error',
+      toastMessage: 'Please set a complete resume date and time',
+    });
     const card = await createCard();
     card._selected = ['automation.kitchen_lights'];
     card._scheduleMode = true;

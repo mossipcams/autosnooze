@@ -57,7 +57,7 @@ describe('Pause Feature Delegation', () => {
 
     await card._snooze();
 
-    expect(runPauseFeature).toHaveBeenCalledWith({
+    expect(runPauseFeature).toHaveBeenCalledWith(expect.objectContaining({
       hass: mockHass,
       selected: ['automation.test'],
       scheduleMode: false,
@@ -67,7 +67,7 @@ describe('Pause Feature Delegation', () => {
       resumeAtDate: '',
       resumeAtTime: '',
       forceConfirm: false,
-    });
+    }));
     expect(card._selected).toEqual([]);
     expect(card._lastDuration).toEqual({
       minutes: 60,

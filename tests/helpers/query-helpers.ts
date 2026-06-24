@@ -12,7 +12,7 @@ import type { AutomationItem } from '../../src/types/automation.js';
  */
 function computeAutomations(card: any): AutomationItem[] {
   const states = card.hass?.states || {};
-  const entityReg = card._entityRegistry || {};
+  const entityReg = card._shell.entities || {};
   const hassEntities = card.hass?.entities || {};
   return Object.entries(states)
     .filter(([id, state]: [string, any]) => id.startsWith('automation.') && state)
@@ -43,8 +43,8 @@ export function queryAutomationList(card: any): any {
       // Sync all properties from card to child (may not have re-rendered yet)
       if (card.hass) child.hass = card.hass;
       if (card._selected !== undefined) child.selected = card._selected;
-      if (card._labelRegistry) child.labelRegistry = card._labelRegistry;
-      if (card._categoryRegistry) child.categoryRegistry = card._categoryRegistry;
+      if (card._shell.labels) child.labelRegistry = card._shell.labels;
+      if (card._shell.categories) child.categoryRegistry = card._shell.categories;
       // Recompute automations from card's current state (entity registry may have changed)
       child.automations = computeAutomations(card);
       return child;
@@ -66,8 +66,8 @@ export function queryAutomationList(card: any): any {
   if (card.hass) list.hass = card.hass;
   list.automations = computeAutomations(card);
   list.selected = card._selected || [];
-  list.labelRegistry = card._labelRegistry || {};
-  list.categoryRegistry = card._categoryRegistry || {};
+  list.labelRegistry = card._shell.labels || {};
+  list.categoryRegistry = card._shell.categories || {};
   return list;
 }
 

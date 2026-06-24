@@ -10,7 +10,6 @@ vi.mock('../src/features/pause/index.js', async (importOriginal) => {
 });
 
 vi.mock('../src/features/scheduled-snooze/index.js', () => ({
-  validateScheduledPauseInput: vi.fn(),
   runAdjustFeature: vi.fn(),
   runCancelScheduledFeature: vi.fn(),
 }));
@@ -20,7 +19,6 @@ import { runPauseFeature } from '../src/features/pause/index.js';
 import {
   runAdjustFeature,
   runCancelScheduledFeature,
-  validateScheduledPauseInput,
 } from '../src/features/scheduled-snooze/index.js';
 
 describe('Scheduled Snooze Feature Delegation', () => {
@@ -55,10 +53,7 @@ describe('Scheduled Snooze Feature Delegation', () => {
   });
 
   test('delegates schedule-mode validation before attempting a pause', async () => {
-    validateScheduledPauseInput.mockReturnValue({
-      status: 'error',
-      message: 'Schedule invalid',
-    });
+    runPauseFeature.mockResolvedValue({ status: 'validation_error', toastMessage: 'Schedule invalid' });
 
     card._selected = ['automation.test'];
     card._scheduleMode = true;
@@ -69,14 +64,13 @@ describe('Scheduled Snooze Feature Delegation', () => {
 
     await card._snooze();
 
-    expect(validateScheduledPauseInput).toHaveBeenCalledWith({
+    expect(runPauseFeature).toHaveBeenCalledWith(expect.objectContaining({
       disableAtDate: '2026-01-15',
       disableAtTime: '13:00',
       resumeAtDate: '2026-01-15',
       resumeAtTime: '12:00',
       nowMs: expect.any(Number),
-    });
-    expect(runPauseFeature).not.toHaveBeenCalled();
+    }));
   });
 
   test('delegates cancel-scheduled execution to the scheduled snooze feature', async () => {

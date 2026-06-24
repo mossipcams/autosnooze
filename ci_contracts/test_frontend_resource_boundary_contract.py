@@ -12,15 +12,12 @@ INIT_PATH = BACKEND_ROOT / "__init__.py"
 CONST_PATH = BACKEND_ROOT / "const.py"
 FRONTEND_ADAPTER_PATH = BACKEND_ROOT / "infrastructure" / "frontend.py"
 README_PATH = PROJECT_ROOT / "README.md"
+CARD_PATH = PROJECT_ROOT / "src" / "components" / "autosnooze-card.ts"
 
 
 def _defined_functions(path: Path) -> set[str]:
     tree = ast.parse(path.read_text(encoding="utf-8"))
-    return {
-        node.name
-        for node in ast.walk(tree)
-        if isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef)
-    }
+    return {node.name for node in ast.walk(tree) if isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef)}
 
 
 def _imported_names(path: Path, module_name: str) -> set[str]:
@@ -38,8 +35,7 @@ def _imported_names(path: Path, module_name: str) -> set[str]:
 def test_frontend_resource_registration_lives_in_infrastructure_adapter() -> None:
     """The HA setup root should compose registration, not own frontend resource mechanics."""
     assert FRONTEND_ADAPTER_PATH.exists(), (
-        "Frontend resource registration should live in custom_components/autosnooze/"
-        "infrastructure/frontend.py."
+        "Frontend resource registration should live in custom_components/autosnooze/infrastructure/frontend.py."
     )
 
     root_owned_functions = _defined_functions(INIT_PATH)
@@ -126,3 +122,18 @@ def test_readme_uses_integration_served_resource_url() -> None:
     assert "/autosnooze-card.js" in readme_source
     assert "hacsfiles" not in readme_source
     assert "hacstag" not in readme_source
+
+
+def test_main_card_does_not_reclaim_extracted_workflow_ownership() -> None:
+    """The main card should remain a composition and event-routing component."""
+    source = CARD_PATH.read_text(encoding="utf-8")
+
+    assert len(source.splitlines()) < 750
+    assert "REGISTRY_RETRY_" not in source
+    assert "fetchCardLabelRegistry" not in source
+    assert "document.createElement('div')" not in source
+    assert "document.createElement('button')" not in source
+    assert "_toastTimeout" not in source
+    assert 'class="scheduled-item"' not in source
+    assert "/services/" not in source
+    assert "/state/" not in source

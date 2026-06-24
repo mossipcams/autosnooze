@@ -38,6 +38,9 @@ from ..runtime.timers import (
     cancel_timer,
 )
 from ..runtime.state import AutomationPauseData
+from .notifications import notify_started, send_pre_resume_notification
+from .resume import async_resume
+from .scheduled import async_execute_scheduled_disable
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -158,10 +161,22 @@ async def async_pause_automations(
         lambda hass, entity_id, enabled: async_set_automation_state(hass, entity_id, enabled=enabled)
     )
     save_runtime_data = save_data or runtime_async_save
-    notify_started = notify_started_automations or _default_notify_started_automations
-    resume_scheduler = schedule_resume_callback or schedule_resume
-    disable_scheduler = schedule_disable_callback or schedule_disable
-    pre_resume_scheduler = schedule_pre_resume_notification_callback or schedule_pre_resume_notification
+    notify_started_callback = notify_started_automations or notify_started
+    resume_scheduler = schedule_resume_callback or (
+        lambda hass, data, entity_id, resume_at: schedule_resume(
+            hass, data, entity_id, resume_at, resume_callback=async_resume
+        )
+    )
+    disable_scheduler = schedule_disable_callback or (
+        lambda hass, data, entity_id, scheduled: schedule_disable(
+            hass, data, entity_id, scheduled, disable_callback=async_execute_scheduled_disable
+        )
+    )
+    pre_resume_scheduler = schedule_pre_resume_notification_callback or (
+        lambda hass, data, paused: schedule_pre_resume_notification(
+            hass, data, paused, notification_callback=send_pre_resume_notification
+        )
+    )
 
     started_at = perf_counter()
     outcome = "success"
@@ -321,7 +336,7 @@ async def async_pause_automations(
                 _LOGGER.warning("Failed to restore disabled state for stale replacement of %s", entity_id)
 
         data.notify()
-        await notify_started(hass, paused_entries)
+        await notify_started_callback(hass, paused_entries)
     except Exception:
         outcome = "error"
         raise
@@ -364,4 +379,61 @@ async def async_handle_pause_service(
         resume_at_dt,
         notification_trigger,
         notification_lead_minutes,
+    )
+
+
+async def async_handle_pause_by_area_service(
+    hass: HomeAssistant,
+    data: AutomationPauseData,
+    call: ServiceCall,
+) -> None:
+    """Handle pause-by-area in the pause application slice."""
+    if data.unloaded:
+        return
+    area_value = call.data["area_id"]
+    area_ids = [area_value] if isinstance(area_value, str) else area_value
+    entity_ids = get_automations_by_area(hass, area_ids)
+    if not entity_ids:
+        _LOGGER.warning("No automations found in area(s): %s", area_ids)
+        return
+    await _handle_pause_by_filter(hass, data, call, entity_ids)
+
+
+async def async_handle_pause_by_label_service(
+    hass: HomeAssistant,
+    data: AutomationPauseData,
+    call: ServiceCall,
+) -> None:
+    """Handle pause-by-label in the pause application slice."""
+    if data.unloaded:
+        return
+    label_value = call.data["label_id"]
+    label_ids = [label_value] if isinstance(label_value, str) else label_value
+    entity_ids = get_automations_by_label(hass, label_ids)
+    if not entity_ids:
+        _LOGGER.warning("No automations found with label(s): %s", label_ids)
+        return
+    await _handle_pause_by_filter(hass, data, call, entity_ids)
+
+
+async def _handle_pause_by_filter(
+    hass: HomeAssistant,
+    data: AutomationPauseData,
+    call: ServiceCall,
+    entity_ids: list[str],
+) -> None:
+    if data.unloaded:
+        return
+    _validate_guardrails(hass, entity_ids, confirm=call.data.get("confirm", False))
+    await async_pause_automations(
+        hass,
+        data,
+        entity_ids,
+        call.data.get("days", 0),
+        call.data.get("hours", 0),
+        call.data.get("minutes", 0),
+        ensure_utc_aware(call.data.get("disable_at")),
+        ensure_utc_aware(call.data.get("resume_at")),
+        call.data.get("notification_trigger", NOTIFICATION_TRIGGER_NONE),
+        call.data.get("notification_lead_minutes"),
     )

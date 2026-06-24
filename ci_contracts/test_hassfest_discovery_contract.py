@@ -13,7 +13,7 @@ def test_manifest_json_is_reserved_for_home_assistant_integrations() -> None:
     manifests = {
         path
         for path in PROJECT_ROOT.glob("**/manifest.json")
-        if "node_modules" not in path.parts
+        if not {"node_modules", ".venv", "mutants"}.intersection(path.parts)
     }
     expected = {PROJECT_ROOT / "custom_components" / "autosnooze" / "manifest.json"}
 

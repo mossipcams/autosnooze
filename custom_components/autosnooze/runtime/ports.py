@@ -61,7 +61,7 @@ def schedule_resume(
     entity_id: str,
     resume_at: datetime,
     *,
-    resume_callback: ResumeCallback | None = None,
+    resume_callback: ResumeCallback,
     reason: str = "expired",
 ) -> None:
     """Schedule automation to resume at specified time."""
@@ -82,7 +82,7 @@ def schedule_disable(
     entity_id: str,
     scheduled: ScheduledSnooze,
     *,
-    disable_callback: ScheduledDisableCallback | None = None,
+    disable_callback: ScheduledDisableCallback,
 ) -> None:
     """Schedule automation to be disabled at a future time."""
     runtime_schedule_disable(
@@ -100,7 +100,7 @@ def schedule_pre_resume_notification(
     data: AutomationPauseData,
     paused,
     *,
-    notification_callback: NotificationCallback | None = None,
+    notification_callback: NotificationCallback,
 ) -> bool:
     """Schedule a notification before an active snooze resumes."""
     return runtime_schedule_pre_resume_notification(

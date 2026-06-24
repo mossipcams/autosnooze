@@ -103,12 +103,12 @@ describe('_getLabelName', () => {
   });
 
   test('returns label name from registry', () => {
-    card._labelRegistry = { test_label: { name: 'Test Label' } };
+    card._shell.labels = { test_label: { name: 'Test Label' } };
     expect(queryAutomationList(card)._getLabelName('test_label')).toBe('Test Label');
   });
 
   test('falls back to formatted ID when not in registry', () => {
-    card._labelRegistry = {};
+    card._shell.labels = {};
     expect(queryAutomationList(card)._getLabelName('my_label')).toBe('My Label');
   });
 });
@@ -133,12 +133,12 @@ describe('_getCategoryName', () => {
   });
 
   test('returns category name from registry', () => {
-    card._categoryRegistry = { lights: { name: 'Lights' } };
+    card._shell.categories = { lights: { name: 'Lights' } };
     expect(queryAutomationList(card)._getCategoryName('lights')).toBe('Lights');
   });
 
   test('falls back to formatted ID when not in registry', () => {
-    card._categoryRegistry = {};
+    card._shell.categories = {};
     expect(queryAutomationList(card)._getCategoryName('my_category')).toBe('My Category');
   });
 });
@@ -156,12 +156,12 @@ describe('_groupAutomationsBy Sorting', () => {
       'automation.a_auto': { attributes: { friendly_name: 'A Auto' } },
       'automation.c_auto': { attributes: { friendly_name: 'C Auto' } },
     };
-    card._entityRegistry = {};
+    card._shell.entities = {};
     queryAutomationList(card)._search = '';
   });
 
   test('default group appears last in sorting', () => {
-    card._entityRegistry = {
+    card._shell.entities = {
       'automation.a_auto': { area_id: 'room1' },
       'automation.b_auto': { area_id: null },
       'automation.c_auto': { area_id: 'room2' },
@@ -174,7 +174,7 @@ describe('_groupAutomationsBy Sorting', () => {
   });
 
   test('groups are sorted alphabetically', () => {
-    card._entityRegistry = {
+    card._shell.entities = {
       'automation.a_auto': { area_id: 'zebra' },
       'automation.b_auto': { area_id: 'apple' },
       'automation.c_auto': { area_id: 'mango' },
@@ -205,7 +205,7 @@ describe('_getFilteredAutomations Search', () => {
       'automation.bedroom_fan': { attributes: { friendly_name: 'Bedroom Fan' } },
       'automation.living_room': { attributes: { friendly_name: 'Living Room' } },
     };
-    card._entityRegistry = {};
+    card._shell.entities = {};
   });
 
   test.each([
@@ -238,7 +238,7 @@ describe('_getAreaCount', () => {
       'automation.b': { attributes: { friendly_name: 'B' } },
       'automation.c': { attributes: { friendly_name: 'C' } },
     };
-    card._entityRegistry = {
+    card._shell.entities = {
       'automation.a': { area_id: 'room1' },
       'automation.b': { area_id: 'room1' }, // Same area
       'automation.c': { area_id: 'room2' },
@@ -250,7 +250,7 @@ describe('_getAreaCount', () => {
   });
 
   test('returns 0 when no areas assigned', () => {
-    card._entityRegistry = {};
+    card._shell.entities = {};
     expect(queryAutomationList(card)._getAreaCount()).toBe(0);
   });
 });
@@ -267,7 +267,7 @@ describe('_selectAllVisible', () => {
       'automation.a': { attributes: { friendly_name: 'A' } },
       'automation.b': { attributes: { friendly_name: 'B' } },
     };
-    card._entityRegistry = {};
+    card._shell.entities = {};
     queryAutomationList(card)._search = '';
     card._selected = [];
   });
@@ -416,7 +416,7 @@ describe('Automation ID Parsing', () => {
 
   beforeEach(() => {
     card = createCard();
-    card._entityRegistry = {};
+    card._shell.entities = {};
   });
 
   test('filters to only automation.* entities', () => {
@@ -526,7 +526,7 @@ describe('Filter Tab', () => {
 
   beforeEach(() => {
     card = createCard();
-    card._entityRegistry = {};
+    card._shell.entities = {};
     card.hass.states = {
       'automation.a': { attributes: { friendly_name: 'A' } },
     };
@@ -575,7 +575,7 @@ describe('Automation Cache', () => {
     card.hass.states = {
       'automation.a': { attributes: { friendly_name: 'A' } },
     };
-    card._entityRegistry = {};
+    card._shell.entities = {};
   });
 
   test('uses cache on subsequent calls with same state', () => {
