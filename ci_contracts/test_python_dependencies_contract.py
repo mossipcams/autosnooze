@@ -10,25 +10,25 @@ REQUIREMENTS_TEST_PATH = PROJECT_ROOT / "requirements_test.txt"
 BUILD_WORKFLOW_PATH = PROJECT_ROOT / ".github" / "workflows" / "build.yml"
 
 
-def test_pytest_homeassistant_custom_component_tracks_homeassistant_2026_5_beta() -> None:
-    """Keep HA test fixtures aligned with the Dependabot PR #370 update."""
+def test_pytest_homeassistant_custom_component_tracks_current_fixture() -> None:
+    """Keep the Home Assistant test fixture on the reviewed patch release."""
     requirements = REQUIREMENTS_TEST_PATH.read_text(encoding="utf-8")
 
-    assert "pytest-homeassistant-custom-component>=0.13.334,<0.13.335" in requirements
+    assert "pytest-homeassistant-custom-component>=0.13.338,<0.13.339" in requirements
 
 
-def test_pytest_matches_homeassistant_2026_5_fixture_dependency() -> None:
-    """Avoid pip resolver conflicts with the HA 2026.5 test fixture package."""
+def test_pytest_matches_current_fixture_dependency() -> None:
+    """Avoid pip resolver conflicts with the current HA test fixture package."""
     requirements = REQUIREMENTS_TEST_PATH.read_text(encoding="utf-8")
 
-    assert "pytest==9.0.3" in requirements
+    assert "pytest==9.1.1" in requirements
 
 
-def test_pytest_asyncio_matches_homeassistant_2026_5_fixture_dependency() -> None:
-    """Avoid pip resolver conflicts with the HA 2026.5 test fixture package."""
+def test_pytest_asyncio_matches_current_fixture_dependency() -> None:
+    """Avoid async-plugin conflicts with the current HA test fixture package."""
     requirements = REQUIREMENTS_TEST_PATH.read_text(encoding="utf-8")
 
-    assert "pytest-asyncio==1.3.0" in requirements
+    assert "pytest-asyncio==1.4.0" in requirements
 
 
 def test_pytest_cov_matches_homeassistant_2026_5_fixture_dependency() -> None:
