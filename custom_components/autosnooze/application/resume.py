@@ -13,13 +13,11 @@ from homeassistant.util import dt as dt_util
 from ..const import MAX_RESUME_RETRIES, RESUME_RETRY_DELAY
 from ..domain.notifications import NOTIFICATION_TRIGGER_NONE
 from ..logging_utils import _log_command, _raise_save_failed
+from ..models import PausedAutomation
 from ..runtime.state import AutomationPauseData
-from ..runtime.ports import (
-    async_save,
-    async_set_automation_state,
-    schedule_resume,
-)
+from ..runtime import ports as runtime_ports
 from ..runtime.timers import cancel_notification_timer, cancel_timer
+from .notifications import notify_resumed
 
 ResumeReason = Literal["manual", "expired"]
 _LOGGER = logging.getLogger(__name__)
@@ -33,14 +31,14 @@ async def async_resume(
     reason: ResumeReason = "manual",
 ) -> None:
     """Wake up a snoozed automation."""
-    del reason  # Application resume only handles manual/service-driven flows.
     if data.unloaded:
         return
     async with data.lock:
         expected_pause = data.paused.get(entity_id)
 
-    woke_successfully = await async_set_automation_state(hass, entity_id, enabled=True)
+    woke_successfully = await runtime_ports.async_set_automation_state(hass, entity_id, enabled=True)
     re_disable_entity = False
+    resumed: list[PausedAutomation] = []
     async with data.lock:
         paused = data.paused.get(entity_id)
         if expected_pause is not None and paused is not expected_pause:
@@ -52,6 +50,7 @@ async def async_resume(
                 cancel_notification_timer(data, entity_id)
                 if paused is not None:
                     data.paused.pop(entity_id, None)
+                    resumed.append(paused)
         elif paused is not None:
             cancel_notification_timer(data, entity_id)
             if paused.resume_retries >= MAX_RESUME_RETRIES:
@@ -62,13 +61,14 @@ async def async_resume(
                 paused.resume_retries += 1
                 retry_at = dt_util.utcnow() + RESUME_RETRY_DELAY
                 paused.resume_at = retry_at
-                schedule_resume(hass, data, entity_id, retry_at, resume_callback=async_resume)
-        if not await async_save(data):
+                runtime_ports.schedule_resume(hass, data, entity_id, retry_at, resume_callback=async_resume)
+        if not await runtime_ports.async_save(data):
             _raise_save_failed()
     if re_disable_entity:
-        if not await async_set_automation_state(hass, entity_id, enabled=False):
+        if not await runtime_ports.async_set_automation_state(hass, entity_id, enabled=False):
             _LOGGER.warning("Failed to restore disabled state for stale resume of %s", entity_id)
     data.notify()
+    await notify_resumed(hass, resumed, reason=reason, save_succeeded=True)
     if woke_successfully:
         _LOGGER.info("Woke automation: %s", entity_id)
     elif entity_id not in data.paused:
@@ -85,7 +85,6 @@ async def async_resume_batch(
     reason: ResumeReason = "manual",
 ) -> None:
     """Wake up multiple snoozed automations efficiently with single save."""
-    del reason  # Application resume only handles manual/service-driven flows.
     started_at = perf_counter()
     outcome = "success"
     try:
@@ -102,11 +101,12 @@ async def async_resume_batch(
 
         results: dict[str, bool] = {}
         for entity_id in candidate_ids:
-            results[entity_id] = await async_set_automation_state(hass, entity_id, enabled=True)
+            results[entity_id] = await runtime_ports.async_set_automation_state(hass, entity_id, enabled=True)
 
         failed = 0
         woke = 0
         re_disable_entities: list[str] = []
+        resumed: list[PausedAutomation] = []
         async with data.lock:
             for entity_id in candidate_ids:
                 paused = data.paused.get(entity_id)
@@ -121,6 +121,7 @@ async def async_resume_batch(
                 if results.get(entity_id) is True:
                     cancel_timer(data, entity_id)
                     data.paused.pop(entity_id, None)
+                    resumed.append(paused)
                     woke += 1
                 else:
                     if paused.resume_retries >= MAX_RESUME_RETRIES:
@@ -132,13 +133,14 @@ async def async_resume_batch(
                         paused.resume_retries += 1
                         retry_at = dt_util.utcnow() + RESUME_RETRY_DELAY
                         paused.resume_at = retry_at
-                        schedule_resume(hass, data, entity_id, retry_at, resume_callback=async_resume)
-            if not await async_save(data):
+                        runtime_ports.schedule_resume(hass, data, entity_id, retry_at, resume_callback=async_resume)
+            if not await runtime_ports.async_save(data):
                 _raise_save_failed()
         for entity_id in re_disable_entities:
-            if not await async_set_automation_state(hass, entity_id, enabled=False):
+            if not await runtime_ports.async_set_automation_state(hass, entity_id, enabled=False):
                 _LOGGER.warning("Failed to restore disabled state for stale resume of %s", entity_id)
         data.notify()
+        await notify_resumed(hass, resumed, reason=reason, save_succeeded=True)
         if failed:
             _LOGGER.warning("Woke %d automations, %d failed and were rescheduled", woke, failed)
         else:
@@ -185,8 +187,8 @@ async def async_clear_notification_config_batch(
             if not changed:
                 return
 
-            if not await async_save(data):
-                _raise_save_failed()
+        if not await runtime_ports.async_save(data):
+            _raise_save_failed()
 
         data.notify()
         _LOGGER.info("Cleared notification config for paused automations")

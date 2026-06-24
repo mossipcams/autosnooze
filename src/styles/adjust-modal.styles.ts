@@ -150,18 +150,18 @@ export const adjustModalStyles = css`
     }
     .adjust-btn.decrement {
       background: var(--card-background-color);
-      color: #ff9800;
-      border: 1.5px solid #ff9800;
+      color: var(--warning-color, #ff9800);
+      border: 1.5px solid var(--warning-color, #ff9800);
     }
     .adjust-btn.decrement:hover:not(:disabled) {
-      background: #ff9800;
+      background: var(--warning-color, #ff9800);
       color: white;
     }
     .adjust-btn.decrement:active:not(:disabled) {
       transform: scale(0.95);
     }
     .adjust-btn.decrement:focus-visible {
-      outline: 2px solid #ff9800;
+      outline: 2px solid var(--warning-color, #ff9800);
       outline-offset: 2px;
     }
     .adjust-btn.decrement:disabled {

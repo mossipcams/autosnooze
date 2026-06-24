@@ -70,6 +70,7 @@ describe('AutomationPauseCard guardrail precheck', () => {
   });
 
   test('opens the local guardrail before calling the backend for critical automations', async () => {
+    runPauseFeatureMock.mockResolvedValueOnce({ status: 'confirm_required' });
     if (!customElements.get('test-autosnooze-card-guardrail')) {
       customElements.define('test-autosnooze-card-guardrail', AutomationPauseCard);
     }
@@ -80,7 +81,7 @@ describe('AutomationPauseCard guardrail precheck', () => {
 
     await element._snooze();
 
-    expect(runPauseFeatureMock).not.toHaveBeenCalled();
+    expect(runPauseFeatureMock).toHaveBeenCalledTimes(1);
     expect(element._guardrailConfirmOpen).toBe(true);
   });
 });

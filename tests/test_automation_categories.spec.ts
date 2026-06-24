@@ -57,7 +57,7 @@ describe('Categories Feature', () => {
     card.hass = mockHass;
 
     // Set up entity registry with categories
-    card._entityRegistry = {
+    card._shell.entities = {
       'automation.living_room_lights': {
         entity_id: 'automation.living_room_lights',
         area_id: 'living_room',
@@ -83,14 +83,14 @@ describe('Categories Feature', () => {
         labels: [],
       },
     };
-    card._entityRegistryFetched = true;
+    card._shell.entitiesLoaded = true;
 
     // Set up category registry
-    card._categoryRegistry = {
+    card._shell.categories = {
       cat_lighting: { category_id: 'cat_lighting', name: 'Lighting' },
       cat_security: { category_id: 'cat_security', name: 'Security' },
     };
-    card._categoriesFetched = true;
+    card._shell.categoriesLoaded = true;
 
     document.body.appendChild(card);
     await card.updateComplete;
@@ -122,7 +122,7 @@ describe('Categories Feature', () => {
     });
 
     test('_getCategoryCount returns 0 when no categories assigned', () => {
-      card._entityRegistry = {
+      card._shell.entities = {
         'automation.test': {
           entity_id: 'automation.test',
           categories: {},
@@ -140,7 +140,7 @@ describe('Categories Feature', () => {
           attributes: { paused_automations: {}, scheduled_snoozes: {} },
         },
       };
-      card._automationsCache = null;
+      card._shell.cacheVersion += 1;
       expect(queryAutomationList(card)._getCategoryCount()).toBe(0);
     });
   });
@@ -257,25 +257,25 @@ describe('Entity Registry Fetch', () => {
       ]),
     };
 
-    card._entityRegistryFetched = false;
-    card._entityRegistry = {};
+    card._shell.entitiesLoaded = false;
+    card._shell.entities = {};
   });
 
   test('_fetchEntityRegistry sets _entityRegistryFetched flag to true', async () => {
-    expect(card._entityRegistryFetched).toBe(false);
+    expect(card._shell.entitiesLoaded).toBe(false);
 
-    await card._fetchEntityRegistry();
+    await card._shell.loadEntities(card.hass);
 
-    expect(card._entityRegistryFetched).toBe(true);
+    expect(card._shell.entitiesLoaded).toBe(true);
   });
 
   test('_fetchEntityRegistry populates _entityRegistry', async () => {
-    expect(Object.keys(card._entityRegistry).length).toBe(0);
+    expect(Object.keys(card._shell.entities).length).toBe(0);
 
-    await card._fetchEntityRegistry();
+    await card._shell.loadEntities(card.hass);
 
-    expect(card._entityRegistry['automation.test']).toBeDefined();
-    expect(card._entityRegistry['automation.test'].entity_id).toBe('automation.test');
+    expect(card._shell.entities['automation.test']).toBeDefined();
+    expect(card._shell.entities['automation.test'].entity_id).toBe('automation.test');
   });
 
   test('_fetchEntityRegistry filters to only automation entities', async () => {
@@ -285,11 +285,11 @@ describe('Entity Registry Fetch', () => {
       { entity_id: 'switch.test', categories: {}, labels: [] },
     ]);
 
-    await card._fetchEntityRegistry();
+    await card._shell.loadEntities(card.hass);
 
-    expect(card._entityRegistry['automation.test']).toBeDefined();
-    expect(card._entityRegistry['light.test']).toBeUndefined();
-    expect(card._entityRegistry['switch.test']).toBeUndefined();
+    expect(card._shell.entities['automation.test']).toBeDefined();
+    expect(card._shell.entities['light.test']).toBeUndefined();
+    expect(card._shell.entities['switch.test']).toBeUndefined();
   });
 
   test('_fetchEntityRegistry reuses in-flight request', async () => {
@@ -299,8 +299,8 @@ describe('Entity Registry Fetch', () => {
     });
     card.hass.connection.sendMessagePromise.mockReturnValueOnce(pendingFetch);
 
-    const firstFetch = card._fetchEntityRegistry();
-    const secondFetch = card._fetchEntityRegistry();
+    const firstFetch = card._shell.loadEntities(card.hass);
+    const secondFetch = card._shell.loadEntities(card.hass);
 
     expect(card.hass.connection.sendMessagePromise).toHaveBeenCalledTimes(1);
 
@@ -309,7 +309,7 @@ describe('Entity Registry Fetch', () => {
     ]);
 
     await Promise.all([firstFetch, secondFetch]);
-    expect(card._entityRegistryFetched).toBe(true);
+    expect(card._shell.entitiesLoaded).toBe(true);
   });
 });
 
@@ -337,12 +337,12 @@ describe('Category Registry Fetch', () => {
       ]),
     };
 
-    card._categoriesFetched = false;
-    card._categoryRegistry = {};
+    card._shell.categoriesLoaded = false;
+    card._shell.categories = {};
   });
 
   test('_fetchCategoryRegistry fetches with automation scope', async () => {
-    await card._fetchCategoryRegistry();
+    await card._shell.loadCategories(card.hass);
 
     expect(card.hass.connection.sendMessagePromise).toHaveBeenCalledWith({
       type: 'config/category_registry/list',
@@ -351,19 +351,19 @@ describe('Category Registry Fetch', () => {
   });
 
   test('_fetchCategoryRegistry populates _categoryRegistry', async () => {
-    await card._fetchCategoryRegistry();
+    await card._shell.loadCategories(card.hass);
 
-    expect(card._categoryRegistry['cat_lighting']).toBeDefined();
-    expect(card._categoryRegistry['cat_lighting'].name).toBe('Lighting');
-    expect(card._categoryRegistry['cat_security']).toBeDefined();
+    expect(card._shell.categories['cat_lighting']).toBeDefined();
+    expect(card._shell.categories['cat_lighting'].name).toBe('Lighting');
+    expect(card._shell.categories['cat_security']).toBeDefined();
   });
 
   test('_fetchCategoryRegistry sets _categoriesFetched flag', async () => {
-    expect(card._categoriesFetched).toBe(false);
+    expect(card._shell.categoriesLoaded).toBe(false);
 
-    await card._fetchCategoryRegistry();
+    await card._shell.loadCategories(card.hass);
 
-    expect(card._categoriesFetched).toBe(true);
+    expect(card._shell.categoriesLoaded).toBe(true);
   });
 
   test('_fetchCategoryRegistry reuses in-flight request', async () => {
@@ -373,8 +373,8 @@ describe('Category Registry Fetch', () => {
     });
     card.hass.connection.sendMessagePromise.mockReturnValueOnce(pendingFetch);
 
-    const firstFetch = card._fetchCategoryRegistry();
-    const secondFetch = card._fetchCategoryRegistry();
+    const firstFetch = card._shell.loadCategories(card.hass);
+    const secondFetch = card._shell.loadCategories(card.hass);
 
     expect(card.hass.connection.sendMessagePromise).toHaveBeenCalledTimes(1);
 
@@ -383,6 +383,6 @@ describe('Category Registry Fetch', () => {
     ]);
 
     await Promise.all([firstFetch, secondFetch]);
-    expect(card._categoriesFetched).toBe(true);
+    expect(card._shell.categoriesLoaded).toBe(true);
   });
 });

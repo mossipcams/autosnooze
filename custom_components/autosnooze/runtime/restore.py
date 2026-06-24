@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 from collections.abc import Awaitable, Callable
+from dataclasses import dataclass
+from datetime import datetime
 import logging
 from typing import Any
 
@@ -15,27 +17,17 @@ from ..models import PausedAutomation, ScheduledSnooze, parse_datetime_utc
 from .state import AutomationPauseData
 
 _LOGGER = logging.getLogger(__name__)
-StartedNotificationCallback = Callable[[HomeAssistant, list[PausedAutomation]], Awaitable[None]]
-_default_started_notification_callback: StartedNotificationCallback | None = None
 
 
-def configure_default_restore_callbacks(
-    *,
-    started_notification_callback: StartedNotificationCallback | None = None,
-) -> None:
-    """Register higher-layer callbacks used during restore-specific workflows."""
-    global _default_started_notification_callback
-    _default_started_notification_callback = started_notification_callback
+@dataclass(frozen=True)
+class RestoreCallbacks:
+    """Explicit application and HA callbacks used during restore."""
 
-
-async def _notify_started_automations_on_restore(
-    hass: HomeAssistant,
-    started_items: list[PausedAutomation],
-) -> None:
-    """Emit start notifications for due scheduled snoozes activated during restore."""
-    if _default_started_notification_callback is None or not started_items:
-        return
-    await _default_started_notification_callback(hass, started_items)
+    set_automation_state: Callable[..., Awaitable[bool]]
+    schedule_resume: Callable[[HomeAssistant, AutomationPauseData, str, datetime], None]
+    schedule_disable: Callable[[HomeAssistant, AutomationPauseData, str, ScheduledSnooze], None]
+    schedule_pre_resume_notification: Callable[[HomeAssistant, AutomationPauseData, PausedAutomation], bool]
+    notify_started: Callable[..., Awaitable[None]]
 
 
 def validate_stored_entry(
@@ -124,7 +116,11 @@ def validate_stored_data(stored: Any) -> dict[str, Any]:
     return result
 
 
-async def async_load_stored(hass: HomeAssistant, data: AutomationPauseData) -> None:
+async def async_load_stored(
+    hass: HomeAssistant,
+    data: AutomationPauseData,
+    callbacks: RestoreCallbacks,
+) -> None:
     if data.store is None:
         return
 
@@ -147,13 +143,6 @@ async def async_load_stored(hass: HomeAssistant, data: AutomationPauseData) -> N
     restored_paused: list[PausedAutomation] = []
     executed_scheduled: list[ScheduledSnooze] = []
     restored_started: list[PausedAutomation] = []
-
-    from .ports import (
-        async_set_automation_state,
-        schedule_disable,
-        schedule_pre_resume_notification,
-        schedule_resume,
-    )
 
     for entity_id, info in validated.get("paused", {}).items():
         try:
@@ -191,14 +180,14 @@ async def async_load_stored(hass: HomeAssistant, data: AutomationPauseData) -> N
             expired_scheduled.append(entity_id)
 
     for paused in paused_to_restore:
-        if await async_set_automation_state(hass, paused.entity_id, enabled=False):
+        if await callbacks.set_automation_state(hass, paused.entity_id, enabled=False):
             restored_paused.append(paused)
         else:
             _LOGGER.warning("Failed to restore paused state for %s, removing from storage", paused.entity_id)
             expired.append(paused.entity_id)
 
     for scheduled in scheduled_to_execute:
-        if await async_set_automation_state(hass, scheduled.entity_id, enabled=False):
+        if await callbacks.set_automation_state(hass, scheduled.entity_id, enabled=False):
             executed_scheduled.append(scheduled)
         else:
             _LOGGER.warning(
@@ -208,7 +197,7 @@ async def async_load_stored(hass: HomeAssistant, data: AutomationPauseData) -> N
             expired_scheduled.append(scheduled.entity_id)
 
     for entity_id in expired:
-        await async_set_automation_state(hass, entity_id, enabled=True)
+        await callbacks.set_automation_state(hass, entity_id, enabled=True)
 
     async with data.lock:
         for paused in restored_paused:
@@ -223,8 +212,8 @@ async def async_load_stored(hass: HomeAssistant, data: AutomationPauseData) -> N
                 continue
 
             data.paused[paused.entity_id] = paused
-            schedule_resume(hass, data, paused.entity_id, paused.resume_at)
-            schedule_pre_resume_notification(hass, data, paused)
+            callbacks.schedule_resume(hass, data, paused.entity_id, paused.resume_at)
+            callbacks.schedule_pre_resume_notification(hass, data, paused)
 
         for scheduled in executed_scheduled:
             paused = PausedAutomation(
@@ -248,8 +237,8 @@ async def async_load_stored(hass: HomeAssistant, data: AutomationPauseData) -> N
                 continue
 
             data.paused[scheduled.entity_id] = paused
-            schedule_resume(hass, data, scheduled.entity_id, scheduled.resume_at)
-            schedule_pre_resume_notification(hass, data, paused)
+            callbacks.schedule_resume(hass, data, scheduled.entity_id, scheduled.resume_at)
+            callbacks.schedule_pre_resume_notification(hass, data, paused)
             restored_started.append(paused)
 
         for scheduled in scheduled_to_restore:
@@ -264,11 +253,12 @@ async def async_load_stored(hass: HomeAssistant, data: AutomationPauseData) -> N
                 continue
 
             data.scheduled[scheduled.entity_id] = scheduled
-            schedule_disable(hass, data, scheduled.entity_id, scheduled)
+            callbacks.schedule_disable(hass, data, scheduled.entity_id, scheduled)
 
         if expired or expired_scheduled:
             if not await async_save(data):
                 _LOGGER.warning("Failed to persist cleanup of expired entries during storage load")
 
     data.notify()
-    await _notify_started_automations_on_restore(hass, restored_started)
+    if restored_started:
+        await callbacks.notify_started(hass, restored_started)

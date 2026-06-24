@@ -37,7 +37,3 @@ e2e/storageState.json
 e2e/playwright-report/
 playwright-report/
 test-results/
-
-# Local Graphify output
-graphify-out/cost.json
-graphify-out/cache/

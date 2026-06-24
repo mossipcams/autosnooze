@@ -21,3 +21,8 @@ def test_architecture_document_exists_and_defines_layer_direction() -> None:
     assert "Backend layer direction" in source
     assert "services -> application -> runtime/infrastructure/domain/models" in source
     assert "No upward imports" in source
+    assert "`__init__.py` is the lifecycle composition root" in source
+    assert "mutable callback registries" in source
+    assert "one application module" in source
+    assert "Focused UI components own UI-specific lifecycle behavior" in source
+    assert "one public name per use case" in source

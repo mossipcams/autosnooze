@@ -55,7 +55,7 @@ async def test_handle_pause_service_forwards_notification_trigger() -> None:
 @pytest.mark.asyncio
 async def test_async_pause_automations_sets_notification_trigger_for_immediate_pause() -> None:
     """Immediate pauses should persist notification trigger settings on paused entries."""
-    from custom_components.autosnooze.services import async_pause_automations
+    from custom_components.autosnooze.application.pause import async_pause_automations
 
     mock_hass = MagicMock()
     mock_hass.states.get.return_value = MagicMock(attributes={"friendly_name": "Kitchen"})
@@ -63,8 +63,10 @@ async def test_async_pause_automations_sets_notification_trigger_for_immediate_p
     data = AutomationPauseData(store=MagicMock(async_save=AsyncMock()))
 
     with (
-        patch("custom_components.autosnooze.services.schedule_resume"),
-        patch("custom_components.autosnooze.services.schedule_pre_resume_notification") as schedule_notification,
+        patch("custom_components.autosnooze.application.pause.schedule_resume"),
+        patch(
+            "custom_components.autosnooze.application.pause.schedule_pre_resume_notification"
+        ) as schedule_notification,
     ):
         await async_pause_automations(
             mock_hass,
@@ -83,7 +85,7 @@ async def test_async_pause_automations_sets_notification_trigger_for_immediate_p
 @pytest.mark.asyncio
 async def test_async_pause_automations_sets_notification_trigger_for_scheduled_pause() -> None:
     """Future scheduled pauses should persist notification trigger settings on scheduled entries."""
-    from custom_components.autosnooze.services import async_pause_automations
+    from custom_components.autosnooze.application.pause import async_pause_automations
 
     mock_hass = MagicMock()
     mock_hass.states.get.return_value = MagicMock(attributes={"friendly_name": "Kitchen"})
@@ -91,7 +93,7 @@ async def test_async_pause_automations_sets_notification_trigger_for_scheduled_p
     data = AutomationPauseData(store=MagicMock(async_save=AsyncMock()))
 
     now = datetime.now(UTC)
-    with patch("custom_components.autosnooze.services.schedule_disable"):
+    with patch("custom_components.autosnooze.application.pause.schedule_disable"):
         await async_pause_automations(
             mock_hass,
             data,
@@ -108,7 +110,7 @@ async def test_async_pause_automations_sets_notification_trigger_for_scheduled_p
 @pytest.mark.asyncio
 async def test_async_execute_scheduled_disable_copies_notification_trigger() -> None:
     """Scheduled activation should copy notification trigger settings into the paused entry."""
-    from custom_components.autosnooze.coordinator import async_execute_scheduled_disable
+    from custom_components.autosnooze.application.scheduled import async_execute_scheduled_disable
 
     mock_hass = MagicMock()
     mock_hass.states.get.return_value = MagicMock(attributes={"friendly_name": "Kitchen"})
@@ -126,8 +128,8 @@ async def test_async_execute_scheduled_disable_copies_notification_trigger() -> 
     )
 
     with (
-        patch("custom_components.autosnooze.coordinator.schedule_resume"),
-        patch("custom_components.autosnooze.coordinator.schedule_pre_resume_notification") as schedule_notification,
+        patch("custom_components.autosnooze.runtime.ports.schedule_resume"),
+        patch("custom_components.autosnooze.runtime.ports.schedule_pre_resume_notification") as schedule_notification,
     ):
         await async_execute_scheduled_disable(mock_hass, data, "automation.kitchen", now + timedelta(hours=1))
 
@@ -139,7 +141,9 @@ async def test_async_execute_scheduled_disable_copies_notification_trigger() -> 
 @pytest.mark.asyncio
 async def test_async_clear_notification_config_resets_paused_entry_and_cancels_timer() -> None:
     """Clearing a paused automation's notification config should persist and cancel pending pre-resume timers."""
-    from custom_components.autosnooze.services import async_clear_notification_config
+    from custom_components.autosnooze.application.resume import (
+        async_clear_notification_config_batch as async_clear_notification_config,
+    )
 
     mock_hass = MagicMock()
     data = AutomationPauseData(store=MagicMock(async_save=AsyncMock()))

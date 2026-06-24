@@ -55,12 +55,7 @@ type TestCard = HTMLElement & {
   _disableAtTime: string;
   _resumeAtDate: string;
   _resumeAtTime: string;
-  _labelRegistry: Record<string, unknown>;
-  _labelRegistryUnavailable: boolean;
-  _categoryRegistry: Record<string, unknown>;
-  _entityRegistry: Record<string, unknown>;
   _showCustomInput: boolean;
-  _automationsCacheVersion: number;
   _lastDuration: { minutes: number; duration: ParsedDuration; timestamp: number } | null;
   _recentSnoozeIds: string[];
   _adjustModalOpen: boolean;
@@ -70,16 +65,17 @@ type TestCard = HTMLElement & {
   _adjustModalEntityIds: string[];
   _adjustModalFriendlyNames: string[];
   _guardrailConfirmOpen: boolean;
-  _labelsFetched: boolean;
-  _categoriesFetched: boolean;
-  _entityRegistryFetched: boolean;
-  _labelRegistryFetchPromise: Promise<void> | null;
-  _categoryRegistryFetchPromise: Promise<void> | null;
-  _entityRegistryFetchPromise: Promise<void> | null;
-  _labelRegistryRetryTimeout: number | null;
-  _labelRegistryRetryDelayMs: number;
-  _toastTimeout: number | null;
-  _toastFadeTimeout: number | null;
+  _shell: {
+    labels: Record<string, unknown>;
+    labelsUnavailable: boolean;
+    categories: Record<string, unknown>;
+    entities: Record<string, unknown>;
+    cacheVersion: number;
+    connect: (hass: HomeAssistant) => Promise<void>;
+    disconnect: () => void;
+    shouldUpdate: (oldHass?: HomeAssistant, newHass?: HomeAssistant) => boolean;
+    automationFingerprint: (states: HomeAssistant['states']) => string;
+  };
   shouldUpdate: (changedProps: Map<string, unknown>) => boolean;
   updated: (changedProps: Map<string, unknown>) => void;
   disconnectedCallback: () => void;
@@ -114,11 +110,6 @@ type TestCard = HTMLElement & {
   _handleSelectionChange: (event: CustomEvent<{ selected: string[] }>) => void;
   _handleGuardrailCancel: () => void;
   _handleGuardrailContinue: () => Promise<void>;
-  _fetchLabelRegistry: () => Promise<void>;
-  _fetchCategoryRegistry: () => Promise<void>;
-  _fetchEntityRegistry: () => Promise<void>;
-  _haveAutomationStatesChanged: (oldStates: Record<string, unknown>, newStates: Record<string, unknown>) => boolean;
-  _getAutomationStateFingerprint: (states: Record<string, unknown>) => string;
 };
 
 function createHass(options: {
@@ -286,29 +277,29 @@ describe('AutomationPauseCard mutation boundaries', () => {
     expect(card.shouldUpdate(new Map([['hass', sameStates]]) as never)).toBe(true);
 
     const nonAutomationOnly = { ...sameStates.states, 'light.kitchen': { state: 'off' } };
-    expect(card._haveAutomationStatesChanged(sameStates.states as never, nonAutomationOnly)).toBe(false);
-    expect(card._haveAutomationStatesChanged(sameStates.states as never, {
+    expect(card._shell.shouldUpdate(sameStates, { ...sameStates, states: nonAutomationOnly } as never)).toBe(false);
+    expect(card._shell.shouldUpdate(sameStates, { ...sameStates, states: {
       ...sameStates.states,
       'automation.new': { state: 'on' },
-    })).toBe(true);
-    expect(card._haveAutomationStatesChanged(sameStates.states as never, {
+    }} as never)).toBe(true);
+    expect(card._shell.shouldUpdate(sameStates, { ...sameStates, states: {
       ...sameStates.states,
       'automation.kitchen_lights': { state: 'off' },
-    })).toBe(true);
+    }} as never)).toBe(true);
   });
 
   test('automation fingerprint and cache reuse only stable state references and cache versions', () => {
     const card = createCard();
     const states = card.hass!.states as never as Record<string, unknown>;
 
-    const firstFingerprint = card._getAutomationStateFingerprint(states);
-    expect(card._getAutomationStateFingerprint(states)).toBe(firstFingerprint);
+    const firstFingerprint = card._shell.automationFingerprint(states as never);
+    expect(card._shell.automationFingerprint(states as never)).toBe(firstFingerprint);
     expect(firstFingerprint).toContain('automation.kitchen_lights:on');
     expect(firstFingerprint).not.toContain('light.kitchen');
 
     const firstAutomations = card._getAutomations();
     expect(card._getAutomations()).toBe(firstAutomations);
-    card._automationsCacheVersion += 1;
+    card._shell.cacheVersion += 1;
     expect(card._getAutomations()).not.toBe(firstAutomations);
 
     card.hass = { ...createHass(), states: undefined as never };
@@ -337,23 +328,19 @@ describe('AutomationPauseCard mutation boundaries', () => {
       });
     });
 
-    await card._fetchLabelRegistry();
-    await card._fetchCategoryRegistry();
-    await card._fetchEntityRegistry();
+    await card._shell.connect(card.hass);
 
     expect(messages).toEqual([
       { type: 'config/label_registry/list' },
       { type: 'config/category_registry/list', scope: 'automation' },
       { type: 'config/entity_registry/list' },
     ]);
-    expect(card._labelRegistry).toEqual({ evening: { label_id: 'evening', name: 'Evening' } });
-    expect(card._categoryRegistry).toEqual({ lighting: { category_id: 'lighting', name: 'Lighting' } });
-    expect(card._entityRegistry).toEqual({
+    expect(card._shell.labels).toEqual({ evening: { label_id: 'evening', name: 'Evening' } });
+    expect(card._shell.categories).toEqual({ lighting: { category_id: 'lighting', name: 'Lighting' } });
+    expect(card._shell.entities).toEqual({
       'automation.kitchen_lights': { entity_id: 'automation.kitchen_lights', category_id: 'lighting' },
     });
-    expect(card._labelsFetched).toBe(true);
-    expect(card._categoriesFetched).toBe(true);
-    expect(card._entityRegistryFetched).toBe(true);
+    expect(card._shell.cacheVersion).toBe(2);
 
     const failing = createCard((el) => {
       el.hass = createHass({
@@ -365,86 +352,44 @@ describe('AutomationPauseCard mutation boundaries', () => {
       });
     });
     document.body.appendChild(failing);
-    await failing._fetchLabelRegistry();
-    expect(failing._labelsFetched).toBe(false);
-    expect(failing._labelRegistryUnavailable).toBe(true);
-    expect(failing._labelRegistryRetryTimeout).not.toBeNull();
-    expect(failing._labelRegistryRetryDelayMs).toBe(2_000);
+    await failing._shell.connect(failing.hass);
+    expect(failing._shell.labels).toEqual({});
+    expect(failing._shell.labelsUnavailable).toBe(true);
     vi.runOnlyPendingTimers();
-    expect(failing._labelRegistryRetryTimeout).toBeNull();
+    failing.disconnectedCallback();
   });
 
   test('lifecycle hooks gate registry fetches and clear pending timers exactly', async () => {
     const card = createCard();
-    const labelSpy = vi.spyOn(card, '_fetchLabelRegistry').mockResolvedValue(undefined);
-    const categorySpy = vi.spyOn(card, '_fetchCategoryRegistry').mockResolvedValue(undefined);
-    const entitySpy = vi.spyOn(card, '_fetchEntityRegistry').mockResolvedValue(undefined);
+    const connectSpy = vi.spyOn(card._shell, 'connect').mockResolvedValue(undefined);
+    const disconnectSpy = vi.spyOn(card._shell, 'disconnect');
 
     card.updated(new Map([['hass', undefined]]));
-    expect(labelSpy).toHaveBeenCalledTimes(1);
-    expect(categorySpy).toHaveBeenCalledTimes(1);
-    expect(entitySpy).toHaveBeenCalledTimes(1);
+    expect(connectSpy).toHaveBeenCalledTimes(1);
 
-    labelSpy.mockClear();
-    categorySpy.mockClear();
-    entitySpy.mockClear();
-    card._labelsFetched = false;
-    card._labelRegistryRetryTimeout = window.setTimeout(() => undefined, 1000);
-    card._categoriesFetched = true;
-    card._entityRegistryFetched = true;
+    connectSpy.mockClear();
+    card.hass = undefined as never;
     card.updated(new Map([['hass', undefined]]));
-    expect(labelSpy).not.toHaveBeenCalled();
-    expect(categorySpy).not.toHaveBeenCalled();
-    expect(entitySpy).not.toHaveBeenCalled();
+    expect(connectSpy).not.toHaveBeenCalled();
 
-    card._toastTimeout = window.setTimeout(() => undefined, 1000);
-    card._toastFadeTimeout = window.setTimeout(() => undefined, 1000);
     card.disconnectedCallback();
-    expect(card._toastTimeout).toBeNull();
-    expect(card._toastFadeTimeout).toBeNull();
-    expect(card._labelRegistryRetryTimeout).toBeNull();
+    expect(disconnectSpy).toHaveBeenCalledTimes(1);
   });
 
-  test('registry fetches await in-flight work and skip when already fetched or disconnected', async () => {
+  test('registry controller deduplicates requests and skips disconnected hass', async () => {
     const card = createCard();
-    const pendingLabel = Promise.resolve();
-    const pendingCategory = Promise.resolve();
-    const pendingEntity = Promise.resolve();
-
-    card._labelRegistryFetchPromise = pendingLabel;
-    await card._fetchLabelRegistry();
-    expect(card._labelRegistryFetchPromise).toBe(pendingLabel);
-
-    card._categoryRegistryFetchPromise = pendingCategory;
-    await card._fetchCategoryRegistry();
-    expect(card._categoryRegistryFetchPromise).toBe(pendingCategory);
-
-    card._entityRegistryFetchPromise = pendingEntity;
-    await card._fetchEntityRegistry();
-    expect(card._entityRegistryFetchPromise).toBe(pendingEntity);
+    const first = card._shell.connect(card.hass);
+    const second = card._shell.connect(card.hass);
+    await Promise.all([first, second]);
+    expect(card._shell.cacheVersion).toBe(2);
 
     const noConnection = createCard((el) => {
       el.hass = { ...createHass(), connection: undefined as never };
     });
-    await noConnection._fetchLabelRegistry();
-    await noConnection._fetchCategoryRegistry();
-    await noConnection._fetchEntityRegistry();
-    expect(noConnection._labelsFetched).toBe(false);
-    expect(noConnection._categoriesFetched).toBe(false);
-    expect(noConnection._entityRegistryFetched).toBe(false);
-
-    card._labelsFetched = true;
-    card._categoriesFetched = true;
-    card._entityRegistryFetched = true;
-    card._labelRegistryFetchPromise = null;
-    card._categoryRegistryFetchPromise = null;
-    card._entityRegistryFetchPromise = null;
-    await card._fetchLabelRegistry();
-    await card._fetchCategoryRegistry();
-    await card._fetchEntityRegistry();
-    expect(card._labelRegistryFetchPromise).toBeNull();
-    expect(card._categoryRegistryFetchPromise).toBeNull();
-    expect(card._entityRegistryFetchPromise).toBeNull();
+    await noConnection._shell.connect(noConnection.hass);
+    expect(noConnection._shell.labels).toEqual({});
+    expect(noConnection._shell.categories).toEqual({});
+    expect(noConnection._shell.entities).toEqual({});
   });
 
   test('adjust modal sync updates live targets and closes when paused targets disappear', () => {
@@ -532,15 +477,13 @@ describe('AutomationPauseCard mutation boundaries', () => {
 
     card._showToast('Timed toast');
     vi.advanceTimersByTime(5_000);
-    expect(card._toastTimeout).toBeNull();
-    expect(card._toastFadeTimeout).not.toBeNull();
+    expect(card.shadowRoot?.querySelector('.toast')?.getAttribute('style')).toContain('animation');
     vi.advanceTimersByTime(300);
-    expect(card._toastFadeTimeout).toBeNull();
     expect(card.shadowRoot?.querySelector('.toast')).toBeNull();
 
     const detached = createCard();
     detached._showToast('No root');
-    expect(detached._toastTimeout).toBeNull();
+    expect(detached.shadowRoot?.querySelector('.toast') ?? null).toBeNull();
   });
 
   test('state event handlers update duration, schedule, selection, guardrail, and modal state', async () => {
@@ -691,7 +634,7 @@ describe('AutomationPauseCard mutation boundaries', () => {
     const detached = createCard();
     mocks.runWakeFeature.mockResolvedValueOnce(undefined);
     await detached._wake('automation.office_fan');
-    expect(detached._toastTimeout).toBeNull();
+    expect(detached.shadowRoot?.querySelector('.toast') ?? null).toBeNull();
   });
 
   test('snooze success clears state, refreshes recent IDs, and undo restores or selects failures', async () => {
@@ -774,23 +717,33 @@ describe('AutomationPauseCard mutation boundaries', () => {
       el._scheduleMode = true;
     });
 
+    mocks.runPauseFeature.mockResolvedValueOnce({
+      status: 'validation_error',
+      toastMessage: 'Please set a complete resume date and time',
+    });
     await card._snooze();
     expect(getText(card.shadowRoot?.querySelector('.toast'))).toBe('Please set a complete resume date and time');
-    expect(mocks.runPauseFeature).not.toHaveBeenCalled();
 
     card._resumeAtDate = '2026-04-29';
     card._resumeAtTime = '11:59';
+    mocks.runPauseFeature.mockResolvedValueOnce({
+      status: 'validation_error',
+      toastMessage: 'Resume time must be in the future',
+    });
     await card._snooze();
     expect(getText(card.shadowRoot?.querySelector('.toast'))).toBe('Resume time must be in the future');
-    expect(mocks.runPauseFeature).not.toHaveBeenCalled();
 
     card._disableAtDate = '2026-04-29';
     card._disableAtTime = '13:00';
     card._resumeAtDate = '2026-04-29';
     card._resumeAtTime = '12:30';
+    mocks.runPauseFeature.mockResolvedValueOnce({
+      status: 'validation_error',
+      toastMessage: 'Snooze time must be before resume time',
+    });
     await card._snooze();
     expect(getText(card.shadowRoot?.querySelector('.toast'))).toBe('Snooze time must be before resume time');
-    expect(mocks.runPauseFeature).not.toHaveBeenCalled();
+    expect(mocks.runPauseFeature).toHaveBeenCalledTimes(3);
   });
 
   test('render exposes exact card text, status summaries, scheduled list, guardrail, and snooze button states', async () => {

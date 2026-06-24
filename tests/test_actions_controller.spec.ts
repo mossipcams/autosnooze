@@ -14,10 +14,10 @@ vi.mock('../src/services/snooze.js', () => ({
   adjustSnooze: vi.fn(),
 }));
 
-import { runPauseActionFeature } from '../src/features/pause/index.js';
+import { runPauseFeature } from '../src/features/pause/index.js';
 import {
-  runAdjustActionFeature,
-  runCancelScheduledActionFeature,
+  runAdjustFeature,
+  runCancelScheduledFeature,
 } from '../src/features/scheduled-snooze/index.js';
 import { runUndoFeature, runWakeAllFeature, runWakeFeature } from '../src/features/resume/index.js';
 import {
@@ -33,12 +33,21 @@ describe('Feature service delegation', () => {
     vi.clearAllMocks();
   });
 
-  test('runPauseActionFeature forwards payload unchanged', async () => {
+  test('runPauseFeature forwards the built payload', async () => {
     const hass = createMockHass();
     const params = { entity_id: ['automation.a'], hours: 1 };
 
-    await runPauseActionFeature(hass, params);
-    expect(pauseAutomations).toHaveBeenCalledWith(hass, params);
+    await runPauseFeature({
+      hass,
+      selected: params.entity_id,
+      scheduleMode: false,
+      customDuration: { days: 0, hours: params.hours, minutes: 0 },
+      disableAtDate: '',
+      disableAtTime: '',
+      resumeAtDate: '',
+      resumeAtTime: '',
+    });
+    expect(pauseAutomations).toHaveBeenCalledWith(hass, { ...params, days: 0, minutes: 0 });
   });
 
   test('runWakeFeature and runWakeAllFeature call expected services', async () => {
@@ -50,10 +59,10 @@ describe('Feature service delegation', () => {
     expect(wakeAll).toHaveBeenCalledWith(hass);
   });
 
-  test('runCancelScheduledActionFeature and runAdjustActionFeature call expected services', async () => {
+  test('runCancelScheduledFeature and runAdjustFeature call expected services', async () => {
     const hass = createMockHass();
-    await runCancelScheduledActionFeature(hass, 'automation.s');
-    await runAdjustActionFeature(hass, ['automation.a'], { minutes: 15 });
+    await runCancelScheduledFeature(hass, 'automation.s');
+    await runAdjustFeature(hass, { entityIds: ['automation.a'], minutes: 15 }, '2026-01-01T00:00:00Z');
 
     expect(cancelScheduled).toHaveBeenCalledWith(hass, 'automation.s');
     expect(adjustSnooze).toHaveBeenCalledWith(hass, ['automation.a'], { minutes: 15 });

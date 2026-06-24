@@ -47,16 +47,14 @@ def test_schedule_resume_timer_uses_expired_reason() -> None:
     data = AutomationPauseData()
     resume_at = datetime.now(UTC) + timedelta(hours=1)
 
-    with (
-        patch("custom_components.autosnooze.runtime.timers.async_track_point_in_time") as mock_track,
-        patch("custom_components.autosnooze.runtime.timers.async_resume", new_callable=AsyncMock) as async_resume,
-    ):
+    resume_callback = MagicMock(side_effect=AsyncMock())
+    with patch("custom_components.autosnooze.runtime.timers.async_track_point_in_time") as mock_track:
         mock_track.return_value = MagicMock()
-        schedule_resume(hass, data, "automation.kitchen", resume_at)
+        schedule_resume(hass, data, "automation.kitchen", resume_at, resume_callback=resume_callback)
         callback = mock_track.call_args.args[1]
         callback(resume_at)
 
-    async_resume.assert_called_once_with(hass, data, "automation.kitchen", reason="expired")
+    resume_callback.assert_called_once_with(hass, data, "automation.kitchen", reason="expired")
 
 
 @pytest.mark.asyncio
@@ -93,7 +91,7 @@ async def test_cancel_handlers_use_manual_reason() -> None:
 
 def test_build_resume_notification_uses_friendly_name() -> None:
     """End notification copy should be stable and human-readable."""
-    from custom_components.autosnooze.coordinator import _build_resume_notification
+    from custom_components.autosnooze.application.notifications import _build_resume_notification
 
     now = datetime.now(UTC)
     paused = PausedAutomation(
@@ -112,7 +110,7 @@ def test_build_resume_notification_uses_friendly_name() -> None:
 
 def test_build_resume_batch_notification_lists_names_and_count() -> None:
     """End batch notification copy should include the count and every friendly name."""
-    from custom_components.autosnooze.coordinator import _build_resume_batch_notification
+    from custom_components.autosnooze.application.notifications import _build_resume_batch_notification
 
     now = datetime.now(UTC)
     items = [
@@ -140,7 +138,7 @@ def test_build_resume_batch_notification_lists_names_and_count() -> None:
 
 def test_build_started_notification_uses_friendly_name() -> None:
     """Start notification copy should be stable and human-readable."""
-    from custom_components.autosnooze.coordinator import _build_started_notification
+    from custom_components.autosnooze.application.notifications import _build_started_notification
 
     now = datetime.now(UTC)
     paused = PausedAutomation(
@@ -159,7 +157,7 @@ def test_build_started_notification_uses_friendly_name() -> None:
 
 def test_build_pre_resume_notification_uses_lead_minutes() -> None:
     """Pre-resume notification copy should mention the configured lead time."""
-    from custom_components.autosnooze.coordinator import _build_pre_resume_notification
+    from custom_components.autosnooze.application.notifications import _build_pre_resume_notification
 
     now = datetime.now(UTC)
     paused = PausedAutomation(
@@ -182,12 +180,12 @@ async def test_send_resume_notification_logs_warning_when_service_fails(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
     """Notification failures should log a warning without aborting resume."""
-    from custom_components.autosnooze.coordinator import _send_resume_notification
+    from custom_components.autosnooze.application.notifications import _send_resume_notification
 
     hass = MagicMock()
     hass.services.async_call = AsyncMock(side_effect=[None, RuntimeError("notification service down")])
 
-    with caplog.at_level(logging.WARNING, logger="custom_components.autosnooze.coordinator"):
+    with caplog.at_level(logging.WARNING, logger="custom_components.autosnooze.application.notifications"):
         await _send_resume_notification(hass, "AutoSnooze finished", "Kitchen resumed.")
 
     assert any(
@@ -207,12 +205,12 @@ async def test_send_resume_notification_logs_warning_when_dismiss_fails_but_stil
     caplog: pytest.LogCaptureFixture,
 ) -> None:
     """Dismiss failures should not block replacing the active notification."""
-    from custom_components.autosnooze.coordinator import _send_resume_notification
+    from custom_components.autosnooze.application.notifications import _send_resume_notification
 
     hass = MagicMock()
     hass.services.async_call = AsyncMock(side_effect=[RuntimeError("dismiss service down"), None])
 
-    with caplog.at_level(logging.WARNING, logger="custom_components.autosnooze.coordinator"):
+    with caplog.at_level(logging.WARNING, logger="custom_components.autosnooze.application.notifications"):
         await _send_resume_notification(hass, "AutoSnooze finished", "Kitchen resumed.")
 
     assert any(
@@ -245,7 +243,7 @@ async def test_notify_resumed_automations_gate_conditions(
     expect_notification: bool,
 ) -> None:
     """End notifications require natural expiry, a successful save, and the end trigger."""
-    from custom_components.autosnooze.coordinator import _notify_resumed_automations
+    from custom_components.autosnooze.application.notifications import notify_resumed as _notify_resumed_automations
 
     hass = MagicMock()
     hass.services.async_call = AsyncMock()
@@ -278,7 +276,7 @@ async def test_notify_resumed_automations_gate_conditions(
 @pytest.mark.asyncio
 async def test_async_resume_sends_notification_for_expired_end_trigger() -> None:
     """Natural expiry should notify after a successful wake and save for end-trigger snoozes."""
-    from custom_components.autosnooze.coordinator import async_resume
+    from custom_components.autosnooze.application.resume import async_resume
 
     hass = MagicMock()
     hass.services.async_call = AsyncMock()
@@ -293,8 +291,8 @@ async def test_async_resume_sends_notification_for_expired_end_trigger() -> None
     )
 
     with (
-        patch("custom_components.autosnooze.coordinator.async_set_automation_state", AsyncMock(return_value=True)),
-        patch("custom_components.autosnooze.coordinator.async_save", AsyncMock(return_value=True)),
+        patch("custom_components.autosnooze.runtime.ports.async_set_automation_state", AsyncMock(return_value=True)),
+        patch("custom_components.autosnooze.runtime.ports.async_save", AsyncMock(return_value=True)),
     ):
         await async_resume(hass, data, "automation.kitchen", reason="expired")
 
@@ -308,7 +306,7 @@ async def test_async_resume_sends_notification_for_expired_end_trigger() -> None
 @pytest.mark.asyncio
 async def test_async_resume_suppresses_notification_for_manual_and_failed_wake() -> None:
     """Manual wakeups and failed expiry wake attempts should stay silent."""
-    from custom_components.autosnooze.coordinator import async_resume
+    from custom_components.autosnooze.application.resume import async_resume
 
     now = datetime.now(UTC)
 
@@ -324,8 +322,8 @@ async def test_async_resume_suppresses_notification_for_manual_and_failed_wake()
     )
 
     with (
-        patch("custom_components.autosnooze.coordinator.async_set_automation_state", AsyncMock(return_value=True)),
-        patch("custom_components.autosnooze.coordinator.async_save", AsyncMock(return_value=True)),
+        patch("custom_components.autosnooze.runtime.ports.async_set_automation_state", AsyncMock(return_value=True)),
+        patch("custom_components.autosnooze.runtime.ports.async_save", AsyncMock(return_value=True)),
     ):
         await async_resume(manual_hass, manual_data, "automation.kitchen", reason="manual")
 
@@ -343,9 +341,9 @@ async def test_async_resume_suppresses_notification_for_manual_and_failed_wake()
     )
 
     with (
-        patch("custom_components.autosnooze.coordinator.async_set_automation_state", AsyncMock(return_value=False)),
-        patch("custom_components.autosnooze.coordinator.async_save", AsyncMock(return_value=True)),
-        patch("custom_components.autosnooze.coordinator.schedule_resume"),
+        patch("custom_components.autosnooze.runtime.ports.async_set_automation_state", AsyncMock(return_value=False)),
+        patch("custom_components.autosnooze.runtime.ports.async_save", AsyncMock(return_value=True)),
+        patch("custom_components.autosnooze.runtime.ports.schedule_resume"),
     ):
         await async_resume(failed_hass, failed_data, "automation.kitchen", reason="expired")
 
@@ -355,7 +353,7 @@ async def test_async_resume_suppresses_notification_for_manual_and_failed_wake()
 @pytest.mark.asyncio
 async def test_async_resume_skips_notification_when_trigger_is_not_end() -> None:
     """Natural expiry should stay silent when the automation is not configured for end notifications."""
-    from custom_components.autosnooze.coordinator import async_resume
+    from custom_components.autosnooze.application.resume import async_resume
 
     hass = MagicMock()
     hass.services.async_call = AsyncMock()
@@ -370,8 +368,8 @@ async def test_async_resume_skips_notification_when_trigger_is_not_end() -> None
     )
 
     with (
-        patch("custom_components.autosnooze.coordinator.async_set_automation_state", AsyncMock(return_value=True)),
-        patch("custom_components.autosnooze.coordinator.async_save", AsyncMock(return_value=True)),
+        patch("custom_components.autosnooze.runtime.ports.async_set_automation_state", AsyncMock(return_value=True)),
+        patch("custom_components.autosnooze.runtime.ports.async_save", AsyncMock(return_value=True)),
     ):
         await async_resume(hass, data, "automation.kitchen", reason="expired")
 
@@ -381,7 +379,7 @@ async def test_async_resume_skips_notification_when_trigger_is_not_end() -> None
 @pytest.mark.asyncio
 async def test_async_resume_raises_and_skips_notification_when_save_fails_after_successful_wake() -> None:
     """A successful wake should raise and not notify if persistence failed."""
-    from custom_components.autosnooze.coordinator import async_resume
+    from custom_components.autosnooze.application.resume import async_resume
 
     hass = MagicMock()
     hass.services.async_call = AsyncMock()
@@ -396,8 +394,8 @@ async def test_async_resume_raises_and_skips_notification_when_save_fails_after_
     )
 
     with (
-        patch("custom_components.autosnooze.coordinator.async_set_automation_state", AsyncMock(return_value=True)),
-        patch("custom_components.autosnooze.coordinator.async_save", AsyncMock(return_value=False)),
+        patch("custom_components.autosnooze.runtime.ports.async_set_automation_state", AsyncMock(return_value=True)),
+        patch("custom_components.autosnooze.runtime.ports.async_save", AsyncMock(return_value=False)),
         pytest.raises(ServiceValidationError, match="Failed to persist autosnooze state"),
     ):
         await async_resume(hass, data, "automation.kitchen", reason="expired")
@@ -409,7 +407,7 @@ async def test_async_resume_raises_and_skips_notification_when_save_fails_after_
 @pytest.mark.asyncio
 async def test_async_pause_automations_sends_start_notification_for_immediate_start_trigger() -> None:
     """Immediate snoozes should notify when they actually start for start-trigger entries."""
-    from custom_components.autosnooze.services import async_pause_automations
+    from custom_components.autosnooze.application.pause import async_pause_automations
 
     hass = MagicMock()
     hass.states.get.return_value = MagicMock(attributes={"friendly_name": "Kitchen Lights"})
@@ -417,10 +415,12 @@ async def test_async_pause_automations_sends_start_notification_for_immediate_st
     data = AutomationPauseData(store=MagicMock())
 
     with (
-        patch("custom_components.autosnooze.services.async_set_automation_state", AsyncMock(return_value=True)),
-        patch("custom_components.autosnooze.services.schedule_resume"),
-        patch("custom_components.autosnooze.services.schedule_pre_resume_notification"),
-        patch("custom_components.autosnooze.services.async_save", AsyncMock(return_value=True)),
+        patch(
+            "custom_components.autosnooze.application.pause.async_set_automation_state", AsyncMock(return_value=True)
+        ),
+        patch("custom_components.autosnooze.application.pause.schedule_resume"),
+        patch("custom_components.autosnooze.application.pause.schedule_pre_resume_notification"),
+        patch("custom_components.autosnooze.application.pause.runtime_async_save", AsyncMock(return_value=True)),
     ):
         await async_pause_automations(
             hass,
@@ -440,7 +440,7 @@ async def test_async_pause_automations_sends_start_notification_for_immediate_st
 @pytest.mark.asyncio
 async def test_async_pause_automations_does_not_notify_when_future_start_is_only_scheduled() -> None:
     """Creating a future scheduled snooze should not send a start notification yet."""
-    from custom_components.autosnooze.services import async_pause_automations
+    from custom_components.autosnooze.application.pause import async_pause_automations
 
     hass = MagicMock()
     hass.states.get.return_value = MagicMock(attributes={"friendly_name": "Kitchen Lights"})
@@ -449,8 +449,8 @@ async def test_async_pause_automations_does_not_notify_when_future_start_is_only
     now = datetime.now(UTC)
 
     with (
-        patch("custom_components.autosnooze.services.schedule_disable"),
-        patch("custom_components.autosnooze.services.async_save", AsyncMock(return_value=True)),
+        patch("custom_components.autosnooze.application.pause.schedule_disable"),
+        patch("custom_components.autosnooze.application.pause.runtime_async_save", AsyncMock(return_value=True)),
     ):
         await async_pause_automations(
             hass,
@@ -467,7 +467,7 @@ async def test_async_pause_automations_does_not_notify_when_future_start_is_only
 @pytest.mark.asyncio
 async def test_async_execute_scheduled_disable_sends_start_notification_for_start_trigger() -> None:
     """Scheduled activation should notify when the snooze actually starts."""
-    from custom_components.autosnooze.coordinator import async_execute_scheduled_disable
+    from custom_components.autosnooze.application.scheduled import async_execute_scheduled_disable
     from custom_components.autosnooze.models import ScheduledSnooze
 
     hass = MagicMock()
@@ -484,10 +484,10 @@ async def test_async_execute_scheduled_disable_sends_start_notification_for_star
     )
 
     with (
-        patch("custom_components.autosnooze.coordinator.async_set_automation_state", AsyncMock(return_value=True)),
-        patch("custom_components.autosnooze.coordinator.schedule_resume"),
-        patch("custom_components.autosnooze.coordinator.schedule_pre_resume_notification"),
-        patch("custom_components.autosnooze.coordinator.async_save", AsyncMock(return_value=True)),
+        patch("custom_components.autosnooze.runtime.ports.async_set_automation_state", AsyncMock(return_value=True)),
+        patch("custom_components.autosnooze.runtime.ports.schedule_resume"),
+        patch("custom_components.autosnooze.runtime.ports.schedule_pre_resume_notification"),
+        patch("custom_components.autosnooze.runtime.ports.async_save", AsyncMock(return_value=True)),
     ):
         await async_execute_scheduled_disable(hass, data, "automation.kitchen", now + timedelta(hours=1))
 
@@ -501,7 +501,9 @@ async def test_async_execute_scheduled_disable_sends_start_notification_for_star
 @pytest.mark.asyncio
 async def test_async_send_pre_resume_notification_sends_about_to_end_notification() -> None:
     """Pre-resume callback should notify eligible active snoozes shortly before resume."""
-    from custom_components.autosnooze.coordinator import async_send_pre_resume_notification
+    from custom_components.autosnooze.application.notifications import (
+        send_pre_resume_notification as async_send_pre_resume_notification,
+    )
 
     hass = MagicMock()
     hass.services.async_call = AsyncMock()
@@ -528,7 +530,9 @@ async def test_async_send_pre_resume_notification_sends_about_to_end_notificatio
 @pytest.mark.asyncio
 async def test_async_send_pre_resume_notification_skips_non_matching_or_missing_pauses() -> None:
     """Pre-resume callback should stay silent for missing or non pre-end snoozes."""
-    from custom_components.autosnooze.coordinator import async_send_pre_resume_notification
+    from custom_components.autosnooze.application.notifications import (
+        send_pre_resume_notification as async_send_pre_resume_notification,
+    )
 
     hass = MagicMock()
     hass.services.async_call = AsyncMock()

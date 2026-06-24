@@ -4,11 +4,6 @@
 
 import { startCountdownSync, stopCountdownSync } from '../../services/countdown-sync.js';
 import {
-  fetchCategoryRegistry,
-  fetchEntityRegistry,
-  fetchLabelRegistry,
-} from '../../services/registry.js';
-import {
   loadLastDuration,
   loadRecentSnoozes,
   type LastDurationData,
@@ -20,9 +15,6 @@ import {
 } from '../../state/paused.js';
 import type { DurationPreset, PauseGroup } from '../../types/automation.js';
 import type {
-  HassCategory,
-  HassEntityRegistryEntry,
-  HassLabel,
   HomeAssistant,
   PausedAutomationAttribute,
   ScheduledSnoozeAttribute,
@@ -131,24 +123,6 @@ export function loadCardLastDuration(): LastDurationData | null {
 
 export function loadCardRecentSnoozeIds(): string[] {
   return loadRecentSnoozes();
-}
-
-export async function fetchCardLabelRegistry(
-  hass: HomeAssistant
-): Promise<Record<string, HassLabel> | null> {
-  return fetchLabelRegistry(hass);
-}
-
-export async function fetchCardCategoryRegistry(
-  hass: HomeAssistant
-): Promise<Record<string, HassCategory>> {
-  return fetchCategoryRegistry(hass);
-}
-
-export async function fetchCardEntityRegistry(
-  hass: HomeAssistant
-): Promise<Record<string, HassEntityRegistryEntry>> {
-  return fetchEntityRegistry(hass);
 }
 
 export function getCardPausedSnapshot(hass: HomeAssistant): {

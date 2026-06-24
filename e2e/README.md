@@ -26,6 +26,7 @@ export HA_PASSWORD=12345
 
 ```bash
 npm run e2e
+npm run e2e:smoke
 npm run e2e:visual
 npm run e2e:critical
 npm run e2e:ui
@@ -35,6 +36,11 @@ npm run e2e:report
 ```
 
 `npm run e2e:critical` runs tests tagged `@critical`. `.husky/pre-push` runs this command before PR creation/push so the standard critical path catches card registration, resource loading, console/page errors, layout integrity, and the default loaded-card visual baseline.
+
+`npm run e2e:smoke` runs the compact release-gate workflow tagged `@smoke`.
+It covers card load, snooze, persisted rendering after reload, resume, and
+invalid-input rejection. It is an optional browser regression check and is not
+part of the deterministic CI smoke gate.
 
 ## Visual Snapshots
 
