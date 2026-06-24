@@ -11,7 +11,7 @@ PACKAGE_JSON_PATH = PROJECT_ROOT / "package.json"
 PACKAGE_LOCK_PATH = PROJECT_ROOT / "package-lock.json"
 BUILD_WORKFLOW_PATH = PROJECT_ROOT / ".github" / "workflows" / "build.yml"
 JSCPD_CONFIG_PATH = PROJECT_ROOT / ".jscpd.json"
-EXPECTED_JSCPD_VERSION = "4.2.4"
+EXPECTED_JSCPD_VERSION = "5.0.11"
 
 
 def test_package_json_exposes_blocking_jscpd_script() -> None:
