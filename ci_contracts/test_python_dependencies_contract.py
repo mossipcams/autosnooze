@@ -28,7 +28,7 @@ def test_pytest_asyncio_matches_homeassistant_2026_5_fixture_dependency() -> Non
     """Avoid pip resolver conflicts with the HA 2026.5 test fixture package."""
     requirements = REQUIREMENTS_TEST_PATH.read_text(encoding="utf-8")
 
-    assert "pytest-asyncio==1.3.0" in requirements
+    assert "pytest-asyncio==1.4.0" in requirements
 
 
 def test_pytest_cov_matches_homeassistant_2026_5_fixture_dependency() -> None:
