@@ -14,7 +14,7 @@ def test_pytest_homeassistant_custom_component_tracks_current_fixture() -> None:
     """Keep the Home Assistant test fixture on the reviewed patch release."""
     requirements = REQUIREMENTS_TEST_PATH.read_text(encoding="utf-8")
 
-    assert "pytest-homeassistant-custom-component>=0.13.338,<0.13.339" in requirements
+    assert "pytest-homeassistant-custom-component>=0.13.342,<0.13.343" in requirements
 
 
 def test_pytest_matches_homeassistant_2026_5_fixture_dependency() -> None:
@@ -28,7 +28,7 @@ def test_pytest_asyncio_matches_homeassistant_2026_5_fixture_dependency() -> Non
     """Avoid pip resolver conflicts with the HA 2026.5 test fixture package."""
     requirements = REQUIREMENTS_TEST_PATH.read_text(encoding="utf-8")
 
-    assert "pytest-asyncio==1.3.0" in requirements
+    assert "pytest-asyncio==1.4.0" in requirements
 
 
 def test_pytest_cov_matches_homeassistant_2026_5_fixture_dependency() -> None:
