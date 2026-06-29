@@ -10,4 +10,4 @@ pytest-cov==7.1.0
 ruff>=0.15.16
 
 # Type checking
-pyright>=1.1.410
+pyright>=1.1.411
