@@ -564,7 +564,7 @@ describe('AutoSnooze Card Main Component', () => {
       const ds = queryDurationSelector(card);
       await ds.updateComplete;
       const pills = ds._getDurationPills();
-      expect(pills.length).toBe(5); // 30m, 1h, 12h, 1d, Custom
+      expect(pills.length).toBe(3); // 30m, 1h, Custom
       expect(pills[pills.length - 1].label).toBe('Custom');
     });
 
@@ -577,7 +577,7 @@ describe('AutoSnooze Card Main Component', () => {
         timestamp: Date.now(),
       };
       const pills = ds._getDurationPills();
-      expect(pills.length).toBe(5); // 30m, 1h, 12h, 1d, Custom (no Last pill)
+      expect(pills.length).toBe(3); // 30m, 1h, Custom (no Last pill)
       const lastPill = pills.find(p => p.isLast);
       expect(lastPill).toBeUndefined(); // No Last pill in array anymore
     });
@@ -591,7 +591,7 @@ describe('AutoSnooze Card Main Component', () => {
         timestamp: Date.now(),
       };
       const pills = ds._getDurationPills();
-      expect(pills.length).toBe(5); // 30m, 1h, 12h, 1d, Custom (no extra Last pill)
+      expect(pills.length).toBe(3); // 30m, 1h, Custom (no extra Last pill)
       const lastPill = pills.find(p => p.isLast);
       expect(lastPill).toBeUndefined();
     });

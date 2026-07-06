@@ -551,7 +551,7 @@ function expectRenderedCardIsHealthy(registration: Awaited<ReturnType<typeof ins
   expect(registration.bodyText).not.toContain("Custom element doesn't exist");
   expect(registration.cardText.toLowerCase()).toContain('autosnooze');
   expect(registration.durationLabels).toEqual(
-    expect.arrayContaining(['30m', '1h', '1d', 'Custom'])
+    expect.arrayContaining(['30m', '1h', 'Tomorrow', 'Custom'])
   );
   expect(registration.hasDurationSelector).toBe(true);
   expect(registration.hasAutomationList).toBe(true);

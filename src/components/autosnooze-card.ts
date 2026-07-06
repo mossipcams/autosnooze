@@ -17,6 +17,7 @@ import {
   DEFAULT_SNOOZE_MINUTES,
   NOTIFICATION_LEAD_OPTIONS,
   DEFAULT_NOTIFICATION_LEAD_MINUTES,
+  UNTIL_TOMORROW_HOUR,
 } from '../constants/index.js';
 import {
   createCardUiStore,
@@ -31,6 +32,7 @@ import {
 } from '../features/card-shell/index.js';
 import { formatDateTime, formatDuration } from '../utils/time-formatting.js';
 import { isDurationValid, minutesToDuration } from '../utils/duration-parsing.js';
+import { getNextMorningFields } from '../utils/datetime.js';
 import { hapticFeedback } from '../utils/haptic.js';
 import { defineAutoSnoozeElement } from '../utils/custom-element-registration.js';
 import { runPauseFeature } from '../features/pause/index.js';
@@ -76,6 +78,7 @@ export class AutomationPauseCard extends LitElement {
   @state() private _resumeAtDate: string = '';
   @state() private _resumeAtTime: string = '';
   @state() private _showCustomInput: boolean = false;
+  @state() private _untilTomorrow = false;
   @state() private _lastDuration: LastDurationData | null = null;
   @state() _recentSnoozeIds: string[] = [];
   @state() private _adjustModalOpen: boolean = false;
@@ -244,7 +247,7 @@ export class AutomationPauseCard extends LitElement {
   private async _snooze(forceConfirm: boolean = false): Promise<void> {
     if (this._selected.length === 0 || this._loading) return;
 
-    if (!this._scheduleMode && this._duration === 0) return;
+    if (!this._scheduleMode && !this._untilTomorrow && this._duration === 0) return;
 
     this._loading = true;
     this._guardrailConfirmOpen = false;
@@ -256,17 +259,34 @@ export class AutomationPauseCard extends LitElement {
 
       const count = this._selected.length;
       const snoozedEntities = [...this._selected];
-      const wasScheduleMode = this._scheduleMode;
-      const hadDisableAt = this._hasDisableAt();
+      const useUntilTomorrow = this._untilTomorrow && !this._scheduleMode;
+      const wasScheduleMode = this._scheduleMode || useUntilTomorrow;
+      const hadDisableAt = useUntilTomorrow ? false : this._hasDisableAt();
+
+      let scheduleMode = this._scheduleMode;
+      let disableAtDate = this._disableAtDate;
+      let disableAtTime = this._disableAtTime;
+      let resumeAtDate = this._resumeAtDate;
+      let resumeAtTime = this._resumeAtTime;
+
+      if (useUntilTomorrow) {
+        const fields = getNextMorningFields(new Date(), UNTIL_TOMORROW_HOUR);
+        scheduleMode = true;
+        resumeAtDate = fields.date;
+        resumeAtTime = fields.time;
+        disableAtDate = '';
+        disableAtTime = '';
+      }
+
       const pauseResult = await runPauseFeature({
         hass: this.hass,
         selected: this._selected,
-        scheduleMode: this._scheduleMode,
+        scheduleMode,
         customDuration: this._customDuration,
-        disableAtDate: this._disableAtDate,
-        disableAtTime: this._disableAtTime,
-        resumeAtDate: this._resumeAtDate,
-        resumeAtTime: this._resumeAtTime,
+        disableAtDate,
+        disableAtTime,
+        resumeAtDate,
+        resumeAtTime,
         forceConfirm,
         automations: this._getAutomations(),
         labelRegistry: this._shell.labels,
@@ -348,6 +368,7 @@ export class AutomationPauseCard extends LitElement {
       this._disableAtTime = '';
       this._resumeAtDate = '';
       this._resumeAtTime = '';
+      this._untilTomorrow = false;
     } catch (e) {
       console.error('Snooze failed:', e);
       this._hapticFeedback('failure');
@@ -488,6 +509,7 @@ export class AutomationPauseCard extends LitElement {
 
   private _handleDurationChange(e: CustomEvent<{ minutes: number; duration: ParsedDuration; input: string; showCustomInput?: boolean }>): void {
     const { duration, input, showCustomInput } = e.detail;
+    this._untilTomorrow = false;
     this._setDurationState(duration, input);
     if (showCustomInput !== undefined) {
       this._showCustomInput = showCustomInput;
@@ -495,6 +517,9 @@ export class AutomationPauseCard extends LitElement {
   }
 
   private _handleScheduleModeChange(e: CustomEvent<{ enabled: boolean }>): void {
+    if (e.detail.enabled) {
+      this._untilTomorrow = false;
+    }
     const scheduleState = createScheduleModeState({
       enabled: e.detail.enabled,
       now: new Date(),
@@ -530,6 +555,14 @@ export class AutomationPauseCard extends LitElement {
 
   private _handleCustomInputToggle(e: CustomEvent<{ show: boolean }>): void {
     this._showCustomInput = e.detail.show;
+    if (e.detail.show) {
+      this._untilTomorrow = false;
+    }
+  }
+
+  private _handleUntilTomorrowSelect(): void {
+    this._untilTomorrow = true;
+    this._showCustomInput = false;
   }
 
   private _handleNotificationsToggle(e: Event): void {
@@ -613,6 +646,7 @@ export class AutomationPauseCard extends LitElement {
             .customDuration=${this._customDuration}
             .customDurationInput=${this._customDurationInput}
             .showCustomInput=${this._showCustomInput}
+            .untilTomorrow=${this._untilTomorrow}
             .lastDuration=${this._lastDuration}
             .disableAtDate=${this._disableAtDate}
             .disableAtTime=${this._disableAtTime}
@@ -622,6 +656,7 @@ export class AutomationPauseCard extends LitElement {
             @schedule-mode-change=${this._handleScheduleModeChange}
             @schedule-field-change=${this._handleScheduleFieldChange}
             @custom-input-toggle=${this._handleCustomInputToggle}
+            @until-tomorrow-select=${this._handleUntilTomorrowSelect}
           ></autosnooze-duration-selector>
 
           <div class="notify-section">
@@ -687,7 +722,7 @@ export class AutomationPauseCard extends LitElement {
             type="button"
             class="snooze-btn"
             ?disabled=${this._selected.length === 0 ||
-            (!this._scheduleMode && !isDurationValid(this._customDurationInput)) ||
+            (!this._scheduleMode && !this._untilTomorrow && !isDurationValid(this._customDurationInput)) ||
             (this._scheduleMode && !this._hasResumeAt()) ||
             this._loading}
             @click=${() => this._snooze()}
