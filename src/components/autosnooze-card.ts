@@ -17,7 +17,6 @@ import {
   DEFAULT_SNOOZE_MINUTES,
   NOTIFICATION_LEAD_OPTIONS,
   DEFAULT_NOTIFICATION_LEAD_MINUTES,
-  UNTIL_TOMORROW_HOUR,
 } from '../constants/index.js';
 import {
   createCardUiStore,
@@ -28,11 +27,11 @@ import {
   loadCardLastDuration,
   loadCardRecentSnoozeIds,
   createScheduleModeState,
+  syncAdjustModalWithPaused,
   type LastDurationData,
 } from '../features/card-shell/index.js';
 import { formatDateTime, formatDuration } from '../utils/time-formatting.js';
 import { isDurationValid, minutesToDuration } from '../utils/duration-parsing.js';
-import { getNextMorningFields } from '../utils/datetime.js';
 import { hapticFeedback } from '../utils/haptic.js';
 import { defineAutoSnoozeElement } from '../utils/custom-element-registration.js';
 import { runPauseFeature } from '../features/pause/index.js';
@@ -127,37 +126,16 @@ export class AutomationPauseCard extends LitElement {
   }
 
   private _syncAdjustModalWithPausedState(): void {
-    if (!this._adjustModalOpen) {
-      return;
-    }
-
-    const paused = this._getPaused();
-
-    if (this._adjustModalEntityIds.length > 0) {
-      const anyStillPaused = this._adjustModalEntityIds.some(id => paused[id]);
-      if (!anyStillPaused) {
-        this._handleCloseModalEvent();
-        return;
-      }
-
-      const firstPaused = this._adjustModalEntityIds.find(id => paused[id]);
-      if (firstPaused) {
-        const pausedData = paused[firstPaused] as { resume_at?: string } | undefined;
-        if (pausedData?.resume_at && pausedData.resume_at !== this._adjustModalResumeAt) {
-          this._adjustModalResumeAt = pausedData.resume_at;
-        }
-      }
-      return;
-    }
-
-    if (this._adjustModalEntityId) {
-      const pausedData = paused[this._adjustModalEntityId] as { resume_at?: string } | undefined;
-      if (pausedData?.resume_at && pausedData.resume_at !== this._adjustModalResumeAt) {
-        this._adjustModalResumeAt = pausedData.resume_at;
-      }
-      if (!pausedData) {
-        this._handleCloseModalEvent();
-      }
+    const result = syncAdjustModalWithPaused(this._getPaused(), {
+      open: this._adjustModalOpen,
+      entityId: this._adjustModalEntityId,
+      entityIds: this._adjustModalEntityIds,
+      resumeAt: this._adjustModalResumeAt,
+    });
+    if (result.action === 'close') {
+      this._handleCloseModalEvent();
+    } else if (result.action === 'update') {
+      this._adjustModalResumeAt = result.resumeAt;
     }
   }
 
@@ -259,34 +237,19 @@ export class AutomationPauseCard extends LitElement {
 
       const count = this._selected.length;
       const snoozedEntities = [...this._selected];
-      const useUntilTomorrow = this._untilTomorrow && !this._scheduleMode;
-      const wasScheduleMode = this._scheduleMode || useUntilTomorrow;
-      const hadDisableAt = useUntilTomorrow ? false : this._hasDisableAt();
-
-      let scheduleMode = this._scheduleMode;
-      let disableAtDate = this._disableAtDate;
-      let disableAtTime = this._disableAtTime;
-      let resumeAtDate = this._resumeAtDate;
-      let resumeAtTime = this._resumeAtTime;
-
-      if (useUntilTomorrow) {
-        const fields = getNextMorningFields(new Date(), UNTIL_TOMORROW_HOUR);
-        scheduleMode = true;
-        resumeAtDate = fields.date;
-        resumeAtTime = fields.time;
-        disableAtDate = '';
-        disableAtTime = '';
-      }
+      const wasScheduleMode = this._scheduleMode || (this._untilTomorrow && !this._scheduleMode);
+      const hadDisableAt = this._untilTomorrow && !this._scheduleMode ? false : this._hasDisableAt();
 
       const pauseResult = await runPauseFeature({
         hass: this.hass,
         selected: this._selected,
-        scheduleMode,
+        scheduleMode: this._scheduleMode,
         customDuration: this._customDuration,
-        disableAtDate,
-        disableAtTime,
-        resumeAtDate,
-        resumeAtTime,
+        disableAtDate: this._disableAtDate,
+        disableAtTime: this._disableAtTime,
+        resumeAtDate: this._resumeAtDate,
+        resumeAtTime: this._resumeAtTime,
+        untilTomorrow: this._untilTomorrow,
         forceConfirm,
         automations: this._getAutomations(),
         labelRegistry: this._shell.labels,

@@ -133,9 +133,10 @@ describe('AutomationPauseCard until tomorrow', () => {
     await card._snooze();
 
     expect(mocks.runPauseFeature).toHaveBeenCalledWith(expect.objectContaining({
-      scheduleMode: true,
-      resumeAtDate: '2026-04-30',
-      resumeAtTime: '08:00',
+      scheduleMode: false,
+      untilTomorrow: true,
+      resumeAtDate: '',
+      resumeAtTime: '',
       disableAtDate: '',
       disableAtTime: '',
     }));
