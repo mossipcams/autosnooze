@@ -130,15 +130,51 @@ data:
   hours: 4
 ```
 
-|Parameter   |Required|Description                                       |
-|------------|--------|--------------------------------------------------|
-|`entity_id` |Yes     |Automation entity ID(s)                           |
-|`days`      |No      |Duration in days                                  |
-|`hours`     |No      |Duration in hours                                 |
-|`minutes`   |No      |Duration in minutes                               |
-|`resume_at` |No      |Datetime when to re-enable (overrides duration)   |
-|`disable_at`|No      |Datetime when to start the snooze (for scheduling)|
-|`confirm`   |No      |Set `true` to snooze critical/confirm-labeled automations|
+|Parameter       |Required|Description                                       |
+|----------------|--------|--------------------------------------------------|
+|`entity_id`     |Yes     |Automation entity ID(s)                           |
+|`days`          |No      |Duration in days                                  |
+|`hours`         |No      |Duration in hours                                 |
+|`minutes`       |No      |Duration in minutes                               |
+|`resume_at`     |No      |Datetime when to re-enable                        |
+|`resume_at_time`|No      |Local time of day when to re-enable (next occurrence)|
+|`resume_preset` |No      |Built-in resume time: `end_of_day`, `next_morning`, `next_sunrise`, `next_sunset`|
+|`disable_at`    |No      |Datetime when to start the snooze (for scheduling)|
+|`confirm`       |No      |Set `true` to snooze critical/confirm-labeled automations|
+
+Provide exactly one resume strategy per call: duration (`days`/`hours`/`minutes`), `resume_at`, `resume_at_time`, or `resume_preset`.
+
+#### Resume strategies
+
+**Preset** — snooze until a well-known moment. `end_of_day` resumes at the next local midnight (start of tomorrow), `next_morning` at the next 08:00 local time, and `next_sunrise`/`next_sunset` at Home Assistant's next sun event:
+
+```yaml
+action: autosnooze.pause
+target:
+  entity_id: automation.motion_lights
+data:
+  resume_preset: end_of_day
+```
+
+**Time of day** — resume at the next occurrence of a local time. If the time hasn't happened yet today, it resumes today; otherwise tomorrow:
+
+```yaml
+action: autosnooze.pause
+target:
+  entity_id: automation.motion_lights
+data:
+  resume_at_time: "06:25:00"
+```
+
+**Absolute datetime** — `resume_at` accepts a datetime or an ISO datetime string. Home Assistant renders Jinja templates before the service call reaches AutoSnooze, so templated values work as long as they render to a valid datetime string:
+
+```yaml
+action: autosnooze.pause
+target:
+  entity_id: automation.motion_lights
+data:
+  resume_at: "{{ (today_at('00:00') + timedelta(days=1)).isoformat() }}"
+```
 
 ### `autosnooze.cancel`
 

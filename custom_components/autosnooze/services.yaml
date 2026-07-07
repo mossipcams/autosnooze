@@ -47,9 +47,28 @@ pause:
         datetime:
     resume_at:
       name: Resume At
-      description: Specific datetime when to re-enable the automation. Overrides duration fields if set.
+      description: Specific datetime when to re-enable the automation. Accepts template-rendered datetime strings. Use instead of duration fields.
       selector:
         datetime:
+    resume_at_time:
+      name: Resume At Time
+      description: Local time of day when to re-enable the automation. Resumes today if the time is still upcoming, otherwise tomorrow. Use instead of duration fields.
+      selector:
+        time:
+    resume_preset:
+      name: Resume Preset
+      description: Built-in resume time. Use instead of duration fields.
+      selector:
+        select:
+          options:
+            - label: End of day (next midnight)
+              value: end_of_day
+            - label: Next morning (08:00)
+              value: next_morning
+            - label: Next sunrise
+              value: next_sunrise
+            - label: Next sunset
+              value: next_sunset
     notification_trigger:
       name: Notification Trigger
       description: Choose whether to notify when the snooze starts, shortly before it ends, or when it ends.
@@ -164,9 +183,28 @@ pause_by_area:
         datetime:
     resume_at:
       name: Resume At
-      description: Specific datetime when to re-enable the automations.
+      description: Specific datetime when to re-enable the automations. Accepts template-rendered datetime strings. Use instead of duration fields.
       selector:
         datetime:
+    resume_at_time:
+      name: Resume At Time
+      description: Local time of day when to re-enable the automations. Resumes today if the time is still upcoming, otherwise tomorrow. Use instead of duration fields.
+      selector:
+        time:
+    resume_preset:
+      name: Resume Preset
+      description: Built-in resume time. Use instead of duration fields.
+      selector:
+        select:
+          options:
+            - label: End of day (next midnight)
+              value: end_of_day
+            - label: Next morning (08:00)
+              value: next_morning
+            - label: Next sunrise
+              value: next_sunrise
+            - label: Next sunset
+              value: next_sunset
     notification_trigger:
       name: Notification Trigger
       description: Choose whether to notify when the snooze starts, shortly before it ends, or when it ends.
@@ -251,9 +289,28 @@ pause_by_label:
         datetime:
     resume_at:
       name: Resume At
-      description: Specific datetime when to re-enable the automations.
+      description: Specific datetime when to re-enable the automations. Accepts template-rendered datetime strings. Use instead of duration fields.
       selector:
         datetime:
+    resume_at_time:
+      name: Resume At Time
+      description: Local time of day when to re-enable the automations. Resumes today if the time is still upcoming, otherwise tomorrow. Use instead of duration fields.
+      selector:
+        time:
+    resume_preset:
+      name: Resume Preset
+      description: Built-in resume time. Use instead of duration fields.
+      selector:
+        select:
+          options:
+            - label: End of day (next midnight)
+              value: end_of_day
+            - label: Next morning (08:00)
+              value: next_morning
+            - label: Next sunrise
+              value: next_sunrise
+            - label: Next sunset
+              value: next_sunset
     notification_trigger:
       name: Notification Trigger
       description: Choose whether to notify when the snooze starts, shortly before it ends, or when it ends.

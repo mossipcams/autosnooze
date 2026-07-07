@@ -275,6 +275,7 @@
     "adjust_time_too_short",
     "save_failed",
     "confirm_required",
-    "notification_lead_too_long"
+    "notification_lead_too_long",
+    "invalid_resume_preset"
   ]
 }
