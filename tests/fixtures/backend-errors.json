@@ -41,6 +41,13 @@
     "notification_lead_too_long": {
       "translation_key": "notification_lead_too_long",
       "message": "The notification lead time must be shorter than the snooze window."
+    },
+    "invalid_resume_preset": {
+      "translation_key": "invalid_resume_preset",
+      "message": "Unknown resume_preset: tomorrow",
+      "translation_placeholders": {
+        "preset": "tomorrow"
+      }
     }
   }
 }

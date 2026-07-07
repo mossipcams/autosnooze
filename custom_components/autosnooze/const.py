@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import timedelta
+from datetime import time, timedelta
 import json
 import logging
 from pathlib import Path
@@ -64,6 +64,24 @@ CARD_PATH = Path(__file__).parent / "www" / "autosnooze-card.js"
 CARD_URL = "/autosnooze-card.js"
 CARD_URL_VERSIONED = f"/autosnooze-card.js?v={VERSION}"
 
+# Resume presets for the pause services. Home Assistant owns Jinja rendering;
+# these presets cover common cases without users needing templates.
+RESUME_PRESET_END_OF_DAY = "end_of_day"
+RESUME_PRESET_NEXT_MORNING = "next_morning"
+RESUME_PRESET_NEXT_SUNRISE = "next_sunrise"
+RESUME_PRESET_NEXT_SUNSET = "next_sunset"
+RESUME_PRESET_VALUES: tuple[str, ...] = (
+    RESUME_PRESET_END_OF_DAY,
+    RESUME_PRESET_NEXT_MORNING,
+    RESUME_PRESET_NEXT_SUNRISE,
+    RESUME_PRESET_NEXT_SUNSET,
+)
+
+# Local wall-clock time for the next_morning preset. Matches the card's
+# "Until tomorrow" hour (UNTIL_TOMORROW_HOUR in src/constants) so the UI
+# preset and the service preset resume at the same morning time.
+NEXT_MORNING_TIME = time(hour=8)
+
 # Service schemas
 # FR-05: Duration Input - days, hours, minutes parameters
 # Also supports date-based scheduling with disable_at/resume_at
@@ -76,10 +94,34 @@ _DURATION_AND_DATE_SCHEMA = {
     vol.Optional("minutes", default=0): vol.All(cv.positive_int, vol.Range(max=59)),
     vol.Optional("disable_at"): cv.datetime,
     vol.Optional("resume_at"): cv.datetime,
+    vol.Optional("resume_at_time"): cv.time,
+    vol.Optional("resume_preset"): vol.In(RESUME_PRESET_VALUES),
     vol.Optional("notification_trigger", default=NOTIFICATION_TRIGGER_NONE): vol.In(NOTIFICATION_TRIGGER_VALUES),
     vol.Optional("notification_lead_minutes"): vol.In(NOTIFICATION_LEAD_MINUTES_VALUES),
     vol.Optional("confirm", default=False): cv.boolean,
 }
+
+
+_RESUME_STRATEGY_FIELDS = ("resume_at", "resume_at_time", "resume_preset")
+
+
+def _validate_resume_strategy(value: dict[str, object]) -> dict[str, object]:
+    """Reject pause calls that combine more than one resume strategy.
+
+    Exactly one of duration (days/hours/minutes), resume_at, resume_at_time,
+    or resume_preset may drive when the automation resumes. Zero strategies
+    is rejected later by the pause flow (invalid_duration) to preserve the
+    existing error for plain duration calls.
+    """
+    strategies = [field for field in _RESUME_STRATEGY_FIELDS if value.get(field) is not None]
+    if any(value.get(field) for field in ("days", "hours", "minutes")):
+        strategies.insert(0, "duration (days/hours/minutes)")
+    if len(strategies) > 1:
+        raise vol.Invalid(
+            "Provide exactly one resume strategy: duration (days/hours/minutes), "
+            f"resume_at, resume_at_time, or resume_preset (got {' and '.join(strategies)})"
+        )
+    return value
 
 
 def _validate_notification_schema(value: dict[str, object]) -> dict[str, object]:
@@ -104,6 +146,7 @@ PAUSE_SCHEMA = vol.All(
             **_DURATION_AND_DATE_SCHEMA,
         }
     ),
+    _validate_resume_strategy,
     _validate_notification_schema,
 )
 
@@ -122,6 +165,7 @@ PAUSE_BY_AREA_SCHEMA = vol.All(
             **_DURATION_AND_DATE_SCHEMA,
         }
     ),
+    _validate_resume_strategy,
     _validate_notification_schema,
 )
 
@@ -133,6 +177,7 @@ PAUSE_BY_LABEL_SCHEMA = vol.All(
             **_DURATION_AND_DATE_SCHEMA,
         }
     ),
+    _validate_resume_strategy,
     _validate_notification_schema,
 )
 

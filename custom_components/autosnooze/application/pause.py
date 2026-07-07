@@ -3,20 +3,30 @@
 from __future__ import annotations
 
 from collections.abc import Awaitable, Callable, Mapping
-from datetime import datetime, timedelta
+from datetime import datetime, time, timedelta
 import logging
 import re
 from time import perf_counter
 from typing import Any
 
-from homeassistant.const import ATTR_ENTITY_ID
+from homeassistant.const import ATTR_ENTITY_ID, SUN_EVENT_SUNRISE, SUN_EVENT_SUNSET
 from homeassistant.core import HomeAssistant, ServiceCall
 from homeassistant.exceptions import ServiceValidationError
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers import label_registry as lr
+from homeassistant.helpers.sun import get_astral_event_next
 from homeassistant.util import dt as dt_util
 
-from ..const import CRITICAL_AUTOMATION_TERMS, DOMAIN, LABEL_CONFIRM_NAME
+from ..const import (
+    CRITICAL_AUTOMATION_TERMS,
+    DOMAIN,
+    LABEL_CONFIRM_NAME,
+    NEXT_MORNING_TIME,
+    RESUME_PRESET_END_OF_DAY,
+    RESUME_PRESET_NEXT_MORNING,
+    RESUME_PRESET_NEXT_SUNRISE,
+    RESUME_PRESET_NEXT_SUNSET,
+)
 from ..domain.notifications import (
     NOTIFICATION_TRIGGER_NONE,
     NotificationTrigger,
@@ -128,6 +138,62 @@ def validate_guardrails(hass: HomeAssistant, entity_ids: list[str], confirm: boo
             translation_key="confirm_required",
             translation_placeholders={"entity_id": ", ".join(sorted(requires_confirm))},
         )
+
+
+def next_local_time_occurrence(target: time, now_local: datetime | None = None) -> datetime:
+    """Return the next occurrence of a local wall-clock time as UTC.
+
+    If the time has not happened yet today (local timezone), resolves to
+    today; otherwise to the same time tomorrow.
+    """
+    now: datetime = now_local if now_local is not None else dt_util.now()
+    candidate = now.replace(
+        hour=target.hour,
+        minute=target.minute,
+        second=target.second,
+        microsecond=0,
+    )
+    if candidate <= now:
+        candidate += timedelta(days=1)
+    return dt_util.as_utc(candidate)
+
+
+def resolve_resume_at(hass: HomeAssistant, call_data: Mapping[str, Any]) -> datetime | None:
+    """Resolve the resume strategy of a pause call to an absolute UTC datetime.
+
+    Handles resume_at (already-rendered datetime; Home Assistant owns Jinja
+    rendering, so templated values arrive here as plain datetimes),
+    resume_at_time (next occurrence of a local time), and resume_preset.
+    Returns None when the call uses duration fields instead.
+    """
+    resume_at = ensure_utc_aware(call_data.get("resume_at"))
+    if resume_at is not None:
+        return resume_at
+
+    resume_at_time = call_data.get("resume_at_time")
+    if resume_at_time is not None:
+        return next_local_time_occurrence(resume_at_time)
+
+    preset = call_data.get("resume_preset")
+    if preset is None:
+        return None
+    if preset == RESUME_PRESET_END_OF_DAY:
+        next_local_midnight = dt_util.start_of_local_day(dt_util.now().date() + timedelta(days=1))
+        return dt_util.as_utc(next_local_midnight)
+    if preset == RESUME_PRESET_NEXT_MORNING:
+        return next_local_time_occurrence(NEXT_MORNING_TIME)
+    if preset == RESUME_PRESET_NEXT_SUNRISE:
+        return dt_util.as_utc(get_astral_event_next(hass, SUN_EVENT_SUNRISE))
+    if preset == RESUME_PRESET_NEXT_SUNSET:
+        return dt_util.as_utc(get_astral_event_next(hass, SUN_EVENT_SUNSET))
+    # Unreachable when the service schema is applied (vol.In), kept as a
+    # guard for direct callers.
+    raise ServiceValidationError(
+        f"Unknown resume_preset: {preset}",
+        translation_domain=DOMAIN,
+        translation_key="invalid_resume_preset",
+        translation_placeholders={"preset": str(preset)},
+    )
 
 
 async def async_pause_automations(
@@ -360,7 +426,7 @@ async def async_handle_pause_service(
     hours = call.data.get("hours", 0)
     minutes = call.data.get("minutes", 0)
     disable_at = ensure_utc_aware(call.data.get("disable_at"))
-    resume_at_dt = ensure_utc_aware(call.data.get("resume_at"))
+    resume_at_dt = resolve_resume_at(hass, call.data)
     notification_trigger = call.data.get("notification_trigger", NOTIFICATION_TRIGGER_NONE)
     notification_lead_minutes = call.data.get("notification_lead_minutes")
 
@@ -430,7 +496,7 @@ async def _handle_pause_by_filter(
         call.data.get("hours", 0),
         call.data.get("minutes", 0),
         ensure_utc_aware(call.data.get("disable_at")),
-        ensure_utc_aware(call.data.get("resume_at")),
+        resolve_resume_at(hass, call.data),
         call.data.get("notification_trigger", NOTIFICATION_TRIGGER_NONE),
         call.data.get("notification_lead_minutes"),
     )
