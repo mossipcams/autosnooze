@@ -147,3 +147,50 @@ export function getConfiguredDurationPresets(hass?: HomeAssistant): DurationPres
 export function getCardSnoozeSensorEntity(hass?: HomeAssistant) {
   return getPausedSensorEntity(hass);
 }
+
+export type SyncAdjustModalResult =
+  | { action: 'none' }
+  | { action: 'close' }
+  | { action: 'update'; resumeAt: string };
+
+export function syncAdjustModalWithPaused(
+  paused: Record<string, PausedAutomationAttribute>,
+  current: {
+    open: boolean;
+    entityId: string;
+    entityIds: string[];
+    resumeAt: string;
+  },
+): SyncAdjustModalResult {
+  if (!current.open) {
+    return { action: 'none' };
+  }
+
+  if (current.entityIds.length > 0) {
+    const anyStillPaused = current.entityIds.some((id) => paused[id]);
+    if (!anyStillPaused) {
+      return { action: 'close' };
+    }
+
+    const firstPaused = current.entityIds.find((id) => paused[id]);
+    if (firstPaused) {
+      const pausedData = paused[firstPaused] as { resume_at?: string } | undefined;
+      if (pausedData?.resume_at && pausedData.resume_at !== current.resumeAt) {
+        return { action: 'update', resumeAt: pausedData.resume_at };
+      }
+    }
+    return { action: 'none' };
+  }
+
+  if (current.entityId) {
+    const pausedData = paused[current.entityId] as { resume_at?: string } | undefined;
+    if (pausedData?.resume_at && pausedData.resume_at !== current.resumeAt) {
+      return { action: 'update', resumeAt: pausedData.resume_at };
+    }
+    if (!pausedData) {
+      return { action: 'close' };
+    }
+  }
+
+  return { action: 'none' };
+}

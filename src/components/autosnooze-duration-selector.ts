@@ -16,8 +16,8 @@ import {
   durationToMinutes,
   minutesToDuration,
 } from '../utils/duration-parsing.js';
-import { generateDateOptions, combineDateTime } from '../utils/datetime.js';
-import { DEFAULT_DURATIONS } from '../constants/index.js';
+import { generateDateOptions, combineDateTime, getNextMorningFields } from '../utils/datetime.js';
+import { DEFAULT_DURATIONS, UNTIL_TOMORROW_HOUR } from '../constants/index.js';
 import type { ParsedDuration } from '../types/automation.js';
 import type { HomeAssistant } from '../types/hass.js';
 import {
@@ -43,6 +43,9 @@ export class AutoSnoozeDurationSelector extends LitElement {
 
   @property({ type: Boolean })
   showCustomInput: boolean = false;
+
+  @property({ type: Boolean })
+  untilTomorrow = false;
 
   @property({ attribute: false })
   lastDuration: LastDurationData | null = null;
@@ -104,7 +107,7 @@ export class AutoSnoozeDurationSelector extends LitElement {
     const { days, hours, minutes } = this.lastDuration.duration;
     const durationStr = formatDurationShort(days, hours, minutes).replace(/ /g, '');
     const currentMinutes = durationToMinutes(this.customDuration);
-    const isActive = !this.showCustomInput && lastMinutes === currentMinutes;
+    const isActive = !this.untilTomorrow && !this.showCustomInput && lastMinutes === currentMinutes;
 
     return html`
       <button
@@ -172,6 +175,20 @@ export class AutoSnoozeDurationSelector extends LitElement {
       hour: 'numeric',
       minute: '2-digit',
     });
+  }
+
+  private _renderUntilTomorrowPreview(): string {
+    const fields = getNextMorningFields(new Date(), UNTIL_TOMORROW_HOUR);
+    const resumeAt = combineDateTime(fields.date, fields.time);
+    if (!resumeAt) return '';
+    return `${localize(this.hass, 'status.resumes')} ${this._formatScheduleDateTime(resumeAt)}`;
+  }
+
+  private _fireUntilTomorrowSelect(): void {
+    this.dispatchEvent(new CustomEvent('until-tomorrow-select', {
+      bubbles: true,
+      composed: true,
+    }));
   }
 
   private _renderScheduleSummary(): TemplateResult | string {
@@ -265,6 +282,12 @@ export class AutoSnoozeDurationSelector extends LitElement {
         </div>
       `;
     }
+    const pills = this._getDurationPills();
+    const customPill = pills[pills.length - 1]!;
+    const basePills = pills.slice(0, -1).filter(
+      (d): d is { label: string; minutes: number } => d.minutes !== null
+    );
+
     return html`
       <div class="duration-selector">
         <div class="duration-header-row">
@@ -272,27 +295,15 @@ export class AutoSnoozeDurationSelector extends LitElement {
           ${this._renderLastDurationBadge()}
         </div>
         <div class="duration-pills" role="radiogroup" aria-labelledby="duration-header">
-          ${this._getDurationPills().map(
+          ${basePills.map(
             (d) => {
               const currentMinutes = durationToMinutes(this.customDuration);
-              const isActive = d.minutes === null
-                ? this.showCustomInput
-                : !this.showCustomInput && d.minutes === currentMinutes;
+              const isActive = !this.untilTomorrow && !this.showCustomInput && d.minutes === currentMinutes;
               return html`
                 <button
                   type="button"
                   class="pill ${isActive ? 'active' : ''}"
-                  @click=${() => {
-                    if (d.minutes === null) {
-                      this.dispatchEvent(new CustomEvent('custom-input-toggle', {
-                        detail: { show: !this.showCustomInput },
-                        bubbles: true,
-                        composed: true,
-                      }));
-                    } else {
-                      this._fireDurationChange(d.minutes, { showCustomInput: false });
-                    }
-                  }}
+                  @click=${() => this._fireDurationChange(d.minutes, { showCustomInput: false })}
                   role="radio"
                   aria-checked=${isActive}
                 >
@@ -301,7 +312,35 @@ export class AutoSnoozeDurationSelector extends LitElement {
               `;
             }
           )}
+          <button
+            type="button"
+            class="pill ${this.untilTomorrow ? 'active' : ''}"
+            @click=${() => this._fireUntilTomorrowSelect()}
+            role="radio"
+            aria-checked=${this.untilTomorrow}
+          >
+            ${localize(this.hass, 'duration.tomorrow')}
+          </button>
+          <button
+            type="button"
+            class="pill ${!this.untilTomorrow && this.showCustomInput ? 'active' : ''}"
+            @click=${() => {
+              this.dispatchEvent(new CustomEvent('custom-input-toggle', {
+                detail: { show: !this.showCustomInput },
+                bubbles: true,
+                composed: true,
+              }));
+            }}
+            role="radio"
+            aria-checked=${!this.untilTomorrow && this.showCustomInput}
+          >
+            ${customPill.label}
+          </button>
         </div>
+
+        ${this.untilTomorrow ? html`
+          <div class="duration-preview" role="status" aria-live="polite">${this._renderUntilTomorrowPreview()}</div>
+        ` : ''}
 
         ${this.showCustomInput ? html`
           <div class="custom-duration-input">

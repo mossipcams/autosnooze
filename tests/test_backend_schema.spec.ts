@@ -1577,7 +1577,7 @@ describe('Selector Correctness', () => {
       const buttonLabels = Array.from(buttons).map(btn => btn.textContent.trim());
       expect(buttonLabels).toContain('30m');
       expect(buttonLabels).toContain('1h');
-      expect(buttonLabels).toContain('1d');
+      expect(buttonLabels).toContain('Tomorrow');
       expect(buttonLabels).toContain('Custom');
     });
 

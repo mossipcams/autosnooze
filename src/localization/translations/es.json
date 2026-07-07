@@ -101,7 +101,8 @@
     "preview_label": "Duración:",
     "help": "Introducir duración: 30m, 2h, 1.5h, 4h30m, 1d, 1d2h",
     "last_used_tooltip": "Usar última duración: {duration}",
-    "custom": "Personalizado"
+    "custom": "Personalizado",
+    "tomorrow": "Mañana"
   },
   "section": {
     "snoozed_count": "Automatizaciones pausadas ({count})",

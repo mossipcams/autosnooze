@@ -9,7 +9,8 @@ import { pauseAutomations } from '../../services/snooze.js';
 import { getPausedSensorEntity } from '../../state/paused.js';
 import type { AutomationItem, NotificationTrigger, ParsedDuration, PauseServiceParams } from '../../types/automation.js';
 import type { HassLabel, HomeAssistant } from '../../types/hass.js';
-import { combineDateTime } from '../../utils/datetime.js';
+import { combineDateTime, getNextMorningFields } from '../../utils/datetime.js';
+import { UNTIL_TOMORROW_HOUR } from '../../constants/index.js';
 import { durationToMinutes } from '../../utils/duration-parsing.js';
 import { formatDateTime, formatDuration } from '../../utils/time-formatting.js';
 import { appendNotificationTrigger } from '../../utils/notification-trigger-request.js';
@@ -38,6 +39,7 @@ interface RunPauseFeatureInput {
   disableAtTime: string;
   resumeAtDate: string;
   resumeAtTime: string;
+  untilTomorrow?: boolean;
   forceConfirm?: boolean;
   notificationTrigger?: NotificationTrigger;
   notificationLeadMinutes?: number;
@@ -239,34 +241,50 @@ function hasLastDuration(built: SchedulePauseBuild | DurationPauseBuild): built 
   return 'lastDuration' in built;
 }
 
-export async function runPauseFeature(input: RunPauseFeatureInput): Promise<RunPauseFeatureResult> {
-  if (input.scheduleMode) {
-    const validation = validateScheduledPauseInput({
+function normalizePauseFeatureInput(input: RunPauseFeatureInput): RunPauseFeatureInput {
+  if (input.untilTomorrow && !input.scheduleMode) {
+    const fields = getNextMorningFields(new Date(), UNTIL_TOMORROW_HOUR);
+    return {
       ...input,
-      nowMs: input.nowMs ?? 0,
+      scheduleMode: true,
+      resumeAtDate: fields.date,
+      resumeAtTime: fields.time,
+      disableAtDate: '',
+      disableAtTime: '',
+    };
+  }
+  return input;
+}
+
+export async function runPauseFeature(input: RunPauseFeatureInput): Promise<RunPauseFeatureResult> {
+  const normalized = normalizePauseFeatureInput(input);
+  if (normalized.scheduleMode) {
+    const validation = validateScheduledPauseInput({
+      ...normalized,
+      nowMs: normalized.nowMs ?? 0,
     });
     if (validation.status === 'error') {
-      return { status: 'validation_error', toastMessage: validationToast(input, validation.message) };
+      return { status: 'validation_error', toastMessage: validationToast(normalized, validation.message) };
     }
   }
-  if (!input.forceConfirm && input.automations && requiresPauseConfirmation({
-    selected: input.selected,
-    automations: input.automations,
-    labelRegistry: input.labelRegistry ?? {},
-    criticalTerms: getCriticalTerms(input.hass),
+  if (!normalized.forceConfirm && normalized.automations && requiresPauseConfirmation({
+    selected: normalized.selected,
+    automations: normalized.automations,
+    labelRegistry: normalized.labelRegistry ?? {},
+    criticalTerms: getCriticalTerms(normalized.hass),
   })) {
     return { status: 'confirm_required' };
   }
-  const built = input.scheduleMode
-    ? buildSchedulePauseRequest(input)
-    : buildDurationPauseRequest(input);
+  const built = normalized.scheduleMode
+    ? buildSchedulePauseRequest(normalized)
+    : buildDurationPauseRequest(normalized);
 
   if (!built) {
     return { status: 'aborted' };
   }
 
   try {
-    await pauseAutomations(input.hass, built.request);
+    await pauseAutomations(normalized.hass, built.request);
   } catch (error) {
     if (getConfirmTranslationKey(error) === 'confirm_required') {
       return { status: 'confirm_required' };
@@ -274,7 +292,7 @@ export async function runPauseFeature(input: RunPauseFeatureInput): Promise<RunP
     throw error;
   }
 
-  saveRecentSnoozes(input.selected);
+  saveRecentSnoozes(normalized.selected);
 
   if (hasLastDuration(built)) {
     saveLastDuration(built.lastDuration.duration, built.lastDuration.minutes);

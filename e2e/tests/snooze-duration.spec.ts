@@ -50,9 +50,9 @@ test.describe('Duration-based Snooze', () => {
     await autosnoozeCard.expectPausedCount(1);
   });
 
-  test('snooze with 1d preset', async ({ autosnoozeCard }) => {
+  test('snooze with Tomorrow preset', async ({ autosnoozeCard }) => {
     await autosnoozeCard.selectAutomation('Kitchen Motion Lights');
-    await autosnoozeCard.selectDuration('1d');
+    await autosnoozeCard.selectDuration('Tomorrow');
     await autosnoozeCard.snooze();
 
     await autosnoozeCard.waitForPausedAutomation('Kitchen Motion Lights');
@@ -297,7 +297,7 @@ test.describe('Last Duration Badge', () => {
   test('duration pills remain consistent after custom snooze', async ({ autosnoozeCard }) => {
     const pillsBefore = await autosnoozeCard.getDurationPills();
     const initialCount = pillsBefore.length;
-    // Should have preset pills (30m, 1h, 12h, 1d) and possibly Custom
+    // Should have preset pills (30m, 1h, Tomorrow) and possibly Custom
     expect(initialCount).toBeGreaterThanOrEqual(4);
 
     await autosnoozeCard.selectAutomation('Living Room Motion Lights');
