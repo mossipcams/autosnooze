@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.27](https://github.com/mossipcams/autosnooze/compare/v0.2.26...v0.2.27) (2026-07-07)
+
+
+### Features
+
+* add resume_at_time and resume_preset snooze strategies ([#468](https://github.com/mossipcams/autosnooze/issues/468)) ([c7e56ce](https://github.com/mossipcams/autosnooze/commit/c7e56cee90b70aaafea2ac31988ea27bb66a1fee))
+
 ## [0.2.26](https://github.com/mossipcams/autosnooze/compare/v0.2.25...v0.2.26) (2026-07-07)
 
 
