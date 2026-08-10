@@ -64,4 +64,48 @@ describe('Card passes paused entity ids to automation list', () => {
       document.body.removeChild(el);
     }
   });
+
+  test('reuses the same pausedEntityIds array reference when the paused set is unchanged', async () => {
+    const el = document.createElement(TEST_TAG) as AutomationPauseCard;
+    const hass = {
+      states: {
+        'sensor.autosnooze_snoozed_automations': {
+          state: '1',
+          attributes: {
+            schema_version: 1,
+            paused: {
+              'automation.kitchen_lights': {
+                friendly_name: 'Kitchen Lights',
+                resume_at: '2026-04-29T18:00:00',
+                paused_at: '2026-04-29T12:00:00',
+                days: 0,
+                hours: 6,
+                minutes: 0,
+              },
+            },
+            scheduled: {},
+          },
+        },
+      },
+      entities: {},
+      areas: {},
+      connection: { sendMessagePromise: async () => [] },
+      callService: async () => undefined,
+    } as unknown as HomeAssistant;
+    el.hass = hass;
+
+    document.body.appendChild(el);
+    try {
+      await el.updateComplete;
+      const list = el.shadowRoot?.querySelector('autosnooze-automation-list') as unknown as {
+        pausedEntityIds: string[];
+      };
+      const first = list.pausedEntityIds;
+      el.requestUpdate();
+      await el.updateComplete;
+      expect(list.pausedEntityIds).toBe(first);
+    } finally {
+      document.body.removeChild(el);
+    }
+  });
 });

@@ -88,6 +88,8 @@ export class AutomationPauseCard extends LitElement {
   @state() private _adjustModalFriendlyNames: string[] = [];
   @state() private _guardrailConfirmOpen: boolean = false;
 
+  private _pausedEntityIdsCache: string[] = [];
+
 
   static getConfigElement(): HTMLElement {
     return document.createElement('autosnooze-card-editor');
@@ -118,11 +120,21 @@ export class AutomationPauseCard extends LitElement {
     if (changedProps.has('hass')) {
       this._syncAdjustModalWithPausedState();
     }
+    this._syncPausedEntityIdsCache();
   }
 
   updated(changedProps: PropertyValues): void {
     super.updated(changedProps);
     if (changedProps.has('hass') && this.hass) void this._shell.connect(this.hass);
+  }
+
+  private _syncPausedEntityIdsCache(): void {
+    const next = Object.keys(this._getPausedSnapshot().paused);
+    const prev = this._pausedEntityIdsCache;
+    if (prev.length === next.length && next.every((id) => prev.includes(id))) {
+      return;
+    }
+    this._pausedEntityIdsCache = next;
   }
 
   private _syncAdjustModalWithPausedState(): void {
@@ -600,7 +612,7 @@ export class AutomationPauseCard extends LitElement {
             .labelRegistryUnavailable=${this._shell.labelsUnavailable}
             .categoryRegistry=${this._shell.categories}
             .recentSnoozeIds=${this._recentSnoozeIds}
-            .pausedEntityIds=${Object.keys(paused)}
+            .pausedEntityIds=${this._pausedEntityIdsCache}
             @selection-change=${this._handleSelectionChange}
           ></autosnooze-automation-list>
 

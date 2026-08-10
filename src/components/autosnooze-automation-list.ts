@@ -4,7 +4,7 @@
  * Fires selection-change events instead of directly modifying parent state.
  */
 
-import { LitElement, html, TemplateResult } from 'lit';
+import { LitElement, html, TemplateResult, type PropertyValues } from 'lit';
 import { property, state } from 'lit/decorators.js';
 import { automationListStyles } from '../styles/automation-list.styles.js';
 import { localize } from '../localization/localize.js';
@@ -73,6 +73,16 @@ export class AutoSnoozeAutomationList extends LitElement {
   connectedCallback(): void {
     super.connectedCallback();
     this._hideSnoozed = loadHideSnoozedPreference();
+  }
+
+  protected updated(changedProps: PropertyValues): void {
+    super.updated(changedProps);
+    if (
+      this._hideSnoozed &&
+      (changedProps.has('pausedEntityIds') || changedProps.has('selected') || changedProps.has('_hideSnoozed'))
+    ) {
+      this._pruneHiddenSelection();
+    }
   }
 
   disconnectedCallback(): void {
@@ -235,11 +245,8 @@ export class AutoSnoozeAutomationList extends LitElement {
     return result;
   }
 
-  private _toggleHideSnoozed(): void {
-    const hideSnoozed = !this._hideSnoozed;
-    this._hideSnoozed = hideSnoozed;
-    saveHideSnoozedPreference(hideSnoozed);
-    if (!hideSnoozed || this.pausedEntityIds.length === 0) {
+  private _pruneHiddenSelection(): void {
+    if (!this._hideSnoozed || this.pausedEntityIds.length === 0 || this.selected.length === 0) {
       return;
     }
 
@@ -247,6 +254,15 @@ export class AutoSnoozeAutomationList extends LitElement {
     const nextSelected = this.selected.filter((id) => !paused.has(id));
     if (nextSelected.length !== this.selected.length) {
       this._fireSelectionChange(nextSelected);
+    }
+  }
+
+  private _toggleHideSnoozed(): void {
+    const hideSnoozed = !this._hideSnoozed;
+    this._hideSnoozed = hideSnoozed;
+    saveHideSnoozedPreference(hideSnoozed);
+    if (hideSnoozed) {
+      this._pruneHiddenSelection();
     }
   }
 

@@ -481,4 +481,20 @@ describe('automation list mutation boundaries', () => {
 
     expect(lastEvent(events)?.detail).toEqual({ selected: ['automation.office_fan'] });
   });
+
+  test('prunes selection when paused ids grow while hide snoozed is already on', async () => {
+    localStorage.setItem('autosnooze_hide_snoozed', 'true');
+    const events: CustomEvent[] = [];
+    const element = await connectList((el) => {
+      el.selected = ['automation.kitchen_lights', 'automation.office_fan'];
+    });
+    element.addEventListener('selection-change', (event) => events.push(event as CustomEvent));
+    await element.updateComplete;
+
+    element.pausedEntityIds = ['automation.kitchen_lights'];
+    await element.updateComplete;
+
+    expect(lastEvent(events)?.detail).toEqual({ selected: ['automation.office_fan'] });
+    expect(element.shadowRoot?.querySelectorAll('.list-item').length).toBe(2);
+  });
 });
