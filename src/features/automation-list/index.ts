@@ -8,6 +8,10 @@ import type { FilterTab } from '../../types/card.js';
 import type { HassCategory, HassLabel, HomeAssistant } from '../../types/hass.js';
 import { formatRegistryId } from '../../utils/registry-formatting.js';
 export { getAutomations } from '../../state/automations.js';
+export {
+  loadHideSnoozedPreference,
+  saveHideSnoozedPreference,
+} from '../../services/storage.js';
 
 export interface AutomationListViewModel {
   filtered: AutomationItem[];
@@ -27,6 +31,8 @@ interface BuildAutomationListViewModelInput {
   emptyAreaLabel: string;
   emptyLabelLabel: string;
   emptyCategoryLabel: string;
+  hideSnoozed?: boolean;
+  pausedEntityIds?: ReadonlySet<string>;
 }
 
 interface DecoratedAutomation {
@@ -123,27 +129,8 @@ export function buildAutomationListViewModel(
   const hiddenLabels = new Set([EXCLUDE_LABEL.toLowerCase(), INCLUDE_LABEL.toLowerCase()]);
   const searchLower = input.search.toLowerCase();
 
-  const areaIds = new Set<string>();
-  const labelIds = new Set<string>();
-  const categoryIds = new Set<string>();
-
   const decorated = input.automations.map((automation) => {
-    if (automation.area_id) {
-      areaIds.add(automation.area_id);
-    }
-    if (automation.category_id) {
-      categoryIds.add(automation.category_id);
-    }
-
     const visibleLabelNames = getVisibleLabelNames(automation, input.labelRegistry, hiddenLabels);
-    if (automation.labels?.length) {
-      automation.labels.forEach((labelId) => {
-        const labelName = getLabelName(labelId, input.labelRegistry).toLowerCase();
-        if (!hiddenLabels.has(labelName)) {
-          labelIds.add(labelId);
-        }
-      });
-    }
 
     return {
       automation,
@@ -162,9 +149,15 @@ export function buildAutomationListViewModel(
   });
 
   const hasIncludeLabel = decorated.some((automation) => automation.hasIncludeLabel);
+  const pausedEntityIds = input.pausedEntityIds;
+  const hideSnoozed = Boolean(input.hideSnoozed);
   const filteredDecorated = decorated.filter((automation) => {
     const labelVisible = hasIncludeLabel ? automation.hasIncludeLabel : !automation.hasExcludeLabel;
     if (!labelVisible) {
+      return false;
+    }
+
+    if (hideSnoozed && pausedEntityIds?.has(automation.automation.id)) {
       return false;
     }
 
@@ -198,6 +191,27 @@ export function buildAutomationListViewModel(
               input.emptyLabelLabel
             )
           : [];
+
+  const areaIds = new Set<string>();
+  const labelIds = new Set<string>();
+  const categoryIds = new Set<string>();
+
+  filteredDecorated.forEach((item) => {
+    if (item.automation.area_id) {
+      areaIds.add(item.automation.area_id);
+    }
+    if (item.automation.category_id) {
+      categoryIds.add(item.automation.category_id);
+    }
+    if (item.automation.labels?.length) {
+      item.automation.labels.forEach((labelId) => {
+        const labelName = getLabelName(labelId, input.labelRegistry).toLowerCase();
+        if (!hiddenLabels.has(labelName)) {
+          labelIds.add(labelId);
+        }
+      });
+    }
+  });
 
   return {
     filtered: filteredDecorated.map((automation) => automation.automation),

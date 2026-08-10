@@ -88,6 +88,7 @@ describe('automation list mutation boundaries', () => {
   beforeEach(() => {
     vi.useFakeTimers();
     hapticMock.mockClear();
+    localStorage.clear();
   });
 
   afterEach(() => {
@@ -401,30 +402,124 @@ describe('automation list mutation boundaries', () => {
     element.automations = [...AUTOMATIONS];
     const automationsChanged = (element as never as { _getViewModel: () => unknown })._getViewModel();
     expect(automationsChanged).not.toBe(categoriesChanged);
+
+    (element as never as { _hideSnoozed: boolean })._hideSnoozed = true;
+    const hideChanged = (element as never as { _getViewModel: () => unknown })._getViewModel();
+    expect(hideChanged).not.toBe(automationsChanged);
+
+    element.pausedEntityIds = ['automation.porch'];
+    const pausedChanged = (element as never as { _getViewModel: () => unknown })._getViewModel();
+    expect(pausedChanged).not.toBe(hideChanged);
   });
 
-  test('name helpers and teardown cover nullish fallback paths', () => {
-    const element = createList();
-    expect((element as never as { _getAreaName: (areaId: string | null) => string })._getAreaName(null)).toBe(
-      'Unassigned'
-    );
+  test('shares one view-model input builder between cache path and grouped-tab helpers', () => {
+    const element = createList() as never as {
+      hass?: HomeAssistant;
+      automations: typeof AUTOMATIONS;
+      labelRegistry: typeof LABELS;
+      categoryRegistry: typeof CATEGORIES;
+      pausedEntityIds: string[];
+      _search: string;
+      _filterTab: string;
+      _hideSnoozed: boolean;
+      _buildViewModelInput: (filterTab: string) => {
+        filterTab: string;
+        hideSnoozed: boolean;
+        pausedEntityIds: ReadonlySet<string>;
+        emptyAreaLabel: string;
+      };
+      _getViewModel: () => { grouped: unknown };
+      _getGroupedByTab: (filterTab: 'areas' | 'labels' | 'categories') => unknown;
+    };
     element.hass = HASS;
+    element.automations = AUTOMATIONS;
     element.labelRegistry = LABELS;
     element.categoryRegistry = CATEGORIES;
-    expect((element as never as { _getAreaName: (areaId: string | null) => string })._getAreaName('kitchen')).toBe(
-      'Kitchen'
-    );
-    expect((element as never as { _getLabelName: (labelId: string) => string })._getLabelName('missing_label')).toBe(
-      'Missing Label'
-    );
-    expect((element as never as { _getCategoryName: (categoryId: string | null) => string })._getCategoryName(null)).toBe(
-      'Uncategorized'
-    );
+    element.pausedEntityIds = ['automation.porch'];
+    element._search = '';
+    element._filterTab = 'areas';
+    element._hideSnoozed = true;
+
+    expect(typeof element._buildViewModelInput).toBe('function');
+    const input = element._buildViewModelInput('areas');
+    expect(input.filterTab).toBe('areas');
+    expect(input.hideSnoozed).toBe(true);
+    expect(input.pausedEntityIds).toEqual(new Set(['automation.porch']));
+    expect(input.emptyAreaLabel).toBe('Unassigned');
+    expect(element._getGroupedByTab('areas')).toEqual(element._getViewModel().grouped);
+  });
+
+  test('clears pending search timeout on disconnect', () => {
+    const element = createList() as never as {
+      _searchTimeout: number | null;
+      disconnectedCallback: () => void;
+    };
 
     const clearTimeoutSpy = vi.spyOn(globalThis, 'clearTimeout');
-    (element as never as { _searchTimeout: number | null })._searchTimeout = window.setTimeout(() => {}, 1000);
+    element._searchTimeout = window.setTimeout(() => {}, 1000);
     element.disconnectedCallback();
     expect(clearTimeoutSpy).toHaveBeenCalledTimes(1);
-    expect((element as never as { _searchTimeout: number | null })._searchTimeout).toBeNull();
+    expect(element._searchTimeout).toBeNull();
+  });
+
+  test('always shows hide snoozed toggle and filters paused ids when pressed', async () => {
+    const element = await connectList();
+    const toggle = element.shadowRoot?.querySelector<HTMLButtonElement>('.hide-snoozed-toggle');
+    expect(toggle).not.toBeNull();
+    expect(toggle?.getAttribute('aria-pressed')).toBe('false');
+    expect(element.shadowRoot?.querySelectorAll('.list-item').length).toBe(3);
+
+    toggle?.click();
+    await element.updateComplete;
+    expect(toggle?.getAttribute('aria-pressed')).toBe('true');
+    expect(localStorage.getItem('autosnooze_hide_snoozed')).toBe('true');
+    expect(element.shadowRoot?.querySelectorAll('.list-item').length).toBe(3);
+
+    element.pausedEntityIds = ['automation.porch'];
+    await element.updateComplete;
+    expect(element.shadowRoot?.querySelectorAll('.list-item').length).toBe(2);
+    expect(
+      Array.from(element.shadowRoot?.querySelectorAll('.list-item') ?? []).map((item) =>
+        getText(item.querySelector('.list-item-name'))
+      )
+    ).toEqual(['Kitchen Lights', 'Office Fan']);
+  });
+
+  test('loads persisted hide snoozed preference and drops paused ids from selection when enabling', async () => {
+    localStorage.setItem('autosnooze_hide_snoozed', 'true');
+    const events: CustomEvent[] = [];
+    const element = await connectList((el) => {
+      el.pausedEntityIds = ['automation.kitchen_lights'];
+      el.selected = ['automation.kitchen_lights', 'automation.office_fan'];
+    });
+    element.addEventListener('selection-change', (event) => events.push(event as CustomEvent));
+
+    expect(element.shadowRoot?.querySelector('.hide-snoozed-toggle')?.getAttribute('aria-pressed')).toBe(
+      'true'
+    );
+    expect(element.shadowRoot?.querySelectorAll('.list-item').length).toBe(2);
+
+    (element as never as { _hideSnoozed: boolean })._hideSnoozed = false;
+    await element.updateComplete;
+    element.shadowRoot?.querySelector<HTMLButtonElement>('.hide-snoozed-toggle')?.click();
+    await element.updateComplete;
+
+    expect(lastEvent(events)?.detail).toEqual({ selected: ['automation.office_fan'] });
+  });
+
+  test('prunes selection when paused ids grow while hide snoozed is already on', async () => {
+    localStorage.setItem('autosnooze_hide_snoozed', 'true');
+    const events: CustomEvent[] = [];
+    const element = await connectList((el) => {
+      el.selected = ['automation.kitchen_lights', 'automation.office_fan'];
+    });
+    element.addEventListener('selection-change', (event) => events.push(event as CustomEvent));
+    await element.updateComplete;
+
+    element.pausedEntityIds = ['automation.kitchen_lights'];
+    await element.updateComplete;
+
+    expect(lastEvent(events)?.detail).toEqual({ selected: ['automation.office_fan'] });
+    expect(element.shadowRoot?.querySelectorAll('.list-item').length).toBe(2);
   });
 });

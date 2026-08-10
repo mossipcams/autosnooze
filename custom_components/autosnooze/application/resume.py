@@ -62,8 +62,8 @@ async def async_resume(
                 retry_at = dt_util.utcnow() + RESUME_RETRY_DELAY
                 paused.resume_at = retry_at
                 runtime_ports.schedule_resume(hass, data, entity_id, retry_at, resume_callback=async_resume)
-        if not await runtime_ports.async_save(data):
-            _raise_save_failed()
+    if not await runtime_ports.async_save(data):
+        _raise_save_failed()
     if re_disable_entity:
         if not await runtime_ports.async_set_automation_state(hass, entity_id, enabled=False):
             _LOGGER.warning("Failed to restore disabled state for stale resume of %s", entity_id)
@@ -134,8 +134,8 @@ async def async_resume_batch(
                         retry_at = dt_util.utcnow() + RESUME_RETRY_DELAY
                         paused.resume_at = retry_at
                         runtime_ports.schedule_resume(hass, data, entity_id, retry_at, resume_callback=async_resume)
-            if not await runtime_ports.async_save(data):
-                _raise_save_failed()
+        if not await runtime_ports.async_save(data):
+            _raise_save_failed()
         for entity_id in re_disable_entities:
             if not await runtime_ports.async_set_automation_state(hass, entity_id, enabled=False):
                 _LOGGER.warning("Failed to restore disabled state for stale resume of %s", entity_id)

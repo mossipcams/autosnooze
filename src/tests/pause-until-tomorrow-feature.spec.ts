@@ -9,6 +9,8 @@ vi.mock('../services/storage.js', () => ({
   loadLastDuration: vi.fn().mockReturnValue(null),
   saveRecentSnoozes: vi.fn(),
   loadRecentSnoozes: vi.fn().mockReturnValue([]),
+  loadHideSnoozedPreference: vi.fn().mockReturnValue(false),
+  saveHideSnoozedPreference: vi.fn(),
 }));
 
 import { runPauseFeature } from '../features/pause/index.js';

@@ -5,6 +5,8 @@ vi.mock('../services/storage.js', () => ({
   loadLastDuration: vi.fn().mockReturnValue(null),
   saveRecentSnoozes: vi.fn(),
   loadRecentSnoozes: vi.fn().mockReturnValue(['automation.x']),
+  loadHideSnoozedPreference: vi.fn().mockReturnValue(false),
+  saveHideSnoozedPreference: vi.fn(),
 }));
 
 vi.mock('../services/registry.js', () => ({

@@ -199,6 +199,8 @@ async def async_load_stored(
     for entity_id in expired:
         await callbacks.set_automation_state(hass, entity_id, enabled=True)
 
+    pre_resume_targets: list[PausedAutomation] = []
+    should_save = False
     async with data.lock:
         for paused in restored_paused:
             current_paused = data.paused.get(paused.entity_id)
@@ -213,7 +215,7 @@ async def async_load_stored(
 
             data.paused[paused.entity_id] = paused
             callbacks.schedule_resume(hass, data, paused.entity_id, paused.resume_at)
-            callbacks.schedule_pre_resume_notification(hass, data, paused)
+            pre_resume_targets.append(paused)
 
         for scheduled in executed_scheduled:
             paused = PausedAutomation(
@@ -238,7 +240,7 @@ async def async_load_stored(
 
             data.paused[scheduled.entity_id] = paused
             callbacks.schedule_resume(hass, data, scheduled.entity_id, scheduled.resume_at)
-            callbacks.schedule_pre_resume_notification(hass, data, paused)
+            pre_resume_targets.append(paused)
             restored_started.append(paused)
 
         for scheduled in scheduled_to_restore:
@@ -256,8 +258,14 @@ async def async_load_stored(
             callbacks.schedule_disable(hass, data, scheduled.entity_id, scheduled)
 
         if expired or expired_scheduled:
-            if not await async_save(data):
-                _LOGGER.warning("Failed to persist cleanup of expired entries during storage load")
+            should_save = True
+
+    for paused in pre_resume_targets:
+        callbacks.schedule_pre_resume_notification(hass, data, paused)
+
+    if should_save:
+        if not await async_save(data):
+            _LOGGER.warning("Failed to persist cleanup of expired entries during storage load")
 
     data.notify()
     if restored_started:

@@ -448,6 +448,60 @@ class TestAsyncLoadStoredLocking:
         assert "automation.test" in data.paused
 
     @pytest.mark.asyncio
+    async def test_load_stored_releases_lock_before_waiting_on_async_save(self) -> None:
+        """Restore should not hold data.lock while awaiting persistence."""
+        now = datetime.now(UTC)
+        mock_store = MagicMock()
+        mock_store.async_load = AsyncMock(
+            return_value={
+                "paused": {
+                    "automation.expired": {
+                        "friendly_name": "Expired",
+                        "resume_at": (now - timedelta(hours=1)).isoformat(),
+                        "paused_at": (now - timedelta(hours=2)).isoformat(),
+                    }
+                },
+                "scheduled": {},
+            }
+        )
+        data = AutomationPauseData(store=mock_store)
+
+        save_started = asyncio.Event()
+        allow_save_finish = asyncio.Event()
+
+        async def slow_save(_data: AutomationPauseData) -> bool:
+            save_started.set()
+            await allow_save_finish.wait()
+            return True
+
+        mock_hass = MagicMock()
+        mock_hass.states.get.return_value = MagicMock(attributes={ATTR_FRIENDLY_NAME: "Expired"})
+
+        with (
+            patch("custom_components.autosnooze.runtime.restore.async_save", side_effect=slow_save),
+            patch(
+                "custom_components.autosnooze.runtime.ports.async_set_automation_state",
+                new_callable=AsyncMock,
+                return_value=True,
+            ),
+        ):
+            load_task = asyncio.create_task(async_load_stored(mock_hass, data))
+            await asyncio.wait_for(save_started.wait(), timeout=1)
+
+            acquired_while_save_in_flight = False
+            try:
+                await asyncio.wait_for(data.lock.acquire(), timeout=0.05)
+                acquired_while_save_in_flight = True
+            finally:
+                if acquired_while_save_in_flight:
+                    data.lock.release()
+
+            allow_save_finish.set()
+            await load_task
+
+        assert acquired_while_save_in_flight is True
+
+    @pytest.mark.asyncio
     async def test_load_stored_does_not_overwrite_newer_live_state_after_service_await(self) -> None:
         """Restore should not replace state created while it awaited HA services."""
         now = datetime.now(UTC)
@@ -1077,6 +1131,54 @@ class TestAsyncResume:
         assert acquired_while_resume_in_flight is True
 
     @pytest.mark.asyncio
+    async def test_releases_lock_before_waiting_on_async_save(self) -> None:
+        """Resume should not hold data.lock while awaiting persistence."""
+        mock_hass = MagicMock()
+        mock_store = MagicMock()
+        data = AutomationPauseData(store=mock_store)
+
+        now = datetime.now(UTC)
+        data.paused["automation.test"] = PausedAutomation(
+            entity_id="automation.test",
+            friendly_name="Test",
+            resume_at=now,
+            paused_at=now - timedelta(hours=1),
+        )
+
+        save_started = asyncio.Event()
+        allow_save_finish = asyncio.Event()
+
+        async def slow_save(_data: AutomationPauseData) -> bool:
+            save_started.set()
+            await allow_save_finish.wait()
+            return True
+
+        with (
+            patch(
+                "custom_components.autosnooze.runtime.ports.async_set_automation_state",
+                new_callable=AsyncMock,
+                return_value=True,
+            ),
+            patch("custom_components.autosnooze.runtime.ports.async_save", side_effect=slow_save),
+        ):
+            resume_task = asyncio.create_task(async_resume(mock_hass, data, "automation.test"))
+
+            await asyncio.wait_for(save_started.wait(), timeout=1)
+
+            acquired_while_save_in_flight = False
+            try:
+                await asyncio.wait_for(data.lock.acquire(), timeout=0.05)
+                acquired_while_save_in_flight = True
+            finally:
+                if acquired_while_save_in_flight:
+                    data.lock.release()
+
+            allow_save_finish.set()
+            await resume_task
+
+        assert acquired_while_save_in_flight is True
+
+    @pytest.mark.asyncio
     async def test_does_not_remove_newer_pause_when_stale_resume_finishes(self) -> None:
         """A delayed wake from an old pause must not clear a newer snooze."""
         mock_hass = MagicMock()
@@ -1431,6 +1533,58 @@ class TestAsyncExecuteScheduledDisable:
             await disable_task
 
         assert acquired_while_disable_in_flight is True
+
+    @pytest.mark.asyncio
+    async def test_releases_lock_before_waiting_on_async_save(self) -> None:
+        """Scheduled disable should not hold data.lock while awaiting persistence."""
+        mock_hass = MagicMock()
+        mock_store = MagicMock()
+        data = AutomationPauseData(store=mock_store)
+
+        now = datetime.now(UTC)
+        data.scheduled["automation.test"] = ScheduledSnooze(
+            entity_id="automation.test",
+            friendly_name="Original Name",
+            disable_at=now,
+            resume_at=now + timedelta(hours=1),
+        )
+
+        save_started = asyncio.Event()
+        allow_save_finish = asyncio.Event()
+
+        async def slow_save(_data: AutomationPauseData) -> bool:
+            save_started.set()
+            await allow_save_finish.wait()
+            return True
+
+        with (
+            patch(
+                "custom_components.autosnooze.runtime.ports.async_set_automation_state",
+                new_callable=AsyncMock,
+                return_value=True,
+            ),
+            patch("custom_components.autosnooze.runtime.ports.schedule_resume"),
+            patch("custom_components.autosnooze.runtime.ports.schedule_pre_resume_notification"),
+            patch("custom_components.autosnooze.runtime.ports.async_save", side_effect=slow_save),
+        ):
+            disable_task = asyncio.create_task(
+                async_execute_scheduled_disable(mock_hass, data, "automation.test", now + timedelta(hours=1))
+            )
+
+            await asyncio.wait_for(save_started.wait(), timeout=1)
+
+            acquired_while_save_in_flight = False
+            try:
+                await asyncio.wait_for(data.lock.acquire(), timeout=0.05)
+                acquired_while_save_in_flight = True
+            finally:
+                if acquired_while_save_in_flight:
+                    data.lock.release()
+
+            allow_save_finish.set()
+            await disable_task
+
+        assert acquired_while_save_in_flight is True
 
     @pytest.mark.asyncio
     async def test_cancelled_scheduled_disable_is_reenabled_after_successful_turn_off(self) -> None:

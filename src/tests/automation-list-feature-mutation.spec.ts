@@ -157,9 +157,9 @@ describe('automation list feature mutation boundaries', () => {
     const viewModel = build('', 'areas');
 
     expect(viewModel.filtered.map((item) => item.id)).toEqual(['automation.kitchen_lights']);
-    expect(viewModel.areaCount).toBe(2);
-    expect(viewModel.categoryCount).toBe(2);
-    expect(viewModel.labelCount).toBe(2);
+    expect(viewModel.areaCount).toBe(1);
+    expect(viewModel.categoryCount).toBe(1);
+    expect(viewModel.labelCount).toBe(1);
     expect(viewModel.grouped).toEqual([
       ['Kitchen', [automations[0]]],
     ]);
@@ -213,5 +213,135 @@ describe('automation list feature mutation boundaries', () => {
       ['Evening', [noInclude[2]]],
       ['Outdoor', [noInclude[2]]],
     ]);
+  });
+
+  test('view model hides paused automations when hideSnoozed is on and leaves scheduled-only ids visible', () => {
+    const noInclude = automations.map((automation) => ({
+      ...automation,
+      labels: automation.labels.filter((label) => label !== 'include'),
+    }));
+    const noIncludeLabels = {
+      exclude: labelRegistry.exclude,
+      evening: labelRegistry.evening,
+      outdoor: labelRegistry.outdoor,
+    } as Record<string, HassLabel>;
+
+    const hidden = buildAutomationListViewModel({
+      automations: noInclude,
+      search: '',
+      filterTab: 'all',
+      hass,
+      labelRegistry: noIncludeLabels,
+      categoryRegistry,
+      emptyAreaLabel: 'Unassigned',
+      emptyLabelLabel: 'Unlabeled',
+      emptyCategoryLabel: 'Uncategorized',
+      hideSnoozed: true,
+      pausedEntityIds: new Set(['automation.porch', 'automation.scheduled_only']),
+    });
+    expect(hidden.filtered.map((item) => item.id)).toEqual([
+      'automation.kitchen_lights',
+      'automation.no_labels',
+    ]);
+
+    const shown = buildAutomationListViewModel({
+      automations: noInclude,
+      search: '',
+      filterTab: 'areas',
+      hass,
+      labelRegistry: noIncludeLabels,
+      categoryRegistry,
+      emptyAreaLabel: 'Unassigned',
+      emptyLabelLabel: 'Unlabeled',
+      emptyCategoryLabel: 'Uncategorized',
+      hideSnoozed: false,
+      pausedEntityIds: new Set(['automation.porch']),
+    });
+    expect(shown.filtered.map((item) => item.id)).toEqual([
+      'automation.kitchen_lights',
+      'automation.porch',
+      'automation.no_labels',
+    ]);
+    expect(shown.grouped.some(([name]) => name === 'Unassigned')).toBe(true);
+  });
+
+  test('view model tab counts reflect filtered automations when hideSnoozed hides paused entities', () => {
+    const visibleAutomations: AutomationItem[] = [
+      {
+        id: 'automation.kitchen_lights',
+        name: 'Kitchen Lights',
+        area_id: 'kitchen',
+        category_id: 'lighting',
+        labels: ['evening'],
+      },
+      {
+        id: 'automation.office_fan',
+        name: 'Office Fan',
+        area_id: 'office',
+        category_id: 'climate',
+        labels: [],
+      },
+      {
+        id: 'automation.porch',
+        name: 'Porch',
+        area_id: null,
+        category_id: null,
+        labels: ['evening', 'outdoor'],
+      },
+      {
+        id: 'automation.no_labels',
+        name: 'No Labels',
+        area_id: null,
+        category_id: null,
+        labels: [],
+      },
+    ];
+    const visibleLabels = {
+      evening: labelRegistry.evening,
+      outdoor: labelRegistry.outdoor,
+    } as Record<string, HassLabel>;
+
+    const withPausedOffice = buildAutomationListViewModel({
+      automations: visibleAutomations,
+      search: '',
+      filterTab: 'all',
+      hass,
+      labelRegistry: visibleLabels,
+      categoryRegistry,
+      emptyAreaLabel: 'Unassigned',
+      emptyLabelLabel: 'Unlabeled',
+      emptyCategoryLabel: 'Uncategorized',
+      hideSnoozed: true,
+      pausedEntityIds: new Set(['automation.office_fan']),
+    });
+
+    expect(withPausedOffice.filtered.map((item) => item.id)).toEqual([
+      'automation.kitchen_lights',
+      'automation.porch',
+      'automation.no_labels',
+    ]);
+    expect(withPausedOffice.filtered.length).toBe(3);
+    expect(withPausedOffice.areaCount).toBe(1);
+    expect(withPausedOffice.categoryCount).toBe(1);
+    expect(withPausedOffice.labelCount).toBe(2);
+
+    const withoutHide = buildAutomationListViewModel({
+      automations: visibleAutomations,
+      search: '',
+      filterTab: 'all',
+      hass,
+      labelRegistry: visibleLabels,
+      categoryRegistry,
+      emptyAreaLabel: 'Unassigned',
+      emptyLabelLabel: 'Unlabeled',
+      emptyCategoryLabel: 'Uncategorized',
+      hideSnoozed: false,
+      pausedEntityIds: new Set(['automation.office_fan']),
+    });
+
+    expect(withoutHide.filtered.length).toBe(4);
+    expect(withoutHide.areaCount).toBe(2);
+    expect(withoutHide.categoryCount).toBe(2);
+    expect(withoutHide.labelCount).toBe(2);
   });
 });

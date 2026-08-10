@@ -114,3 +114,24 @@ function loadRecentSnoozeEntries(): RecentSnoozeEntry[] {
     return [];
   }
 }
+
+const HIDE_SNOOZED_KEY = 'autosnooze_hide_snoozed';
+
+export function saveHideSnoozedPreference(hideSnoozed: boolean): void {
+  try {
+    localStorage.setItem(HIDE_SNOOZED_KEY, JSON.stringify(hideSnoozed));
+  } catch {
+    // localStorage may be unavailable
+  }
+}
+
+export function loadHideSnoozedPreference(): boolean {
+  try {
+    const stored = localStorage.getItem(HIDE_SNOOZED_KEY);
+    if (stored === null) return false;
+    const parsed: unknown = JSON.parse(stored);
+    return parsed === true;
+  } catch {
+    return false;
+  }
+}

@@ -40,6 +40,7 @@ async def async_adjust_snooze_batch(
 
         now = dt_util.utcnow()
         updates: list[tuple[str, PausedAutomation, datetime]] = []
+        pre_resume_targets: list[PausedAutomation] = []
 
         async with data.lock:
             for entity_id in entity_ids:
@@ -76,7 +77,12 @@ async def async_adjust_snooze_batch(
                 paused.minutes = 0
 
                 schedule_resume(hass, data, entity_id, new_resume_at, resume_callback=async_resume)
-                schedule_pre_resume_notification(hass, data, paused, notification_callback=send_pre_resume_notification)
+                pre_resume_targets.append(paused)
+
+        for paused in pre_resume_targets:
+            schedule_pre_resume_notification(hass, data, paused, notification_callback=send_pre_resume_notification)
+
+        if updates:
             if not await async_save(data):
                 _raise_save_failed()
         data.notify()

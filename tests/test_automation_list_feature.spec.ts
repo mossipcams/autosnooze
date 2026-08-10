@@ -93,8 +93,8 @@ describe('Automation List Feature', () => {
     expect(viewModel.grouped).toEqual([
       ['Party', [{ id: 'automation.kitchen', name: 'Kitchen', area_id: 'kitchen', category_id: 'lighting', labels: ['include', 'party'] }]],
     ]);
-    expect(viewModel.areaCount).toBe(2);
-    expect(viewModel.labelCount).toBe(2);
-    expect(viewModel.categoryCount).toBe(2);
+    expect(viewModel.areaCount).toBe(1);
+    expect(viewModel.labelCount).toBe(1);
+    expect(viewModel.categoryCount).toBe(1);
   });
 });

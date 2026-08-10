@@ -4,7 +4,7 @@
  * Fires selection-change events instead of directly modifying parent state.
  */
 
-import { LitElement, html, TemplateResult } from 'lit';
+import { LitElement, html, TemplateResult, type PropertyValues } from 'lit';
 import { property, state } from 'lit/decorators.js';
 import { automationListStyles } from '../styles/automation-list.styles.js';
 import { localize } from '../localization/localize.js';
@@ -15,6 +15,8 @@ import {
   getAreaName,
   getLabelName,
   getCategoryName,
+  loadHideSnoozedPreference,
+  saveHideSnoozedPreference,
   type AutomationListViewModel,
 } from '../features/automation-list/index.js';
 import type { HomeAssistant, HassLabel, HassCategory } from '../types/hass.js';
@@ -46,10 +48,14 @@ export class AutoSnoozeAutomationList extends LitElement {
   @property({ attribute: false })
   recentSnoozeIds: string[] = [];
 
+  @property({ attribute: false })
+  pausedEntityIds: string[] = [];
+
   @state() _filterTab: FilterTab = 'all';
   @state() _search: string = '';
   @state() _searchInput: string = '';
   @state() _expandedGroups: Record<string, boolean> = {};
+  @state() _hideSnoozed: boolean = false;
 
   private _searchTimeout: number | null = null;
   private _viewModelCache: {
@@ -59,8 +65,25 @@ export class AutoSnoozeAutomationList extends LitElement {
     hass: HomeAssistant | undefined;
     labelRegistry: Record<string, HassLabel>;
     categoryRegistry: Record<string, HassCategory>;
+    hideSnoozed: boolean;
+    pausedEntityIds: string[];
     result: AutomationListViewModel;
   } | null = null;
+
+  connectedCallback(): void {
+    super.connectedCallback();
+    this._hideSnoozed = loadHideSnoozedPreference();
+  }
+
+  protected updated(changedProps: PropertyValues): void {
+    super.updated(changedProps);
+    if (
+      this._hideSnoozed &&
+      (changedProps.has('pausedEntityIds') || changedProps.has('selected') || changedProps.has('_hideSnoozed'))
+    ) {
+      this._pruneHiddenSelection();
+    }
+  }
 
   disconnectedCallback(): void {
     super.disconnectedCallback();
@@ -124,31 +147,21 @@ export class AutoSnoozeAutomationList extends LitElement {
     return this._getViewModel().filtered;
   }
 
-  private _getAreaName(areaId: string | null): string {
+  _getAreaName(areaId: string | null | undefined): string {
     if (!this.hass) return localize(this.hass, 'group.unassigned');
-    return getAreaName(areaId, this.hass);
+    return getAreaName(areaId ?? null, this.hass);
   }
 
-  private _getLabelName(labelId: string): string {
+  _getLabelName(labelId: string): string {
     return getLabelName(labelId, this.labelRegistry);
   }
 
-  private _getCategoryName(categoryId: string | null): string {
-    return getCategoryName(categoryId, this.categoryRegistry);
+  _getCategoryName(categoryId: string | null | undefined): string {
+    return getCategoryName(categoryId ?? null, this.categoryRegistry);
   }
 
   private _getGroupedByTab(filterTab: 'areas' | 'labels' | 'categories'): [string, AutomationItem[]][] {
-    return buildAutomationListViewModel({
-      automations: this.automations,
-      search: this._search,
-      filterTab,
-      hass: this.hass,
-      labelRegistry: this.labelRegistry,
-      categoryRegistry: this.categoryRegistry,
-      emptyAreaLabel: localize(this.hass, 'group.unassigned'),
-      emptyLabelLabel: localize(this.hass, 'group.unlabeled'),
-      emptyCategoryLabel: localize(this.hass, 'group.uncategorized'),
-    }).grouped;
+    return buildAutomationListViewModel(this._buildViewModelInput(filterTab)).grouped;
   }
 
   private _getGroupedByArea(): [string, AutomationItem[]][] {
@@ -175,6 +188,22 @@ export class AutoSnoozeAutomationList extends LitElement {
     return this._getViewModel().categoryCount;
   }
 
+  private _buildViewModelInput(filterTab: FilterTab) {
+    return {
+      automations: this.automations,
+      search: this._search,
+      filterTab,
+      hass: this.hass,
+      labelRegistry: this.labelRegistry,
+      categoryRegistry: this.categoryRegistry,
+      emptyAreaLabel: localize(this.hass, 'group.unassigned'),
+      emptyLabelLabel: localize(this.hass, 'group.unlabeled'),
+      emptyCategoryLabel: localize(this.hass, 'group.uncategorized'),
+      hideSnoozed: this._hideSnoozed,
+      pausedEntityIds: new Set(this.pausedEntityIds),
+    };
+  }
+
   private _getViewModel(): AutomationListViewModel {
     const cache = this._viewModelCache;
     if (
@@ -184,22 +213,14 @@ export class AutoSnoozeAutomationList extends LitElement {
       cache.filterTab === this._filterTab &&
       cache.hass === this.hass &&
       cache.labelRegistry === this.labelRegistry &&
-      cache.categoryRegistry === this.categoryRegistry
+      cache.categoryRegistry === this.categoryRegistry &&
+      cache.hideSnoozed === this._hideSnoozed &&
+      cache.pausedEntityIds === this.pausedEntityIds
     ) {
       return cache.result;
     }
 
-    const result = buildAutomationListViewModel({
-      automations: this.automations,
-      search: this._search,
-      filterTab: this._filterTab,
-      hass: this.hass,
-      labelRegistry: this.labelRegistry,
-      categoryRegistry: this.categoryRegistry,
-      emptyAreaLabel: localize(this.hass, 'group.unassigned'),
-      emptyLabelLabel: localize(this.hass, 'group.unlabeled'),
-      emptyCategoryLabel: localize(this.hass, 'group.uncategorized'),
-    });
+    const result = buildAutomationListViewModel(this._buildViewModelInput(this._filterTab));
 
     this._viewModelCache = {
       automations: this.automations,
@@ -208,10 +229,33 @@ export class AutoSnoozeAutomationList extends LitElement {
       hass: this.hass,
       labelRegistry: this.labelRegistry,
       categoryRegistry: this.categoryRegistry,
+      hideSnoozed: this._hideSnoozed,
+      pausedEntityIds: this.pausedEntityIds,
       result,
     };
 
     return result;
+  }
+
+  private _pruneHiddenSelection(): void {
+    if (!this._hideSnoozed || this.pausedEntityIds.length === 0 || this.selected.length === 0) {
+      return;
+    }
+
+    const paused = new Set(this.pausedEntityIds);
+    const nextSelected = this.selected.filter((id) => !paused.has(id));
+    if (nextSelected.length !== this.selected.length) {
+      this._fireSelectionChange(nextSelected);
+    }
+  }
+
+  private _toggleHideSnoozed(): void {
+    const hideSnoozed = !this._hideSnoozed;
+    this._hideSnoozed = hideSnoozed;
+    saveHideSnoozedPreference(hideSnoozed);
+    if (hideSnoozed) {
+      this._pruneHiddenSelection();
+    }
   }
 
   _handleSearchInput(e: Event): void {
@@ -371,7 +415,7 @@ export class AutoSnoozeAutomationList extends LitElement {
           aria-controls="selection-list"
         >
           ${localize(this.hass, 'tab.all')}
-          <span class="tab-count" aria-label="${localize(this.hass, 'a11y.automation_count', { count: this.automations.length })}">${this.automations.length}</span>
+          <span class="tab-count" aria-label="${localize(this.hass, 'a11y.automation_count', { count: viewModel.filtered.length })}">${viewModel.filtered.length}</span>
         </button>
         <button
           type="button"
@@ -405,6 +449,18 @@ export class AutoSnoozeAutomationList extends LitElement {
         >
           ${localize(this.hass, 'tab.labels')}
           <span class="tab-count" aria-label="${localize(this.hass, 'a11y.label_count', { count: viewModel.labelCount })}">${viewModel.labelCount}</span>
+        </button>
+      </div>
+
+      <div class="hide-snoozed-row">
+        <button
+          type="button"
+          class="hide-snoozed-toggle ${this._hideSnoozed ? 'active' : ''}"
+          @click=${() => this._toggleHideSnoozed()}
+          aria-pressed=${this._hideSnoozed}
+          aria-label="${localize(this.hass, 'a11y.hide_snoozed')}"
+        >
+          ${localize(this.hass, 'filter.hide_snoozed')}
         </button>
       </div>
 

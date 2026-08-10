@@ -560,6 +560,164 @@ class TestAsyncPauseAutomations:
 
         assert acquired_while_pause_in_flight is True
 
+    @pytest.mark.asyncio
+    async def test_releases_lock_before_waiting_on_async_save(self) -> None:
+        """Pause should not hold data.lock while awaiting persistence."""
+        from custom_components.autosnooze.application.pause import async_pause_automations
+        from custom_components.autosnooze.runtime.state import AutomationPauseData
+
+        mock_hass = MagicMock()
+        mock_hass.states.get.return_value = MagicMock(attributes={"friendly_name": "Test"})
+        data = AutomationPauseData(store=MagicMock())
+
+        save_started = asyncio.Event()
+        allow_save_finish = asyncio.Event()
+
+        async def slow_save(_data: AutomationPauseData) -> bool:
+            save_started.set()
+            await allow_save_finish.wait()
+            return True
+
+        with (
+            patch(
+                "custom_components.autosnooze.application.pause.async_set_automation_state",
+                new_callable=AsyncMock,
+                return_value=True,
+            ),
+            patch("custom_components.autosnooze.application.pause.schedule_resume"),
+            patch("custom_components.autosnooze.application.pause.runtime_async_save", side_effect=slow_save),
+        ):
+            pause_task = asyncio.create_task(async_pause_automations(mock_hass, data, ["automation.test"], hours=1))
+
+            await asyncio.wait_for(save_started.wait(), timeout=1)
+
+            acquired_while_save_in_flight = False
+            try:
+                await asyncio.wait_for(data.lock.acquire(), timeout=0.05)
+                acquired_while_save_in_flight = True
+            finally:
+                if acquired_while_save_in_flight:
+                    data.lock.release()
+
+            allow_save_finish.set()
+            await pause_task
+
+        assert acquired_while_save_in_flight is True
+
+
+class TestAdjustLocking:
+    """Tests that adjust does not hold data.lock across slow I/O."""
+
+    @pytest.mark.asyncio
+    async def test_releases_lock_before_waiting_on_async_save(self) -> None:
+        """Adjust should not hold data.lock while awaiting persistence."""
+        from custom_components.autosnooze.application.adjust import async_adjust_snooze_batch
+        from custom_components.autosnooze.models import PausedAutomation
+        from custom_components.autosnooze.runtime.state import AutomationPauseData
+
+        mock_hass = MagicMock()
+        data = AutomationPauseData(store=MagicMock())
+        now = datetime.now(UTC)
+        data.paused["automation.test"] = PausedAutomation(
+            entity_id="automation.test",
+            friendly_name="Test",
+            resume_at=now + timedelta(hours=2),
+            paused_at=now,
+        )
+
+        save_started = asyncio.Event()
+        allow_save_finish = asyncio.Event()
+
+        async def slow_save(_data: AutomationPauseData) -> bool:
+            save_started.set()
+            await allow_save_finish.wait()
+            return True
+
+        with (
+            patch("custom_components.autosnooze.application.adjust.schedule_resume"),
+            patch("custom_components.autosnooze.application.adjust.schedule_pre_resume_notification"),
+            patch("custom_components.autosnooze.application.adjust.async_save", side_effect=slow_save),
+        ):
+            adjust_task = asyncio.create_task(
+                async_adjust_snooze_batch(mock_hass, data, ["automation.test"], timedelta(hours=1))
+            )
+
+            await asyncio.wait_for(save_started.wait(), timeout=1)
+
+            acquired_while_save_in_flight = False
+            try:
+                await asyncio.wait_for(data.lock.acquire(), timeout=0.05)
+                acquired_while_save_in_flight = True
+            finally:
+                if acquired_while_save_in_flight:
+                    data.lock.release()
+
+            allow_save_finish.set()
+            await adjust_task
+
+        assert acquired_while_save_in_flight is True
+
+    @pytest.mark.asyncio
+    async def test_schedules_pre_resume_notification_outside_lock(self) -> None:
+        """Adjust must not call schedule_pre_resume_notification while holding data.lock."""
+        from custom_components.autosnooze.application.adjust import async_adjust_snooze_batch
+        from custom_components.autosnooze.models import PausedAutomation
+        from custom_components.autosnooze.runtime.state import AutomationPauseData
+
+        mock_hass = MagicMock()
+        data = AutomationPauseData(store=MagicMock())
+        now = datetime.now(UTC)
+        data.paused["automation.test"] = PausedAutomation(
+            entity_id="automation.test",
+            friendly_name="Test",
+            resume_at=now + timedelta(hours=2),
+            paused_at=now,
+            notification_trigger="about_to_end",
+            notification_lead_minutes=30,
+        )
+
+        lock_held_during_pre_resume: list[bool] = []
+
+        class _TrackingLock:
+            def __init__(self) -> None:
+                self._held = False
+
+            async def __aenter__(self) -> _TrackingLock:
+                self._held = True
+                return self
+
+            async def __aexit__(self, exc_type: object, exc: object, tb: object) -> bool:
+                self._held = False
+                return False
+
+            async def acquire(self) -> bool:
+                self._held = True
+                return True
+
+            def release(self) -> None:
+                self._held = False
+
+        tracking_lock = _TrackingLock()
+        data.lock = tracking_lock
+
+        def track_pre_resume(*_args: object, **_kwargs: object) -> bool:
+            lock_held_during_pre_resume.append(tracking_lock._held)
+            return True
+
+        with (
+            patch("custom_components.autosnooze.application.adjust.schedule_resume"),
+            patch(
+                "custom_components.autosnooze.application.adjust.schedule_pre_resume_notification",
+                side_effect=track_pre_resume,
+            ),
+            patch(
+                "custom_components.autosnooze.application.adjust.async_save", new_callable=AsyncMock, return_value=True
+            ),
+        ):
+            await async_adjust_snooze_batch(mock_hass, data, ["automation.test"], timedelta(hours=1))
+
+        assert lock_held_during_pre_resume == [False]
+
 
 class TestContainsGuardrailTerm:
     """Tests for _contains_guardrail_term function."""
