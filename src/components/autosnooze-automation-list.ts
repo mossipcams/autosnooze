@@ -147,33 +147,21 @@ export class AutoSnoozeAutomationList extends LitElement {
     return this._getViewModel().filtered;
   }
 
-  private _getAreaName(areaId: string | null): string {
+  _getAreaName(areaId: string | null | undefined): string {
     if (!this.hass) return localize(this.hass, 'group.unassigned');
-    return getAreaName(areaId, this.hass);
+    return getAreaName(areaId ?? null, this.hass);
   }
 
-  private _getLabelName(labelId: string): string {
+  _getLabelName(labelId: string): string {
     return getLabelName(labelId, this.labelRegistry);
   }
 
-  private _getCategoryName(categoryId: string | null): string {
-    return getCategoryName(categoryId, this.categoryRegistry);
+  _getCategoryName(categoryId: string | null | undefined): string {
+    return getCategoryName(categoryId ?? null, this.categoryRegistry);
   }
 
   private _getGroupedByTab(filterTab: 'areas' | 'labels' | 'categories'): [string, AutomationItem[]][] {
-    return buildAutomationListViewModel({
-      automations: this.automations,
-      search: this._search,
-      filterTab,
-      hass: this.hass,
-      labelRegistry: this.labelRegistry,
-      categoryRegistry: this.categoryRegistry,
-      emptyAreaLabel: localize(this.hass, 'group.unassigned'),
-      emptyLabelLabel: localize(this.hass, 'group.unlabeled'),
-      emptyCategoryLabel: localize(this.hass, 'group.uncategorized'),
-      hideSnoozed: this._hideSnoozed,
-      pausedEntityIds: new Set(this.pausedEntityIds),
-    }).grouped;
+    return buildAutomationListViewModel(this._buildViewModelInput(filterTab)).grouped;
   }
 
   private _getGroupedByArea(): [string, AutomationItem[]][] {
@@ -200,6 +188,22 @@ export class AutoSnoozeAutomationList extends LitElement {
     return this._getViewModel().categoryCount;
   }
 
+  private _buildViewModelInput(filterTab: FilterTab) {
+    return {
+      automations: this.automations,
+      search: this._search,
+      filterTab,
+      hass: this.hass,
+      labelRegistry: this.labelRegistry,
+      categoryRegistry: this.categoryRegistry,
+      emptyAreaLabel: localize(this.hass, 'group.unassigned'),
+      emptyLabelLabel: localize(this.hass, 'group.unlabeled'),
+      emptyCategoryLabel: localize(this.hass, 'group.uncategorized'),
+      hideSnoozed: this._hideSnoozed,
+      pausedEntityIds: new Set(this.pausedEntityIds),
+    };
+  }
+
   private _getViewModel(): AutomationListViewModel {
     const cache = this._viewModelCache;
     if (
@@ -216,19 +220,7 @@ export class AutoSnoozeAutomationList extends LitElement {
       return cache.result;
     }
 
-    const result = buildAutomationListViewModel({
-      automations: this.automations,
-      search: this._search,
-      filterTab: this._filterTab,
-      hass: this.hass,
-      labelRegistry: this.labelRegistry,
-      categoryRegistry: this.categoryRegistry,
-      emptyAreaLabel: localize(this.hass, 'group.unassigned'),
-      emptyLabelLabel: localize(this.hass, 'group.unlabeled'),
-      emptyCategoryLabel: localize(this.hass, 'group.uncategorized'),
-      hideSnoozed: this._hideSnoozed,
-      pausedEntityIds: new Set(this.pausedEntityIds),
-    });
+    const result = buildAutomationListViewModel(this._buildViewModelInput(this._filterTab));
 
     this._viewModelCache = {
       automations: this.automations,

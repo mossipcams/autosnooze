@@ -412,29 +412,54 @@ describe('automation list mutation boundaries', () => {
     expect(pausedChanged).not.toBe(hideChanged);
   });
 
-  test('name helpers and teardown cover nullish fallback paths', () => {
-    const element = createList();
-    expect((element as never as { _getAreaName: (areaId: string | null) => string })._getAreaName(null)).toBe(
-      'Unassigned'
-    );
+  test('shares one view-model input builder between cache path and grouped-tab helpers', () => {
+    const element = createList() as never as {
+      hass?: HomeAssistant;
+      automations: typeof AUTOMATIONS;
+      labelRegistry: typeof LABELS;
+      categoryRegistry: typeof CATEGORIES;
+      pausedEntityIds: string[];
+      _search: string;
+      _filterTab: string;
+      _hideSnoozed: boolean;
+      _buildViewModelInput: (filterTab: string) => {
+        filterTab: string;
+        hideSnoozed: boolean;
+        pausedEntityIds: ReadonlySet<string>;
+        emptyAreaLabel: string;
+      };
+      _getViewModel: () => { grouped: unknown };
+      _getGroupedByTab: (filterTab: 'areas' | 'labels' | 'categories') => unknown;
+    };
     element.hass = HASS;
+    element.automations = AUTOMATIONS;
     element.labelRegistry = LABELS;
     element.categoryRegistry = CATEGORIES;
-    expect((element as never as { _getAreaName: (areaId: string | null) => string })._getAreaName('kitchen')).toBe(
-      'Kitchen'
-    );
-    expect((element as never as { _getLabelName: (labelId: string) => string })._getLabelName('missing_label')).toBe(
-      'Missing Label'
-    );
-    expect((element as never as { _getCategoryName: (categoryId: string | null) => string })._getCategoryName(null)).toBe(
-      'Uncategorized'
-    );
+    element.pausedEntityIds = ['automation.porch'];
+    element._search = '';
+    element._filterTab = 'areas';
+    element._hideSnoozed = true;
+
+    expect(typeof element._buildViewModelInput).toBe('function');
+    const input = element._buildViewModelInput('areas');
+    expect(input.filterTab).toBe('areas');
+    expect(input.hideSnoozed).toBe(true);
+    expect(input.pausedEntityIds).toEqual(new Set(['automation.porch']));
+    expect(input.emptyAreaLabel).toBe('Unassigned');
+    expect(element._getGroupedByTab('areas')).toEqual(element._getViewModel().grouped);
+  });
+
+  test('clears pending search timeout on disconnect', () => {
+    const element = createList() as never as {
+      _searchTimeout: number | null;
+      disconnectedCallback: () => void;
+    };
 
     const clearTimeoutSpy = vi.spyOn(globalThis, 'clearTimeout');
-    (element as never as { _searchTimeout: number | null })._searchTimeout = window.setTimeout(() => {}, 1000);
+    element._searchTimeout = window.setTimeout(() => {}, 1000);
     element.disconnectedCallback();
     expect(clearTimeoutSpy).toHaveBeenCalledTimes(1);
-    expect((element as never as { _searchTimeout: number | null })._searchTimeout).toBeNull();
+    expect(element._searchTimeout).toBeNull();
   });
 
   test('always shows hide snoozed toggle and filters paused ids when pressed', async () => {

@@ -104,6 +104,62 @@ describe('Card passes paused entity ids to automation list', () => {
       el.requestUpdate();
       await el.updateComplete;
       expect(list.pausedEntityIds).toBe(first);
+
+      el.hass = {
+        ...hass,
+        states: {
+          ...hass.states,
+          'sensor.autosnooze_snoozed_automations': {
+            ...hass.states['sensor.autosnooze_snoozed_automations'],
+            attributes: {
+              ...hass.states['sensor.autosnooze_snoozed_automations'].attributes,
+              paused: {
+                'automation.kitchen_lights': {
+                  ...hass.states['sensor.autosnooze_snoozed_automations'].attributes.paused[
+                    'automation.kitchen_lights'
+                  ],
+                  minutes: 1,
+                },
+              },
+            },
+          },
+        },
+      } as unknown as HomeAssistant;
+      await el.updateComplete;
+      expect(list.pausedEntityIds).toBe(first);
+    } finally {
+      document.body.removeChild(el);
+    }
+  });
+
+  test('does not sync pausedEntityIds cache when hass did not change', async () => {
+    const el = document.createElement(TEST_TAG) as AutomationPauseCard & {
+      _syncPausedEntityIdsCache: () => void;
+    };
+    el.hass = {
+      states: {
+        'sensor.autosnooze_snoozed_automations': {
+          state: '0',
+          attributes: {
+            schema_version: 1,
+            paused: {},
+            scheduled: {},
+          },
+        },
+      },
+      entities: {},
+      areas: {},
+      connection: { sendMessagePromise: async () => [] },
+      callService: async () => undefined,
+    } as unknown as HomeAssistant;
+
+    document.body.appendChild(el);
+    try {
+      await el.updateComplete;
+      const spy = vi.spyOn(el, '_syncPausedEntityIdsCache');
+      el.requestUpdate();
+      await el.updateComplete;
+      expect(spy).not.toHaveBeenCalled();
     } finally {
       document.body.removeChild(el);
     }
