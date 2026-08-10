@@ -100,7 +100,8 @@ def test_existing_python_contract_surface_stays_compatible() -> None:
     """Frontend hardening should be tested at the adapter, not copied into the root."""
     adapter_source = FRONTEND_ADAPTER_PATH.read_text(encoding="utf-8")
 
-    assert "StaticPathConfig" in adapter_source
+    assert "from homeassistant.components.http.server import StaticPathConfig" in adapter_source
+    assert "from homeassistant.components.http import StaticPathConfig" not in adapter_source
     assert "cache_headers=False" in adapter_source
     assert "for url in (CARD_URL, CARD_HACS_URL)" not in adapter_source
     assert "[StaticPathConfig(CARD_URL, str(CARD_PATH), cache_headers=False)]" in adapter_source
