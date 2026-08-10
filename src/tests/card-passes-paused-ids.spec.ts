@@ -133,9 +133,7 @@ describe('Card passes paused entity ids to automation list', () => {
   });
 
   test('does not sync pausedEntityIds cache when hass did not change', async () => {
-    const el = document.createElement(TEST_TAG) as AutomationPauseCard & {
-      _syncPausedEntityIdsCache: () => void;
-    };
+    const el = document.createElement(TEST_TAG) as AutomationPauseCard;
     el.hass = {
       states: {
         'sensor.autosnooze_snoozed_automations': {
@@ -156,7 +154,10 @@ describe('Card passes paused entity ids to automation list', () => {
     document.body.appendChild(el);
     try {
       await el.updateComplete;
-      const spy = vi.spyOn(el, '_syncPausedEntityIdsCache');
+      const spy = vi.spyOn(
+        el as unknown as { _syncPausedEntityIdsCache: () => void },
+        '_syncPausedEntityIdsCache'
+      );
       el.requestUpdate();
       await el.updateComplete;
       expect(spy).not.toHaveBeenCalled();
