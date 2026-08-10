@@ -19,7 +19,6 @@ import {
   DEFAULT_NOTIFICATION_LEAD_MINUTES,
 } from '../constants/index.js';
 import {
-  createCardUiStore,
   createAdjustModalState,
   createClosedAdjustModalState,
   getCardPausedSnapshot,
@@ -31,7 +30,7 @@ import {
   type LastDurationData,
 } from '../features/card-shell/index.js';
 import { formatDateTime, formatDuration } from '../utils/time-formatting.js';
-import { isDurationValid, minutesToDuration } from '../utils/duration-parsing.js';
+import { durationToMinutes, isDurationValid, minutesToDuration } from '../utils/duration-parsing.js';
 import { hapticFeedback } from '../utils/haptic.js';
 import { defineAutoSnoozeElement } from '../utils/custom-element-registration.js';
 import { runPauseFeature } from '../features/pause/index.js';
@@ -60,7 +59,6 @@ export class AutomationPauseCard extends LitElement {
   @property({ attribute: false })
   config: AutoSnoozeCardConfig = {} as AutoSnoozeCardConfig;
 
-  private _cardStore = createCardUiStore();
   private _shell = new CardShellController(() => this.requestUpdate());
 
   @state() private _selected: string[] = [];
@@ -473,16 +471,13 @@ export class AutomationPauseCard extends LitElement {
   }
 
   private _setSelected(selected: string[]): void {
-    this._cardStore.setSelection(selected);
-    this._selected = this._cardStore.getState().selected;
+    this._selected = [...selected];
   }
 
   private _setDurationState(duration: ParsedDuration, input: string): void {
-    this._cardStore.setDuration(duration, input);
-    const state = this._cardStore.getState();
-    this._duration = state.durationMs;
-    this._customDuration = state.customDuration;
-    this._customDurationInput = state.customDurationInput;
+    this._customDuration = { ...duration };
+    this._customDurationInput = input;
+    this._duration = durationToMinutes(duration) * TIME_MS.MINUTE;
   }
 
   private _handleDurationChange(e: CustomEvent<{ minutes: number; duration: ParsedDuration; input: string; showCustomInput?: boolean }>): void {

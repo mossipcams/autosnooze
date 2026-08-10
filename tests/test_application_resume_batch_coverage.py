@@ -1,5 +1,6 @@
 """Coverage for the live batch-resume application workflow."""
 
+import asyncio
 from datetime import datetime, timedelta, timezone
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -64,6 +65,43 @@ async def test_batch_resume_wakes_entities_and_persists_once() -> None:
     assert save.await_count == 1
     assert cancel_timer.call_count == 2
     listener.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_batch_resume_releases_lock_before_waiting_on_async_save() -> None:
+    """Batch resume should not hold data.lock while awaiting persistence."""
+    hass = MagicMock()
+    data = AutomationPauseData(store=MagicMock())
+    data.paused["automation.one"] = _paused("automation.one")
+
+    save_started = asyncio.Event()
+    allow_save_finish = asyncio.Event()
+
+    async def slow_save(_data: AutomationPauseData) -> bool:
+        save_started.set()
+        await allow_save_finish.wait()
+        return True
+
+    with (
+        patch("custom_components.autosnooze.runtime.ports.async_set_automation_state", AsyncMock(return_value=True)),
+        patch("custom_components.autosnooze.runtime.ports.async_save", side_effect=slow_save),
+    ):
+        resume_task = asyncio.create_task(async_resume_batch(hass, data, ["automation.one"]))
+
+        await asyncio.wait_for(save_started.wait(), timeout=1)
+
+        acquired_while_save_in_flight = False
+        try:
+            await asyncio.wait_for(data.lock.acquire(), timeout=0.05)
+            acquired_while_save_in_flight = True
+        finally:
+            if acquired_while_save_in_flight:
+                data.lock.release()
+
+        allow_save_finish.set()
+        await resume_task
+
+    assert acquired_while_save_in_flight is True
 
 
 @pytest.mark.asyncio

@@ -415,7 +415,7 @@ export class AutoSnoozeAutomationList extends LitElement {
           aria-controls="selection-list"
         >
           ${localize(this.hass, 'tab.all')}
-          <span class="tab-count" aria-label="${localize(this.hass, 'a11y.automation_count', { count: this.automations.length })}">${this.automations.length}</span>
+          <span class="tab-count" aria-label="${localize(this.hass, 'a11y.automation_count', { count: viewModel.filtered.length })}">${viewModel.filtered.length}</span>
         </button>
         <button
           type="button"

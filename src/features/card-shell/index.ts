@@ -8,7 +8,6 @@ import {
   loadRecentSnoozes,
   type LastDurationData,
 } from '../../services/storage.js';
-import { createCardStore } from '../../state/card-store.js';
 import {
   getPausedSensorEntity,
   getPausedSnapshot,
@@ -110,10 +109,6 @@ export function startCardShellCountdown(onTick: () => void): CountdownState {
 
 export function stopCardShellCountdown(state: CountdownState): void {
   stopCountdownSync(state);
-}
-
-export function createCardUiStore(): ReturnType<typeof createCardStore> {
-  return createCardStore();
 }
 
 export function loadCardLastDuration(): LastDurationData | null {

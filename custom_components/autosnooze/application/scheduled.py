@@ -40,6 +40,13 @@ async def async_execute_scheduled_disable(
 
     stale_after_disable = False
     undo_stale_disable = False
+    should_save = False
+    early_notify = False
+    paused_for_notification: PausedAutomation | None = None
+    success_paused: PausedAutomation | None = None
+    skip_retry_log = False
+    retry_log_at: datetime | None = None
+
     async with data.lock:
         current_scheduled = data.scheduled.get(entity_id)
         stale_after_disable = (expected_scheduled is not None and current_scheduled is not expected_scheduled) or (
@@ -56,71 +63,85 @@ async def async_execute_scheduled_disable(
 
                 if resume_at <= now or retry_at >= resume_at:
                     data.scheduled.pop(entity_id, None)
-                    if not await runtime_ports.async_save(data):
-                        _raise_save_failed()
-                    _LOGGER.warning(
-                        "Failed to execute scheduled disable for %s; skipping retry because resume time has passed",
-                        entity_id,
-                    )
-                    data.notify()
-                    return
-
-                if scheduled is None:
-                    scheduled = ScheduledSnooze(
-                        entity_id=entity_id,
-                        friendly_name=runtime_ports.get_friendly_name(hass, entity_id),
-                        disable_at=retry_at,
-                        resume_at=resume_at,
-                    )
+                    should_save = True
+                    early_notify = True
+                    skip_retry_log = True
                 else:
-                    scheduled.disable_at = retry_at
+                    if scheduled is None:
+                        scheduled = ScheduledSnooze(
+                            entity_id=entity_id,
+                            friendly_name=runtime_ports.get_friendly_name(hass, entity_id),
+                            disable_at=retry_at,
+                            resume_at=resume_at,
+                        )
+                    else:
+                        scheduled.disable_at = retry_at
 
-                data.scheduled[entity_id] = scheduled
-                runtime_ports.schedule_disable(
-                    hass, data, entity_id, scheduled, disable_callback=async_execute_scheduled_disable
+                    data.scheduled[entity_id] = scheduled
+                    runtime_ports.schedule_disable(
+                        hass, data, entity_id, scheduled, disable_callback=async_execute_scheduled_disable
+                    )
+                    should_save = True
+                    early_notify = True
+                    retry_log_at = retry_at
+            else:
+                scheduled = data.scheduled.pop(entity_id, None)
+                now = dt_util.utcnow()
+                friendly_name = (
+                    scheduled.friendly_name if scheduled else runtime_ports.get_friendly_name(hass, entity_id)
                 )
-                if not await runtime_ports.async_save(data):
-                    _raise_save_failed()
-                _LOGGER.warning(
-                    "Failed to execute scheduled disable for %s, retrying at %s",
-                    entity_id,
-                    retry_at,
+                disable_at = scheduled.disable_at if scheduled else None
+
+                success_paused = PausedAutomation(
+                    entity_id=entity_id,
+                    friendly_name=friendly_name,
+                    resume_at=resume_at,
+                    paused_at=now,
+                    disable_at=disable_at,
+                    notification_trigger=(scheduled.notification_trigger if scheduled is not None else "none"),
+                    notification_lead_minutes=(scheduled.notification_lead_minutes if scheduled is not None else None),
                 )
-                data.notify()
-                return
+                data.paused[entity_id] = success_paused
+                runtime_ports.schedule_resume(hass, data, entity_id, resume_at, resume_callback=async_resume)
+                paused_for_notification = success_paused
+                should_save = True
 
-            scheduled = data.scheduled.pop(entity_id, None)
-            now = dt_util.utcnow()
-            friendly_name = scheduled.friendly_name if scheduled else runtime_ports.get_friendly_name(hass, entity_id)
-            disable_at = scheduled.disable_at if scheduled else None
+    if paused_for_notification is not None:
+        runtime_ports.schedule_pre_resume_notification(
+            hass,
+            data,
+            paused_for_notification,
+            notification_callback=send_pre_resume_notification,
+        )
 
-            data.paused[entity_id] = PausedAutomation(
-                entity_id=entity_id,
-                friendly_name=friendly_name,
-                resume_at=resume_at,
-                paused_at=now,
-                disable_at=disable_at,
-                notification_trigger=(scheduled.notification_trigger if scheduled is not None else "none"),
-                notification_lead_minutes=(scheduled.notification_lead_minutes if scheduled is not None else None),
-            )
+    if should_save:
+        if not await runtime_ports.async_save(data):
+            _raise_save_failed()
 
-            runtime_ports.schedule_resume(hass, data, entity_id, resume_at, resume_callback=async_resume)
-            runtime_ports.schedule_pre_resume_notification(
-                hass,
-                data,
-                data.paused[entity_id],
-                notification_callback=send_pre_resume_notification,
-            )
-            if not await runtime_ports.async_save(data):
-                _raise_save_failed()
     if undo_stale_disable:
         if not await runtime_ports.async_set_automation_state(hass, entity_id, enabled=True):
             _LOGGER.warning("Failed to undo stale scheduled disable for %s", entity_id)
         return
     if stale_after_disable:
         return
+    if early_notify:
+        if skip_retry_log:
+            _LOGGER.warning(
+                "Failed to execute scheduled disable for %s; skipping retry because resume time has passed",
+                entity_id,
+            )
+        else:
+            _LOGGER.warning(
+                "Failed to execute scheduled disable for %s, retrying at %s",
+                entity_id,
+                retry_log_at,
+            )
+        data.notify()
+        return
+    if success_paused is None:
+        return
     data.notify()
-    await notify_started(hass, [data.paused[entity_id]])
+    await notify_started(hass, [success_paused])
     _LOGGER.info("Executed scheduled snooze for %s until %s", entity_id, resume_at)
 
 
@@ -142,8 +163,8 @@ async def async_cancel_scheduled_batch(
             for entity_id in entity_ids:
                 cancel_scheduled_timer(data, entity_id)
                 data.scheduled.pop(entity_id, None)
-            if not await runtime_ports.async_save(data):
-                _raise_save_failed()
+        if not await runtime_ports.async_save(data):
+            _raise_save_failed()
         data.notify()
         _LOGGER.info("Cancelled %d scheduled snoozes", len(entity_ids))
     except Exception:

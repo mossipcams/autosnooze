@@ -97,7 +97,7 @@ def test_lower_layer_dependency_rules_match_real_frontend_module_paths() -> None
     rules = _dependency_cruiser_forbidden_rules()
 
     assert _rule_matches_to_path(rules["state-no-ui-or-service-dependencies"], "src/services/storage.ts")
-    assert _rule_matches_to_path(rules["services-no-ui-or-state-dependencies"], "src/state/card-store.ts")
+    assert _rule_matches_to_path(rules["services-no-ui-or-state-dependencies"], "src/state/paused.ts")
     assert _rule_matches_to_path(rules["utils-no-runtime-dependencies"], "src/services/snooze.ts")
     assert _rule_matches_to_path(rules["types-no-runtime-dependencies"], "src/utils/time-formatting.ts")
 

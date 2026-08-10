@@ -358,6 +358,7 @@ async def async_pause_automations(
                     )
 
         re_disable_stale_replacements: list[str] = []
+        pre_resume_targets: list[PausedAutomation] = []
         async with data.lock:
             for scheduled in scheduled_entries:
                 active_replacement = active_replacements.get(scheduled.entity_id)
@@ -388,9 +389,13 @@ async def async_pause_automations(
                 data.scheduled.pop(paused.entity_id, None)
                 data.paused[paused.entity_id] = paused
                 resume_scheduler(hass, data, paused.entity_id, paused.resume_at)
-                pre_resume_scheduler(hass, data, paused)
+                pre_resume_targets.append(paused)
                 _LOGGER.info("Snoozed %s until %s", paused.entity_id, paused.resume_at)
 
+        for paused in pre_resume_targets:
+            pre_resume_scheduler(hass, data, paused)
+
+        if scheduled_entries or paused_entries:
             if not await save_runtime_data(data):
                 _raise_save_failed()
 
