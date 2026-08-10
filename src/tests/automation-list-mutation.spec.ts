@@ -88,6 +88,7 @@ describe('automation list mutation boundaries', () => {
   beforeEach(() => {
     vi.useFakeTimers();
     hapticMock.mockClear();
+    localStorage.clear();
   });
 
   afterEach(() => {
@@ -401,6 +402,14 @@ describe('automation list mutation boundaries', () => {
     element.automations = [...AUTOMATIONS];
     const automationsChanged = (element as never as { _getViewModel: () => unknown })._getViewModel();
     expect(automationsChanged).not.toBe(categoriesChanged);
+
+    (element as never as { _hideSnoozed: boolean })._hideSnoozed = true;
+    const hideChanged = (element as never as { _getViewModel: () => unknown })._getViewModel();
+    expect(hideChanged).not.toBe(automationsChanged);
+
+    element.pausedEntityIds = ['automation.porch'];
+    const pausedChanged = (element as never as { _getViewModel: () => unknown })._getViewModel();
+    expect(pausedChanged).not.toBe(hideChanged);
   });
 
   test('name helpers and teardown cover nullish fallback paths', () => {
@@ -426,5 +435,52 @@ describe('automation list mutation boundaries', () => {
     element.disconnectedCallback();
     expect(clearTimeoutSpy).toHaveBeenCalledTimes(1);
     expect((element as never as { _searchTimeout: number | null })._searchTimeout).toBeNull();
+  });
+
+  test('hides snoozed chip only when paused ids exist and filters the list when pressed', async () => {
+    const element = await connectList();
+    expect(element.shadowRoot?.querySelector('.hide-snoozed-toggle')).toBeNull();
+
+    element.pausedEntityIds = ['automation.porch'];
+    await element.updateComplete;
+
+    const toggle = element.shadowRoot?.querySelector<HTMLButtonElement>('.hide-snoozed-toggle');
+    expect(toggle).not.toBeNull();
+    expect(toggle?.getAttribute('aria-pressed')).toBe('false');
+    expect(element.shadowRoot?.querySelectorAll('.list-item').length).toBe(3);
+
+    toggle?.click();
+    await element.updateComplete;
+
+    expect(toggle?.getAttribute('aria-pressed')).toBe('true');
+    expect(element.shadowRoot?.querySelectorAll('.list-item').length).toBe(2);
+    expect(localStorage.getItem('autosnooze_hide_snoozed')).toBe('true');
+    expect(
+      Array.from(element.shadowRoot?.querySelectorAll('.list-item') ?? []).map((item) =>
+        getText(item.querySelector('.list-item-name'))
+      )
+    ).toEqual(['Kitchen Lights', 'Office Fan']);
+  });
+
+  test('loads persisted hide snoozed preference and drops paused ids from selection when enabling', async () => {
+    localStorage.setItem('autosnooze_hide_snoozed', 'true');
+    const events: CustomEvent[] = [];
+    const element = await connectList((el) => {
+      el.pausedEntityIds = ['automation.kitchen_lights'];
+      el.selected = ['automation.kitchen_lights', 'automation.office_fan'];
+    });
+    element.addEventListener('selection-change', (event) => events.push(event as CustomEvent));
+
+    expect(element.shadowRoot?.querySelector('.hide-snoozed-toggle')?.getAttribute('aria-pressed')).toBe(
+      'true'
+    );
+    expect(element.shadowRoot?.querySelectorAll('.list-item').length).toBe(2);
+
+    (element as never as { _hideSnoozed: boolean })._hideSnoozed = false;
+    await element.updateComplete;
+    element.shadowRoot?.querySelector<HTMLButtonElement>('.hide-snoozed-toggle')?.click();
+    await element.updateComplete;
+
+    expect(lastEvent(events)?.detail).toEqual({ selected: ['automation.office_fan'] });
   });
 });

@@ -600,6 +600,7 @@ export class AutomationPauseCard extends LitElement {
             .labelRegistryUnavailable=${this._shell.labelsUnavailable}
             .categoryRegistry=${this._shell.categories}
             .recentSnoozeIds=${this._recentSnoozeIds}
+            .pausedEntityIds=${Object.keys(paused)}
             @selection-change=${this._handleSelectionChange}
           ></autosnooze-automation-list>
 

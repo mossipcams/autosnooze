@@ -1,7 +1,9 @@
 import { beforeEach, describe, expect, test, vi } from 'vitest';
 
-const { loadRecentSnoozes, runPauseFeature } = vi.hoisted(() => ({
+const { loadRecentSnoozes, loadHideSnoozedPreference, saveHideSnoozedPreference, runPauseFeature } = vi.hoisted(() => ({
   loadRecentSnoozes: vi.fn().mockReturnValue(['automation.x']),
+  loadHideSnoozedPreference: vi.fn().mockReturnValue(false),
+  saveHideSnoozedPreference: vi.fn(),
   runPauseFeature: vi.fn().mockResolvedValue({
     status: 'submitted',
     toastMessage: 'Snoozed',
@@ -13,6 +15,8 @@ vi.mock('../services/storage.js', () => ({
   loadLastDuration: vi.fn().mockReturnValue(null),
   saveRecentSnoozes: vi.fn(),
   loadRecentSnoozes,
+  loadHideSnoozedPreference,
+  saveHideSnoozedPreference,
 }));
 
 vi.mock('../services/registry.js', () => ({

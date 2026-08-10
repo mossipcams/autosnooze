@@ -33,6 +33,7 @@
     "scheduled_pause_for": "Pausa programada para {name}",
     "cancel_scheduled_for": "Cancelar pausa programada para {name}",
     "filter_tabs": "Filtrar automatizaciones por",
+    "hide_snoozed": "Ocultar automatizaciones actualmente pospuestas de la lista",
     "automation_count": "{count} automatizaciones",
     "area_count": "{count} áreas",
     "category_count": "{count} categorías",
@@ -122,6 +123,9 @@
     "areas": "Áreas",
     "categories": "Categorías",
     "labels": "Etiquetas"
+  },
+  "filter": {
+    "hide_snoozed": "Ocultar pausadas"
   },
   "search": {
     "placeholder": "Buscar automatizaciones..."

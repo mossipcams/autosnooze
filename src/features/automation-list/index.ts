@@ -8,6 +8,10 @@ import type { FilterTab } from '../../types/card.js';
 import type { HassCategory, HassLabel, HomeAssistant } from '../../types/hass.js';
 import { formatRegistryId } from '../../utils/registry-formatting.js';
 export { getAutomations } from '../../state/automations.js';
+export {
+  loadHideSnoozedPreference,
+  saveHideSnoozedPreference,
+} from '../../services/storage.js';
 
 export interface AutomationListViewModel {
   filtered: AutomationItem[];
@@ -27,6 +31,8 @@ interface BuildAutomationListViewModelInput {
   emptyAreaLabel: string;
   emptyLabelLabel: string;
   emptyCategoryLabel: string;
+  hideSnoozed?: boolean;
+  pausedEntityIds?: ReadonlySet<string>;
 }
 
 interface DecoratedAutomation {
@@ -162,9 +168,15 @@ export function buildAutomationListViewModel(
   });
 
   const hasIncludeLabel = decorated.some((automation) => automation.hasIncludeLabel);
+  const pausedEntityIds = input.pausedEntityIds;
+  const hideSnoozed = Boolean(input.hideSnoozed);
   const filteredDecorated = decorated.filter((automation) => {
     const labelVisible = hasIncludeLabel ? automation.hasIncludeLabel : !automation.hasExcludeLabel;
     if (!labelVisible) {
+      return false;
+    }
+
+    if (hideSnoozed && pausedEntityIds?.has(automation.automation.id)) {
       return false;
     }
 

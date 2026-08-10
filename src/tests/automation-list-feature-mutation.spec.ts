@@ -214,4 +214,54 @@ describe('automation list feature mutation boundaries', () => {
       ['Outdoor', [noInclude[2]]],
     ]);
   });
+
+  test('view model hides paused automations when hideSnoozed is on and leaves scheduled-only ids visible', () => {
+    const noInclude = automations.map((automation) => ({
+      ...automation,
+      labels: automation.labels.filter((label) => label !== 'include'),
+    }));
+    const noIncludeLabels = {
+      exclude: labelRegistry.exclude,
+      evening: labelRegistry.evening,
+      outdoor: labelRegistry.outdoor,
+    } as Record<string, HassLabel>;
+
+    const hidden = buildAutomationListViewModel({
+      automations: noInclude,
+      search: '',
+      filterTab: 'all',
+      hass,
+      labelRegistry: noIncludeLabels,
+      categoryRegistry,
+      emptyAreaLabel: 'Unassigned',
+      emptyLabelLabel: 'Unlabeled',
+      emptyCategoryLabel: 'Uncategorized',
+      hideSnoozed: true,
+      pausedEntityIds: new Set(['automation.porch', 'automation.scheduled_only']),
+    });
+    expect(hidden.filtered.map((item) => item.id)).toEqual([
+      'automation.kitchen_lights',
+      'automation.no_labels',
+    ]);
+
+    const shown = buildAutomationListViewModel({
+      automations: noInclude,
+      search: '',
+      filterTab: 'areas',
+      hass,
+      labelRegistry: noIncludeLabels,
+      categoryRegistry,
+      emptyAreaLabel: 'Unassigned',
+      emptyLabelLabel: 'Unlabeled',
+      emptyCategoryLabel: 'Uncategorized',
+      hideSnoozed: false,
+      pausedEntityIds: new Set(['automation.porch']),
+    });
+    expect(shown.filtered.map((item) => item.id)).toEqual([
+      'automation.kitchen_lights',
+      'automation.porch',
+      'automation.no_labels',
+    ]);
+    expect(shown.grouped.some(([name]) => name === 'Unassigned')).toBe(true);
+  });
 });

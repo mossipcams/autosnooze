@@ -15,6 +15,8 @@ import {
   getAreaName,
   getLabelName,
   getCategoryName,
+  loadHideSnoozedPreference,
+  saveHideSnoozedPreference,
   type AutomationListViewModel,
 } from '../features/automation-list/index.js';
 import type { HomeAssistant, HassLabel, HassCategory } from '../types/hass.js';
@@ -46,10 +48,14 @@ export class AutoSnoozeAutomationList extends LitElement {
   @property({ attribute: false })
   recentSnoozeIds: string[] = [];
 
+  @property({ attribute: false })
+  pausedEntityIds: string[] = [];
+
   @state() _filterTab: FilterTab = 'all';
   @state() _search: string = '';
   @state() _searchInput: string = '';
   @state() _expandedGroups: Record<string, boolean> = {};
+  @state() _hideSnoozed: boolean = false;
 
   private _searchTimeout: number | null = null;
   private _viewModelCache: {
@@ -59,8 +65,15 @@ export class AutoSnoozeAutomationList extends LitElement {
     hass: HomeAssistant | undefined;
     labelRegistry: Record<string, HassLabel>;
     categoryRegistry: Record<string, HassCategory>;
+    hideSnoozed: boolean;
+    pausedEntityIds: string[];
     result: AutomationListViewModel;
   } | null = null;
+
+  connectedCallback(): void {
+    super.connectedCallback();
+    this._hideSnoozed = loadHideSnoozedPreference();
+  }
 
   disconnectedCallback(): void {
     super.disconnectedCallback();
@@ -148,6 +161,8 @@ export class AutoSnoozeAutomationList extends LitElement {
       emptyAreaLabel: localize(this.hass, 'group.unassigned'),
       emptyLabelLabel: localize(this.hass, 'group.unlabeled'),
       emptyCategoryLabel: localize(this.hass, 'group.uncategorized'),
+      hideSnoozed: this._hideSnoozed,
+      pausedEntityIds: new Set(this.pausedEntityIds),
     }).grouped;
   }
 
@@ -184,7 +199,9 @@ export class AutoSnoozeAutomationList extends LitElement {
       cache.filterTab === this._filterTab &&
       cache.hass === this.hass &&
       cache.labelRegistry === this.labelRegistry &&
-      cache.categoryRegistry === this.categoryRegistry
+      cache.categoryRegistry === this.categoryRegistry &&
+      cache.hideSnoozed === this._hideSnoozed &&
+      cache.pausedEntityIds === this.pausedEntityIds
     ) {
       return cache.result;
     }
@@ -199,6 +216,8 @@ export class AutoSnoozeAutomationList extends LitElement {
       emptyAreaLabel: localize(this.hass, 'group.unassigned'),
       emptyLabelLabel: localize(this.hass, 'group.unlabeled'),
       emptyCategoryLabel: localize(this.hass, 'group.uncategorized'),
+      hideSnoozed: this._hideSnoozed,
+      pausedEntityIds: new Set(this.pausedEntityIds),
     });
 
     this._viewModelCache = {
@@ -208,10 +227,27 @@ export class AutoSnoozeAutomationList extends LitElement {
       hass: this.hass,
       labelRegistry: this.labelRegistry,
       categoryRegistry: this.categoryRegistry,
+      hideSnoozed: this._hideSnoozed,
+      pausedEntityIds: this.pausedEntityIds,
       result,
     };
 
     return result;
+  }
+
+  private _toggleHideSnoozed(): void {
+    const hideSnoozed = !this._hideSnoozed;
+    this._hideSnoozed = hideSnoozed;
+    saveHideSnoozedPreference(hideSnoozed);
+    if (!hideSnoozed || this.pausedEntityIds.length === 0) {
+      return;
+    }
+
+    const paused = new Set(this.pausedEntityIds);
+    const nextSelected = this.selected.filter((id) => !paused.has(id));
+    if (nextSelected.length !== this.selected.length) {
+      this._fireSelectionChange(nextSelected);
+    }
   }
 
   _handleSearchInput(e: Event): void {
@@ -407,6 +443,22 @@ export class AutoSnoozeAutomationList extends LitElement {
           <span class="tab-count" aria-label="${localize(this.hass, 'a11y.label_count', { count: viewModel.labelCount })}">${viewModel.labelCount}</span>
         </button>
       </div>
+
+      ${this.pausedEntityIds.length > 0
+        ? html`
+            <div class="hide-snoozed-row">
+              <button
+                type="button"
+                class="hide-snoozed-toggle ${this._hideSnoozed ? 'active' : ''}"
+                @click=${() => this._toggleHideSnoozed()}
+                aria-pressed=${this._hideSnoozed}
+                aria-label="${localize(this.hass, 'a11y.hide_snoozed')}"
+              >
+                ${localize(this.hass, 'filter.hide_snoozed')}
+              </button>
+            </div>
+          `
+        : ''}
 
       <div class="search-row selection-actions">
         <div class="search-box">

@@ -1,7 +1,9 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import {
+  loadHideSnoozedPreference,
   loadLastDuration,
   loadRecentSnoozes,
+  saveHideSnoozedPreference,
   saveLastDuration,
   saveRecentSnoozes,
 } from '../services/storage.js';
@@ -9,6 +11,7 @@ import type { LastDurationData } from '../services/storage.js';
 
 const LAST_DURATION_KEY = 'autosnooze_last_duration';
 const RECENT_SNOOZES_KEY = 'autosnooze_recent_snoozes';
+const HIDE_SNOOZED_KEY = 'autosnooze_hide_snoozed';
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 describe('storage mutation boundaries', () => {
@@ -136,6 +139,31 @@ describe('storage mutation boundaries', () => {
     });
 
     expect(() => saveRecentSnoozes(['automation.a'])).not.toThrow();
+    expect(setItemSpy).toHaveBeenCalled();
+  });
+
+  test('hide snoozed preference defaults false and round-trips through localStorage', () => {
+    expect(loadHideSnoozedPreference()).toBe(false);
+
+    saveHideSnoozedPreference(true);
+    expect(localStorage.getItem(HIDE_SNOOZED_KEY)).toBe('true');
+    expect(loadHideSnoozedPreference()).toBe(true);
+
+    saveHideSnoozedPreference(false);
+    expect(loadHideSnoozedPreference()).toBe(false);
+  });
+
+  test('hide snoozed preference treats corrupt storage as false and ignores write failures', () => {
+    localStorage.setItem(HIDE_SNOOZED_KEY, 'not-json');
+    expect(loadHideSnoozedPreference()).toBe(false);
+
+    localStorage.setItem(HIDE_SNOOZED_KEY, '"yes"');
+    expect(loadHideSnoozedPreference()).toBe(false);
+
+    const setItemSpy = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new Error('quota exceeded');
+    });
+    expect(() => saveHideSnoozedPreference(true)).not.toThrow();
     expect(setItemSpy).toHaveBeenCalled();
   });
 });

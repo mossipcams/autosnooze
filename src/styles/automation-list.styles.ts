@@ -59,6 +59,35 @@ export const automationListStyles = css`
       color: var(--primary-text-color);
     }
 
+    .hide-snoozed-row {
+      display: flex;
+      justify-content: flex-start;
+      margin: -4px 0 12px;
+    }
+    .hide-snoozed-toggle {
+      padding: 6px 14px;
+      border-radius: 16px;
+      cursor: pointer;
+      font-size: 0.85em;
+      background: transparent;
+      border: 1px solid var(--divider-color);
+      color: var(--primary-text-color);
+      min-height: 36px;
+      box-sizing: border-box;
+      transition: background 0.15s ease, border-color 0.15s ease;
+    }
+    .hide-snoozed-toggle:hover {
+      background: color-mix(in srgb, var(--primary-color) 12%, var(--card-background-color));
+    }
+    .hide-snoozed-toggle:focus-visible {
+      outline: 2px solid var(--primary-color);
+      outline-offset: 2px;
+    }
+    .hide-snoozed-toggle.active {
+      background: color-mix(in srgb, var(--primary-color) 16%, var(--card-background-color));
+      border-color: var(--primary-color);
+    }
+
     /* Search */
     .search-row {
       display: flex;

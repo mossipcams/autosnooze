@@ -36,6 +36,7 @@
     "scheduled_pause_for": "Scheduled pause for {name}",
     "cancel_scheduled_for": "Cancel scheduled pause for {name}",
     "filter_tabs": "Filter automations by",
+    "hide_snoozed": "Hide currently snoozed automations from the list",
     "automation_count": "{count} automations",
     "area_count": "{count} areas",
     "category_count": "{count} categories",
@@ -131,6 +132,9 @@
     "areas": "Areas",
     "categories": "Categories",
     "labels": "Labels"
+  },
+  "filter": {
+    "hide_snoozed": "Hide snoozed"
   },
   "search": {
     "placeholder": "Search automations..."
