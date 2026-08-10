@@ -88,7 +88,6 @@ export class AutomationPauseCard extends LitElement {
 
   private _pausedEntityIdsCache: string[] = [];
 
-
   static getConfigElement(): HTMLElement {
     return document.createElement('autosnooze-card-editor');
   }
@@ -129,11 +128,8 @@ export class AutomationPauseCard extends LitElement {
   private _syncPausedEntityIdsCache(): void {
     const next = Object.keys(this._getPausedSnapshot().paused);
     const prev = this._pausedEntityIdsCache;
-    if (prev.length === next.length) {
-      const prevSet = new Set(prev);
-      if (next.every((id) => prevSet.has(id))) {
-        return;
-      }
+    if (prev.length === next.length && next.every((id) => prev.includes(id))) {
+      return;
     }
     this._pausedEntityIdsCache = next;
   }
