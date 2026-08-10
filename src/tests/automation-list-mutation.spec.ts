@@ -437,13 +437,8 @@ describe('automation list mutation boundaries', () => {
     expect((element as never as { _searchTimeout: number | null })._searchTimeout).toBeNull();
   });
 
-  test('hides snoozed chip only when paused ids exist and filters the list when pressed', async () => {
+  test('always shows hide snoozed toggle and filters paused ids when pressed', async () => {
     const element = await connectList();
-    expect(element.shadowRoot?.querySelector('.hide-snoozed-toggle')).toBeNull();
-
-    element.pausedEntityIds = ['automation.porch'];
-    await element.updateComplete;
-
     const toggle = element.shadowRoot?.querySelector<HTMLButtonElement>('.hide-snoozed-toggle');
     expect(toggle).not.toBeNull();
     expect(toggle?.getAttribute('aria-pressed')).toBe('false');
@@ -451,10 +446,13 @@ describe('automation list mutation boundaries', () => {
 
     toggle?.click();
     await element.updateComplete;
-
     expect(toggle?.getAttribute('aria-pressed')).toBe('true');
-    expect(element.shadowRoot?.querySelectorAll('.list-item').length).toBe(2);
     expect(localStorage.getItem('autosnooze_hide_snoozed')).toBe('true');
+    expect(element.shadowRoot?.querySelectorAll('.list-item').length).toBe(3);
+
+    element.pausedEntityIds = ['automation.porch'];
+    await element.updateComplete;
+    expect(element.shadowRoot?.querySelectorAll('.list-item').length).toBe(2);
     expect(
       Array.from(element.shadowRoot?.querySelectorAll('.list-item') ?? []).map((item) =>
         getText(item.querySelector('.list-item-name'))

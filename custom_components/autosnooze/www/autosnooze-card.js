@@ -2388,19 +2388,17 @@ function e(e,t,o,a){var i,s=arguments.length,r=s<3?t:null===a?a=Object.getOwnPro
         </button>
       </div>
 
-      ${this.pausedEntityIds.length>0?B`
-            <div class="hide-snoozed-row">
-              <button
-                type="button"
-                class="hide-snoozed-toggle ${this._hideSnoozed?"active":""}"
-                @click=${()=>this._toggleHideSnoozed()}
-                aria-pressed=${this._hideSnoozed}
-                aria-label="${_e(this.hass,"a11y.hide_snoozed")}"
-              >
-                ${_e(this.hass,"filter.hide_snoozed")}
-              </button>
-            </div>
-          `:""}
+      <div class="hide-snoozed-row">
+        <button
+          type="button"
+          class="hide-snoozed-toggle ${this._hideSnoozed?"active":""}"
+          @click=${()=>this._toggleHideSnoozed()}
+          aria-pressed=${this._hideSnoozed}
+          aria-label="${_e(this.hass,"a11y.hide_snoozed")}"
+        >
+          ${_e(this.hass,"filter.hide_snoozed")}
+        </button>
+      </div>
 
       <div class="search-row selection-actions">
         <div class="search-box">

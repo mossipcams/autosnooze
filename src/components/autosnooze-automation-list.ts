@@ -444,21 +444,17 @@ export class AutoSnoozeAutomationList extends LitElement {
         </button>
       </div>
 
-      ${this.pausedEntityIds.length > 0
-        ? html`
-            <div class="hide-snoozed-row">
-              <button
-                type="button"
-                class="hide-snoozed-toggle ${this._hideSnoozed ? 'active' : ''}"
-                @click=${() => this._toggleHideSnoozed()}
-                aria-pressed=${this._hideSnoozed}
-                aria-label="${localize(this.hass, 'a11y.hide_snoozed')}"
-              >
-                ${localize(this.hass, 'filter.hide_snoozed')}
-              </button>
-            </div>
-          `
-        : ''}
+      <div class="hide-snoozed-row">
+        <button
+          type="button"
+          class="hide-snoozed-toggle ${this._hideSnoozed ? 'active' : ''}"
+          @click=${() => this._toggleHideSnoozed()}
+          aria-pressed=${this._hideSnoozed}
+          aria-label="${localize(this.hass, 'a11y.hide_snoozed')}"
+        >
+          ${localize(this.hass, 'filter.hide_snoozed')}
+        </button>
+      </div>
 
       <div class="search-row selection-actions">
         <div class="search-box">
