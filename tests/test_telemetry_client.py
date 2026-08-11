@@ -102,7 +102,10 @@ def test_track_does_not_raise_when_sanitize_fails(telemetry_client) -> None:
 
 
 def test_track_does_not_raise_when_sanitize_raises(telemetry_client) -> None:
-    with patch.object(telemetry_client, "sanitize", side_effect=RuntimeError("boom")):
+    with patch(
+        "custom_components.autosnooze.infrastructure.telemetry.sanitize_event_properties",
+        side_effect=RuntimeError("boom"),
+    ):
         telemetry_client.track("integration_active", {}, source="startup")
 
 

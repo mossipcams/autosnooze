@@ -9,11 +9,9 @@ on:
       - 'custom_components/autosnooze/application/report_telemetry.py'
       - 'docs/telemetry-payloads.json'
       - 'docs/telemetry-privacy.md'
-      - 'tests/telemetry-privacy.spec.ts'
+      - 'tests/test_telemetry_privacy.py'
       - 'tests/helpers/telemetry_privacy_capture.py'
       - 'requirements_test.txt'
-      - 'package.json'
-      - 'package-lock.json'
   pull_request:
     paths:
       - '.github/workflows/telemetry-privacy.yml'
@@ -21,11 +19,9 @@ on:
       - 'custom_components/autosnooze/application/report_telemetry.py'
       - 'docs/telemetry-payloads.json'
       - 'docs/telemetry-privacy.md'
-      - 'tests/telemetry-privacy.spec.ts'
+      - 'tests/test_telemetry_privacy.py'
       - 'tests/helpers/telemetry_privacy_capture.py'
       - 'requirements_test.txt'
-      - 'package.json'
-      - 'package-lock.json'
   workflow_dispatch:
 
 concurrency:
@@ -54,17 +50,8 @@ jobs:
       - name: Install Python dependencies
         run: pip install -r requirements_test.txt
 
-      - name: Setup Node
-        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
-        with:
-          node-version: '20'
-          cache: 'npm'
-
-      - name: Install Node dependencies
-        run: npm ci
-
       - name: Run telemetry privacy verification
-        run: npx vitest run tests/telemetry-privacy.spec.ts
+        run: python -m pytest tests/test_telemetry_privacy.py -q
 
       - name: Upload captured payload golden
         if: always()

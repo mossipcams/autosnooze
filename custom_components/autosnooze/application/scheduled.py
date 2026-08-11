@@ -148,7 +148,7 @@ async def async_execute_scheduled_disable(
         track_if_enabled(
             data,
             "notification_used",
-            {"trigger": "start"},
+            None,
             source="timer",
         )
     scheduled = data.paused.get(entity_id)

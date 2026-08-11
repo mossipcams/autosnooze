@@ -39,17 +39,14 @@ describe('reportTelemetry', () => {
 
     reportTelemetry(hass, {
       event: 'selection_feature_used',
-      properties: { method: 'all' },
       source: 'card',
     });
     reportTelemetry(hass, {
       event: 'duration_option_selected',
-      properties: { method: 'preset' },
       source: 'card',
     });
     reportTelemetry(hass, {
       event: 'confirmation_result',
-      properties: { result: 'confirmed' },
       source: 'card',
     });
 
@@ -72,62 +69,10 @@ describe('reportTelemetry', () => {
     expect(callService).not.toHaveBeenCalled();
   });
 
-  test('does not call service for invalid event names', () => {
-    const callService = vi.fn();
-    const hass = hassWithTelemetryService(callService);
-
-    reportTelemetry(hass, {
-      event: 'not_real' as 'card_viewed',
-      card_type: 'full',
-      source: 'card',
-    });
-
-    expect(callService).not.toHaveBeenCalled();
-  });
-
-  test('does not call service for unknown top-level fields', () => {
-    const callService = vi.fn();
-    const hass = hassWithTelemetryService(callService);
-
-    reportTelemetry(hass, {
-      event: 'card_viewed',
-      card_type: 'full',
-      source: 'card',
-      entity_id: 'automation.secret',
-    } as Parameters<typeof reportTelemetry>[1]);
-
-    expect(callService).not.toHaveBeenCalled();
-  });
-
-  test('does not call service for unknown property keys', () => {
-    const callService = vi.fn();
-    const hass = hassWithTelemetryService(callService);
-
-    reportTelemetry(hass, {
-      event: 'selection_feature_used',
-      properties: { method: 'all', entity_id: 'automation.secret' },
-      source: 'card',
-    } as Parameters<typeof reportTelemetry>[1]);
-
-    expect(callService).not.toHaveBeenCalled();
-  });
-
-  test('does not call service when required event fields are missing', () => {
-    const callService = vi.fn();
-    const hass = hassWithTelemetryService(callService);
-
-    reportTelemetry(hass, {
-      event: 'card_viewed',
-      source: 'card',
-    } as Parameters<typeof reportTelemetry>[1]);
-
-    expect(callService).not.toHaveBeenCalled();
-  });
-
   test('does not throw when callService is missing', () => {
     const hass = {} as HomeAssistant;
     expect(() =>
-      reportTelemetry(hass, { event: 'selection_feature_used', properties: { method: 'all' } })
+      reportTelemetry(hass, { event: 'selection_feature_used', source: 'card' })
     ).not.toThrow();
   });
 });

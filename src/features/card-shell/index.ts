@@ -151,7 +151,6 @@ export function trackCardViewed(hass: HomeAssistant, cardType: 'full' | 'snoozed
 export function trackDurationPresetSelected(hass: HomeAssistant): void {
   reportTelemetry(hass, {
     event: 'duration_option_selected',
-    properties: { method: 'preset' },
     source: 'card',
   });
 }

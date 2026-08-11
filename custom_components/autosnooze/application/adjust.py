@@ -13,7 +13,7 @@ from homeassistant.util import dt as dt_util
 
 from ..const import DOMAIN, MIN_ADJUST_BUFFER
 from ..domain.notifications import notification_window_supports_lead
-from ..infrastructure.telemetry import track_if_enabled, track_validation_failure
+from ..infrastructure.telemetry import track_if_enabled
 from ..logging_utils import _log_command, _raise_save_failed
 from ..models import PausedAutomation
 from ..runtime.ports import async_save, schedule_pre_resume_notification, schedule_resume
@@ -127,11 +127,15 @@ async def async_handle_adjust_service(
             translation_domain=DOMAIN,
             translation_key="invalid_adjustment",
         )
-        track_validation_failure(data, "adjust", err, target_count=len(entity_ids))
+        client = getattr(data, "telemetry", None)
+        if client is not None:
+            client.track_operation_failed("adjust", err, target_count=len(entity_ids))
         raise err
 
     try:
         await async_adjust_snooze_batch(hass, data, entity_ids, delta)
     except ServiceValidationError as err:
-        track_validation_failure(data, "adjust", err, target_count=len(entity_ids))
+        client = getattr(data, "telemetry", None)
+        if client is not None:
+            client.track_operation_failed("adjust", err, target_count=len(entity_ids))
         raise

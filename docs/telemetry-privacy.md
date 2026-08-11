@@ -26,18 +26,18 @@ Event-specific `payload` keys:
 |-------|------------|
 | `integration_active` | versions and source only |
 | `card_viewed` | `card_type` |
-| `selection_feature_used` | `method` |
-| `duration_option_selected` | `method` |
+| `selection_feature_used` | versions and source only |
+| `duration_option_selected` | versions and source only |
 | `snooze_created` | `strategy`, `input_method`, `duration_minutes`, `target_count`, `notification_trigger`, `notification_lead_minutes`, `confirmation_used` |
 | `scheduled_snooze_created` | `minutes_until_start`, `planned_duration_minutes`, `target_count`, `resume_local_hour` |
 | `scheduled_snooze_started` | `target_count`, `planned_duration_minutes` |
 | `snooze_adjusted` | `delta_minutes`, `direction` |
-| `snooze_ended` | `reason` |
+| `snooze_ended` | versions and source only |
 | `scheduled_snooze_cancelled` | `target_count`, `minutes_before_start` |
-| `notification_used` | `trigger` |
+| `notification_used` | versions and source only |
 | `notification_cleared` | `target_count` |
 | `operation_failed` | `operation`, `error_code`, `strategy`, `target_count` |
-| `confirmation_result` | `result` |
+| `confirmation_result` | versions and source only |
 
 ## Captured payloads
 
@@ -65,15 +65,14 @@ These Home Assistant field names are also forbidden inside `payload`:
 
 ## Test source
 
-- [tests/telemetry-privacy.spec.ts](../tests/telemetry-privacy.spec.ts)
+- [tests/test_telemetry_privacy.py](../tests/test_telemetry_privacy.py)
 
-The Vitest spec spawns the Python capture helper, which calls `TelemetryClient.track` and `report_telemetry` while mocking `async_get_clientsession` / `session.post`.
+The pytest module runs the Python capture helper, which calls `TelemetryClient.track` and `report_telemetry` while mocking `async_get_clientsession` / `session.post`.
 
 ## Reproduce locally
 
 ```bash
 python3 -m venv .venv
 .venv/bin/pip install -r requirements_test.txt
-npm ci
-npx vitest run tests/telemetry-privacy.spec.ts
+.venv/bin/python -m pytest tests/test_telemetry_privacy.py -q
 ```

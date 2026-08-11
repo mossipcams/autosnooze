@@ -67,8 +67,8 @@ TRANSLATION_KEY_TO_ERROR_CODE: dict[str, str] = {
 EVENT_SCHEMAS: dict[str, frozenset[str]] = {
     "integration_active": frozenset(),
     "card_viewed": frozenset({"card_type"}),
-    "selection_feature_used": frozenset({"method"}),
-    "duration_option_selected": frozenset({"method"}),
+    "selection_feature_used": frozenset(),
+    "duration_option_selected": frozenset(),
     "snooze_created": frozenset(
         {
             "strategy",
@@ -90,12 +90,12 @@ EVENT_SCHEMAS: dict[str, frozenset[str]] = {
     ),
     "scheduled_snooze_started": frozenset({"target_count", "planned_duration_minutes"}),
     "snooze_adjusted": frozenset({"delta_minutes", "direction"}),
-    "snooze_ended": frozenset({"reason"}),
+    "snooze_ended": frozenset(),
     "scheduled_snooze_cancelled": frozenset({"target_count", "minutes_before_start"}),
-    "notification_used": frozenset({"trigger"}),
+    "notification_used": frozenset(),
     "notification_cleared": frozenset({"target_count"}),
     "operation_failed": frozenset({"operation", "error_code", "strategy", "target_count"}),
-    "confirmation_result": frozenset({"result"}),
+    "confirmation_result": frozenset(),
 }
 
 
@@ -119,6 +119,8 @@ def sanitize_event_properties(
         return None
     if source not in SOURCES:
         return None
+    if properties is not None and not isinstance(properties, dict):
+        return None
 
     allowed = EVENT_SCHEMAS[event]
     cleaned: dict[str, str] = {}
@@ -134,17 +136,7 @@ def sanitize_event_properties(
 
     if event == "card_viewed" and cleaned.get("card_type") not in CARD_TYPES:
         return None
-    if event == "selection_feature_used" and cleaned.get("method") != "all":
-        return None
-    if event == "duration_option_selected" and cleaned.get("method") != "preset":
-        return None
     if event == "snooze_created" and cleaned.get("strategy") not in SNOOZE_STRATEGIES:
-        return None
-    if event == "snooze_ended" and cleaned.get("reason") != "expired":
-        return None
-    if event == "notification_used" and cleaned.get("trigger") != "start":
-        return None
-    if event == "confirmation_result" and cleaned.get("result") != "confirmed":
         return None
     if event == "operation_failed" and cleaned.get("error_code") not in ERROR_CODE_ALLOWLIST:
         return None
@@ -240,11 +232,6 @@ class TelemetryClient:
             self.hass.async_create_task(self.async_flush())
         except Exception:
             _LOGGER.debug("Telemetry track failed", exc_info=True)
-
-    def sanitize(
-        self, event: str, properties: dict[str, Any] | None, *, source: str, card_type: str | None = None
-    ) -> dict[str, str] | None:
-        return sanitize_event_properties(event, properties, source=source, card_type=card_type)
 
     async def async_flush(self) -> None:
         if self._flush_scheduled:
@@ -435,24 +422,3 @@ def track_pause_success(
             },
             source=source,
         )
-
-
-def track_validation_failure(
-    data: Any,
-    operation: str,
-    error: ServiceValidationError,
-    *,
-    source: str = "service",
-    strategy: str = "",
-    target_count: int = 0,
-) -> None:
-    client = getattr(data, "telemetry", None)
-    if client is None:
-        return
-    client.track_operation_failed(
-        operation,
-        error,
-        source=source,
-        strategy=strategy,
-        target_count=target_count,
-    )

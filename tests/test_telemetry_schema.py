@@ -100,6 +100,10 @@ def test_sanitize_rejects_invalid_strategy() -> None:
     )
 
 
+def test_sanitize_rejects_non_dict_properties() -> None:
+    assert sanitize_event_properties("snooze_created", "bad", source="card") is None
+
+
 def test_sanitize_card_viewed_requires_card_type() -> None:
     assert sanitize_event_properties("card_viewed", {}, source="card", card_type="full") is not None
     assert sanitize_event_properties("card_viewed", {}, source="card", card_type="bad") is None

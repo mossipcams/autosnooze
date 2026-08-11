@@ -74,7 +74,7 @@ async def async_resume(
         track_if_enabled(
             data,
             "snooze_ended",
-            {"reason": "expired"},
+            None,
             source="timer",
         )
     if woke_successfully:

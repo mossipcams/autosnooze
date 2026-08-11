@@ -50,7 +50,6 @@ export { formatRegistryId };
 export function trackSelectionFeatureUsed(hass: HomeAssistant): void {
   reportTelemetry(hass, {
     event: 'selection_feature_used',
-    properties: { method: 'all' },
     source: 'card',
   });
 }

@@ -313,7 +313,6 @@ export async function runPauseFeature(input: RunPauseFeatureInput): Promise<RunP
 export function trackConfirmationResult(hass: HomeAssistant): void {
   reportTelemetry(hass, {
     event: 'confirmation_result',
-    properties: { result: 'confirmed' },
     source: 'card',
   });
 }

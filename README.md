@@ -117,18 +117,18 @@ Events are explicit and property-scoped. Shared properties on applicable events:
 |-------|------------|
 | `integration_active` | versions only |
 | `card_viewed` | `card_type` (throttled once per install per UTC day) |
-| `selection_feature_used` | `method: all` |
-| `duration_option_selected` | `method: preset` |
+| `selection_feature_used` | versions only |
+| `duration_option_selected` | versions only |
 | `snooze_created` | `strategy`, `input_method`, `duration_minutes`, `target_count`, `notification_trigger`, `notification_lead_minutes`, `confirmation_used` |
 | `scheduled_snooze_created` | `minutes_until_start`, `planned_duration_minutes`, `target_count`, `resume_local_hour` |
 | `scheduled_snooze_started` | `target_count`, `planned_duration_minutes` |
 | `snooze_adjusted` | `delta_minutes`, `direction: extend` |
-| `snooze_ended` | `reason: expired` |
+| `snooze_ended` | versions only |
 | `scheduled_snooze_cancelled` | `target_count`, `minutes_before_start` |
-| `notification_used` | `trigger: start` |
+| `notification_used` | versions only |
 | `notification_cleared` | `target_count` |
 | `operation_failed` | `operation`, `error_code`, `strategy`, `target_count` |
-| `confirmation_result` | `result: confirmed` |
+| `confirmation_result` | versions only |
 
 ### What is never sent
 
@@ -147,35 +147,6 @@ Events are explicit and property-scoped. Shared properties on applicable events:
 Telemetry is **on by default**. Turn it off in **Settings → Devices & Services → AutoSnooze → Configure → Send anonymous usage data**.
 
 AutoSnooze's telemetry payloads are verified in public CI. The test executes every instrumented action using deliberately identifiable Home Assistant data, captures the actual TelemetryDeck requests, and fails if any private or undocumented data is transmitted. [View verification](docs/telemetry-privacy.md)
-
-### Example payload
-
-Signals are posted as a JSON array to TelemetryDeck. A `snooze_created` event looks like this:
-
-```json
-[
-  {
-    "appID": "C7769C33-556B-40B1-9C4D-0982BE33DEDE",
-    "clientUser": "a1b2c3d4e5f6789012345678901234567890abcdef1234567890abcdef123456",
-    "type": "snooze_created",
-    "payload": {
-      "autosnooze_version": "0.2.27",
-      "home_assistant_version": "2024.1.0",
-      "event_schema_version": "1",
-      "source": "card",
-      "strategy": "duration",
-      "input_method": "card",
-      "duration_minutes": "240",
-      "target_count": "2",
-      "notification_trigger": "none",
-      "notification_lead_minutes": "0",
-      "confirmation_used": "false"
-    }
-  }
-]
-```
-
-`clientUser` is a SHA-256 hash of a random per-install UUID stored locally. The install UUID is never included in the payload.
 
 -----
 

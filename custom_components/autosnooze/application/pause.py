@@ -38,7 +38,6 @@ from ..infrastructure.telemetry import (
     resolve_pause_strategy,
     track_if_enabled,
     track_pause_success,
-    track_validation_failure,
 )
 from ..logging_utils import _log_command, _raise_save_failed
 from ..models import PausedAutomation, ScheduledSnooze, ensure_utc_aware
@@ -222,9 +221,7 @@ async def async_pause_automations(
     schedule_resume_callback: ScheduleResume | None = None,
     schedule_disable_callback: ScheduleDisable | None = None,
     schedule_pre_resume_notification_callback: SchedulePreResumeNotification | None = None,
-    telemetry_call_data: Mapping[str, Any] | None = None,
-    telemetry_input_method: str = "service",
-    telemetry_confirm: bool = False,
+    service_call: ServiceCall | None = None,
 ) -> None:
     """Pause automations with duration or dates."""
     set_state = set_automation_state or (
@@ -420,15 +417,15 @@ async def async_pause_automations(
             track_if_enabled(
                 data,
                 "notification_used",
-                {"trigger": "start"},
+                None,
                 source="service",
             )
-        if telemetry_call_data is not None:
+        if service_call is not None:
             track_pause_success(
                 data,
-                call_data=telemetry_call_data,
-                input_method=telemetry_input_method,
-                confirm=telemetry_confirm,
+                call_data=service_call.data,
+                input_method=input_method_from_call(service_call),
+                confirm=service_call.data.get("confirm", False),
                 paused_count=len(paused_entries),
                 scheduled_count=len(scheduled_entries),
                 notification_trigger=notification_trigger,
@@ -451,6 +448,36 @@ async def async_pause_automations(
 
 def _validate_guardrails(hass: HomeAssistant, entity_ids: list[str], confirm: bool = False) -> None:
     validate_guardrails(hass, entity_ids, confirm=confirm)
+
+
+def _track_pause_validation_failure(
+    data: AutomationPauseData,
+    call: ServiceCall,
+    err: ServiceValidationError,
+    entity_ids: list[str],
+    *,
+    disable_at: datetime | None,
+    resume_at_dt: datetime | None,
+    days: int,
+    hours: int,
+    minutes: int,
+) -> None:
+    client = getattr(data, "telemetry", None)
+    if client is None:
+        return
+    client.track_operation_failed(
+        "pause",
+        err,
+        target_count=len(entity_ids),
+        strategy=resolve_pause_strategy(
+            call.data,
+            use_scheduled=disable_at is not None and resume_at_dt is not None,
+            resume_at_dt=resume_at_dt,
+            days=days,
+            hours=hours,
+            minutes=minutes,
+        ),
+    )
 
 
 async def async_handle_pause_service(
@@ -485,24 +512,19 @@ async def async_handle_pause_service(
             resume_at_dt,
             notification_trigger,
             notification_lead_minutes,
-            telemetry_call_data=call.data,
-            telemetry_input_method=input_method_from_call(call),
-            telemetry_confirm=confirm,
+            service_call=call,
         )
     except ServiceValidationError as err:
-        track_validation_failure(
+        _track_pause_validation_failure(
             data,
-            "pause",
+            call,
             err,
-            target_count=len(entity_ids),
-            strategy=resolve_pause_strategy(
-                call.data,
-                use_scheduled=disable_at is not None and resume_at_dt is not None,
-                resume_at_dt=resume_at_dt,
-                days=days,
-                hours=hours,
-                minutes=minutes,
-            ),
+            entity_ids,
+            disable_at=disable_at,
+            resume_at_dt=resume_at_dt,
+            days=days,
+            hours=hours,
+            minutes=minutes,
         )
         raise
 
@@ -568,23 +590,18 @@ async def _handle_pause_by_filter(
             resume_at_dt,
             call.data.get("notification_trigger", NOTIFICATION_TRIGGER_NONE),
             call.data.get("notification_lead_minutes"),
-            telemetry_call_data=call.data,
-            telemetry_input_method=input_method_from_call(call),
-            telemetry_confirm=confirm,
+            service_call=call,
         )
     except ServiceValidationError as err:
-        track_validation_failure(
+        _track_pause_validation_failure(
             data,
-            "pause",
+            call,
             err,
-            target_count=len(entity_ids),
-            strategy=resolve_pause_strategy(
-                call.data,
-                use_scheduled=disable_at is not None and resume_at_dt is not None,
-                resume_at_dt=resume_at_dt,
-                days=days,
-                hours=hours,
-                minutes=minutes,
-            ),
+            entity_ids,
+            disable_at=disable_at,
+            resume_at_dt=resume_at_dt,
+            days=days,
+            hours=hours,
+            minutes=minutes,
         )
         raise

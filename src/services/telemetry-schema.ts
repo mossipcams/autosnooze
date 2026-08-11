@@ -1,170 +1,91 @@
-import { z } from 'zod';
+export type TelemetrySource = 'card' | 'service' | 'timer' | 'startup';
 
-const sourceSchema = z.enum(['card', 'service', 'timer', 'startup']).optional();
+export type Scalar = string | number | boolean;
 
-const scalar = z.union([z.string(), z.number(), z.boolean()]);
+export type SnoozeStrategy =
+  | 'duration'
+  | 'resume_datetime'
+  | 'resume_time'
+  | 'end_of_day'
+  | 'next_morning'
+  | 'next_sunrise'
+  | 'next_sunset'
+  | 'scheduled_window';
 
-const snoozeStrategySchema = z.enum([
-  'duration',
-  'resume_datetime',
-  'resume_time',
-  'end_of_day',
-  'next_morning',
-  'next_sunrise',
-  'next_sunset',
-  'scheduled_window',
-]);
+export type ErrorCode =
+  | 'invalid_duration'
+  | 'resume_time_past'
+  | 'disable_after_resume'
+  | 'confirmation_required'
+  | 'save_failed'
+  | 'notification_lead_too_long'
+  | 'automation_state_failed'
+  | 'unknown';
 
-const errorCodeSchema = z.enum([
-  'invalid_duration',
-  'resume_time_past',
-  'disable_after_resume',
-  'confirmation_required',
-  'save_failed',
-  'notification_lead_too_long',
-  'automation_state_failed',
-  'unknown',
-]);
+type WithSource = { source?: TelemetrySource };
 
-export const reportTelemetryInputSchema = z.discriminatedUnion('event', [
-  z
-    .object({
-      event: z.literal('integration_active'),
-      source: sourceSchema,
-      properties: z.object({}).strict().optional(),
-    })
-    .strict(),
-  z
-    .object({
-      event: z.literal('card_viewed'),
-      source: sourceSchema,
-      card_type: z.enum(['full', 'snoozed_only']),
-      properties: z.object({}).strict().optional(),
-    })
-    .strict(),
-  z
-    .object({
-      event: z.literal('selection_feature_used'),
-      source: sourceSchema,
-      properties: z.object({ method: z.literal('all') }).strict(),
-    })
-    .strict(),
-  z
-    .object({
-      event: z.literal('duration_option_selected'),
-      source: sourceSchema,
-      properties: z.object({ method: z.literal('preset') }).strict(),
-    })
-    .strict(),
-  z
-    .object({
-      event: z.literal('snooze_created'),
-      source: sourceSchema,
-      properties: z
-        .object({
-          strategy: snoozeStrategySchema,
-          input_method: scalar,
-          duration_minutes: scalar,
-          target_count: scalar,
-          notification_trigger: scalar,
-          notification_lead_minutes: scalar,
-          confirmation_used: scalar,
-        })
-        .strict(),
-    })
-    .strict(),
-  z
-    .object({
-      event: z.literal('scheduled_snooze_created'),
-      source: sourceSchema,
-      properties: z
-        .object({
-          minutes_until_start: scalar,
-          planned_duration_minutes: scalar,
-          target_count: scalar,
-          resume_local_hour: scalar,
-        })
-        .strict(),
-    })
-    .strict(),
-  z
-    .object({
-      event: z.literal('scheduled_snooze_started'),
-      source: sourceSchema,
-      properties: z
-        .object({
-          target_count: scalar,
-          planned_duration_minutes: scalar,
-        })
-        .strict(),
-    })
-    .strict(),
-  z
-    .object({
-      event: z.literal('snooze_adjusted'),
-      source: sourceSchema,
-      properties: z
-        .object({
-          delta_minutes: scalar,
-          direction: scalar,
-        })
-        .strict(),
-    })
-    .strict(),
-  z
-    .object({
-      event: z.literal('snooze_ended'),
-      source: sourceSchema,
-      properties: z.object({ reason: z.literal('expired') }).strict(),
-    })
-    .strict(),
-  z
-    .object({
-      event: z.literal('scheduled_snooze_cancelled'),
-      source: sourceSchema,
-      properties: z
-        .object({
-          target_count: scalar,
-          minutes_before_start: scalar,
-        })
-        .strict(),
-    })
-    .strict(),
-  z
-    .object({
-      event: z.literal('notification_used'),
-      source: sourceSchema,
-      properties: z.object({ trigger: z.literal('start') }).strict(),
-    })
-    .strict(),
-  z
-    .object({
-      event: z.literal('notification_cleared'),
-      source: sourceSchema,
-      properties: z.object({ target_count: scalar }).strict(),
-    })
-    .strict(),
-  z
-    .object({
-      event: z.literal('operation_failed'),
-      source: sourceSchema,
-      properties: z
-        .object({
-          operation: scalar,
-          error_code: errorCodeSchema,
-          strategy: scalar,
-          target_count: scalar,
-        })
-        .strict(),
-    })
-    .strict(),
-  z
-    .object({
-      event: z.literal('confirmation_result'),
-      source: sourceSchema,
-      properties: z.object({ result: z.literal('confirmed') }).strict(),
-    })
-    .strict(),
-]);
-
-export type ReportTelemetryInput = z.infer<typeof reportTelemetryInputSchema>;
+export type ReportTelemetryInput =
+  | ({ event: 'integration_active' } & WithSource)
+  | ({ event: 'card_viewed'; card_type: 'full' | 'snoozed_only' } & WithSource)
+  | ({ event: 'selection_feature_used' } & WithSource)
+  | ({ event: 'duration_option_selected' } & WithSource)
+  | ({
+      event: 'snooze_created';
+      properties: {
+        strategy: SnoozeStrategy;
+        input_method: Scalar;
+        duration_minutes: Scalar;
+        target_count: Scalar;
+        notification_trigger: Scalar;
+        notification_lead_minutes: Scalar;
+        confirmation_used: Scalar;
+      };
+    } & WithSource)
+  | ({
+      event: 'scheduled_snooze_created';
+      properties: {
+        minutes_until_start: Scalar;
+        planned_duration_minutes: Scalar;
+        target_count: Scalar;
+        resume_local_hour: Scalar;
+      };
+    } & WithSource)
+  | ({
+      event: 'scheduled_snooze_started';
+      properties: {
+        target_count: Scalar;
+        planned_duration_minutes: Scalar;
+      };
+    } & WithSource)
+  | ({
+      event: 'snooze_adjusted';
+      properties: {
+        delta_minutes: Scalar;
+        direction: Scalar;
+      };
+    } & WithSource)
+  | ({ event: 'snooze_ended' } & WithSource)
+  | ({
+      event: 'scheduled_snooze_cancelled';
+      properties: {
+        target_count: Scalar;
+        minutes_before_start: Scalar;
+      };
+    } & WithSource)
+  | ({ event: 'notification_used' } & WithSource)
+  | ({
+      event: 'notification_cleared';
+      properties: {
+        target_count: Scalar;
+      };
+    } & WithSource)
+  | ({
+      event: 'operation_failed';
+      properties: {
+        operation: Scalar;
+        error_code: ErrorCode;
+        strategy: Scalar;
+        target_count: Scalar;
+      };
+    } & WithSource)
+  | ({ event: 'confirmation_result' } & WithSource);

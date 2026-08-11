@@ -79,9 +79,9 @@ STANDARD_PAYLOAD_KEYS = frozenset(
 
 CARD_REPORT_EVENTS: dict[str, dict[str, Any]] = {
     "card_viewed": {"properties": {}, "source": "card", "card_type": "full"},
-    "selection_feature_used": {"properties": {"method": "all"}, "source": "card"},
-    "duration_option_selected": {"properties": {"method": "preset"}, "source": "card"},
-    "confirmation_result": {"properties": {"result": "confirmed"}, "source": "card"},
+    "selection_feature_used": {"properties": {}, "source": "card"},
+    "duration_option_selected": {"properties": {}, "source": "card"},
+    "confirmation_result": {"properties": {}, "source": "card"},
     "snooze_created": {
         "properties": {
             "strategy": "duration",
@@ -115,12 +115,12 @@ TRACK_EVENTS: dict[str, dict[str, Any]] = {
         "properties": {"delta_minutes": 15, "direction": "extend"},
         "source": "card",
     },
-    "snooze_ended": {"properties": {"reason": "expired"}, "source": "timer"},
+    "snooze_ended": {"properties": {}, "source": "timer"},
     "scheduled_snooze_cancelled": {
         "properties": {"target_count": 1, "minutes_before_start": 30},
         "source": "service",
     },
-    "notification_used": {"properties": {"trigger": "start"}, "source": "card"},
+    "notification_used": {"properties": {}, "source": "card"},
     "notification_cleared": {"properties": {"target_count": 1}, "source": "service"},
     "operation_failed": {
         "properties": {
