@@ -19,6 +19,7 @@ import type {
   ScheduledSnoozeAttribute,
 } from '../../types/hass.js';
 import type { CountdownState } from '../../utils/countdown-timer.js';
+import { reportTelemetry } from '../../services/telemetry.js';
 
 export type { LastDurationData };
 
@@ -141,6 +142,18 @@ export function getConfiguredDurationPresets(hass?: HomeAssistant): DurationPres
 
 export function getCardSnoozeSensorEntity(hass?: HomeAssistant) {
   return getPausedSensorEntity(hass);
+}
+
+export function trackCardViewed(hass: HomeAssistant, cardType: 'full' | 'snoozed_only'): void {
+  reportTelemetry(hass, { event: 'card_viewed', card_type: cardType, source: 'card' });
+}
+
+export function trackDurationPresetSelected(hass: HomeAssistant): void {
+  reportTelemetry(hass, {
+    event: 'duration_option_selected',
+    properties: { method: 'preset' },
+    source: 'card',
+  });
 }
 
 export type SyncAdjustModalResult =

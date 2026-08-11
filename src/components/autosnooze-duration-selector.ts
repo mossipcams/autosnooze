@@ -22,6 +22,7 @@ import type { ParsedDuration } from '../types/automation.js';
 import type { HomeAssistant } from '../types/hass.js';
 import {
   getConfiguredDurationPresets,
+  trackDurationPresetSelected,
   type LastDurationData,
 } from '../features/card-shell/index.js';
 import { defineAutoSnoozeElement } from '../utils/custom-element-registration.js';
@@ -303,7 +304,12 @@ export class AutoSnoozeDurationSelector extends LitElement {
                 <button
                   type="button"
                   class="pill ${isActive ? 'active' : ''}"
-                  @click=${() => this._fireDurationChange(d.minutes, { showCustomInput: false })}
+                  @click=${() => {
+                    if (this.hass) {
+                      trackDurationPresetSelected(this.hass);
+                    }
+                    this._fireDurationChange(d.minutes, { showCustomInput: false });
+                  }}
                   role="radio"
                   aria-checked=${isActive}
                 >

@@ -12,6 +12,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.util import dt as dt_util
 
 from ..domain.notifications import NOTIFICATION_TRIGGER_NONE, validate_notification_config
+from ..infrastructure.telemetry import track_if_enabled
 from ..infrastructure.storage import async_save
 from ..models import PausedAutomation, ScheduledSnooze, parse_datetime_utc
 from .state import AutomationPauseData
@@ -270,3 +271,14 @@ async def async_load_stored(
     data.notify()
     if restored_started:
         await callbacks.notify_started(hass, restored_started)
+        for paused in restored_started:
+            start = paused.disable_at or paused.paused_at
+            track_if_enabled(
+                data,
+                "scheduled_snooze_started",
+                {
+                    "target_count": 1,
+                    "planned_duration_minutes": max(int((paused.resume_at - start).total_seconds() // 60), 0),
+                },
+                source="startup",
+            )

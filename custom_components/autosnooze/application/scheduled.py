@@ -11,6 +11,8 @@ from homeassistant.core import HomeAssistant, ServiceCall
 from homeassistant.util import dt as dt_util
 
 from ..const import SCHEDULED_DISABLE_RETRY_DELAY
+from ..domain.notifications import NOTIFICATION_TRIGGER_START
+from ..infrastructure.telemetry import track_if_enabled
 from ..logging_utils import _log_command, _raise_save_failed
 from ..models import PausedAutomation, ScheduledSnooze
 from ..runtime import ports as runtime_ports
@@ -142,6 +144,27 @@ async def async_execute_scheduled_disable(
         return
     data.notify()
     await notify_started(hass, [success_paused])
+    if success_paused.notification_trigger == NOTIFICATION_TRIGGER_START:
+        track_if_enabled(
+            data,
+            "notification_used",
+            {"trigger": "start"},
+            source="timer",
+        )
+    scheduled = data.paused.get(entity_id)
+    planned_duration = 0
+    if scheduled is not None:
+        start = scheduled.disable_at or scheduled.paused_at
+        planned_duration = max(int((scheduled.resume_at - start).total_seconds() // 60), 0)
+    track_if_enabled(
+        data,
+        "scheduled_snooze_started",
+        {
+            "target_count": 1,
+            "planned_duration_minutes": planned_duration,
+        },
+        source="timer",
+    )
     _LOGGER.info("Executed scheduled snooze for %s until %s", entity_id, resume_at)
 
 
@@ -162,7 +185,21 @@ async def async_cancel_scheduled_batch(
         async with data.lock:
             for entity_id in entity_ids:
                 cancel_scheduled_timer(data, entity_id)
-                data.scheduled.pop(entity_id, None)
+                scheduled = data.scheduled.pop(entity_id, None)
+                if scheduled is not None:
+                    minutes_before_start = max(
+                        int((scheduled.disable_at - dt_util.utcnow()).total_seconds() // 60),
+                        0,
+                    )
+                    track_if_enabled(
+                        data,
+                        "scheduled_snooze_cancelled",
+                        {
+                            "target_count": 1,
+                            "minutes_before_start": minutes_before_start,
+                        },
+                        source="service",
+                    )
         if not await runtime_ports.async_save(data):
             _raise_save_failed()
         data.notify()

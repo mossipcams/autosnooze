@@ -1120,6 +1120,7 @@ describe('Snooze Validation - Mutation Killing', () => {
     card.hass = mockHass;
     document.body.appendChild(card);
     await card.updateComplete;
+    mockHass.callService.mockClear();
   });
 
   afterEach(() => {

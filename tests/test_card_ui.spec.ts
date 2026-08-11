@@ -1441,6 +1441,7 @@ describe('Snooze Operations', () => {
     card.hass = mockHass;
     document.body.appendChild(card);
     await card.updateComplete;
+    mockHass.callService.mockClear();
   });
 
   afterEach(() => {
@@ -1554,9 +1555,14 @@ describe('Snooze Operations', () => {
       await Promise.resolve();
       await card.updateComplete;
 
-      expect(mockHass.callService).toHaveBeenCalledTimes(2);
-      const secondCall = mockHass.callService.mock.calls[1];
-      expect(secondCall[2].confirm).toBe(true);
+      const pauseCalls = mockHass.callService.mock.calls.filter((call) => call[1] === 'pause');
+      expect(pauseCalls).toHaveLength(2);
+      expect(pauseCalls[1][2].confirm).toBe(true);
+      expect(mockHass.callService).toHaveBeenCalledWith(
+        'autosnooze',
+        'report_telemetry',
+        expect.objectContaining({ event: 'confirmation_result' })
+      );
     });
   });
 
@@ -2013,6 +2019,7 @@ describe('Schedule Mode Validation', () => {
     card.hass = mockHass;
     document.body.appendChild(card);
     await card.updateComplete;
+    mockHass.callService.mockClear();
   });
 
   afterEach(() => {
@@ -2284,6 +2291,7 @@ describe('Undo Functionality in Snooze', () => {
     card.hass = mockHass;
     document.body.appendChild(card);
     await card.updateComplete;
+    mockHass.callService.mockClear();
   });
 
   afterEach(() => {
@@ -2386,13 +2394,20 @@ describe('Undo Functionality in Snooze', () => {
     undoBtn.click();
     await new Promise((resolve) => setTimeout(resolve, 10));
 
-    expect(mockHass.callService).toHaveBeenCalledTimes(3);
-    expect(mockHass.callService).toHaveBeenNthCalledWith(2, 'autosnooze', 'cancel', {
-      entity_id: 'automation.test',
-    });
-    expect(mockHass.callService).toHaveBeenNthCalledWith(3, 'autosnooze', 'cancel', {
-      entity_id: 'automation.second',
-    });
+    const actionCalls = mockHass.callService.mock.calls.filter(
+      (call) => call[1] === 'pause' || call[1] === 'cancel'
+    );
+    expect(actionCalls).toHaveLength(3);
+    expect(actionCalls[1]).toEqual([
+      'autosnooze',
+      'cancel',
+      { entity_id: 'automation.test' },
+    ]);
+    expect(actionCalls[2]).toEqual([
+      'autosnooze',
+      'cancel',
+      { entity_id: 'automation.second' },
+    ]);
     expect(card._selected).toEqual(['automation.test']);
   });
 });

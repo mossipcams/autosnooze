@@ -11,6 +11,7 @@ from .const import (
     PAUSE_BY_AREA_SCHEMA,
     PAUSE_BY_LABEL_SCHEMA,
     PAUSE_SCHEMA,
+    REPORT_TELEMETRY_SCHEMA,
 )
 from .application.pause import (
     async_handle_pause_by_area_service,
@@ -24,6 +25,7 @@ from .application.resume import (
 )
 from .application.scheduled import async_handle_cancel_scheduled_service
 from .application.adjust import async_handle_adjust_service
+from .application.report_telemetry import async_handle_report_telemetry
 from .runtime.state import AutomationPauseData
 
 SERVICE_NAMES = (
@@ -35,6 +37,7 @@ SERVICE_NAMES = (
     "cancel_scheduled",
     "clear_notification",
     "adjust",
+    "report_telemetry",
 )
 
 
@@ -70,6 +73,9 @@ def register_services(hass: HomeAssistant, data: AutomationPauseData) -> None:
         """Handle adjust snooze service call."""
         await async_handle_adjust_service(hass, data, call)
 
+    async def handle_report_telemetry(call: ServiceCall) -> None:
+        await async_handle_report_telemetry(hass, data, call)
+
     hass.services.async_register(DOMAIN, "pause", handle_pause, schema=PAUSE_SCHEMA)
     hass.services.async_register(DOMAIN, "cancel", handle_cancel, schema=CANCEL_SCHEMA)
     hass.services.async_register(DOMAIN, "cancel_all", handle_cancel_all)
@@ -83,6 +89,12 @@ def register_services(hass: HomeAssistant, data: AutomationPauseData) -> None:
         schema=CANCEL_SCHEMA,
     )
     hass.services.async_register(DOMAIN, "adjust", handle_adjust, schema=ADJUST_SCHEMA)
+    hass.services.async_register(
+        DOMAIN,
+        "report_telemetry",
+        handle_report_telemetry,
+        schema=REPORT_TELEMETRY_SCHEMA,
+    )
 
 
 def unregister_services(hass: HomeAssistant) -> None:

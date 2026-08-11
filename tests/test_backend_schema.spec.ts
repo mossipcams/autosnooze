@@ -457,6 +457,8 @@ describe('Frontend Service Calls with Captured Responses', () => {
     card.hass = mockHass;
     document.body.appendChild(card);
     await card.updateComplete;
+    // Ignore card_viewed telemetry from connectedCallback
+    mockCallService.mockClear();
   });
 
   afterEach(() => {

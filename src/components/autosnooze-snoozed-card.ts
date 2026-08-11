@@ -18,6 +18,7 @@ import {
   getCardSnoozeSensorEntity,
   getCardPausedSnapshot,
   isCardSnoozeSensorAvailable,
+  trackCardViewed,
 } from '../features/card-shell/index.js';
 
 export class AutoSnoozeSnoozedCard extends LitElement {
@@ -39,6 +40,13 @@ export class AutoSnoozeSnoozedCard extends LitElement {
 
   setConfig(config: AutoSnoozeCardConfig): void {
     this.config = config;
+  }
+
+  connectedCallback(): void {
+    super.connectedCallback();
+    if (this.hass) {
+      trackCardViewed(this.hass, 'snoozed_only');
+    }
   }
 
   getCardSize(): number {

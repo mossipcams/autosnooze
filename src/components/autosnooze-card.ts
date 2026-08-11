@@ -27,13 +27,14 @@ import {
   loadCardRecentSnoozeIds,
   createScheduleModeState,
   syncAdjustModalWithPaused,
+  trackCardViewed,
   type LastDurationData,
 } from '../features/card-shell/index.js';
 import { formatDateTime, formatDuration } from '../utils/time-formatting.js';
 import { durationToMinutes, isDurationValid, minutesToDuration } from '../utils/duration-parsing.js';
 import { hapticFeedback } from '../utils/haptic.js';
 import { defineAutoSnoozeElement } from '../utils/custom-element-registration.js';
-import { runPauseFeature } from '../features/pause/index.js';
+import { runPauseFeature, trackConfirmationResult } from '../features/pause/index.js';
 import {
   runUndoFeature,
   runClearNotificationFeature,
@@ -151,7 +152,10 @@ export class AutomationPauseCard extends LitElement {
   connectedCallback(): void {
     super.connectedCallback();
 
-    if (this.hass) void this._shell.connect(this.hass);
+    if (this.hass) {
+      trackCardViewed(this.hass, 'full');
+      void this._shell.connect(this.hass);
+    }
     this._lastDuration = loadCardLastDuration();
     this._refreshRecentSnoozeIds();
   }
@@ -561,6 +565,9 @@ export class AutomationPauseCard extends LitElement {
 
   private async _handleGuardrailContinue(): Promise<void> {
     this._guardrailConfirmOpen = false;
+    if (this.hass) {
+      trackConfirmationResult(this.hass);
+    }
     await this._snooze(true);
   }
 

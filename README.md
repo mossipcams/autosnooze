@@ -99,6 +99,84 @@ These require confirmation before snoozing. You can also manually flag any autom
 
 -----
 
+## Anonymous product telemetry
+
+### Why
+
+I know how I use AutoSnooze, but not how others do. Anonymous product telemetry learns real usage patterns (which features matter, where people get stuck) without collecting anything about a home's configuration.
+
+### What is sent
+
+Events are explicit and property-scoped. Shared properties on applicable events:
+
+- `autosnooze_version`, `home_assistant_version`, `event_schema_version`
+- `source` (`card`, `service`, `timer`, or `startup`)
+- `card_type` (`full` or `snoozed_only`) when the event came from a dashboard card
+
+| Event | Properties |
+|-------|------------|
+| `integration_active` | versions only |
+| `card_viewed` | `card_type` (throttled once per install per UTC day) |
+| `selection_feature_used` | `method: all` |
+| `duration_option_selected` | `method: preset` |
+| `snooze_created` | `strategy`, `input_method`, `duration_minutes`, `target_count`, `notification_trigger`, `notification_lead_minutes`, `confirmation_used` |
+| `scheduled_snooze_created` | `minutes_until_start`, `planned_duration_minutes`, `target_count`, `resume_local_hour` |
+| `scheduled_snooze_started` | `target_count`, `planned_duration_minutes` |
+| `snooze_adjusted` | `delta_minutes`, `direction: extend` |
+| `snooze_ended` | `reason: expired` |
+| `scheduled_snooze_cancelled` | `target_count`, `minutes_before_start` |
+| `notification_used` | `trigger: start` |
+| `notification_cleared` | `target_count` |
+| `operation_failed` | `operation`, `error_code`, `strategy`, `target_count` |
+| `confirmation_result` | `result: confirmed` |
+
+### What is never sent
+
+- Automation entity IDs, names, or hashes
+- Area, label, or category IDs or names
+- Search text, instance IDs, user IDs, or usernames
+- Automation counts, registry contents, triggers, conditions, actions, or YAML
+- Home Assistant URLs, hostnames, notification content, or device details
+- Exact timestamps, IP addresses, coordinates, timezone, or location
+- Raw errors, logs, stack traces, or service payloads
+- Browser fingerprints, screen resolution, session replay, or DOM autocapture
+- Anything after telemetry is turned off
+
+### Opt-out
+
+Telemetry is **on by default**. Turn it off in **Settings → Devices & Services → AutoSnooze → Configure → Send anonymous usage data**.
+
+### Example payload
+
+Signals are posted as a JSON array to TelemetryDeck. A `snooze_created` event looks like this:
+
+```json
+[
+  {
+    "appID": "C7769C33-556B-40B1-9C4D-0982BE33DEDE",
+    "clientUser": "a1b2c3d4e5f6789012345678901234567890abcdef1234567890abcdef123456",
+    "type": "snooze_created",
+    "payload": {
+      "autosnooze_version": "0.2.27",
+      "home_assistant_version": "2024.1.0",
+      "event_schema_version": "1",
+      "source": "card",
+      "strategy": "duration",
+      "input_method": "card",
+      "duration_minutes": "240",
+      "target_count": "2",
+      "notification_trigger": "none",
+      "notification_lead_minutes": "0",
+      "confirmation_used": "false"
+    }
+  }
+]
+```
+
+`clientUser` is a SHA-256 hash of a random per-install UUID stored locally. The install UUID is never included in the payload.
+
+-----
+
 ## Usage
 
 Pause your dining room motion lights during a dinner party:

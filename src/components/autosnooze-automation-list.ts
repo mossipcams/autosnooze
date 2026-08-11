@@ -17,6 +17,7 @@ import {
   getCategoryName,
   loadHideSnoozedPreference,
   saveHideSnoozedPreference,
+  trackSelectionFeatureUsed,
   type AutomationListViewModel,
 } from '../features/automation-list/index.js';
 import type { HomeAssistant, HassLabel, HassCategory } from '../types/hass.js';
@@ -136,6 +137,9 @@ export class AutoSnoozeAutomationList extends LitElement {
   private _selectAllVisible(): void {
     const allIds = this._getViewModel().filtered.map((a) => a.id);
     const newSelected = [...new Set([...this.selected, ...allIds])];
+    if (this.hass) {
+      trackSelectionFeatureUsed(this.hass);
+    }
     this._fireSelectionChange(newSelected);
   }
 

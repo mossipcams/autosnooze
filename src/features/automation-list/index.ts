@@ -7,6 +7,7 @@ import type { AutomationItem } from '../../types/automation.js';
 import type { FilterTab } from '../../types/card.js';
 import type { HassCategory, HassLabel, HomeAssistant } from '../../types/hass.js';
 import { formatRegistryId } from '../../utils/registry-formatting.js';
+import { reportTelemetry } from '../../services/telemetry.js';
 export { getAutomations } from '../../state/automations.js';
 export {
   loadHideSnoozedPreference,
@@ -45,6 +46,14 @@ interface DecoratedAutomation {
 }
 
 export { formatRegistryId };
+
+export function trackSelectionFeatureUsed(hass: HomeAssistant): void {
+  reportTelemetry(hass, {
+    event: 'selection_feature_used',
+    properties: { method: 'all' },
+    source: 'card',
+  });
+}
 
 export function getAreaName(areaId: string | null, hass: HomeAssistant, fallback: string = 'Unassigned'): string {
   if (!areaId) return fallback;

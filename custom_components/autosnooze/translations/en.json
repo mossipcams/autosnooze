@@ -13,12 +13,14 @@
         "title": "Duration Buttons",
         "description": "Set up to 4 quick-select duration buttons for the card. Leave empty to skip.",
         "data": {
+          "telemetry_enabled": "Send anonymous usage data",
           "preset_1": "Button 1",
           "preset_2": "Button 2",
           "preset_3": "Button 3",
           "preset_4": "Button 4"
         },
         "data_description": {
+          "telemetry_enabled": "Help improve AutoSnooze by sending anonymous usage counts. You can turn this off at any time.",
           "preset_1": "e.g., 30m, 1h, 2h30m, or 1d",
           "preset_2": "e.g., 30m, 1h, 2h30m, or 1d",
           "preset_3": "e.g., 30m, 1h, 2h30m, or 1d",
@@ -229,6 +231,28 @@
         "minutes": {
           "name": "Minutes",
           "description": "Number of minutes to add (negative to subtract)."
+        }
+      }
+    },
+    "report_telemetry": {
+      "name": "Report Telemetry",
+      "description": "Report anonymous product telemetry events from the dashboard card.",
+      "fields": {
+        "event": {
+          "name": "Event",
+          "description": "Telemetry event name."
+        },
+        "properties": {
+          "name": "Properties",
+          "description": "Optional event properties."
+        },
+        "source": {
+          "name": "Source",
+          "description": "Event source such as card or service."
+        },
+        "card_type": {
+          "name": "Card Type",
+          "description": "Card variant when the event originated from a dashboard card."
         }
       }
     }
