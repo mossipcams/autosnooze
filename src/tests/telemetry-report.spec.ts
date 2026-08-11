@@ -99,7 +99,7 @@ describe('reportTelemetry', () => {
         entity_id: 'sensor.autosnooze_snoozed_automations',
         attributes: {},
       },
-    } as HomeAssistant['states'];
+    } as unknown as HomeAssistant['states'];
 
     reportTelemetry(hass, {
       event: 'card_viewed',
