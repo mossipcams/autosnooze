@@ -10,6 +10,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any
 
+from aiohttp import ClientTimeout
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, ServiceCall
 from homeassistant.exceptions import ServiceValidationError
@@ -309,7 +310,7 @@ class TelemetryClient:
             async with session.post(
                 TELEMETRY_INGEST_URL,
                 json=batch,
-                timeout=FLUSH_TIMEOUT_SECONDS,
+                timeout=ClientTimeout(total=FLUSH_TIMEOUT_SECONDS),
             ) as response:
                 if response.status >= 400:
                     _LOGGER.debug("TelemetryDeck ingest returned %s", response.status)
