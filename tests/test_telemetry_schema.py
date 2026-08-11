@@ -35,7 +35,15 @@ def test_sanitize_strips_unknown_event() -> None:
     assert sanitize_event_properties("not_real", {}, source="card") is None
 
 
-def test_sanitize_strips_unknown_properties() -> None:
+def test_sanitize_strips_unknown_properties(monkeypatch) -> None:
+    monkeypatch.setattr(
+        "custom_components.autosnooze.infrastructure.telemetry.VERSION",
+        "1.2.3",
+    )
+    monkeypatch.setattr(
+        "custom_components.autosnooze.infrastructure.telemetry._ha_version",
+        lambda: "2024.1.0",
+    )
     payload = sanitize_event_properties(
         "snooze_created",
         {
@@ -47,11 +55,28 @@ def test_sanitize_strips_unknown_properties() -> None:
             "notification_lead_minutes": 0,
             "confirmation_used": False,
             "entity_id": "automation.secret",
+            "_private": "hidden",
+            "user_email": "user@example.com",
         },
         source="card",
     )
     assert payload is not None
+    assert set(payload.keys()) == {
+        "autosnooze_version",
+        "home_assistant_version",
+        "event_schema_version",
+        "source",
+        "strategy",
+        "input_method",
+        "duration_minutes",
+        "target_count",
+        "notification_trigger",
+        "notification_lead_minutes",
+        "confirmation_used",
+    }
     assert "entity_id" not in payload
+    assert all(not key.startswith("_") for key in payload)
+    assert all("secret" not in key for key in payload)
     assert payload["strategy"] == "duration"
     assert payload["confirmation_used"] == "false"
 

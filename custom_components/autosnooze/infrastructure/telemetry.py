@@ -214,28 +214,31 @@ class TelemetryClient:
         source: str,
         card_type: str | None = None,
     ) -> None:
-        if not self.is_enabled():
-            return
-        if event == "card_viewed" and not self._should_emit_card_viewed():
-            return
+        try:
+            if not self.is_enabled():
+                return
+            if event == "card_viewed" and not self._should_emit_card_viewed():
+                return
 
-        payload = sanitize_event_properties(event, properties, source=source, card_type=card_type)
-        if payload is None:
-            return
+            payload = sanitize_event_properties(event, properties, source=source, card_type=card_type)
+            if payload is None:
+                return
 
-        client_user = self._client_user_hash()
-        if client_user is None:
-            return
+            client_user = self._client_user_hash()
+            if client_user is None:
+                return
 
-        self._queue.append(
-            {
-                "appID": TELEMETRYDECK_APP_ID,
-                "clientUser": client_user,
-                "type": event,
-                "payload": payload,
-            }
-        )
-        self.hass.async_create_task(self.async_flush())
+            self._queue.append(
+                {
+                    "appID": TELEMETRYDECK_APP_ID,
+                    "clientUser": client_user,
+                    "type": event,
+                    "payload": payload,
+                }
+            )
+            self.hass.async_create_task(self.async_flush())
+        except Exception:
+            _LOGGER.debug("Telemetry track failed", exc_info=True)
 
     def sanitize(
         self, event: str, properties: dict[str, Any] | None, *, source: str, card_type: str | None = None
@@ -247,10 +250,13 @@ class TelemetryClient:
             return
         self._flush_scheduled = True
         try:
-            while self.is_enabled() and self._queue:
-                batch = self._queue[:]
-                self._queue.clear()
-                await self._post_batch(batch)
+            try:
+                while self.is_enabled() and self._queue:
+                    batch = self._queue[:]
+                    self._queue.clear()
+                    await self._post_batch(batch)
+            except Exception:
+                _LOGGER.debug("Telemetry flush failed", exc_info=True)
         finally:
             self._flush_scheduled = False
 

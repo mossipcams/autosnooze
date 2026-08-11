@@ -3,21 +3,24 @@
  */
 
 import type { HomeAssistant } from '../types/hass.js';
+import { reportTelemetryInputSchema, type ReportTelemetryInput } from './telemetry-schema.js';
 
-export interface ReportTelemetryInput {
-  event: string;
-  properties?: Record<string, string | number | boolean>;
-  source?: string;
-  card_type?: 'full' | 'snoozed_only';
-}
+export type { ReportTelemetryInput };
 
 export function reportTelemetry(hass: HomeAssistant, input: ReportTelemetryInput): void {
+  const parsed = reportTelemetryInputSchema.safeParse(input);
+  if (!parsed.success) {
+    return;
+  }
+
+  const validated = parsed.data;
+
   try {
     const result = hass.callService('autosnooze', 'report_telemetry', {
-      event: input.event,
-      properties: input.properties,
-      source: input.source ?? 'card',
-      card_type: input.card_type,
+      event: validated.event,
+      properties: 'properties' in validated ? validated.properties : undefined,
+      source: validated.source ?? 'card',
+      card_type: 'card_type' in validated ? validated.card_type : undefined,
     });
     void Promise.resolve(result).catch(() => undefined);
   } catch {

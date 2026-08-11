@@ -95,3 +95,28 @@ async def test_card_viewed_throttled_once_per_day(hass, telemetry_client) -> Non
     telemetry_client.track("card_viewed", {"card_type": "full"}, source="card", card_type="full")
     telemetry_client.track("card_viewed", {"card_type": "full"}, source="card", card_type="full")
     assert len(telemetry_client._queue) == 1
+
+
+def test_track_does_not_raise_when_sanitize_fails(telemetry_client) -> None:
+    telemetry_client.track("not_real", {"entity_id": "automation.secret"}, source="card")
+
+
+def test_track_does_not_raise_when_sanitize_raises(telemetry_client) -> None:
+    with patch.object(telemetry_client, "sanitize", side_effect=RuntimeError("boom")):
+        telemetry_client.track("integration_active", {}, source="startup")
+
+
+@pytest.mark.asyncio
+async def test_async_flush_does_not_raise_on_hard_failure(telemetry_client) -> None:
+    await telemetry_client.async_setup()
+    telemetry_client._queue.append(
+        {
+            "appID": "test",
+            "clientUser": "abc",
+            "type": "integration_active",
+            "payload": {"source": "startup"},
+        }
+    )
+
+    with patch.object(telemetry_client, "_post_batch", side_effect=RuntimeError("boom")):
+        await telemetry_client.async_flush()
