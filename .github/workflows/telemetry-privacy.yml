@@ -15,7 +15,6 @@ on:
       - 'package.json'
       - 'package-lock.json'
   pull_request:
-    branches: [main]
     paths:
       - '.github/workflows/telemetry-privacy.yml'
       - 'custom_components/autosnooze/infrastructure/telemetry.py'

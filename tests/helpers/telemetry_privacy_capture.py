@@ -28,9 +28,9 @@ FIXED_HA_VERSION = "2024.1.0-test"
 FIXED_INSTALL_ID = "privacy-test-install-id"
 
 CANARY_STRINGS = [
-    "automation.matt_private_bedroom",
-    "Matt's Private Bedroom",
-    "matt@example.com",
+    "automation.guest_private_bedroom",
+    "Guest's Private Bedroom",
+    "guest@example.com",
     "https://private-home.example.com",
     "192.168.1.45",
     "private-user-id-12345",
@@ -38,8 +38,8 @@ CANARY_STRINGS = [
 ]
 
 CANARY_PROPERTIES: dict[str, Any] = {
-    "entity_id": "automation.matt_private_bedroom",
-    "friendly_name": "Matt's Private Bedroom",
+    "entity_id": "automation.guest_private_bedroom",
+    "friendly_name": "Guest's Private Bedroom",
     "user_id": "private-user-id-12345",
     "config_entry_id": "private-config-entry-67890",
     "area_id": "private-bedroom-area",
@@ -48,7 +48,7 @@ CANARY_PROPERTIES: dict[str, Any] = {
     "longitude": "-122.4194",
     "install_id": "private-install-leak",
     "clientUser": "private-client-user-leak",
-    "user_email": "matt@example.com",
+    "user_email": "guest@example.com",
     "ha_url": "https://private-home.example.com",
     "ip_address": "192.168.1.45",
 }

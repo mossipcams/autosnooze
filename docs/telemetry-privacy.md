@@ -51,9 +51,9 @@ CI compares live capture output to this file with strict equality.
 
 The harness injects these canary values into attempted properties and HA-like fields. None may appear in captured JSON.
 
-- `automation.matt_private_bedroom`
-- `Matt's Private Bedroom`
-- `matt@example.com`
+- `automation.guest_private_bedroom`
+- `Guest's Private Bedroom`
+- `guest@example.com`
 - `https://private-home.example.com`
 - `192.168.1.45`
 - `private-user-id-12345`

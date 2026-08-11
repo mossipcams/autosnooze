@@ -9,9 +9,9 @@ const GOLDEN_PATH = join(REPO_ROOT, 'docs', 'telemetry-payloads.json');
 const CAPTURE_SCRIPT = join(REPO_ROOT, 'tests', 'helpers', 'telemetry_privacy_capture.py');
 
 const CANARY_STRINGS = [
-  'automation.matt_private_bedroom',
-  "Matt's Private Bedroom",
-  'matt@example.com',
+  'automation.guest_private_bedroom',
+  "Guest's Private Bedroom",
+  'guest@example.com',
   'https://private-home.example.com',
   '192.168.1.45',
   'private-user-id-12345',
@@ -126,6 +126,7 @@ describe('telemetry privacy verification', () => {
       const documentedPayload = documented[event];
       expect(actualPayload).toEqual(documentedPayload);
       const serialized = JSON.stringify(actualPayload);
+      expect(serialized).not.toContain('guest_private_bedroom');
       for (const canary of CANARY_STRINGS) {
         expect(serialized).not.toContain(canary);
       }
