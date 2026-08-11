@@ -24,6 +24,9 @@ def _publish_summary(meta: dict[str, object]) -> None:
         and meta["undocumented_fields"] == 0
         and meta["forbidden_ha_fields"] == 0
         and meta["canary_hits"] == []
+        and meta["envelope_violations"] == []
+        and meta["client_user_mismatches"] == []
+        and meta["allowed_key_canary_rejected"] is True
     )
     report = "\n".join(
         [
@@ -33,6 +36,9 @@ def _publish_summary(meta: dict[str, object]) -> None:
             f"Undocumented fields found: {meta['undocumented_fields']}",
             f"Private canary values found: {len(meta['canary_hits'])}",
             f"Forbidden Home Assistant fields found: {meta['forbidden_ha_fields']}",
+            f"Envelope violations: {len(meta['envelope_violations'])}",
+            f"clientUser mismatches: {len(meta['client_user_mismatches'])}",
+            f"Allowed-key canary rejected: {meta['allowed_key_canary_rejected']}",
             f"Telemetry requests while disabled: {meta['telemetry_requests_while_disabled']}",
             f"RESULT: {'PASSED' if passed else 'FAILED'}",
             "",
@@ -51,11 +57,15 @@ async def test_telemetry_privacy_capture() -> None:
     meta = result["meta"]
 
     assert meta["events_exercised"] == EXPECTED
+    assert meta["expected_event_count"] == EXPECTED
     assert meta["outbound_requests"] == EXPECTED
     assert meta["telemetry_requests_while_disabled"] == 0
     assert meta["undocumented_fields"] == 0
     assert meta["forbidden_ha_fields"] == 0
     assert meta["canary_hits"] == []
+    assert meta["envelope_violations"] == []
+    assert meta["client_user_mismatches"] == []
+    assert meta["allowed_key_canary_rejected"] is True
     assert set(result["payloads"].keys()) == set(EVENT_SCHEMAS)
 
     documented = json.loads(GOLDEN_PATH.read_text(encoding="utf-8"))
