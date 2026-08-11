@@ -1,0 +1,75 @@
+name: Telemetry Privacy Verification
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/telemetry-privacy.yml'
+      - 'custom_components/autosnooze/infrastructure/telemetry.py'
+      - 'custom_components/autosnooze/application/report_telemetry.py'
+      - 'docs/telemetry-payloads.json'
+      - 'docs/telemetry-privacy.md'
+      - 'tests/telemetry-privacy.spec.ts'
+      - 'tests/helpers/telemetry_privacy_capture.py'
+      - 'requirements_test.txt'
+      - 'package.json'
+      - 'package-lock.json'
+  pull_request:
+    paths:
+      - '.github/workflows/telemetry-privacy.yml'
+      - 'custom_components/autosnooze/infrastructure/telemetry.py'
+      - 'custom_components/autosnooze/application/report_telemetry.py'
+      - 'docs/telemetry-payloads.json'
+      - 'docs/telemetry-privacy.md'
+      - 'tests/telemetry-privacy.spec.ts'
+      - 'tests/helpers/telemetry_privacy_capture.py'
+      - 'requirements_test.txt'
+      - 'package.json'
+      - 'package-lock.json'
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  telemetry-privacy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v4
+
+      - name: Setup Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.14'
+          cache: 'pip'
+          cache-dependency-path: 'requirements_test.txt'
+
+      - name: Install Python dependencies
+        run: pip install -r requirements_test.txt
+
+      - name: Setup Node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install Node dependencies
+        run: npm ci
+
+      - name: Run telemetry privacy verification
+        run: npx vitest run tests/telemetry-privacy.spec.ts
+
+      - name: Upload captured payload golden
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: telemetry-payloads
+          path: docs/telemetry-payloads.json
+          if-no-files-found: error
