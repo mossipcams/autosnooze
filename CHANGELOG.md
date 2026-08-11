@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.2.28](https://github.com/mossipcams/autosnooze/compare/v0.2.27...v0.2.28) (2026-08-11)
+
+
+### Features
+
+* add TelemetryDeck anonymous product telemetry ([#494](https://github.com/mossipcams/autosnooze/issues/494)) ([69b7cb9](https://github.com/mossipcams/autosnooze/commit/69b7cb953981973bd89274d35adb5c0b2f08b9b5))
+* persistent Hide snoozed filter for automation picker ([#482](https://github.com/mossipcams/autosnooze/issues/482)) ([f327a7d](https://github.com/mossipcams/autosnooze/commit/f327a7daca171b798d304a32b1ba8f900974a0d2))
+
+
+### Bug Fixes
+
+* **deps:** import StaticPathConfig from http.server ([6cc37df](https://github.com/mossipcams/autosnooze/commit/6cc37dfa1b4c7753187f01ed4cf9bfa5feb61b7d))
+
 ## [0.2.27](https://github.com/mossipcams/autosnooze/compare/v0.2.26...v0.2.27) (2026-07-07)
 
 
