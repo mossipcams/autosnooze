@@ -1,8 +1,8 @@
-export type TelemetrySource = 'card' | 'service' | 'timer' | 'startup';
+type TelemetrySource = 'card' | 'service' | 'timer' | 'startup';
 
-export type Scalar = string | number | boolean;
+type Scalar = string | number | boolean;
 
-export type SnoozeStrategy =
+type SnoozeStrategy =
   | 'duration'
   | 'resume_datetime'
   | 'resume_time'
@@ -12,7 +12,7 @@ export type SnoozeStrategy =
   | 'next_sunset'
   | 'scheduled_window';
 
-export type ErrorCode =
+type ErrorCode =
   | 'invalid_duration'
   | 'resume_time_past'
   | 'disable_after_resume'
@@ -22,8 +22,8 @@ export type ErrorCode =
   | 'automation_state_failed'
   | 'unknown';
 
-export type NotificationTrigger = 'none' | 'start' | 'about_to_end' | 'end';
-export type FilterTab = 'all' | 'areas' | 'categories' | 'labels';
+type NotificationTrigger = 'none' | 'start' | 'about_to_end' | 'end';
+type FilterTab = 'all' | 'areas' | 'categories' | 'labels';
 
 type WithSource = { source?: TelemetrySource };
 
