@@ -191,6 +191,15 @@ ADJUST_SCHEMA = vol.Schema(
     }
 )
 
+REPORT_TELEMETRY_SCHEMA = vol.Schema(
+    {
+        vol.Required("event"): cv.string,
+        vol.Optional("properties"): dict,
+        vol.Optional("source", default="card"): cv.string,
+        vol.Optional("card_type"): cv.string,
+    }
+)
+
 # Default duration presets for the card's quick-select buttons
 # Each preset has a label (displayed on button) and minutes (duration value)
 DEFAULT_DURATION_PRESETS: list[dict[str, str | int]] = [

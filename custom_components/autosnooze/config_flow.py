@@ -9,9 +9,11 @@ import voluptuous as vol
 
 from homeassistant.config_entries import ConfigEntry, ConfigFlow, ConfigFlowResult, OptionsFlow
 from homeassistant.core import callback
+from homeassistant.helpers import config_validation as cv
 
 from . import DOMAIN
 from .const import DEFAULT_DURATION_PRESETS, MINUTES_PER_DAY, MINUTES_PER_YEAR, NUM_PRESET_FIELDS
+from .infrastructure.telemetry import OPTION_TELEMETRY_ENABLED
 
 
 class AutomationPauseConfigFlow(ConfigFlow, domain=DOMAIN):  # pyright: ignore[reportCallIssue,reportGeneralTypeIssues]
@@ -96,15 +98,26 @@ class AutoSnoozeOptionsFlow(OptionsFlow):
                         presets.append(parsed)
 
             if not errors:
-                return self.async_create_entry(title="", data={"duration_presets": presets})
+                current_options = dict(self._entry.options)
+                return self.async_create_entry(
+                    title="",
+                    data={
+                        **current_options,
+                        "duration_presets": presets,
+                        "telemetry_enabled": user_input.get(OPTION_TELEMETRY_ENABLED, True),
+                    },
+                )
 
         # Get current values or defaults
         current_presets = self._entry.options.get("duration_presets", [])
         if not current_presets:
             current_presets = DEFAULT_DURATION_PRESETS
+        telemetry_enabled = self._entry.options.get(OPTION_TELEMETRY_ENABLED, True)
 
         # Build schema with individual fields
-        schema_dict: dict[vol.Optional, Any] = {}
+        schema_dict: dict[vol.Optional, Any] = {
+            vol.Optional(OPTION_TELEMETRY_ENABLED, default=telemetry_enabled): cv.boolean,
+        }
         for i in range(1, NUM_PRESET_FIELDS + 1):
             field_key = f"preset_{i}"
             # Get default value from current presets if available

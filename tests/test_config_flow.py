@@ -186,3 +186,29 @@ class TestAutoSnoozeOptionsFlow:
         # The schema should have individual preset fields
         schema = result["data_schema"]
         assert schema is not None
+
+    @pytest.mark.asyncio
+    async def test_step_init_defaults_telemetry_enabled_on(self, options_flow):
+        result = await options_flow.async_step_init(None)
+        assert result["type"] == "form"
+        assert "telemetry_enabled" in result["data_schema"].schema
+        submitted = await options_flow.async_step_init({"preset_1": "30m"})
+        assert submitted["type"] == "create_entry"
+        assert submitted["data"]["telemetry_enabled"] is True
+
+    @pytest.mark.asyncio
+    async def test_step_init_preserves_telemetry_toggle(self, mock_config_entry):
+        mock_config_entry.options = {
+            "duration_presets": [{"label": "30m", "minutes": 30}],
+            "telemetry_enabled": False,
+        }
+        flow = AutoSnoozeOptionsFlow(mock_config_entry)
+        result = await flow.async_step_init(
+            {
+                "preset_1": "30m",
+                "telemetry_enabled": False,
+            }
+        )
+        assert result["type"] == "create_entry"
+        assert result["data"]["telemetry_enabled"] is False
+        assert result["data"]["duration_presets"] == [{"label": "30m", "minutes": 30}]

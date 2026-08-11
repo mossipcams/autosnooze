@@ -52,8 +52,17 @@ def test_sensor_contract_exposes_only_normalized_roots() -> None:
     assert "paused" in attrs
     assert "scheduled" in attrs
     assert attrs["schema_version"] == SENSOR_SCHEMA_VERSION
+    assert attrs["telemetry_enabled"] is True
     assert "paused_automations" not in attrs
     assert "scheduled_snoozes" not in attrs
+
+
+def test_sensor_exposes_telemetry_enabled_option() -> None:
+    data = AutomationPauseData()
+    entry = MockConfigEntry(data)
+    entry.options = {"telemetry_enabled": False}
+    attrs = AutoSnoozeCountSensor(entry).extra_state_attributes
+    assert attrs["telemetry_enabled"] is False
 
 
 def test_sensor_contract_datetime_fields_are_iso8601() -> None:

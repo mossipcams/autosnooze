@@ -154,6 +154,9 @@ async def async_unload_entry(hass: HomeAssistant, entry: AutomationPauseConfigEn
         # Clear all listeners to prevent orphaned callbacks
         data.listeners.clear()
 
+        if data.telemetry is not None:
+            data.telemetry.async_unload()
+
         # Only remove services if this is the last entry
         # Note: During unload, our entry is still LOADED until this function returns,
         # so we check for <= 1 (only our entry remains in the loaded list)

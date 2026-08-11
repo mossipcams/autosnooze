@@ -1441,6 +1441,7 @@ describe('Snooze Operations', () => {
     card.hass = mockHass;
     document.body.appendChild(card);
     await card.updateComplete;
+    mockHass.callService.mockClear();
   });
 
   afterEach(() => {
@@ -1504,7 +1505,11 @@ describe('Snooze Operations', () => {
     test('handles service error gracefully', async () => {
       card._selected = ['automation.test'];
       card._customDuration = { days: 0, hours: 0, minutes: 30 };
-      mockHass.callService.mockRejectedValueOnce(new Error('Service failed'));
+      mockHass.callService.mockImplementation(async (_domain, service) => {
+        if (service === 'pause') {
+          throw new Error('Service failed');
+        }
+      });
 
       await card._snooze();
 
@@ -1514,7 +1519,11 @@ describe('Snooze Operations', () => {
     test('shows in-card guardrail confirmation when backend requires confirm', async () => {
       card._selected = ['automation.test'];
       card._customDuration = { days: 0, hours: 0, minutes: 30 };
-      mockHass.callService.mockRejectedValueOnce({ translation_key: 'confirm_required' });
+      mockHass.callService.mockImplementation(async (_domain, service) => {
+        if (service === 'pause') {
+          throw { translation_key: 'confirm_required' };
+        }
+      });
 
       await card._snooze();
       await card.updateComplete;
@@ -1526,7 +1535,11 @@ describe('Snooze Operations', () => {
     test('guardrail cancel closes prompt and does not retry with confirm=true', async () => {
       card._selected = ['automation.test'];
       card._customDuration = { days: 0, hours: 0, minutes: 30 };
-      mockHass.callService.mockRejectedValueOnce({ translation_key: 'confirm_required' });
+      mockHass.callService.mockImplementation(async (_domain, service) => {
+        if (service === 'pause') {
+          throw { translation_key: 'confirm_required' };
+        }
+      });
 
       await card._snooze();
       await card.updateComplete;
@@ -1536,15 +1549,23 @@ describe('Snooze Operations', () => {
       await card.updateComplete;
 
       expect(card.shadowRoot.querySelector('.guardrail-confirm')).toBeNull();
-      expect(mockHass.callService).toHaveBeenCalledTimes(1);
+      const pauseCalls = mockHass.callService.mock.calls.filter((call) => call[1] === 'pause');
+      expect(pauseCalls).toHaveLength(1);
     });
 
     test('guardrail continue retries snooze with confirm=true', async () => {
       card._selected = ['automation.test'];
       card._customDuration = { days: 0, hours: 0, minutes: 30 };
-      mockHass.callService
-        .mockRejectedValueOnce({ translation_key: 'confirm_required' })
-        .mockResolvedValueOnce({});
+      let pauseAttempts = 0;
+      mockHass.callService.mockImplementation(async (_domain, service) => {
+        if (service !== 'pause') {
+          return;
+        }
+        pauseAttempts += 1;
+        if (pauseAttempts === 1) {
+          throw { translation_key: 'confirm_required' };
+        }
+      });
 
       await card._snooze();
       await card.updateComplete;
@@ -1554,9 +1575,14 @@ describe('Snooze Operations', () => {
       await Promise.resolve();
       await card.updateComplete;
 
-      expect(mockHass.callService).toHaveBeenCalledTimes(2);
-      const secondCall = mockHass.callService.mock.calls[1];
-      expect(secondCall[2].confirm).toBe(true);
+      const pauseCalls = mockHass.callService.mock.calls.filter((call) => call[1] === 'pause');
+      expect(pauseCalls).toHaveLength(2);
+      expect(pauseCalls[1][2].confirm).toBe(true);
+      expect(mockHass.callService).toHaveBeenCalledWith(
+        'autosnooze',
+        'report_telemetry',
+        expect.objectContaining({ event: 'confirmation_result' })
+      );
     });
   });
 
@@ -1579,8 +1605,9 @@ describe('Snooze Operations', () => {
 
       await card._snooze();
 
-      expect(mockHass.callService).toHaveBeenCalled();
-      const callArgs = mockHass.callService.mock.calls[0];
+      const pauseCalls = mockHass.callService.mock.calls.filter((call) => call[1] === 'pause');
+      expect(pauseCalls).toHaveLength(1);
+      const callArgs = pauseCalls[0];
       expect(callArgs[0]).toBe('autosnooze');
       expect(callArgs[1]).toBe('pause');
       expect(callArgs[2].entity_id).toEqual(['automation.test']);
@@ -1598,8 +1625,9 @@ describe('Snooze Operations', () => {
 
       await card._snooze();
 
-      expect(mockHass.callService).toHaveBeenCalled();
-      const callArgs = mockHass.callService.mock.calls[0];
+      const pauseCalls = mockHass.callService.mock.calls.filter((call) => call[1] === 'pause');
+      expect(pauseCalls).toHaveLength(1);
+      const callArgs = pauseCalls[0];
       expect(callArgs[0]).toBe('autosnooze');
       expect(callArgs[1]).toBe('pause');
       expect(callArgs[2].entity_id).toEqual(['automation.test']);
@@ -1616,7 +1644,8 @@ describe('Snooze Operations', () => {
 
       await card._snooze();
 
-      expect(mockHass.callService).not.toHaveBeenCalled();
+      const pauseCalls = mockHass.callService.mock.calls.filter((call) => call[1] === 'pause');
+      expect(pauseCalls).toHaveLength(0);
     });
 
     test('clears schedule inputs after snooze', async () => {
@@ -2013,6 +2042,7 @@ describe('Schedule Mode Validation', () => {
     card.hass = mockHass;
     document.body.appendChild(card);
     await card.updateComplete;
+    mockHass.callService.mockClear();
   });
 
   afterEach(() => {
@@ -2069,7 +2099,8 @@ describe('Schedule Mode Validation', () => {
     const toast = card.shadowRoot.querySelector('.toast');
     expect(toast).not.toBeNull();
     expect(toast.textContent).toContain('Resume time must be in the future');
-    expect(mockHass.callService).not.toHaveBeenCalled();
+    const pauseCalls = mockHass.callService.mock.calls.filter((call) => call[1] === 'pause');
+    expect(pauseCalls).toHaveLength(0);
   });
 
   test('shows error when disable time is after resume time', async () => {
@@ -2284,6 +2315,7 @@ describe('Undo Functionality in Snooze', () => {
     card.hass = mockHass;
     document.body.appendChild(card);
     await card.updateComplete;
+    mockHass.callService.mockClear();
   });
 
   afterEach(() => {
@@ -2376,23 +2408,37 @@ describe('Undo Functionality in Snooze', () => {
     card._selected = ['automation.test', 'automation.second'];
     card._customDuration = { days: 0, hours: 0, minutes: 30 };
 
-    mockHass.callService.mockResolvedValueOnce(undefined); // snooze
-    mockHass.callService.mockRejectedValueOnce(new Error('Cancel failed')); // undo first entity
-    mockHass.callService.mockResolvedValueOnce(undefined); // undo second entity
+    let cancelAttempts = 0;
+    mockHass.callService.mockImplementation(async (_domain, service) => {
+      if (service === 'cancel') {
+        cancelAttempts += 1;
+        if (cancelAttempts === 1) {
+          throw new Error('Cancel failed');
+        }
+      }
+    });
 
     await card._snooze();
 
     const undoBtn = card.shadowRoot.querySelector('.toast-undo-btn');
+    expect(undoBtn).not.toBeNull();
     undoBtn.click();
     await new Promise((resolve) => setTimeout(resolve, 10));
 
-    expect(mockHass.callService).toHaveBeenCalledTimes(3);
-    expect(mockHass.callService).toHaveBeenNthCalledWith(2, 'autosnooze', 'cancel', {
-      entity_id: 'automation.test',
-    });
-    expect(mockHass.callService).toHaveBeenNthCalledWith(3, 'autosnooze', 'cancel', {
-      entity_id: 'automation.second',
-    });
+    const actionCalls = mockHass.callService.mock.calls.filter(
+      (call) => call[1] === 'pause' || call[1] === 'cancel'
+    );
+    expect(actionCalls).toHaveLength(3);
+    expect(actionCalls[1]).toEqual([
+      'autosnooze',
+      'cancel',
+      { entity_id: 'automation.test' },
+    ]);
+    expect(actionCalls[2]).toEqual([
+      'autosnooze',
+      'cancel',
+      { entity_id: 'automation.second' },
+    ]);
     expect(card._selected).toEqual(['automation.test']);
   });
 });

@@ -19,6 +19,7 @@ import type {
   ScheduledSnoozeAttribute,
 } from '../../types/hass.js';
 import type { CountdownState } from '../../utils/countdown-timer.js';
+import { reportTelemetry } from '../../services/telemetry.js';
 
 export type { LastDurationData };
 
@@ -141,6 +142,85 @@ export function getConfiguredDurationPresets(hass?: HomeAssistant): DurationPres
 
 export function getCardSnoozeSensorEntity(hass?: HomeAssistant) {
   return getPausedSensorEntity(hass);
+}
+
+export function trackCardViewed(hass: HomeAssistant, cardType: 'full' | 'snoozed_only'): void {
+  reportTelemetry(hass, { event: 'card_viewed', card_type: cardType, source: 'card' });
+}
+
+export function trackDurationPresetSelected(hass: HomeAssistant): void {
+  reportTelemetry(hass, {
+    event: 'duration_option_selected',
+    source: 'card',
+  });
+}
+
+export function trackSnoozeButtonClicked(
+  hass: HomeAssistant,
+  targetCount: number,
+  scheduleMode: boolean,
+): void {
+  reportTelemetry(hass, {
+    event: 'snooze_button_clicked',
+    properties: { target_count: targetCount, schedule_mode: scheduleMode },
+    source: 'card',
+  });
+}
+
+export function trackWakeClicked(hass: HomeAssistant, scope: 'one' | 'all'): void {
+  reportTelemetry(hass, { event: 'wake_clicked', properties: { scope }, source: 'card' });
+}
+
+export function trackAdjustOpened(hass: HomeAssistant, scope: 'one' | 'group'): void {
+  reportTelemetry(hass, { event: 'adjust_opened', properties: { scope }, source: 'card' });
+}
+
+export function trackAdjustOptionSelected(
+  hass: HomeAssistant,
+  direction: 'extend' | 'shorten',
+  deltaMinutes: number,
+): void {
+  reportTelemetry(hass, {
+    event: 'adjust_option_selected',
+    properties: { direction, delta_minutes: deltaMinutes },
+    source: 'card',
+  });
+}
+
+export function trackScheduledCancelClicked(hass: HomeAssistant): void {
+  reportTelemetry(hass, { event: 'scheduled_cancel_clicked', source: 'card' });
+}
+
+export function trackScheduleModeToggled(hass: HomeAssistant, enabled: boolean): void {
+  reportTelemetry(hass, {
+    event: 'schedule_mode_toggled',
+    properties: { enabled },
+    source: 'card',
+  });
+}
+
+export function trackUntilTomorrowSelected(hass: HomeAssistant): void {
+  reportTelemetry(hass, { event: 'until_tomorrow_selected', source: 'card' });
+}
+
+export function trackCustomDurationToggled(hass: HomeAssistant, enabled: boolean): void {
+  reportTelemetry(hass, {
+    event: 'custom_duration_toggled',
+    properties: { enabled },
+    source: 'card',
+  });
+}
+
+export function trackNotificationOptionsChanged(
+  hass: HomeAssistant,
+  trigger: 'none' | 'start' | 'about_to_end' | 'end',
+  enabled: boolean,
+): void {
+  reportTelemetry(hass, {
+    event: 'notification_options_changed',
+    properties: { trigger, enabled },
+    source: 'card',
+  });
 }
 
 export type SyncAdjustModalResult =

@@ -14,6 +14,7 @@ import { UNTIL_TOMORROW_HOUR } from '../../constants/index.js';
 import { durationToMinutes } from '../../utils/duration-parsing.js';
 import { formatDateTime, formatDuration } from '../../utils/time-formatting.js';
 import { appendNotificationTrigger } from '../../utils/notification-trigger-request.js';
+import { reportTelemetry } from '../../services/telemetry.js';
 
 const CONFIRM_LABEL = 'autosnooze_confirm';
 const CRITICAL_AUTOMATION_TERMS = [
@@ -307,4 +308,18 @@ export async function runPauseFeature(input: RunPauseFeatureInput): Promise<RunP
     status: 'submitted',
     toastMessage: built.toastMessage,
   };
+}
+
+export function trackConfirmationResult(hass: HomeAssistant): void {
+  reportTelemetry(hass, {
+    event: 'confirmation_result',
+    source: 'card',
+  });
+}
+
+export function trackConfirmationDismissed(hass: HomeAssistant): void {
+  reportTelemetry(hass, {
+    event: 'confirmation_dismissed',
+    source: 'card',
+  });
 }

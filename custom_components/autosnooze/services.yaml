@@ -399,3 +399,35 @@ adjust:
           min: -59
           max: 59
           mode: box
+
+report_telemetry:
+  name: Report Telemetry
+  description: Report product telemetry events from the AutoSnooze dashboard card.
+  fields:
+    event:
+      name: Event
+      description: Telemetry event name.
+      required: true
+      selector:
+        text:
+    properties:
+      name: Properties
+      description: Optional event properties.
+      selector:
+        object:
+    source:
+      name: Source
+      description: Event source such as card or service.
+      default: card
+      selector:
+        text:
+    card_type:
+      name: Card Type
+      description: Card variant when the event originated from a dashboard card.
+      selector:
+        select:
+          options:
+            - label: Full card
+              value: full
+            - label: Snoozed-only card
+              value: snoozed_only

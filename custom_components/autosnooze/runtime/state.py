@@ -16,6 +16,7 @@ from homeassistant.helpers.storage import Store
 from ..const import SIGNAL_STATE_CHANGED
 
 if TYPE_CHECKING:
+    from ..infrastructure.telemetry import TelemetryClient
     from ..models import PausedAutomation, ScheduledSnooze
 
 _LOGGER = logging.getLogger(__name__)
@@ -32,6 +33,7 @@ class AutomationPauseData:
     notification_timers: dict[str, Callable[[], None]] = field(default_factory=dict)
     listeners: list[Callable[[], None]] = field(default_factory=list)
     store: Store | None = None
+    telemetry: TelemetryClient | None = None
     hass: HomeAssistant | None = None
     lock: asyncio.Lock = field(default_factory=asyncio.Lock)
     unloaded: bool = False

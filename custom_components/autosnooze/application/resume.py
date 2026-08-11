@@ -12,6 +12,7 @@ from homeassistant.util import dt as dt_util
 
 from ..const import MAX_RESUME_RETRIES, RESUME_RETRY_DELAY
 from ..domain.notifications import NOTIFICATION_TRIGGER_NONE
+from ..infrastructure.telemetry import track_if_enabled
 from ..logging_utils import _log_command, _raise_save_failed
 from ..models import PausedAutomation
 from ..runtime.state import AutomationPauseData
@@ -69,6 +70,13 @@ async def async_resume(
             _LOGGER.warning("Failed to restore disabled state for stale resume of %s", entity_id)
     data.notify()
     await notify_resumed(hass, resumed, reason=reason, save_succeeded=True)
+    if reason == "expired" and resumed:
+        track_if_enabled(
+            data,
+            "snooze_ended",
+            None,
+            source="timer",
+        )
     if woke_successfully:
         _LOGGER.info("Woke automation: %s", entity_id)
     elif entity_id not in data.paused:
@@ -191,6 +199,12 @@ async def async_clear_notification_config_batch(
             _raise_save_failed()
 
         data.notify()
+        track_if_enabled(
+            data,
+            "notification_cleared",
+            {"target_count": len(entity_ids)},
+            source="service",
+        )
         _LOGGER.info("Cleared notification config for paused automations")
     except Exception:
         outcome = "error"

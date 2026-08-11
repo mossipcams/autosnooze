@@ -26,6 +26,7 @@ SERVICES = {
     "pause",
     "pause_by_area",
     "pause_by_label",
+    "report_telemetry",
 }
 
 
@@ -343,7 +344,7 @@ async def test_setup_recovers_active_storage_and_discards_expired(smoke_hass) ->
     hass.states.async_set("automation.expired", "off", {"friendly_name": "Expired"})
     hass.states.async_set("automation.future", "on", {"friendly_name": "Future"})
     timer_unsubs = [MagicMock(), MagicMock()]
-    load = AsyncMock(return_value=stored)
+    load = AsyncMock(side_effect=[{}, stored])
     save = AsyncMock()
 
     with (
@@ -361,7 +362,8 @@ async def test_setup_recovers_active_storage_and_discards_expired(smoke_hass) ->
     assert set(entry.runtime_data.scheduled_timers) == {"automation.future"}
     assert entry.runtime_data.paused["automation.active"].friendly_name == "Active"
     assert entry.runtime_data.scheduled["automation.future"].disable_at == now + timedelta(minutes=10)
-    load.assert_awaited_once()
+    load.assert_awaited()
+    assert load.await_count == 2
     assert [call.args[2] for call in track.call_args_list] == [
         now + timedelta(minutes=30),
         now + timedelta(minutes=10),
@@ -379,8 +381,10 @@ async def test_setup_recovers_active_storage_and_discards_expired(smoke_hass) ->
     assert sensor.state == "1"
     assert set(sensor.attributes["paused"]) == {"automation.active"}
     assert set(sensor.attributes["scheduled"]) == {"automation.future"}
-    save.assert_awaited_once()
-    saved = save.await_args.args[0]
+    save.assert_awaited()
+    saved = next(
+        call.args[0] for call in save.await_args_list if isinstance(call.args[0], dict) and "paused" in call.args[0]
+    )
     assert set(saved["paused"]) == {"automation.active"}
     assert saved["paused"]["automation.active"]["friendly_name"] == "Active"
     assert saved["paused"]["automation.active"]["resume_at"] == (now + timedelta(minutes=30)).isoformat()

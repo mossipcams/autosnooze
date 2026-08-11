@@ -17,6 +17,9 @@ import {
   getCategoryName,
   loadHideSnoozedPreference,
   saveHideSnoozedPreference,
+  trackSelectionFeatureUsed,
+  trackFilterTabSelected,
+  trackHideSnoozedToggled,
   type AutomationListViewModel,
 } from '../features/automation-list/index.js';
 import type { HomeAssistant, HassLabel, HassCategory } from '../types/hass.js';
@@ -136,6 +139,9 @@ export class AutoSnoozeAutomationList extends LitElement {
   private _selectAllVisible(): void {
     const allIds = this._getViewModel().filtered.map((a) => a.id);
     const newSelected = [...new Set([...this.selected, ...allIds])];
+    if (this.hass) {
+      trackSelectionFeatureUsed(this.hass);
+    }
     this._fireSelectionChange(newSelected);
   }
 
@@ -253,8 +259,18 @@ export class AutoSnoozeAutomationList extends LitElement {
     const hideSnoozed = !this._hideSnoozed;
     this._hideSnoozed = hideSnoozed;
     saveHideSnoozedPreference(hideSnoozed);
+    if (this.hass) {
+      trackHideSnoozedToggled(this.hass, hideSnoozed);
+    }
     if (hideSnoozed) {
       this._pruneHiddenSelection();
+    }
+  }
+
+  private _selectFilterTab(tab: FilterTab): void {
+    this._filterTab = tab;
+    if (this.hass) {
+      trackFilterTabSelected(this.hass, tab);
     }
   }
 
@@ -409,7 +425,7 @@ export class AutoSnoozeAutomationList extends LitElement {
         <button
           type="button"
           class="tab ${this._filterTab === 'all' ? 'active' : ''}"
-          @click=${() => (this._filterTab = 'all')}
+          @click=${() => this._selectFilterTab('all')}
           role="tab"
           aria-selected=${this._filterTab === 'all'}
           aria-controls="selection-list"
@@ -420,7 +436,7 @@ export class AutoSnoozeAutomationList extends LitElement {
         <button
           type="button"
           class="tab ${this._filterTab === 'areas' ? 'active' : ''}"
-          @click=${() => (this._filterTab = 'areas')}
+          @click=${() => this._selectFilterTab('areas')}
           role="tab"
           aria-selected=${this._filterTab === 'areas'}
           aria-controls="selection-list"
@@ -431,7 +447,7 @@ export class AutoSnoozeAutomationList extends LitElement {
         <button
           type="button"
           class="tab ${this._filterTab === 'categories' ? 'active' : ''}"
-          @click=${() => (this._filterTab = 'categories')}
+          @click=${() => this._selectFilterTab('categories')}
           role="tab"
           aria-selected=${this._filterTab === 'categories'}
           aria-controls="selection-list"
@@ -442,7 +458,7 @@ export class AutoSnoozeAutomationList extends LitElement {
         <button
           type="button"
           class="tab ${this._filterTab === 'labels' ? 'active' : ''}"
-          @click=${() => (this._filterTab = 'labels')}
+          @click=${() => this._selectFilterTab('labels')}
           role="tab"
           aria-selected=${this._filterTab === 'labels'}
           aria-controls="selection-list"

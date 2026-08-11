@@ -99,6 +99,35 @@ These require confirmation before snoozing. You can also manually flag any autom
 
 -----
 
+## Product telemetry
+
+### Why
+
+I know how I use AutoSnooze, but not how others do. Product telemetry shows which features matter and where people get stuck — without collecting how any home is configured.
+
+### What is sent
+
+AutoSnooze can send product usage events to [TelemetryDeck](https://telemetrydeck.com).
+
+This is **not fully anonymous**. Events are not linked to your Home Assistant user, name, or instance URL, but a random per-install ID is hashed (SHA-256) and sent as `clientUser` so events from the same install can be grouped. The raw install ID never leaves the instance. Event payloads contain only allowlisted enums, booleans, and bounded integers (versions, source, durations, counts, card actions). Like any HTTPS request, TelemetryDeck can see the source IP of your Home Assistant instance; AutoSnooze does not put IPs in the event payload.
+
+Full event catalog and example payloads:
+
+- [Event properties](docs/telemetry-privacy.md#full-event-catalog)
+- [Exact sanitized payloads](docs/telemetry-payloads.json) (26 events, CI-verified)
+
+### What is never sent
+
+Never included in payloads: automation IDs/names, areas/labels, search text, URLs, user/instance IDs, YAML, logs, or location.
+
+### Opt-out
+
+**On by default.** Turn it off anytime: **Settings → Devices & Services → AutoSnooze → Configure → Send product usage data**.
+
+Payloads are checked in public CI against private canaries. [Privacy verification](docs/telemetry-privacy.md)
+
+-----
+
 ## Usage
 
 Pause your dining room motion lights during a dinner party:

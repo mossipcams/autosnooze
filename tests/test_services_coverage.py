@@ -926,6 +926,7 @@ class TestServiceHandlerContracts:
             resume_at,
             "none",
             None,
+            service_call=call,
         )
 
     @pytest.mark.asyncio
@@ -968,6 +969,7 @@ class TestServiceHandlerContracts:
             resume_at,
             "none",
             None,
+            service_call=call,
         )
 
     @pytest.mark.asyncio
@@ -1008,6 +1010,7 @@ class TestServiceHandlerContracts:
             None,
             "about_to_end",
             60,
+            service_call=call,
         )
 
     @pytest.mark.asyncio

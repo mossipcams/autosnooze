@@ -66,6 +66,7 @@ export interface HomeAssistant {
   connection: HassConnection;
   locale?: HassLocale;
   language?: string;
+  services?: Record<string, Record<string, unknown>>;
   callService(
     domain: string,
     service: string,

@@ -27,13 +27,23 @@ import {
   loadCardRecentSnoozeIds,
   createScheduleModeState,
   syncAdjustModalWithPaused,
+  trackCardViewed,
+  trackSnoozeButtonClicked,
+  trackWakeClicked,
+  trackAdjustOpened,
+  trackAdjustOptionSelected,
+  trackScheduledCancelClicked,
+  trackScheduleModeToggled,
+  trackUntilTomorrowSelected,
+  trackCustomDurationToggled,
+  trackNotificationOptionsChanged,
   type LastDurationData,
 } from '../features/card-shell/index.js';
 import { formatDateTime, formatDuration } from '../utils/time-formatting.js';
 import { durationToMinutes, isDurationValid, minutesToDuration } from '../utils/duration-parsing.js';
 import { hapticFeedback } from '../utils/haptic.js';
 import { defineAutoSnoozeElement } from '../utils/custom-element-registration.js';
-import { runPauseFeature } from '../features/pause/index.js';
+import { runPauseFeature, trackConfirmationResult, trackConfirmationDismissed } from '../features/pause/index.js';
 import {
   runUndoFeature,
   runClearNotificationFeature,
@@ -151,7 +161,10 @@ export class AutomationPauseCard extends LitElement {
   connectedCallback(): void {
     super.connectedCallback();
 
-    if (this.hass) void this._shell.connect(this.hass);
+    if (this.hass) {
+      trackCardViewed(this.hass, 'full');
+      void this._shell.connect(this.hass);
+    }
     this._lastDuration = loadCardLastDuration();
     this._refreshRecentSnoozeIds();
   }
@@ -243,6 +256,12 @@ export class AutomationPauseCard extends LitElement {
         this._loading = false;
         return;
       }
+
+      trackSnoozeButtonClicked(
+        this.hass,
+        this._selected.length,
+        this._scheduleMode || this._untilTomorrow,
+      );
 
       const count = this._selected.length;
       const snoozedEntities = [...this._selected];
@@ -363,11 +382,15 @@ export class AutomationPauseCard extends LitElement {
   }
 
   private async _handleWakeEvent(e: CustomEvent<{ entityId: string }>): Promise<void> {
+    if (this.hass) {
+      trackWakeClicked(this.hass, 'one');
+    }
     await this._wake(e.detail.entityId);
   }
 
   private async _handleWakeAllEvent(): Promise<void> {
     if (!this.hass) return;
+    trackWakeClicked(this.hass, 'all');
     try {
       await runWakeAllFeature(this.hass);
       this._hapticFeedback('success');
@@ -395,6 +418,9 @@ export class AutomationPauseCard extends LitElement {
 
 
   private _handleAdjustAutomationEvent(e: CustomEvent<{ entityId: string; friendlyName: string; resumeAt: string }>): void {
+    if (this.hass) {
+      trackAdjustOpened(this.hass, 'one');
+    }
     const state = createAdjustModalState({
       entityId: e.detail.entityId,
       friendlyName: e.detail.friendlyName,
@@ -411,6 +437,9 @@ export class AutomationPauseCard extends LitElement {
   private _handleAdjustGroupEvent(
     e: CustomEvent<{ entityIds: string[]; friendlyNames: string[]; resumeAt: string }>
   ): void {
+    if (this.hass) {
+      trackAdjustOpened(this.hass, 'group');
+    }
     const state = createAdjustModalState({
       entityIds: e.detail.entityIds,
       friendlyNames: e.detail.friendlyNames,
@@ -428,6 +457,15 @@ export class AutomationPauseCard extends LitElement {
     e: CustomEvent<{ entityId?: string; entityIds?: string[]; days?: number; hours?: number; minutes?: number }>
   ): Promise<void> {
     if (!this.hass) return;
+    const deltaMinutes =
+      (e.detail.days ?? 0) * 1440 + (e.detail.hours ?? 0) * 60 + (e.detail.minutes ?? 0);
+    if (deltaMinutes !== 0) {
+      trackAdjustOptionSelected(
+        this.hass,
+        deltaMinutes > 0 ? 'extend' : 'shorten',
+        Math.abs(deltaMinutes),
+      );
+    }
     try {
       const adjustResult = await runAdjustFeature(this.hass, e.detail, this._adjustModalResumeAt);
       this._hapticFeedback('success');
@@ -454,6 +492,7 @@ export class AutomationPauseCard extends LitElement {
 
   private async _cancelScheduled(entityId: string): Promise<void> {
     if (!this.hass) return;
+    trackScheduledCancelClicked(this.hass);
     try {
       await runCancelScheduledFeature(this.hass, entityId);
       this._hapticFeedback('success');
@@ -486,6 +525,9 @@ export class AutomationPauseCard extends LitElement {
   }
 
   private _handleScheduleModeChange(e: CustomEvent<{ enabled: boolean }>): void {
+    if (this.hass) {
+      trackScheduleModeToggled(this.hass, e.detail.enabled);
+    }
     if (e.detail.enabled) {
       this._untilTomorrow = false;
     }
@@ -523,6 +565,9 @@ export class AutomationPauseCard extends LitElement {
   }
 
   private _handleCustomInputToggle(e: CustomEvent<{ show: boolean }>): void {
+    if (this.hass) {
+      trackCustomDurationToggled(this.hass, e.detail.show);
+    }
     this._showCustomInput = e.detail.show;
     if (e.detail.show) {
       this._untilTomorrow = false;
@@ -530,20 +575,36 @@ export class AutomationPauseCard extends LitElement {
   }
 
   private _handleUntilTomorrowSelect(): void {
+    if (this.hass) {
+      trackUntilTomorrowSelected(this.hass);
+    }
     this._untilTomorrow = true;
     this._showCustomInput = false;
   }
 
   private _handleNotificationsToggle(e: Event): void {
     this._notificationsEnabled = (e.target as HTMLInputElement).checked;
+    if (this.hass) {
+      trackNotificationOptionsChanged(
+        this.hass,
+        this._notificationsEnabled ? this._notificationTrigger : 'none',
+        this._notificationsEnabled,
+      );
+    }
   }
 
   private _handleNotificationWhenChange(e: Event): void {
     this._notificationTrigger = (e.target as HTMLSelectElement).value as Exclude<NotificationTrigger, 'none'>;
+    if (this.hass) {
+      trackNotificationOptionsChanged(this.hass, this._notificationTrigger, this._notificationsEnabled);
+    }
   }
 
   private _handleNotificationLeadChange(e: Event): void {
     this._notificationLeadMinutes = Number((e.target as HTMLSelectElement).value);
+    if (this.hass) {
+      trackNotificationOptionsChanged(this.hass, this._notificationTrigger, this._notificationsEnabled);
+    }
   }
 
   private _formatLeadLabel(minutes: number): string {
@@ -557,10 +618,16 @@ export class AutomationPauseCard extends LitElement {
 
   private _handleGuardrailCancel(): void {
     this._guardrailConfirmOpen = false;
+    if (this.hass) {
+      trackConfirmationDismissed(this.hass);
+    }
   }
 
   private async _handleGuardrailContinue(): Promise<void> {
     this._guardrailConfirmOpen = false;
+    if (this.hass) {
+      trackConfirmationResult(this.hass);
+    }
     await this._snooze(true);
   }
 

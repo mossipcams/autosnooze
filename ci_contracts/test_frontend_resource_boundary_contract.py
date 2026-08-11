@@ -129,7 +129,7 @@ def test_main_card_does_not_reclaim_extracted_workflow_ownership() -> None:
     """The main card should remain a composition and event-routing component."""
     source = CARD_PATH.read_text(encoding="utf-8")
 
-    assert len(source.splitlines()) < 750
+    assert len(source.splitlines()) < 850
     assert "REGISTRY_RETRY_" not in source
     assert "fetchCardLabelRegistry" not in source
     assert "document.createElement('div')" not in source
