@@ -194,9 +194,10 @@ ADJUST_SCHEMA = vol.Schema(
 REPORT_TELEMETRY_SCHEMA = vol.Schema(
     {
         vol.Required("event"): cv.string,
-        vol.Optional("properties"): dict,
+        # HA service UI / some callService paths send JSON null for empty optionals.
+        vol.Optional("properties"): vol.Any(dict, None),
         vol.Optional("source", default="card"): cv.string,
-        vol.Optional("card_type"): cv.string,
+        vol.Optional("card_type"): vol.Any(cv.string, None),
     }
 )
 

@@ -27,10 +27,26 @@ describe('reportTelemetry', () => {
 
     expect(callService).toHaveBeenCalledWith('autosnooze', 'report_telemetry', {
       event: 'card_viewed',
-      properties: undefined,
       source: 'card',
       card_type: 'full',
     });
+  });
+
+  test('omits nullish optional fields so HA schema does not 400', () => {
+    const callService = vi.fn();
+    const hass = hassWithTelemetryService(callService);
+
+    reportTelemetry(hass, {
+      event: 'selection_feature_used',
+      source: 'card',
+    });
+
+    expect(callService).toHaveBeenCalledWith('autosnooze', 'report_telemetry', {
+      event: 'selection_feature_used',
+      source: 'card',
+    });
+    expect(callService.mock.calls[0][2]).not.toHaveProperty('properties');
+    expect(callService.mock.calls[0][2]).not.toHaveProperty('card_type');
   });
 
   test('calls service for other valid card events', () => {
@@ -133,10 +149,9 @@ describe('reportTelemetry', () => {
       event: 'wake_clicked',
       properties: { scope: 'one' },
       source: 'card',
-      card_type: undefined,
     });
+    expect(callService.mock.calls[0][2]).not.toHaveProperty('card_type');
   });
-
 
   test('does not throw when callService is missing', () => {
     const hass = {} as HomeAssistant;
