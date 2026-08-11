@@ -13,7 +13,8 @@
     "binaries"
   ],
   "ignoreDependencies": [
-    "lit"
+    "lit",
+    "zod"
   ],
   "ignoreBinaries": [
     "python3"
