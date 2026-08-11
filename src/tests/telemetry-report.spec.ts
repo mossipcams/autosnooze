@@ -17,19 +17,46 @@ describe('reportTelemetry', () => {
     const callService = vi.fn().mockRejectedValueOnce(new Error('offline'));
     const hass = hassWithTelemetryService(callService);
 
-    reportTelemetry(hass, {
-      event: 'card_viewed',
-      card_type: 'full',
-      source: 'card',
-    });
+    expect(() =>
+      reportTelemetry(hass, {
+        event: 'card_viewed',
+        card_type: 'full',
+        source: 'card',
+      })
+    ).not.toThrow();
 
     await Promise.resolve();
 
-    expect(callService).toHaveBeenCalledWith('autosnooze', 'report_telemetry', {
-      event: 'card_viewed',
-      source: 'card',
-      card_type: 'full',
+    expect(callService).toHaveBeenCalledWith(
+      'autosnooze',
+      'report_telemetry',
+      {
+        event: 'card_viewed',
+        source: 'card',
+        card_type: 'full',
+      },
+      undefined,
+      false
+    );
+  });
+
+  test('disables HA notifyOnError so telemetry failures never toast', async () => {
+    const callService = vi.fn().mockRejectedValueOnce({
+      code: 'service_validation_error',
+      message: 'Validation error: ...',
     });
+    const hass = hassWithTelemetryService(callService);
+
+    expect(() =>
+      reportTelemetry(hass, {
+        event: 'wake_clicked',
+        properties: { scope: 'one' },
+        source: 'card',
+      })
+    ).not.toThrow();
+
+    await expect(Promise.resolve()).resolves.toBeUndefined();
+    expect(callService.mock.calls[0][4]).toBe(false);
   });
 
   test('omits nullish optional fields so HA schema does not 400', () => {
@@ -41,10 +68,16 @@ describe('reportTelemetry', () => {
       source: 'card',
     });
 
-    expect(callService).toHaveBeenCalledWith('autosnooze', 'report_telemetry', {
-      event: 'selection_feature_used',
-      source: 'card',
-    });
+    expect(callService).toHaveBeenCalledWith(
+      'autosnooze',
+      'report_telemetry',
+      {
+        event: 'selection_feature_used',
+        source: 'card',
+      },
+      undefined,
+      false
+    );
     expect(callService.mock.calls[0][2]).not.toHaveProperty('properties');
     expect(callService.mock.calls[0][2]).not.toHaveProperty('card_type');
   });
@@ -145,11 +178,17 @@ describe('reportTelemetry', () => {
       source: 'card',
     });
 
-    expect(callService).toHaveBeenCalledWith('autosnooze', 'report_telemetry', {
-      event: 'wake_clicked',
-      properties: { scope: 'one' },
-      source: 'card',
-    });
+    expect(callService).toHaveBeenCalledWith(
+      'autosnooze',
+      'report_telemetry',
+      {
+        event: 'wake_clicked',
+        properties: { scope: 'one' },
+        source: 'card',
+      },
+      undefined,
+      false
+    );
     expect(callService.mock.calls[0][2]).not.toHaveProperty('card_type');
   });
 
