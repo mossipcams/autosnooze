@@ -155,6 +155,74 @@ export function trackDurationPresetSelected(hass: HomeAssistant): void {
   });
 }
 
+export function trackSnoozeButtonClicked(
+  hass: HomeAssistant,
+  targetCount: number,
+  scheduleMode: boolean,
+): void {
+  reportTelemetry(hass, {
+    event: 'snooze_button_clicked',
+    properties: { target_count: targetCount, schedule_mode: scheduleMode },
+    source: 'card',
+  });
+}
+
+export function trackWakeClicked(hass: HomeAssistant, scope: 'one' | 'all'): void {
+  reportTelemetry(hass, { event: 'wake_clicked', properties: { scope }, source: 'card' });
+}
+
+export function trackAdjustOpened(hass: HomeAssistant, scope: 'one' | 'group'): void {
+  reportTelemetry(hass, { event: 'adjust_opened', properties: { scope }, source: 'card' });
+}
+
+export function trackAdjustOptionSelected(
+  hass: HomeAssistant,
+  direction: 'extend' | 'shorten',
+  deltaMinutes: number,
+): void {
+  reportTelemetry(hass, {
+    event: 'adjust_option_selected',
+    properties: { direction, delta_minutes: deltaMinutes },
+    source: 'card',
+  });
+}
+
+export function trackScheduledCancelClicked(hass: HomeAssistant): void {
+  reportTelemetry(hass, { event: 'scheduled_cancel_clicked', source: 'card' });
+}
+
+export function trackScheduleModeToggled(hass: HomeAssistant, enabled: boolean): void {
+  reportTelemetry(hass, {
+    event: 'schedule_mode_toggled',
+    properties: { enabled },
+    source: 'card',
+  });
+}
+
+export function trackUntilTomorrowSelected(hass: HomeAssistant): void {
+  reportTelemetry(hass, { event: 'until_tomorrow_selected', source: 'card' });
+}
+
+export function trackCustomDurationToggled(hass: HomeAssistant, enabled: boolean): void {
+  reportTelemetry(hass, {
+    event: 'custom_duration_toggled',
+    properties: { enabled },
+    source: 'card',
+  });
+}
+
+export function trackNotificationOptionsChanged(
+  hass: HomeAssistant,
+  trigger: 'none' | 'start' | 'about_to_end' | 'end',
+  enabled: boolean,
+): void {
+  reportTelemetry(hass, {
+    event: 'notification_options_changed',
+    properties: { trigger, enabled },
+    source: 'card',
+  });
+}
+
 export type SyncAdjustModalResult =
   | { action: 'none' }
   | { action: 'close' }

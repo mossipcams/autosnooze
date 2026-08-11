@@ -94,6 +94,27 @@ CARD_REPORT_EVENTS: dict[str, dict[str, Any]] = {
         },
         "source": "card",
     },
+    "snooze_button_clicked": {
+        "properties": {"target_count": 2, "schedule_mode": False},
+        "source": "card",
+    },
+    "wake_clicked": {"properties": {"scope": "one"}, "source": "card"},
+    "adjust_opened": {"properties": {"scope": "one"}, "source": "card"},
+    "adjust_option_selected": {
+        "properties": {"direction": "extend", "delta_minutes": 15},
+        "source": "card",
+    },
+    "scheduled_cancel_clicked": {"properties": {}, "source": "card"},
+    "filter_tab_selected": {"properties": {"tab": "areas"}, "source": "card"},
+    "hide_snoozed_toggled": {"properties": {"enabled": True}, "source": "card"},
+    "schedule_mode_toggled": {"properties": {"enabled": True}, "source": "card"},
+    "until_tomorrow_selected": {"properties": {}, "source": "card"},
+    "custom_duration_toggled": {"properties": {"enabled": True}, "source": "card"},
+    "notification_options_changed": {
+        "properties": {"trigger": "start", "enabled": True},
+        "source": "card",
+    },
+    "confirmation_dismissed": {"properties": {}, "source": "card"},
 }
 
 TRACK_EVENTS: dict[str, dict[str, Any]] = {
@@ -124,7 +145,7 @@ TRACK_EVENTS: dict[str, dict[str, Any]] = {
     "notification_cleared": {"properties": {"target_count": 1}, "source": "service"},
     "operation_failed": {
         "properties": {
-            "operation": "pause_automations",
+            "operation": "pause",
             "error_code": "unknown",
             "strategy": "duration",
             "target_count": 1,
@@ -148,8 +169,6 @@ def _scan_payload(event: str, payload: dict[str, Any]) -> tuple[list[str], list[
     undocumented: list[str] = []
     forbidden: list[str] = []
     allowed = _allowed_payload_keys(event)
-    if event == "card_viewed":
-        allowed = allowed | {"card_type"}
     for key in payload:
         if key not in allowed:
             undocumented.append(f"{event}.{key}")
@@ -163,7 +182,7 @@ def _scan_canaries(text: str) -> list[str]:
 
 
 def _make_post_mock(captured_posts: list[dict[str, Any]]) -> MagicMock:
-    def mock_post(url: str, *, json: list[dict[str, Any]], timeout: float) -> MagicMock:
+    def mock_post(url: str, *, json: list[dict[str, Any]], timeout: object) -> MagicMock:
         captured_posts.append({"url": url, "json": json})
         response = MagicMock()
         response.status = 200

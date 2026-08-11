@@ -123,3 +123,12 @@ async def test_async_flush_does_not_raise_on_hard_failure(telemetry_client) -> N
 
     with patch.object(telemetry_client, "_post_batch", side_effect=RuntimeError("boom")):
         await telemetry_client.async_flush()
+
+
+@pytest.mark.asyncio
+async def test_async_setup_disables_on_storage_failure(telemetry_client) -> None:
+    telemetry_client.store.async_load = AsyncMock(side_effect=OSError("disk full"))
+    await telemetry_client.async_setup()
+    assert telemetry_client._disabled is True
+    telemetry_client.track("integration_active", {}, source="startup")
+    assert telemetry_client._queue == []

@@ -316,3 +316,10 @@ export function trackConfirmationResult(hass: HomeAssistant): void {
     source: 'card',
   });
 }
+
+export function trackConfirmationDismissed(hass: HomeAssistant): void {
+  reportTelemetry(hass, {
+    event: 'confirmation_dismissed',
+    source: 'card',
+  });
+}

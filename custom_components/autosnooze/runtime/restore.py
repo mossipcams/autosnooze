@@ -258,7 +258,7 @@ async def async_load_stored(
             data.scheduled[scheduled.entity_id] = scheduled
             callbacks.schedule_disable(hass, data, scheduled.entity_id, scheduled)
 
-        if expired or expired_scheduled:
+        if expired or expired_scheduled or restored_started:
             should_save = True
 
     for paused in pre_resume_targets:

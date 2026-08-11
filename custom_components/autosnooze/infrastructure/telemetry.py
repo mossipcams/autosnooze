@@ -48,6 +48,13 @@ SNOOZE_STRATEGIES = frozenset(
         "scheduled_window",
     }
 )
+INPUT_METHODS = frozenset({"card", "service"})
+DIRECTIONS = frozenset({"extend", "shorten"})
+NOTIFICATION_TRIGGERS = frozenset({"none", "start", "about_to_end", "end"})
+OPERATIONS = frozenset({"pause", "adjust"})
+WAKE_SCOPES = frozenset({"one", "all"})
+ADJUST_SCOPES = frozenset({"one", "group"})
+FILTER_TABS = frozenset({"all", "areas", "categories", "labels"})
 ERROR_CODE_ALLOWLIST = frozenset(
     {
         "invalid_duration",
@@ -63,6 +70,8 @@ ERROR_CODE_ALLOWLIST = frozenset(
 TRANSLATION_KEY_TO_ERROR_CODE: dict[str, str] = {
     "confirm_required": "confirmation_required",
 }
+MAX_MINUTES = 10080
+MAX_TARGET_COUNT = 500
 
 EVENT_SCHEMAS: dict[str, frozenset[str]] = {
     "integration_active": frozenset(),
@@ -96,6 +105,18 @@ EVENT_SCHEMAS: dict[str, frozenset[str]] = {
     "notification_cleared": frozenset({"target_count"}),
     "operation_failed": frozenset({"operation", "error_code", "strategy", "target_count"}),
     "confirmation_result": frozenset(),
+    "snooze_button_clicked": frozenset({"target_count", "schedule_mode"}),
+    "wake_clicked": frozenset({"scope"}),
+    "adjust_opened": frozenset({"scope"}),
+    "adjust_option_selected": frozenset({"direction", "delta_minutes"}),
+    "scheduled_cancel_clicked": frozenset(),
+    "filter_tab_selected": frozenset({"tab"}),
+    "hide_snoozed_toggled": frozenset({"enabled"}),
+    "schedule_mode_toggled": frozenset({"enabled"}),
+    "until_tomorrow_selected": frozenset(),
+    "custom_duration_toggled": frozenset({"enabled"}),
+    "notification_options_changed": frozenset({"trigger", "enabled"}),
+    "confirmation_dismissed": frozenset(),
 }
 
 
@@ -106,6 +127,64 @@ def map_translation_key_to_error_code(translation_key: str | None) -> str:
     if mapped in ERROR_CODE_ALLOWLIST:
         return mapped
     return "unknown"
+
+
+def _validate_enum(value: Any, allowed: frozenset[str]) -> str | None:
+    if isinstance(value, str) and value in allowed:
+        return value
+    return None
+
+
+def _validate_bool(value: Any) -> str | None:
+    if isinstance(value, bool):
+        return "true" if value else "false"
+    if value in ("true", "false"):
+        return value
+    return None
+
+
+def _validate_int(value: Any, *, min_value: int = 0, max_value: int) -> str | None:
+    if isinstance(value, bool):
+        return None
+    if isinstance(value, int):
+        number = value
+    elif isinstance(value, str) and value.isdigit():
+        number = int(value)
+    else:
+        return None
+    if min_value <= number <= max_value:
+        return str(number)
+    return None
+
+
+def _validate_property(key: str, value: Any) -> str | None:
+    validators: dict[str, Any] = {
+        "strategy": lambda v: _validate_enum(v, SNOOZE_STRATEGIES),
+        "input_method": lambda v: _validate_enum(v, INPUT_METHODS),
+        "notification_trigger": lambda v: _validate_enum(v, NOTIFICATION_TRIGGERS),
+        "trigger": lambda v: _validate_enum(v, NOTIFICATION_TRIGGERS),
+        "direction": lambda v: _validate_enum(v, DIRECTIONS),
+        "operation": lambda v: _validate_enum(v, OPERATIONS),
+        "error_code": lambda v: _validate_enum(v, ERROR_CODE_ALLOWLIST),
+        "card_type": lambda v: _validate_enum(v, CARD_TYPES),
+        "scope": lambda v: _validate_enum(v, WAKE_SCOPES | ADJUST_SCOPES),
+        "tab": lambda v: _validate_enum(v, FILTER_TABS),
+        "confirmation_used": _validate_bool,
+        "enabled": _validate_bool,
+        "schedule_mode": _validate_bool,
+        "duration_minutes": lambda v: _validate_int(v, max_value=MAX_MINUTES),
+        "notification_lead_minutes": lambda v: _validate_int(v, max_value=MAX_MINUTES),
+        "minutes_until_start": lambda v: _validate_int(v, max_value=MAX_MINUTES),
+        "planned_duration_minutes": lambda v: _validate_int(v, max_value=MAX_MINUTES),
+        "minutes_before_start": lambda v: _validate_int(v, max_value=MAX_MINUTES),
+        "delta_minutes": lambda v: _validate_int(v, min_value=1, max_value=MAX_MINUTES),
+        "target_count": lambda v: _validate_int(v, max_value=MAX_TARGET_COUNT),
+        "resume_local_hour": lambda v: _validate_int(v, max_value=23),
+    }
+    validator = validators.get(key)
+    if validator is None:
+        return None
+    return validator(value)
 
 
 def sanitize_event_properties(
@@ -127,18 +206,26 @@ def sanitize_event_properties(
     for key, value in (properties or {}).items():
         if key not in allowed:
             continue
-        cleaned[key] = _stringify(value)
+        validated = _validate_property(key, value)
+        if validated is None:
+            return None
+        cleaned[key] = validated
 
     if card_type is not None:
-        if card_type not in CARD_TYPES:
+        validated_card_type = _validate_enum(card_type, CARD_TYPES)
+        if validated_card_type is None:
             return None
-        cleaned["card_type"] = _stringify(card_type)
+        cleaned["card_type"] = validated_card_type
 
     if event == "card_viewed" and cleaned.get("card_type") not in CARD_TYPES:
         return None
     if event == "snooze_created" and cleaned.get("strategy") not in SNOOZE_STRATEGIES:
         return None
     if event == "operation_failed" and cleaned.get("error_code") not in ERROR_CODE_ALLOWLIST:
+        return None
+    if event == "wake_clicked" and cleaned.get("scope") not in WAKE_SCOPES:
+        return None
+    if event == "adjust_opened" and cleaned.get("scope") not in ADJUST_SCOPES:
         return None
 
     payload = {
@@ -149,12 +236,6 @@ def sanitize_event_properties(
         **cleaned,
     }
     return payload
-
-
-def _stringify(value: Any) -> str:
-    if isinstance(value, bool):
-        return "true" if value else "false"
-    return str(value)
 
 
 def _ha_version() -> str:
@@ -185,15 +266,21 @@ class TelemetryClient:
         return bool(self.entry.options.get(OPTION_TELEMETRY_ENABLED, True))
 
     async def async_setup(self) -> None:
-        stored = await self.store.async_load() or {}
-        install_id = stored.get("install_id")
-        if not isinstance(install_id, str) or not install_id:
-            install_id = str(uuid.uuid4())
-            stored["install_id"] = install_id
-            await self.store.async_save(stored)
-        self._install_id = install_id
-        last_day = stored.get("last_card_viewed_day")
-        self._last_card_viewed_day = last_day if isinstance(last_day, str) else None
+        try:
+            stored = await self.store.async_load() or {}
+            install_id = stored.get("install_id")
+            if not isinstance(install_id, str) or not install_id:
+                install_id = str(uuid.uuid4())
+                stored["install_id"] = install_id
+                await self.store.async_save(stored)
+            self._install_id = install_id
+            last_day = stored.get("last_card_viewed_day")
+            self._last_card_viewed_day = last_day if isinstance(last_day, str) else None
+        except Exception:
+            _LOGGER.debug("Telemetry storage unavailable; disabling telemetry", exc_info=True)
+            self._disabled = True
+            self._install_id = None
+            self._last_card_viewed_day = None
 
     def async_unload(self) -> None:
         self._disabled = True
@@ -257,14 +344,16 @@ class TelemetryClient:
         strategy: str = "",
         target_count: int = 0,
     ) -> None:
+        properties: dict[str, Any] = {
+            "operation": operation,
+            "error_code": map_translation_key_to_error_code(getattr(error, "translation_key", None)),
+            "target_count": target_count,
+        }
+        if strategy in SNOOZE_STRATEGIES:
+            properties["strategy"] = strategy
         self.track(
             "operation_failed",
-            {
-                "operation": operation,
-                "error_code": map_translation_key_to_error_code(getattr(error, "translation_key", None)),
-                "strategy": strategy,
-                "target_count": target_count,
-            },
+            properties,
             source=source,
         )
 

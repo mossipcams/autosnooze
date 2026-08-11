@@ -70,7 +70,7 @@ async def async_resume(
             _LOGGER.warning("Failed to restore disabled state for stale resume of %s", entity_id)
     data.notify()
     await notify_resumed(hass, resumed, reason=reason, save_succeeded=True)
-    if reason == "expired" and woke_successfully:
+    if reason == "expired" and resumed:
         track_if_enabled(
             data,
             "snooze_ended",

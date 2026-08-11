@@ -479,13 +479,18 @@ describe('Frontend Service Calls with Captured Responses', () => {
 
       await card._snooze();
 
-      expect(mockCallService).toHaveBeenCalledTimes(1);
-      expect(mockCallService).toHaveBeenCalledWith('autosnooze', 'pause', {
-        entity_id: ['automation.test'],
-        days: 1,
-        hours: 2,
-        minutes: 30,
-      });
+      const pauseCalls = mockCallService.mock.calls.filter((call) => call[1] === 'pause');
+      expect(pauseCalls).toHaveLength(1);
+      expect(pauseCalls[0]).toEqual([
+        'autosnooze',
+        'pause',
+        {
+          entity_id: ['automation.test'],
+          days: 1,
+          hours: 2,
+          minutes: 30,
+        },
+      ]);
 
       // Verify state was cleared after snooze
       expect(card._selected).toEqual([]);
@@ -502,8 +507,9 @@ describe('Frontend Service Calls with Captured Responses', () => {
 
       await card._snooze();
 
-      expect(mockCallService).toHaveBeenCalledTimes(1);
-      const call = mockCallService.mock.calls[0];
+      const pauseCalls = mockCallService.mock.calls.filter((call) => call[1] === 'pause');
+      expect(pauseCalls).toHaveLength(1);
+      const call = pauseCalls[0];
       expect(call[0]).toBe('autosnooze');
       expect(call[1]).toBe('pause');
       expect(call[2].entity_id).toEqual(['automation.test']);
@@ -517,7 +523,11 @@ describe('Frontend Service Calls with Captured Responses', () => {
 
     test('handles not_automation error from backend without rendering a duplicate card toast', async () => {
       const backendError = backendResponses.error_responses.not_automation.response;
-      mockCallService.mockRejectedValueOnce(backendError);
+      mockCallService.mockImplementation(async (_domain, service) => {
+        if (service === 'pause') {
+          throw backendError;
+        }
+      });
 
       card._selected = ['light.invalid'];
       card._customDuration = { days: 0, hours: 1, minutes: 0 };
@@ -534,7 +544,11 @@ describe('Frontend Service Calls with Captured Responses', () => {
 
     test('handles invalid_duration error from backend without rendering a duplicate card toast', async () => {
       const backendError = backendResponses.error_responses.invalid_duration.response;
-      mockCallService.mockRejectedValueOnce(backendError);
+      mockCallService.mockImplementation(async (_domain, service) => {
+        if (service === 'pause') {
+          throw backendError;
+        }
+      });
 
       card._selected = ['automation.test'];
       card._customDuration = { days: 0, hours: 0, minutes: 1 };
@@ -549,7 +563,11 @@ describe('Frontend Service Calls with Captured Responses', () => {
 
     test('handles resume_time_past error from backend without rendering a duplicate card toast', async () => {
       const backendError = backendResponses.error_responses.resume_time_past.response;
-      mockCallService.mockRejectedValueOnce(backendError);
+      mockCallService.mockImplementation(async (_domain, service) => {
+        if (service === 'pause') {
+          throw backendError;
+        }
+      });
 
       // Even though frontend validates, backend might reject
       card._selected = ['automation.test'];
@@ -588,19 +606,30 @@ describe('Frontend Service Calls with Captured Responses', () => {
 
   describe('cancel service', () => {
     test('sends correct parameters for wake', async () => {
-      await card._wake('automation.test');
+      await card._handleWakeEvent({ detail: { entityId: 'automation.test' } });
 
-      expect(mockCallService).toHaveBeenCalledTimes(1);
-      expect(mockCallService).toHaveBeenCalledWith('autosnooze', 'cancel', {
-        entity_id: 'automation.test',
-      });
+      const cancelCalls = mockCallService.mock.calls.filter((call) => call[1] === 'cancel');
+      expect(cancelCalls).toHaveLength(1);
+      expect(cancelCalls[0]).toEqual([
+        'autosnooze',
+        'cancel',
+        {
+          entity_id: 'automation.test',
+        },
+      ]);
     });
 
     test('handles error during wake gracefully', async () => {
-      mockCallService.mockRejectedValueOnce(new Error('Service unavailable'));
+      mockCallService.mockImplementation(async (_domain, service) => {
+        if (service === 'cancel') {
+          throw new Error('Service unavailable');
+        }
+      });
 
       // Should not throw
-      await expect(card._wake('automation.test')).resolves.not.toThrow();
+      await expect(
+        card._handleWakeEvent({ detail: { entityId: 'automation.test' } })
+      ).resolves.not.toThrow();
     });
   });
 
@@ -608,8 +637,9 @@ describe('Frontend Service Calls with Captured Responses', () => {
     test('sends empty object for wake all', async () => {
       await card._handleWakeAllEvent();
 
-      expect(mockCallService).toHaveBeenCalledTimes(1);
-      expect(mockCallService).toHaveBeenCalledWith('autosnooze', 'cancel_all', {});
+      const cancelAllCalls = mockCallService.mock.calls.filter((call) => call[1] === 'cancel_all');
+      expect(cancelAllCalls).toHaveLength(1);
+      expect(cancelAllCalls[0]).toEqual(['autosnooze', 'cancel_all', {}]);
     });
 
     test('two-tap confirmation handled by child component', () => {
@@ -625,14 +655,25 @@ describe('Frontend Service Calls with Captured Responses', () => {
     test('sends correct parameters', async () => {
       await card._cancelScheduled('automation.test');
 
-      expect(mockCallService).toHaveBeenCalledTimes(1);
-      expect(mockCallService).toHaveBeenCalledWith('autosnooze', 'cancel_scheduled', {
-        entity_id: 'automation.test',
-      });
+      const cancelScheduledCalls = mockCallService.mock.calls.filter(
+        (call) => call[1] === 'cancel_scheduled'
+      );
+      expect(cancelScheduledCalls).toHaveLength(1);
+      expect(cancelScheduledCalls[0]).toEqual([
+        'autosnooze',
+        'cancel_scheduled',
+        {
+          entity_id: 'automation.test',
+        },
+      ]);
     });
 
     test('handles error during cancel_scheduled gracefully', async () => {
-      mockCallService.mockRejectedValueOnce(new Error('Service unavailable'));
+      mockCallService.mockImplementation(async (_domain, service) => {
+        if (service === 'cancel_scheduled') {
+          throw new Error('Service unavailable');
+        }
+      });
 
       await expect(card._cancelScheduled('automation.test')).resolves.not.toThrow();
     });
@@ -1014,7 +1055,11 @@ describe('Integration State Changes', () => {
   });
 
   test('failed snooze keeps selection intact for retry', async () => {
-    mockCallService.mockRejectedValueOnce(new Error('Network error'));
+    mockCallService.mockImplementation(async (_domain, service) => {
+      if (service === 'pause') {
+        throw new Error('Network error');
+      }
+    });
 
     card._selected = ['automation.test'];
     card._customDuration = { days: 0, hours: 1, minutes: 0 };

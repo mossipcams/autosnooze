@@ -192,6 +192,9 @@ class TestAutoSnoozeOptionsFlow:
         result = await options_flow.async_step_init(None)
         assert result["type"] == "form"
         assert "telemetry_enabled" in result["data_schema"].schema
+        submitted = await options_flow.async_step_init({"preset_1": "30m"})
+        assert submitted["type"] == "create_entry"
+        assert submitted["data"]["telemetry_enabled"] is True
 
     @pytest.mark.asyncio
     async def test_step_init_preserves_telemetry_toggle(self, mock_config_entry):

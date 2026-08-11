@@ -15,9 +15,19 @@ async def async_handle_report_telemetry(
     client = data.telemetry
     if client is None or not client.is_enabled():
         return
+    event = call.data.get("event")
+    if not isinstance(event, str):
+        return
+    source = call.data.get("source", "card")
+    if not isinstance(source, str):
+        source = "card"
+    card_type = call.data.get("card_type")
+    if card_type is not None and not isinstance(card_type, str):
+        card_type = None
+    properties = call.data.get("properties")
     client.track(
-        call.data.get("event"),
-        call.data.get("properties"),
-        source=call.data.get("source", "card"),
-        card_type=call.data.get("card_type"),
+        event,
+        properties if isinstance(properties, dict) else None,
+        source=source,
+        card_type=card_type,
     )

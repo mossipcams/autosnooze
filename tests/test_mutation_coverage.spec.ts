@@ -1172,7 +1172,8 @@ describe('Snooze Validation - Mutation Killing', () => {
       card._resumeAtDate = '';
       card._resumeAtTime = '12:00';
       await card._snooze();
-      expect(mockHass.callService).not.toHaveBeenCalled();
+      const pauseCalls = mockHass.callService.mock.calls.filter((call) => call[1] === 'pause');
+      expect(pauseCalls).toHaveLength(0);
     });
 
     test('shows toast when resume_at time not set', async () => {
@@ -1181,7 +1182,8 @@ describe('Snooze Validation - Mutation Killing', () => {
       card._resumeAtDate = '2026-12-25';
       card._resumeAtTime = '';
       await card._snooze();
-      expect(mockHass.callService).not.toHaveBeenCalled();
+      const pauseCalls = mockHass.callService.mock.calls.filter((call) => call[1] === 'pause');
+      expect(pauseCalls).toHaveLength(0);
     });
 
     test('shows toast when resume time is in past', async () => {
@@ -1191,7 +1193,8 @@ describe('Snooze Validation - Mutation Killing', () => {
       card._resumeAtDate = pastDate.toISOString().split('T')[0];
       card._resumeAtTime = '10:00';
       await card._snooze();
-      expect(mockHass.callService).not.toHaveBeenCalled();
+      const pauseCalls = mockHass.callService.mock.calls.filter((call) => call[1] === 'pause');
+      expect(pauseCalls).toHaveLength(0);
     });
 
     test('shows toast when disable time is after resume time', async () => {
@@ -1204,7 +1207,8 @@ describe('Snooze Validation - Mutation Killing', () => {
       card._disableAtDate = dateStr;
       card._disableAtTime = '12:00'; // After resume time
       await card._snooze();
-      expect(mockHass.callService).not.toHaveBeenCalled();
+      const pauseCalls = mockHass.callService.mock.calls.filter((call) => call[1] === 'pause');
+      expect(pauseCalls).toHaveLength(0);
     });
   });
 });

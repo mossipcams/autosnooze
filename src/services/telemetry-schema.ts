@@ -22,6 +22,9 @@ export type ErrorCode =
   | 'automation_state_failed'
   | 'unknown';
 
+export type NotificationTrigger = 'none' | 'start' | 'about_to_end' | 'end';
+export type FilterTab = 'all' | 'areas' | 'categories' | 'labels';
+
 type WithSource = { source?: TelemetrySource };
 
 export type ReportTelemetryInput =
@@ -84,8 +87,38 @@ export type ReportTelemetryInput =
       properties: {
         operation: Scalar;
         error_code: ErrorCode;
-        strategy: Scalar;
+        strategy?: Scalar;
         target_count: Scalar;
       };
     } & WithSource)
-  | ({ event: 'confirmation_result' } & WithSource);
+  | ({ event: 'confirmation_result' } & WithSource)
+  | ({
+      event: 'snooze_button_clicked';
+      properties: {
+        target_count: Scalar;
+        schedule_mode: boolean;
+      };
+    } & WithSource)
+  | ({ event: 'wake_clicked'; properties: { scope: 'one' | 'all' } } & WithSource)
+  | ({ event: 'adjust_opened'; properties: { scope: 'one' | 'group' } } & WithSource)
+  | ({
+      event: 'adjust_option_selected';
+      properties: {
+        direction: 'extend' | 'shorten';
+        delta_minutes: Scalar;
+      };
+    } & WithSource)
+  | ({ event: 'scheduled_cancel_clicked' } & WithSource)
+  | ({ event: 'filter_tab_selected'; properties: { tab: FilterTab } } & WithSource)
+  | ({ event: 'hide_snoozed_toggled'; properties: { enabled: boolean } } & WithSource)
+  | ({ event: 'schedule_mode_toggled'; properties: { enabled: boolean } } & WithSource)
+  | ({ event: 'until_tomorrow_selected' } & WithSource)
+  | ({ event: 'custom_duration_toggled'; properties: { enabled: boolean } } & WithSource)
+  | ({
+      event: 'notification_options_changed';
+      properties: {
+        trigger: NotificationTrigger;
+        enabled: boolean;
+      };
+    } & WithSource)
+  | ({ event: 'confirmation_dismissed' } & WithSource);

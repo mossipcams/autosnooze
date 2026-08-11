@@ -38,10 +38,22 @@ Event-specific `payload` keys:
 | `notification_cleared` | `target_count` |
 | `operation_failed` | `operation`, `error_code`, `strategy`, `target_count` |
 | `confirmation_result` | versions and source only |
+| `snooze_button_clicked` | `target_count`, `schedule_mode` |
+| `wake_clicked` | `scope` |
+| `adjust_opened` | `scope` |
+| `adjust_option_selected` | `direction`, `delta_minutes` |
+| `scheduled_cancel_clicked` | versions and source only |
+| `filter_tab_selected` | `tab` |
+| `hide_snoozed_toggled` | `enabled` |
+| `schedule_mode_toggled` | `enabled` |
+| `until_tomorrow_selected` | versions and source only |
+| `custom_duration_toggled` | `enabled` |
+| `notification_options_changed` | `trigger`, `enabled` |
+| `confirmation_dismissed` | versions and source only |
 
 ## Captured payloads
 
-The committed golden file lists the exact `payload` object for each of the 14 events after sanitization:
+The committed golden file lists the exact `payload` object for each of the 26 events after sanitization:
 
 - [telemetry-payloads.json](./telemetry-payloads.json)
 

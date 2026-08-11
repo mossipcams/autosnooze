@@ -113,22 +113,43 @@ Events are explicit and property-scoped. Shared properties on applicable events:
 - `source` (`card`, `service`, `timer`, or `startup`)
 - `card_type` (`full` or `snoozed_only`) when the event came from a dashboard card
 
+Backend outcomes:
+
 | Event | Properties |
 |-------|------------|
 | `integration_active` | versions only |
-| `card_viewed` | `card_type` (throttled once per install per UTC day) |
-| `selection_feature_used` | versions only |
-| `duration_option_selected` | versions only |
 | `snooze_created` | `strategy`, `input_method`, `duration_minutes`, `target_count`, `notification_trigger`, `notification_lead_minutes`, `confirmation_used` |
 | `scheduled_snooze_created` | `minutes_until_start`, `planned_duration_minutes`, `target_count`, `resume_local_hour` |
 | `scheduled_snooze_started` | `target_count`, `planned_duration_minutes` |
-| `snooze_adjusted` | `delta_minutes`, `direction: extend` |
+| `snooze_adjusted` | `delta_minutes`, `direction` |
 | `snooze_ended` | versions only |
 | `scheduled_snooze_cancelled` | `target_count`, `minutes_before_start` |
 | `notification_used` | versions only |
 | `notification_cleared` | `target_count` |
-| `operation_failed` | `operation`, `error_code`, `strategy`, `target_count` |
+| `operation_failed` | `operation`, `error_code`, optional `strategy`, `target_count` |
+
+Card UI actions:
+
+| Event | Properties |
+|-------|------------|
+| `card_viewed` | `card_type` (throttled once per install per UTC day) |
+| `selection_feature_used` | versions only |
+| `duration_option_selected` | versions only |
+| `snooze_button_clicked` | `target_count`, `schedule_mode` |
+| `wake_clicked` | `scope` (`one` \| `all`) |
+| `adjust_opened` | `scope` (`one` \| `group`) |
+| `adjust_option_selected` | `direction`, `delta_minutes` |
+| `scheduled_cancel_clicked` | versions only |
+| `filter_tab_selected` | `tab` (`all` \| `areas` \| `categories` \| `labels`) |
+| `hide_snoozed_toggled` | `enabled` |
+| `schedule_mode_toggled` | `enabled` |
+| `until_tomorrow_selected` | versions only |
+| `custom_duration_toggled` | `enabled` |
+| `notification_options_changed` | `trigger`, `enabled` |
 | `confirmation_result` | versions only |
+| `confirmation_dismissed` | versions only |
+
+All property values are allowlisted enums, booleans, or bounded integers. Unknown fields and invalid values are dropped before egress.
 
 ### What is never sent
 
@@ -146,7 +167,7 @@ Events are explicit and property-scoped. Shared properties on applicable events:
 
 Telemetry is **on by default**. Turn it off in **Settings → Devices & Services → AutoSnooze → Configure → Send anonymous usage data**.
 
-AutoSnooze's telemetry payloads are verified in public CI. The test executes every instrumented action using deliberately identifiable Home Assistant data, captures the actual TelemetryDeck requests, and fails if any private or undocumented data is transmitted. [View verification](docs/telemetry-privacy.md)
+Payloads are verified in public CI against seeded private canaries. [View verification](docs/telemetry-privacy.md)
 
 -----
 

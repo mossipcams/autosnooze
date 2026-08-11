@@ -54,6 +54,25 @@ export function trackSelectionFeatureUsed(hass: HomeAssistant): void {
   });
 }
 
+export function trackFilterTabSelected(
+  hass: HomeAssistant,
+  tab: 'all' | 'areas' | 'categories' | 'labels',
+): void {
+  reportTelemetry(hass, {
+    event: 'filter_tab_selected',
+    properties: { tab },
+    source: 'card',
+  });
+}
+
+export function trackHideSnoozedToggled(hass: HomeAssistant, enabled: boolean): void {
+  reportTelemetry(hass, {
+    event: 'hide_snoozed_toggled',
+    properties: { enabled },
+    source: 'card',
+  });
+}
+
 export function getAreaName(areaId: string | null, hass: HomeAssistant, fallback: string = 'Unassigned'): string {
   if (!areaId) return fallback;
   return hass.areas?.[areaId]?.name ?? formatRegistryId(areaId);
