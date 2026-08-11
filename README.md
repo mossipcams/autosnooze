@@ -146,6 +146,8 @@ Events are explicit and property-scoped. Shared properties on applicable events:
 
 Telemetry is **on by default**. Turn it off in **Settings → Devices & Services → AutoSnooze → Configure → Send anonymous usage data**.
 
+AutoSnooze's telemetry payloads are verified in public CI. The test executes every instrumented action using deliberately identifiable Home Assistant data, captures the actual TelemetryDeck requests, and fails if any private or undocumented data is transmitted. [View verification](docs/telemetry-privacy.md)
+
 ### Example payload
 
 Signals are posted as a JSON array to TelemetryDeck. A `snooze_created` event looks like this:
