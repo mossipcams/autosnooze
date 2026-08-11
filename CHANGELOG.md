@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.29](https://github.com/mossipcams/autosnooze/compare/v0.2.28...v0.2.29) (2026-08-11)
+
+
+### Bug Fixes
+
+* accept null optionals on report_telemetry ([#497](https://github.com/mossipcams/autosnooze/issues/497)) ([fb3b898](https://github.com/mossipcams/autosnooze/commit/fb3b898a0b10a9acdd9d3ca2232e565416cd0be4))
+
 ## [0.2.28](https://github.com/mossipcams/autosnooze/compare/v0.2.27...v0.2.28) (2026-08-11)
 
 
