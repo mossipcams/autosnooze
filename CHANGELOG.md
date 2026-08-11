@@ -9,11 +9,7 @@
   * Persistent chip on the automation picker that hides currently snoozed rows
   * Preference survives reloads; hidden rows are pruned from selection and list counts
 
-* **Product telemetry** via TelemetryDeck ([#494](https://github.com/mossipcams/autosnooze/issues/494)) ([69b7cb9](https://github.com/mossipcams/autosnooze/commit/69b7cb953981973bd89274d35adb5c0b2f08b9b5))
-  * On by default; turn off in **Settings → Devices & Services → AutoSnooze → Configure → Send product usage data**
-  * Not fully anonymous: a random per-install ID is hashed (SHA-256) as `clientUser` so events can be grouped per install; the raw ID never leaves the instance
-  * Payloads are allowlisted enums/booleans/bounded integers only (versions, source, durations, counts, card actions) — no automation IDs/names, areas/labels, search text, URLs, user IDs, YAML, or location
-  * 26 events covering outcomes (snooze/schedule/adjust/notifications/failures) and card UI actions; catalog + CI-verified examples in [`docs/telemetry-privacy.md`](https://github.com/mossipcams/autosnooze/blob/main/docs/telemetry-privacy.md) and [`docs/telemetry-payloads.json`](https://github.com/mossipcams/autosnooze/blob/main/docs/telemetry-payloads.json)
+* **Product telemetry** via TelemetryDeck ([#494](https://github.com/mossipcams/autosnooze/issues/494)) ([69b7cb9](https://github.com/mossipcams/autosnooze/commit/69b7cb953981973bd89274d35adb5c0b2f08b9b5)) — opt-out in integration options; allowlisted usage events only ([details](https://github.com/mossipcams/autosnooze/blob/main/docs/telemetry-privacy.md))
 
 
 ### Bug Fixes
