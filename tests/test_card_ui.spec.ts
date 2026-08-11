@@ -1581,7 +1581,9 @@ describe('Snooze Operations', () => {
       expect(mockHass.callService).toHaveBeenCalledWith(
         'autosnooze',
         'report_telemetry',
-        expect.objectContaining({ event: 'confirmation_result' })
+        expect.objectContaining({ event: 'confirmation_result' }),
+        undefined,
+        false
       );
     });
   });

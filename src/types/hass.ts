@@ -70,7 +70,11 @@ export interface HomeAssistant {
   callService(
     domain: string,
     service: string,
-    serviceData?: Record<string, unknown>
+    serviceData?: Record<string, unknown>,
+    target?: Record<string, unknown>,
+    /** When false, HA frontend skips its failure toast (default true). */
+    notifyOnError?: boolean,
+    returnResponse?: boolean
   ): Promise<void>;
 }
 

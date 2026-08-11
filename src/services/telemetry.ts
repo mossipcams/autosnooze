@@ -27,14 +27,26 @@ export function reportTelemetry(hass: HomeAssistant, input: ReportTelemetryInput
   }
 
   try {
-    const result = hass.callService('autosnooze', 'report_telemetry', {
+    const serviceData: Record<string, unknown> = {
       event: input.event,
-      properties: 'properties' in input ? input.properties : undefined,
       source: input.source ?? 'card',
-      card_type: 'card_type' in input ? input.card_type : undefined,
-    });
+    };
+    if ('properties' in input && input.properties !== undefined && input.properties !== null) {
+      serviceData.properties = input.properties;
+    }
+    if ('card_type' in input && input.card_type !== undefined && input.card_type !== null) {
+      serviceData.card_type = input.card_type;
+    }
+    // notifyOnError=false: HA otherwise toasts every failed service call.
+    const result = hass.callService(
+      'autosnooze',
+      'report_telemetry',
+      serviceData,
+      undefined,
+      false
+    );
     void Promise.resolve(result).catch(() => undefined);
   } catch {
-    // never interrupt card actions
+    // never interrupt card actions or surface telemetry failures in the UI
   }
 }
