@@ -125,7 +125,7 @@ export class AutoSnoozeCard extends BasePage {
     this.resumeAtDate = this.card.locator('internal:role=combobox[name=/Resume date/i]');
     this.resumeAtTime = this.card.locator('internal:role=textbox[name=/Resume time/i]');
 
-    this.snoozeButton = this.card.locator('internal:role=button[name=/Snooze/i]');
+    this.snoozeButton = this.card.locator('button.snooze-btn');
     this.wakeAllButton = this.card.locator('internal:role=button[name=/Resume All|Confirm Resume All/i]');
 
     this.automationList = this.card.locator('internal:role=listbox[name=/Automations/i]');
