@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import hashlib
 import logging
 import uuid
@@ -33,6 +34,7 @@ TELEMETRY_STORAGE_KEY = f"{DOMAIN}.telemetry"
 OPTION_TELEMETRY_ENABLED = "telemetry_enabled"
 TELEMETRY_STORAGE_VERSION = 1
 FLUSH_TIMEOUT_SECONDS = 3
+FLUSH_DEBOUNCE_SECONDS = 0.25
 
 SOURCES = frozenset({"card", "service", "timer", "startup"})
 CARD_TYPES = frozenset({"full", "snoozed_only"})
@@ -259,6 +261,7 @@ class TelemetryClient:
     _last_card_viewed_day: str | None = None
     _disabled: bool = False
     _flush_scheduled: bool = False
+    _debounce_task: asyncio.Task[None] | None = None
 
     def is_enabled(self) -> bool:
         if self._disabled:
@@ -285,6 +288,10 @@ class TelemetryClient:
     def async_unload(self) -> None:
         self._disabled = True
         self._queue.clear()
+        if self._debounce_task is not None and not self._debounce_task.done():
+            self._debounce_task.cancel()
+        self._debounce_task = None
+        self._flush_scheduled = False
 
     def track(
         self,
@@ -316,24 +323,38 @@ class TelemetryClient:
                     "payload": payload,
                 }
             )
-            self.hass.async_create_task(self.async_flush())
+            self._schedule_flush()
         except Exception:
             _LOGGER.debug("Telemetry track failed", exc_info=True)
 
-    async def async_flush(self) -> None:
+    def _schedule_flush(self) -> None:
         if self._flush_scheduled:
             return
         self._flush_scheduled = True
+        self._debounce_task = self.hass.async_create_task(self._debounced_flush())
+
+    async def _debounced_flush(self) -> None:
         try:
-            try:
-                while self.is_enabled() and self._queue:
-                    batch = self._queue[:]
-                    self._queue.clear()
-                    await self._post_batch(batch)
-            except Exception:
-                _LOGGER.debug("Telemetry flush failed", exc_info=True)
+            await asyncio.sleep(FLUSH_DEBOUNCE_SECONDS)
+            await self.async_flush()
+        except asyncio.CancelledError:
+            raise
+        except Exception:
+            _LOGGER.debug("Telemetry debounced flush failed", exc_info=True)
         finally:
             self._flush_scheduled = False
+            self._debounce_task = None
+            if self.is_enabled() and self._queue:
+                self._schedule_flush()
+
+    async def async_flush(self) -> None:
+        try:
+            while self.is_enabled() and self._queue:
+                batch = self._queue[:]
+                self._queue.clear()
+                await self._post_batch(batch)
+        except Exception:
+            _LOGGER.debug("Telemetry flush failed", exc_info=True)
 
     def track_operation_failed(
         self,

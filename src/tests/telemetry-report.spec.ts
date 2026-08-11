@@ -69,6 +69,29 @@ describe('reportTelemetry', () => {
     expect(callService).not.toHaveBeenCalled();
   });
 
+  test('does not call service when sensor telemetry_enabled is false', () => {
+    const callService = vi.fn();
+    const hass = {
+      callService,
+      services: { autosnooze: { report_telemetry: {} } },
+      states: {
+        'sensor.autosnooze_snoozed_automations': {
+          entity_id: 'sensor.autosnooze_snoozed_automations',
+          attributes: { telemetry_enabled: false },
+        },
+      },
+    } as unknown as HomeAssistant;
+
+    reportTelemetry(hass, {
+      event: 'card_viewed',
+      card_type: 'full',
+      source: 'card',
+    });
+
+    expect(callService).not.toHaveBeenCalled();
+  });
+
+
   test('does not throw when callService is missing', () => {
     const hass = {} as HomeAssistant;
     expect(() =>

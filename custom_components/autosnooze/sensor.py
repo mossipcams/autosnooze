@@ -19,6 +19,7 @@ from .const import (
     SIGNAL_STATE_CHANGED,
     VERSION,
 )
+from .infrastructure.telemetry import OPTION_TELEMETRY_ENABLED
 from .runtime.state import AutomationPauseConfigEntry
 
 
@@ -92,4 +93,5 @@ class AutoSnoozeCountSensor(SensorEntity):
             "scheduled": scheduled,
             "duration_presets": presets,
             "critical_terms": list(CRITICAL_AUTOMATION_TERMS),
+            OPTION_TELEMETRY_ENABLED: bool(self._entry.options.get(OPTION_TELEMETRY_ENABLED, True)),
         }

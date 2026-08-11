@@ -132,3 +132,37 @@ async def test_async_setup_disables_on_storage_failure(telemetry_client) -> None
     assert telemetry_client._disabled is True
     telemetry_client.track("integration_active", {}, source="startup")
     assert telemetry_client._queue == []
+
+
+@pytest.mark.asyncio
+async def test_track_debounces_flush_into_one_post(telemetry_client) -> None:
+    import asyncio
+
+    await telemetry_client.async_setup()
+    tasks: list[asyncio.Task] = []
+
+    def create_task(coro):
+        task = asyncio.get_running_loop().create_task(coro)
+        tasks.append(task)
+        return task
+
+    telemetry_client.hass.async_create_task = create_task
+
+    with (
+        patch.object(telemetry_client, "_post_batch", new_callable=AsyncMock) as post,
+        patch(
+            "custom_components.autosnooze.infrastructure.telemetry.asyncio.sleep",
+            new_callable=AsyncMock,
+        ),
+    ):
+        telemetry_client.track("integration_active", {}, source="startup")
+        telemetry_client.track(
+            "snooze_button_clicked",
+            {"target_count": 1, "schedule_mode": False},
+            source="card",
+        )
+        assert len(tasks) == 1
+        await tasks[0]
+
+    assert post.await_count == 1
+    assert telemetry_client._queue == []
