@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import hashlib
 import json
 import sys
 from pathlib import Path
@@ -18,6 +19,7 @@ from custom_components.autosnooze.application.report_telemetry import (  # noqa:
 )
 from custom_components.autosnooze.infrastructure.telemetry import (  # noqa: E402
     EVENT_SCHEMAS,
+    TELEMETRYDECK_APP_ID,
     TELEMETRY_INGEST_URL,
     TelemetryClient,
 )
@@ -26,6 +28,8 @@ from custom_components.autosnooze.runtime.state import AutomationPauseData  # no
 FIXED_AUTOSNOOZE_VERSION = "0.2.27"
 FIXED_HA_VERSION = "2024.1.0-test"
 FIXED_INSTALL_ID = "privacy-test-install-id"
+EXPECTED_CLIENT_USER = hashlib.sha256(FIXED_INSTALL_ID.encode("utf-8")).hexdigest()
+ENVELOPE_KEYS = frozenset({"appID", "clientUser", "type", "payload"})
 
 CANARY_STRINGS = [
     "automation.guest_private_bedroom",
@@ -154,6 +158,8 @@ TRACK_EVENTS: dict[str, dict[str, Any]] = {
     },
 }
 
+EXPECTED_EVENT_COUNT = len(EVENT_SCHEMAS)
+
 
 def _polluted_properties(base: dict[str, Any]) -> dict[str, Any]:
     merged = dict(base)
@@ -269,6 +275,8 @@ async def capture() -> dict[str, Any]:
     undocumented_fields: list[str] = []
     forbidden_fields: list[str] = []
     canary_hits: list[str] = []
+    envelope_violations: list[str] = []
+    client_user_mismatches: list[str] = []
 
     client, captured_posts = await _build_client(enabled=True)
     hass = client.hass
@@ -296,6 +304,24 @@ async def capture() -> dict[str, Any]:
                 card_type=spec.get("card_type"),
             )
             await _flush_posts(client, captured_posts)
+
+        # Allowed-key canary values must not produce egress.
+        rejected_before = len(captured_posts)
+        client.track(
+            "snooze_created",
+            {
+                "strategy": "duration",
+                "input_method": CANARY_STRINGS[0],
+                "duration_minutes": 30,
+                "target_count": 1,
+                "notification_trigger": "none",
+                "notification_lead_minutes": 0,
+                "confirmation_used": False,
+            },
+            source="card",
+        )
+        await _flush_posts(client, captured_posts)
+        rejected_after = len(captured_posts)
 
     disabled_posts: list[dict[str, Any]] = []
     disabled_client, disabled_posts = await _build_client(enabled=False)
@@ -326,7 +352,16 @@ async def capture() -> dict[str, Any]:
 
     for post in captured_posts:
         assert post["url"] == TELEMETRY_INGEST_URL
+        canary_hits.extend(_scan_canaries(json.dumps(post)))
         for signal in post["json"]:
+            if set(signal.keys()) != ENVELOPE_KEYS:
+                envelope_violations.append(str(sorted(signal.keys())))
+            if signal.get("appID") != TELEMETRYDECK_APP_ID:
+                envelope_violations.append(f"appID:{signal.get('appID')}")
+            if signal.get("clientUser") != EXPECTED_CLIENT_USER:
+                client_user_mismatches.append(str(signal.get("clientUser")))
+            if FIXED_INSTALL_ID in json.dumps(signal):
+                canary_hits.append(FIXED_INSTALL_ID)
             event = signal["type"]
             payload = signal["payload"]
             payloads[event] = payload
@@ -343,11 +378,15 @@ async def capture() -> dict[str, Any]:
         "payloads": payloads,
         "meta": {
             "events_exercised": events_exercised,
+            "expected_event_count": EXPECTED_EVENT_COUNT,
             "outbound_requests": len(captured_posts),
             "telemetry_requests_while_disabled": len(disabled_posts),
             "undocumented_fields": len(undocumented_fields),
             "forbidden_ha_fields": len(forbidden_fields),
             "canary_hits": sorted(set(canary_hits)),
+            "envelope_violations": sorted(set(envelope_violations)),
+            "client_user_mismatches": sorted(set(client_user_mismatches)),
+            "allowed_key_canary_rejected": rejected_after == rejected_before,
             "undocumented_field_names": sorted(set(undocumented_fields)),
             "forbidden_field_names": sorted(set(forbidden_fields)),
             "autosnooze_version": FIXED_AUTOSNOOZE_VERSION,
