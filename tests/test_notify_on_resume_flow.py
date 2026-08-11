@@ -49,6 +49,7 @@ async def test_handle_pause_service_forwards_notification_trigger() -> None:
         None,
         "about_to_end",
         60,
+        service_call=call,
     )
 
 
