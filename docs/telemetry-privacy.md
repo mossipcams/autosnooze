@@ -4,6 +4,8 @@
 
 This check runs on every push to `main` and on pull requests. It drives the real Python `TelemetryClient`, seeds deliberately identifiable Home Assistant data, intercepts outbound TelemetryDeck requests, and fails on any private or undocumented field.
 
+Telemetry is **not fully anonymous**: each signal includes `clientUser` (SHA-256 of a random per-install UUID). That groups events per install without sending the raw ID, HA user identity, or home configuration.
+
 ## Collected fields
 
 TelemetryDeck envelope keys per request batch item:
@@ -20,7 +22,7 @@ Shared `payload` keys on every event:
 - `event_schema_version`
 - `source` (`card`, `service`, `timer`, or `startup`)
 
-Event-specific `payload` keys:
+### Full event catalog
 
 | Event | Properties |
 |-------|------------|

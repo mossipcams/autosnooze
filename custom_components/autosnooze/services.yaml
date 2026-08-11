@@ -402,7 +402,7 @@ adjust:
 
 report_telemetry:
   name: Report Telemetry
-  description: Report anonymous product telemetry events from the AutoSnooze dashboard card.
+  description: Report product telemetry events from the AutoSnooze dashboard card.
   fields:
     event:
       name: Event

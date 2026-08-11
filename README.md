@@ -99,75 +99,32 @@ These require confirmation before snoozing. You can also manually flag any autom
 
 -----
 
-## Anonymous product telemetry
+## Product telemetry
 
 ### Why
 
-I know how I use AutoSnooze, but not how others do. Anonymous product telemetry learns real usage patterns (which features matter, where people get stuck) without collecting anything about a home's configuration.
+I know how I use AutoSnooze, but not how others do. Product telemetry shows which features matter and where people get stuck — without collecting how any home is configured.
 
 ### What is sent
 
-Events are explicit and property-scoped. Shared properties on applicable events:
+AutoSnooze can send product usage events to [TelemetryDeck](https://telemetrydeck.com).
 
-- `autosnooze_version`, `home_assistant_version`, `event_schema_version`
-- `source` (`card`, `service`, `timer`, or `startup`)
-- `card_type` (`full` or `snoozed_only`) when the event came from a dashboard card
+This is **not fully anonymous**. Events are not linked to your Home Assistant user, name, or instance URL, but a random per-install ID is hashed (SHA-256) and sent as `clientUser` so events from the same install can be grouped. The raw install ID never leaves the instance. Event payloads contain only allowlisted enums, booleans, and bounded integers (versions, source, durations, counts, card actions). Like any HTTPS request, TelemetryDeck can see the source IP of your Home Assistant instance; AutoSnooze does not put IPs in the event payload.
 
-Backend outcomes:
+Full event catalog and example payloads:
 
-| Event | Properties |
-|-------|------------|
-| `integration_active` | versions only |
-| `snooze_created` | `strategy`, `input_method`, `duration_minutes`, `target_count`, `notification_trigger`, `notification_lead_minutes`, `confirmation_used` |
-| `scheduled_snooze_created` | `minutes_until_start`, `planned_duration_minutes`, `target_count`, `resume_local_hour` |
-| `scheduled_snooze_started` | `target_count`, `planned_duration_minutes` |
-| `snooze_adjusted` | `delta_minutes`, `direction` |
-| `snooze_ended` | versions only |
-| `scheduled_snooze_cancelled` | `target_count`, `minutes_before_start` |
-| `notification_used` | versions only |
-| `notification_cleared` | `target_count` |
-| `operation_failed` | `operation`, `error_code`, optional `strategy`, `target_count` |
-
-Card UI actions:
-
-| Event | Properties |
-|-------|------------|
-| `card_viewed` | `card_type` (throttled once per install per UTC day) |
-| `selection_feature_used` | versions only |
-| `duration_option_selected` | versions only |
-| `snooze_button_clicked` | `target_count`, `schedule_mode` |
-| `wake_clicked` | `scope` (`one` \| `all`) |
-| `adjust_opened` | `scope` (`one` \| `group`) |
-| `adjust_option_selected` | `direction`, `delta_minutes` |
-| `scheduled_cancel_clicked` | versions only |
-| `filter_tab_selected` | `tab` (`all` \| `areas` \| `categories` \| `labels`) |
-| `hide_snoozed_toggled` | `enabled` |
-| `schedule_mode_toggled` | `enabled` |
-| `until_tomorrow_selected` | versions only |
-| `custom_duration_toggled` | `enabled` |
-| `notification_options_changed` | `trigger`, `enabled` |
-| `confirmation_result` | versions only |
-| `confirmation_dismissed` | versions only |
-
-All property values are allowlisted enums, booleans, or bounded integers. Unknown fields and invalid values are dropped before egress.
+- [Event properties](docs/telemetry-privacy.md#full-event-catalog)
+- [Exact sanitized payloads](docs/telemetry-payloads.json) (26 events, CI-verified)
 
 ### What is never sent
 
-- Automation entity IDs, names, or hashes
-- Area, label, or category IDs or names
-- Search text, instance IDs, user IDs, or usernames
-- Automation counts, registry contents, triggers, conditions, actions, or YAML
-- Home Assistant URLs, hostnames, notification content, or device details
-- Exact timestamps, IP addresses, coordinates, timezone, or location
-- Raw errors, logs, stack traces, or service payloads
-- Browser fingerprints, screen resolution, session replay, or DOM autocapture
-- Anything after telemetry is turned off
+Never included in payloads: automation IDs/names, areas/labels, search text, URLs, user/instance IDs, YAML, logs, or location.
 
 ### Opt-out
 
-Telemetry is **on by default**. Turn it off in **Settings → Devices & Services → AutoSnooze → Configure → Send anonymous usage data**.
+**On by default.** Turn it off anytime: **Settings → Devices & Services → AutoSnooze → Configure → Send product usage data**.
 
-Payloads are verified in public CI against seeded private canaries. [View verification](docs/telemetry-privacy.md)
+Payloads are checked in public CI against private canaries. [Privacy verification](docs/telemetry-privacy.md)
 
 -----
 
