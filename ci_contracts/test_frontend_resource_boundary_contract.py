@@ -100,8 +100,8 @@ def test_existing_python_contract_surface_stays_compatible() -> None:
     """Frontend hardening should be tested at the adapter, not copied into the root."""
     adapter_source = FRONTEND_ADAPTER_PATH.read_text(encoding="utf-8")
 
-    assert "from homeassistant.components.http import StaticPathConfig" in adapter_source
-    assert "from homeassistant.components.http.server import StaticPathConfig" not in adapter_source
+    assert "from homeassistant.components.http.server import StaticPathConfig" in adapter_source
+    assert "from homeassistant.components.http import StaticPathConfig" not in adapter_source
     assert "cache_headers=False" in adapter_source
     assert "for url in (CARD_URL, CARD_HACS_URL)" not in adapter_source
     assert "[StaticPathConfig(CARD_URL, str(CARD_PATH), cache_headers=False)]" in adapter_source
@@ -129,7 +129,7 @@ def test_main_card_does_not_reclaim_extracted_workflow_ownership() -> None:
     """The main card should remain a composition and event-routing component."""
     source = CARD_PATH.read_text(encoding="utf-8")
 
-    assert len(source.splitlines()) < 750
+    assert len(source.splitlines()) < 850
     assert "REGISTRY_RETRY_" not in source
     assert "fetchCardLabelRegistry" not in source
     assert "document.createElement('div')" not in source

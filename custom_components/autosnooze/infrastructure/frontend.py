@@ -5,7 +5,7 @@ from __future__ import annotations
 import asyncio
 import logging
 
-from homeassistant.components.http import StaticPathConfig
+from homeassistant.components.http.server import StaticPathConfig
 from homeassistant.core import HomeAssistant
 
 from ..const import CARD_PATH, CARD_URL, CARD_URL_VERSIONED, VERSION
