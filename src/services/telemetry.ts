@@ -13,6 +13,10 @@ export function reportTelemetry(hass: HomeAssistant, input: ReportTelemetryInput
     return;
   }
 
+  if (!hass.services?.autosnooze?.report_telemetry || typeof hass.callService !== 'function') {
+    return;
+  }
+
   const validated = parsed.data;
 
   try {

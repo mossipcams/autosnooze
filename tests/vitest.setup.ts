@@ -118,6 +118,11 @@ globalThis.createMockHass = (overrides: Partial<HomeAssistant> = {}): HomeAssist
       sendMessagePromise: vi.fn().mockResolvedValue([]),
     },
     callService: vi.fn().mockResolvedValue(undefined),
+    services: {
+      autosnooze: {
+        report_telemetry: {},
+      },
+    },
     ...overrides,
   } as unknown as HomeAssistant;
 };

@@ -3,10 +3,19 @@ import { describe, expect, test, vi } from 'vitest';
 import { reportTelemetry } from '../services/telemetry.js';
 import type { HomeAssistant } from '../types/hass.js';
 
+function hassWithTelemetryService(
+  callService: HomeAssistant['callService'] = vi.fn()
+): HomeAssistant {
+  return {
+    callService,
+    services: { autosnooze: { report_telemetry: {} } },
+  } as unknown as HomeAssistant;
+}
+
 describe('reportTelemetry', () => {
   test('calls autosnooze.report_telemetry for valid payloads and swallows errors', async () => {
     const callService = vi.fn().mockRejectedValueOnce(new Error('offline'));
-    const hass = { callService } as unknown as HomeAssistant;
+    const hass = hassWithTelemetryService(callService);
 
     reportTelemetry(hass, {
       event: 'card_viewed',
@@ -26,7 +35,7 @@ describe('reportTelemetry', () => {
 
   test('calls service for other valid card events', () => {
     const callService = vi.fn();
-    const hass = { callService } as unknown as HomeAssistant;
+    const hass = hassWithTelemetryService(callService);
 
     reportTelemetry(hass, {
       event: 'selection_feature_used',
@@ -47,9 +56,25 @@ describe('reportTelemetry', () => {
     expect(callService).toHaveBeenCalledTimes(3);
   });
 
+  test('does not call service when report_telemetry is unregistered', () => {
+    const callService = vi.fn();
+    const hass = {
+      callService,
+      services: { autosnooze: { pause: {} } },
+    } as unknown as HomeAssistant;
+
+    reportTelemetry(hass, {
+      event: 'card_viewed',
+      card_type: 'full',
+      source: 'card',
+    });
+
+    expect(callService).not.toHaveBeenCalled();
+  });
+
   test('does not call service for invalid event names', () => {
     const callService = vi.fn();
-    const hass = { callService } as unknown as HomeAssistant;
+    const hass = hassWithTelemetryService(callService);
 
     reportTelemetry(hass, {
       event: 'not_real' as 'card_viewed',
@@ -62,7 +87,7 @@ describe('reportTelemetry', () => {
 
   test('does not call service for unknown top-level fields', () => {
     const callService = vi.fn();
-    const hass = { callService } as unknown as HomeAssistant;
+    const hass = hassWithTelemetryService(callService);
 
     reportTelemetry(hass, {
       event: 'card_viewed',
@@ -76,7 +101,7 @@ describe('reportTelemetry', () => {
 
   test('does not call service for unknown property keys', () => {
     const callService = vi.fn();
-    const hass = { callService } as unknown as HomeAssistant;
+    const hass = hassWithTelemetryService(callService);
 
     reportTelemetry(hass, {
       event: 'selection_feature_used',
@@ -89,7 +114,7 @@ describe('reportTelemetry', () => {
 
   test('does not call service when required event fields are missing', () => {
     const callService = vi.fn();
-    const hass = { callService } as unknown as HomeAssistant;
+    const hass = hassWithTelemetryService(callService);
 
     reportTelemetry(hass, {
       event: 'card_viewed',
