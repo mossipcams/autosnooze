@@ -5,6 +5,7 @@ from __future__ import annotations
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from homeassistant.exceptions import ServiceValidationError
 
 from custom_components.autosnooze.infrastructure.telemetry import TelemetryClient
 
@@ -166,3 +167,43 @@ async def test_track_debounces_flush_into_one_post(telemetry_client) -> None:
 
     assert post.await_count == 1
     assert telemetry_client._queue == []
+
+
+@pytest.mark.asyncio
+async def test_async_unload_cancels_pending_flush_and_blocks_track(telemetry_client) -> None:
+    await telemetry_client.async_setup()
+    pending = MagicMock()
+    pending.done.return_value = False
+    telemetry_client.hass.async_create_task = MagicMock(return_value=pending)
+
+    telemetry_client.track("integration_active", {}, source="startup")
+    assert telemetry_client._queue
+    assert telemetry_client._debounce_task is pending
+
+    telemetry_client.async_unload()
+
+    pending.cancel.assert_called_once()
+    assert telemetry_client._queue == []
+    assert telemetry_client._debounce_task is None
+    assert telemetry_client._flush_scheduled is False
+
+    telemetry_client.track("integration_active", {}, source="startup")
+    assert telemetry_client._queue == []
+
+
+@pytest.mark.asyncio
+async def test_track_operation_failed_omits_invalid_strategy(telemetry_client) -> None:
+    await telemetry_client.async_setup()
+    error = ServiceValidationError("nope")
+    error.translation_key = "invalid_duration"
+
+    telemetry_client.track_operation_failed("pause", error, strategy="", target_count=2)
+    payload = telemetry_client._queue[0]["payload"]
+    assert payload["operation"] == "pause"
+    assert payload["error_code"] == "invalid_duration"
+    assert payload["target_count"] == "2"
+    assert "strategy" not in payload
+
+    telemetry_client._queue.clear()
+    telemetry_client.track_operation_failed("pause", error, strategy="duration", target_count=1)
+    assert telemetry_client._queue[0]["payload"]["strategy"] == "duration"

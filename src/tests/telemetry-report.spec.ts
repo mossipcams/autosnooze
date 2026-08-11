@@ -91,6 +91,52 @@ describe('reportTelemetry', () => {
     expect(callService).not.toHaveBeenCalled();
   });
 
+  test('calls service when telemetry_enabled attribute is absent', () => {
+    const callService = vi.fn();
+    const hass = hassWithTelemetryService(callService);
+    hass.states = {
+      'sensor.autosnooze_snoozed_automations': {
+        entity_id: 'sensor.autosnooze_snoozed_automations',
+        attributes: {},
+      },
+    } as HomeAssistant['states'];
+
+    reportTelemetry(hass, {
+      event: 'card_viewed',
+      card_type: 'full',
+      source: 'card',
+    });
+
+    expect(callService).toHaveBeenCalledTimes(1);
+  });
+
+  test('calls service when telemetry_enabled attribute is true', () => {
+    const callService = vi.fn();
+    const hass = {
+      callService,
+      services: { autosnooze: { report_telemetry: {} } },
+      states: {
+        'sensor.autosnooze_snoozed_automations': {
+          entity_id: 'sensor.autosnooze_snoozed_automations',
+          attributes: { telemetry_enabled: true },
+        },
+      },
+    } as unknown as HomeAssistant;
+
+    reportTelemetry(hass, {
+      event: 'wake_clicked',
+      properties: { scope: 'one' },
+      source: 'card',
+    });
+
+    expect(callService).toHaveBeenCalledWith('autosnooze', 'report_telemetry', {
+      event: 'wake_clicked',
+      properties: { scope: 'one' },
+      source: 'card',
+      card_type: undefined,
+    });
+  });
+
 
   test('does not throw when callService is missing', () => {
     const hass = {} as HomeAssistant;
