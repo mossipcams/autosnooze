@@ -5,13 +5,20 @@
 
 ### Features
 
-* add TelemetryDeck anonymous product telemetry ([#494](https://github.com/mossipcams/autosnooze/issues/494)) ([69b7cb9](https://github.com/mossipcams/autosnooze/commit/69b7cb953981973bd89274d35adb5c0b2f08b9b5))
-* persistent Hide snoozed filter for automation picker ([#482](https://github.com/mossipcams/autosnooze/issues/482)) ([f327a7d](https://github.com/mossipcams/autosnooze/commit/f327a7daca171b798d304a32b1ba8f900974a0d2))
+* **Hide snoozed filter** ([#482](https://github.com/mossipcams/autosnooze/issues/482)) ([f327a7d](https://github.com/mossipcams/autosnooze/commit/f327a7daca171b798d304a32b1ba8f900974a0d2))
+  * Persistent chip on the automation picker that hides currently snoozed rows
+  * Preference survives reloads; hidden rows are pruned from selection and list counts
+
+* **Product telemetry** via TelemetryDeck ([#494](https://github.com/mossipcams/autosnooze/issues/494)) ([69b7cb9](https://github.com/mossipcams/autosnooze/commit/69b7cb953981973bd89274d35adb5c0b2f08b9b5))
+  * On by default; turn off in **Settings → Devices & Services → AutoSnooze → Configure → Send product usage data**
+  * Not fully anonymous: a random per-install ID is hashed (SHA-256) as `clientUser` so events can be grouped per install; the raw ID never leaves the instance
+  * Payloads are allowlisted enums/booleans/bounded integers only (versions, source, durations, counts, card actions) — no automation IDs/names, areas/labels, search text, URLs, user IDs, YAML, or location
+  * 26 events covering outcomes (snooze/schedule/adjust/notifications/failures) and card UI actions; catalog + CI-verified examples in [`docs/telemetry-privacy.md`](https://github.com/mossipcams/autosnooze/blob/main/docs/telemetry-privacy.md) and [`docs/telemetry-payloads.json`](https://github.com/mossipcams/autosnooze/blob/main/docs/telemetry-payloads.json)
 
 
 ### Bug Fixes
 
-* **deps:** import StaticPathConfig from http.server ([6cc37df](https://github.com/mossipcams/autosnooze/commit/6cc37dfa1b4c7753187f01ed4cf9bfa5feb61b7d))
+* **deps:** import `StaticPathConfig` from `homeassistant.components.http.server` for HA 2026.8 typing ([6cc37df](https://github.com/mossipcams/autosnooze/commit/6cc37dfa1b4c7753187f01ed4cf9bfa5feb61b7d))
 
 ## [0.2.27](https://github.com/mossipcams/autosnooze/compare/v0.2.26...v0.2.27) (2026-07-07)
 
