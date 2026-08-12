@@ -1737,22 +1737,25 @@ function e(e,t,o,a){var i,s=arguments.length,r=s<3?t:null===a?a=Object.getOwnPro
       color: var(--primary-text-color);
     }
 
-    .hide-snoozed-row {
-      display: flex;
-      justify-content: flex-start;
-      margin: -4px 0 12px;
-    }
     .hide-snoozed-toggle {
-      padding: 6px 14px;
-      border-radius: 16px;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      flex-shrink: 0;
+      padding: 6px 12px;
+      border-radius: 8px;
       cursor: pointer;
       font-size: 0.85em;
-      background: transparent;
+      background: var(--card-background-color);
       border: 1px solid var(--divider-color);
       color: var(--primary-text-color);
-      min-height: 36px;
+      min-height: 40px;
       box-sizing: border-box;
       transition: background 0.15s ease, border-color 0.15s ease;
+    }
+    .hide-snoozed-toggle ha-icon {
+      --mdc-icon-size: 18px;
+      flex-shrink: 0;
     }
     .hide-snoozed-toggle:hover {
       background: color-mix(in srgb, var(--primary-color) 12%, var(--card-background-color));
@@ -2131,6 +2134,19 @@ function e(e,t,o,a){var i,s=arguments.length,r=s<3?t:null===a?a=Object.getOwnPro
         font-size: 0.85em;
       }
 
+      /* Icon-only toggle on mobile: aria-label/title carry the meaning */
+      .hide-snoozed-toggle {
+        padding: 0 8px;
+        min-height: 34px;
+        border-radius: 10px;
+        border: 1.5px solid color-mix(in srgb, var(--divider-color) 70%, transparent);
+        touch-action: manipulation;
+        -webkit-tap-highlight-color: transparent;
+      }
+      .hide-snoozed-label {
+        display: none;
+      }
+
       /* --- Selection Actions: Refined toolbar --- */
       .selection-actions {
         padding: 10px 14px;
@@ -2154,6 +2170,14 @@ function e(e,t,o,a){var i,s=arguments.length,r=s<3?t:null===a?a=Object.getOwnPro
         min-height: 28px;
         margin-left: 0;
         font-size: 0.85em;
+      }
+
+      /* "3 of 9 selected" -> "3/9" so the search input keeps its width */
+      .selection-count-full {
+        display: none;
+      }
+      .selection-count::before {
+        content: attr(data-short);
       }
 
       .select-all-btn {
@@ -2388,18 +2412,6 @@ function e(e,t,o,a){var i,s=arguments.length,r=s<3?t:null===a?a=Object.getOwnPro
         </button>
       </div>
 
-      <div class="hide-snoozed-row">
-        <button
-          type="button"
-          class="hide-snoozed-toggle ${this._hideSnoozed?"active":""}"
-          @click=${()=>this._toggleHideSnoozed()}
-          aria-pressed=${this._hideSnoozed}
-          aria-label="${_e(this.hass,"a11y.hide_snoozed")}"
-        >
-          ${_e(this.hass,"filter.hide_snoozed")}
-        </button>
-      </div>
-
       <div class="search-row selection-actions">
         <div class="search-box">
           <input
@@ -2422,9 +2434,26 @@ function e(e,t,o,a){var i,s=arguments.length,r=s<3?t:null===a?a=Object.getOwnPro
               `:""}
         </div>
 
+        <button
+          type="button"
+          class="hide-snoozed-toggle ${this._hideSnoozed?"active":""}"
+          @click=${()=>this._toggleHideSnoozed()}
+          aria-pressed=${this._hideSnoozed}
+          aria-label="${_e(this.hass,"a11y.hide_snoozed")}"
+          title="${_e(this.hass,"filter.hide_snoozed")}"
+        >
+          <ha-icon icon=${this._hideSnoozed?"mdi:eye-off":"mdi:eye"} aria-hidden="true"></ha-icon>
+          <span class="hide-snoozed-label">${_e(this.hass,"filter.hide_snoozed")}</span>
+        </button>
+
         ${t.length>0?B`
-              <span class="selection-count" role="status" aria-live="polite">
-                ${_e(this.hass,"selection.count",{selected:this.selected.length,total:t.length})}
+              <span
+                class="selection-count"
+                role="status"
+                aria-live="polite"
+                data-short="${this.selected.length}/${t.length}"
+              >
+                <span class="selection-count-full">${_e(this.hass,"selection.count",{selected:this.selected.length,total:t.length})}</span>
               </span>
               ${s?"":B`
                     <button

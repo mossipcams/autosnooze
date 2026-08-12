@@ -59,22 +59,25 @@ export const automationListStyles = css`
       color: var(--primary-text-color);
     }
 
-    .hide-snoozed-row {
-      display: flex;
-      justify-content: flex-start;
-      margin: -4px 0 12px;
-    }
     .hide-snoozed-toggle {
-      padding: 6px 14px;
-      border-radius: 16px;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      flex-shrink: 0;
+      padding: 6px 12px;
+      border-radius: 8px;
       cursor: pointer;
       font-size: 0.85em;
-      background: transparent;
+      background: var(--card-background-color);
       border: 1px solid var(--divider-color);
       color: var(--primary-text-color);
-      min-height: 36px;
+      min-height: 40px;
       box-sizing: border-box;
       transition: background 0.15s ease, border-color 0.15s ease;
+    }
+    .hide-snoozed-toggle ha-icon {
+      --mdc-icon-size: 18px;
+      flex-shrink: 0;
     }
     .hide-snoozed-toggle:hover {
       background: color-mix(in srgb, var(--primary-color) 12%, var(--card-background-color));
@@ -453,6 +456,19 @@ export const automationListStyles = css`
         font-size: 0.85em;
       }
 
+      /* Icon-only toggle on mobile: aria-label/title carry the meaning */
+      .hide-snoozed-toggle {
+        padding: 0 8px;
+        min-height: 34px;
+        border-radius: 10px;
+        border: 1.5px solid color-mix(in srgb, var(--divider-color) 70%, transparent);
+        touch-action: manipulation;
+        -webkit-tap-highlight-color: transparent;
+      }
+      .hide-snoozed-label {
+        display: none;
+      }
+
       /* --- Selection Actions: Refined toolbar --- */
       .selection-actions {
         padding: 10px 14px;
@@ -476,6 +492,14 @@ export const automationListStyles = css`
         min-height: 28px;
         margin-left: 0;
         font-size: 0.85em;
+      }
+
+      /* "3 of 9 selected" -> "3/9" so the search input keeps its width */
+      .selection-count-full {
+        display: none;
+      }
+      .selection-count::before {
+        content: attr(data-short);
       }
 
       .select-all-btn {

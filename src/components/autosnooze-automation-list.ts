@@ -468,18 +468,6 @@ export class AutoSnoozeAutomationList extends LitElement {
         </button>
       </div>
 
-      <div class="hide-snoozed-row">
-        <button
-          type="button"
-          class="hide-snoozed-toggle ${this._hideSnoozed ? 'active' : ''}"
-          @click=${() => this._toggleHideSnoozed()}
-          aria-pressed=${this._hideSnoozed}
-          aria-label="${localize(this.hass, 'a11y.hide_snoozed')}"
-        >
-          ${localize(this.hass, 'filter.hide_snoozed')}
-        </button>
-      </div>
-
       <div class="search-row selection-actions">
         <div class="search-box">
           <input
@@ -504,10 +492,27 @@ export class AutoSnoozeAutomationList extends LitElement {
             : ''}
         </div>
 
+        <button
+          type="button"
+          class="hide-snoozed-toggle ${this._hideSnoozed ? 'active' : ''}"
+          @click=${() => this._toggleHideSnoozed()}
+          aria-pressed=${this._hideSnoozed}
+          aria-label="${localize(this.hass, 'a11y.hide_snoozed')}"
+          title="${localize(this.hass, 'filter.hide_snoozed')}"
+        >
+          <ha-icon icon=${this._hideSnoozed ? 'mdi:eye-off' : 'mdi:eye'} aria-hidden="true"></ha-icon>
+          <span class="hide-snoozed-label">${localize(this.hass, 'filter.hide_snoozed')}</span>
+        </button>
+
         ${filtered.length > 0
           ? html`
-              <span class="selection-count" role="status" aria-live="polite">
-                ${localize(this.hass, 'selection.count', { selected: this.selected.length, total: filtered.length })}
+              <span
+                class="selection-count"
+                role="status"
+                aria-live="polite"
+                data-short="${this.selected.length}/${filtered.length}"
+              >
+                <span class="selection-count-full">${localize(this.hass, 'selection.count', { selected: this.selected.length, total: filtered.length })}</span>
               </span>
               ${!allVisibleSelected
                 ? html`
