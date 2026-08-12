@@ -421,6 +421,7 @@ export class AutoSnoozeAutomationList extends LitElement {
     const allVisibleSelected =
       filtered.length > 0 && filtered.every((a) => selectedIds.has(a.id));
     return html`
+      <div class="filter-row">
       <div class="filter-tabs" role="tablist" aria-label="${localize(this.hass, 'a11y.filter_tabs')}">
         <button
           type="button"
@@ -466,12 +467,24 @@ export class AutoSnoozeAutomationList extends LitElement {
           ${localize(this.hass, 'tab.labels')}
           <span class="tab-count" aria-label="${localize(this.hass, 'a11y.label_count', { count: viewModel.labelCount })}">${viewModel.labelCount}</span>
         </button>
+        </div>
+        <button
+          type="button"
+          class="hide-snoozed-toggle ${this._hideSnoozed ? 'active' : ''}"
+          @click=${() => this._toggleHideSnoozed()}
+          aria-pressed=${this._hideSnoozed}
+          aria-label="${localize(this.hass, 'a11y.hide_snoozed')}"
+          title="${localize(this.hass, 'filter.hide_snoozed')}"
+        >
+          <ha-icon icon=${this._hideSnoozed ? 'mdi:eye-off' : 'mdi:eye'} aria-hidden="true"></ha-icon>
+        </button>
       </div>
 
       <div class="search-row selection-actions">
         <div class="search-box">
           <input
             type="search"
+            size="1"
             placeholder="${localize(this.hass, 'search.placeholder')}"
             .value=${this._searchInput || this._search}
             @input=${(e: Event) => this._handleSearchInput(e)}
@@ -491,18 +504,6 @@ export class AutoSnoozeAutomationList extends LitElement {
               `
             : ''}
         </div>
-
-        <button
-          type="button"
-          class="hide-snoozed-toggle ${this._hideSnoozed ? 'active' : ''}"
-          @click=${() => this._toggleHideSnoozed()}
-          aria-pressed=${this._hideSnoozed}
-          aria-label="${localize(this.hass, 'a11y.hide_snoozed')}"
-          title="${localize(this.hass, 'filter.hide_snoozed')}"
-        >
-          <ha-icon icon=${this._hideSnoozed ? 'mdi:eye-off' : 'mdi:eye'} aria-hidden="true"></ha-icon>
-          <span class="hide-snoozed-label">${localize(this.hass, 'filter.hide_snoozed')}</span>
-        </button>
 
         ${filtered.length > 0
           ? html`

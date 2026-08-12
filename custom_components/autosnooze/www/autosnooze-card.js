@@ -1688,13 +1688,24 @@ function e(e,t,o,a){var i,s=arguments.length,r=s<3?t:null===a?a=Object.getOwnPro
       display: block;
     }
 
-    /* Filter Tabs */
-    .filter-tabs {
+    /* Filter row: tabs plus the hide-snoozed toggle.
+       The toggle lives here rather than in the search row because that row is
+       nowrap and the search input needs every pixel in a narrow card column. */
+    .filter-row {
       display: flex;
+      align-items: flex-start;
       gap: 8px;
       margin-bottom: 12px;
       border-bottom: 1px solid var(--divider-color);
       padding-bottom: 8px;
+    }
+
+    /* Filter Tabs */
+    .filter-tabs {
+      display: flex;
+      flex: 1 1 auto;
+      min-width: 0;
+      gap: 8px;
       flex-wrap: wrap;
     }
     .tab {
@@ -1737,19 +1748,21 @@ function e(e,t,o,a){var i,s=arguments.length,r=s<3?t:null===a?a=Object.getOwnPro
       color: var(--primary-text-color);
     }
 
+    /* Icon-only at every width: the search row is nowrap, and a text label
+       costs ~100px that the input needs when the card is in a narrow column. */
     .hide-snoozed-toggle {
       display: inline-flex;
       align-items: center;
-      gap: 6px;
+      justify-content: center;
       flex-shrink: 0;
-      padding: 6px 12px;
+      padding: 6px 10px;
       border-radius: 8px;
       cursor: pointer;
       font-size: 0.85em;
       background: var(--card-background-color);
       border: 1px solid var(--divider-color);
       color: var(--primary-text-color);
-      min-height: 40px;
+      min-height: 44px;
       box-sizing: border-box;
       transition: background 0.15s ease, border-color 0.15s ease;
     }
@@ -2040,9 +2053,15 @@ function e(e,t,o,a){var i,s=arguments.length,r=s<3?t:null===a?a=Object.getOwnPro
     /* Mobile Responsive Styles */
     @media (max-width: 480px) {
       /* --- Filter Tabs: Segmented control style --- */
+      .filter-row {
+        margin-bottom: 14px;
+        border-bottom: none;
+        padding-bottom: 0;
+        gap: 6px;
+      }
+
       .filter-tabs {
         gap: 2px;
-        margin-bottom: 14px;
         padding: 3px;
         background: color-mix(in srgb, var(--secondary-background-color) 80%, var(--divider-color));
         border-radius: 12px;
@@ -2134,17 +2153,13 @@ function e(e,t,o,a){var i,s=arguments.length,r=s<3?t:null===a?a=Object.getOwnPro
         font-size: 0.85em;
       }
 
-      /* Icon-only toggle on mobile: aria-label/title carry the meaning */
       .hide-snoozed-toggle {
         padding: 0 8px;
-        min-height: 34px;
-        border-radius: 10px;
+        min-height: 46px;
+        border-radius: 12px;
         border: 1.5px solid color-mix(in srgb, var(--divider-color) 70%, transparent);
         touch-action: manipulation;
         -webkit-tap-highlight-color: transparent;
-      }
-      .hide-snoozed-label {
-        display: none;
       }
 
       /* --- Selection Actions: Refined toolbar --- */
@@ -2365,6 +2380,7 @@ function e(e,t,o,a){var i,s=arguments.length,r=s<3?t:null===a?a=Object.getOwnPro
                 </button>
               `):""}
       `})}render(){const e=this._getViewModel(),{filtered:t}=e,o=new Set(this.selected),a=this.labelRegistryUnavailable,i=this._searchInput.length>0||this._search.length>0,s=t.length>0&&t.every(e=>o.has(e.id));return B`
+      <div class="filter-row">
       <div class="filter-tabs" role="tablist" aria-label="${_e(this.hass,"a11y.filter_tabs")}">
         <button
           type="button"
@@ -2410,12 +2426,24 @@ function e(e,t,o,a){var i,s=arguments.length,r=s<3?t:null===a?a=Object.getOwnPro
           ${_e(this.hass,"tab.labels")}
           <span class="tab-count" aria-label="${_e(this.hass,"a11y.label_count",{count:e.labelCount})}">${e.labelCount}</span>
         </button>
+        </div>
+        <button
+          type="button"
+          class="hide-snoozed-toggle ${this._hideSnoozed?"active":""}"
+          @click=${()=>this._toggleHideSnoozed()}
+          aria-pressed=${this._hideSnoozed}
+          aria-label="${_e(this.hass,"a11y.hide_snoozed")}"
+          title="${_e(this.hass,"filter.hide_snoozed")}"
+        >
+          <ha-icon icon=${this._hideSnoozed?"mdi:eye-off":"mdi:eye"} aria-hidden="true"></ha-icon>
+        </button>
       </div>
 
       <div class="search-row selection-actions">
         <div class="search-box">
           <input
             type="search"
+            size="1"
             placeholder="${_e(this.hass,"search.placeholder")}"
             .value=${this._searchInput||this._search}
             @input=${e=>this._handleSearchInput(e)}
@@ -2433,18 +2461,6 @@ function e(e,t,o,a){var i,s=arguments.length,r=s<3?t:null===a?a=Object.getOwnPro
                 </button>
               `:""}
         </div>
-
-        <button
-          type="button"
-          class="hide-snoozed-toggle ${this._hideSnoozed?"active":""}"
-          @click=${()=>this._toggleHideSnoozed()}
-          aria-pressed=${this._hideSnoozed}
-          aria-label="${_e(this.hass,"a11y.hide_snoozed")}"
-          title="${_e(this.hass,"filter.hide_snoozed")}"
-        >
-          <ha-icon icon=${this._hideSnoozed?"mdi:eye-off":"mdi:eye"} aria-hidden="true"></ha-icon>
-          <span class="hide-snoozed-label">${_e(this.hass,"filter.hide_snoozed")}</span>
-        </button>
 
         ${t.length>0?B`
               <span
