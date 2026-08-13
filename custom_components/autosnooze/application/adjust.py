@@ -86,17 +86,19 @@ async def async_adjust_snooze_batch(
         if updates:
             if not await async_save(data):
                 _raise_save_failed()
-            delta_minutes = int(delta.total_seconds() // 60)
-            if delta_minutes > 0:
-                track_if_enabled(
-                    data,
-                    "snooze_adjusted",
-                    {
-                        "delta_minutes": delta_minutes,
-                        "direction": "extend",
-                    },
-                    source="service",
-                )
+            if delta.total_seconds() != 0:
+                delta_minutes = abs(int(delta.total_seconds() // 60))
+                if delta_minutes >= 1:
+                    track_if_enabled(
+                        data,
+                        "snooze_adjusted",
+                        {
+                            "delta_minutes": delta_minutes,
+                            "direction": "extend" if delta.total_seconds() > 0 else "shorten",
+                            "target_count": len(updates),
+                        },
+                        source="service",
+                    )
         data.notify()
         _LOGGER.info("Adjusted snooze for %d automations", len(entity_ids))
     except Exception:

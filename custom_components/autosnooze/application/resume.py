@@ -70,12 +70,12 @@ async def async_resume(
             _LOGGER.warning("Failed to restore disabled state for stale resume of %s", entity_id)
     data.notify()
     await notify_resumed(hass, resumed, reason=reason, save_succeeded=True)
-    if reason == "expired" and resumed:
+    if resumed:
         track_if_enabled(
             data,
             "snooze_ended",
-            None,
-            source="timer",
+            {"reason": "timer" if reason == "expired" else "manual"},
+            source="timer" if reason == "expired" else "service",
         )
     if woke_successfully:
         _LOGGER.info("Woke automation: %s", entity_id)
@@ -149,6 +149,13 @@ async def async_resume_batch(
                 _LOGGER.warning("Failed to restore disabled state for stale resume of %s", entity_id)
         data.notify()
         await notify_resumed(hass, resumed, reason=reason, save_succeeded=True)
+        if resumed:
+            track_if_enabled(
+                data,
+                "snooze_ended",
+                {"reason": "timer" if reason == "expired" else "manual"},
+                source="timer" if reason == "expired" else "service",
+            )
         if failed:
             _LOGGER.warning("Woke %d automations, %d failed and were rescheduled", woke, failed)
         else:

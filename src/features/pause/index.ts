@@ -310,16 +310,18 @@ export async function runPauseFeature(input: RunPauseFeatureInput): Promise<RunP
   };
 }
 
-export function trackConfirmationResult(hass: HomeAssistant): void {
+export function trackConfirmationResult(hass: HomeAssistant, targetCount: number): void {
   reportTelemetry(hass, {
     event: 'confirmation_result',
+    properties: { target_count: targetCount },
     source: 'card',
   });
 }
 
-export function trackConfirmationDismissed(hass: HomeAssistant): void {
+export function trackConfirmationDismissed(hass: HomeAssistant, targetCount: number): void {
   reportTelemetry(hass, {
     event: 'confirmation_dismissed',
+    properties: { target_count: targetCount },
     source: 'card',
   });
 }

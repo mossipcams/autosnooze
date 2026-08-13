@@ -107,9 +107,9 @@ I know how I use AutoSnooze, but not how others do. Product telemetry shows whic
 
 ### What is sent
 
-AutoSnooze can send product usage events to [TelemetryDeck](https://telemetrydeck.com).
+AutoSnooze can send product usage events to [PostHog](https://posthog.com).
 
-This is **not fully anonymous**. Events are not linked to your Home Assistant user, name, or instance URL, but a random per-install ID is hashed (SHA-256) and sent as `clientUser` so events from the same install can be grouped. The raw install ID never leaves the instance. Event payloads contain only allowlisted enums, booleans, and bounded integers (versions, source, durations, counts, card actions). Like any HTTPS request, TelemetryDeck can see the source IP of your Home Assistant instance; AutoSnooze does not put IPs in the event payload.
+This is **not fully anonymous**. Events are not linked to your Home Assistant user, name, or instance URL, but a random per-install ID is hashed (SHA-256) and sent as `distinct_id` so events from the same install can be grouped. The raw install ID never leaves the instance. Event payloads contain only allowlisted enums, booleans, and bounded integers (versions, source, durations, counts, card actions). Like any HTTPS request, PostHog can see the source IP of your Home Assistant instance; AutoSnooze disables geo-IP enrichment and does not put IPs in the event payload.
 
 Full event catalog and example payloads:
 

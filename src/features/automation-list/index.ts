@@ -47,9 +47,10 @@ interface DecoratedAutomation {
 
 export { formatRegistryId };
 
-export function trackSelectionFeatureUsed(hass: HomeAssistant): void {
+export function trackSelectionFeatureUsed(hass: HomeAssistant, targetCount: number): void {
   reportTelemetry(hass, {
     event: 'selection_feature_used',
+    properties: { target_count: targetCount },
     source: 'card',
   });
 }

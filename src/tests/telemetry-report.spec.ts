@@ -92,6 +92,7 @@ describe('reportTelemetry', () => {
     });
     reportTelemetry(hass, {
       event: 'duration_option_selected',
+      properties: { duration_minutes: 30 },
       source: 'card',
     });
     reportTelemetry(hass, {

@@ -306,7 +306,7 @@ export class AutoSnoozeDurationSelector extends LitElement {
                   class="pill ${isActive ? 'active' : ''}"
                   @click=${() => {
                     if (this.hass) {
-                      trackDurationPresetSelected(this.hass);
+                      trackDurationPresetSelected(this.hass, d.minutes);
                     }
                     this._fireDurationChange(d.minutes, { showCustomInput: false });
                   }}

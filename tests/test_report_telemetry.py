@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from unittest.mock import AsyncMock, MagicMock
+from typing import Any
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 import voluptuous as vol
@@ -16,7 +17,39 @@ from custom_components.autosnooze.runtime.state import AutomationPauseData
 
 
 @pytest.fixture
-def telemetry_client(hass):
+def captured_captures():
+    captures: list[dict[str, Any]] = []
+
+    def record_capture(
+        event: str,
+        *,
+        distinct_id: str | None = None,
+        properties: dict[str, Any] | None = None,
+        disable_geoip: bool | None = None,
+        **_kwargs: Any,
+    ) -> None:
+        captures.append(
+            {
+                "event": event,
+                "distinct_id": distinct_id,
+                "properties": properties,
+                "disable_geoip": disable_geoip,
+            }
+        )
+
+    mock_posthog = MagicMock()
+    mock_posthog.capture = MagicMock(side_effect=record_capture)
+    mock_posthog.disabled = False
+
+    with patch(
+        "custom_components.autosnooze.infrastructure.telemetry.Posthog",
+        return_value=mock_posthog,
+    ):
+        yield captures
+
+
+@pytest.fixture
+def telemetry_client(hass, captured_captures):
     entry = MagicMock()
     entry.options = {"telemetry_enabled": True}
     store = MagicMock()
@@ -66,7 +99,7 @@ def test_report_telemetry_schema_still_rejects_non_dict_properties() -> None:
 
 
 @pytest.mark.asyncio
-async def test_report_telemetry_tracks_valid_card_event(hass, telemetry_client) -> None:
+async def test_report_telemetry_tracks_valid_card_event(hass, telemetry_client, captured_captures) -> None:
     await telemetry_client.async_setup()
     data = AutomationPauseData(telemetry=telemetry_client, hass=hass)
     call = MagicMock()
@@ -78,13 +111,15 @@ async def test_report_telemetry_tracks_valid_card_event(hass, telemetry_client) 
 
     await async_handle_report_telemetry(hass, data, call)
 
-    assert len(telemetry_client._queue) == 1
-    assert telemetry_client._queue[0]["type"] == "wake_clicked"
-    assert telemetry_client._queue[0]["payload"]["scope"] == "one"
+    assert len(captured_captures) == 1
+    assert captured_captures[0]["event"] == "wake_clicked"
+    assert captured_captures[0]["properties"]["scope"] == "one"
 
 
 @pytest.mark.asyncio
-async def test_report_telemetry_handles_null_properties_and_card_type(hass, telemetry_client) -> None:
+async def test_report_telemetry_handles_null_properties_and_card_type(
+    hass, telemetry_client, captured_captures
+) -> None:
     await telemetry_client.async_setup()
     data = AutomationPauseData(telemetry=telemetry_client, hass=hass)
     call = MagicMock()
@@ -97,8 +132,8 @@ async def test_report_telemetry_handles_null_properties_and_card_type(hass, tele
 
     await async_handle_report_telemetry(hass, data, call)
 
-    assert len(telemetry_client._queue) == 1
-    assert telemetry_client._queue[0]["type"] == "selection_feature_used"
+    assert len(captured_captures) == 1
+    assert captured_captures[0]["event"] == "selection_feature_used"
 
 
 @pytest.mark.asyncio
@@ -111,7 +146,7 @@ async def test_report_telemetry_noop_when_client_missing(hass) -> None:
 
 
 @pytest.mark.asyncio
-async def test_report_telemetry_noop_when_disabled(hass, telemetry_client) -> None:
+async def test_report_telemetry_noop_when_disabled(hass, telemetry_client, captured_captures) -> None:
     await telemetry_client.async_setup()
     telemetry_client.entry.options = {"telemetry_enabled": False}
     data = AutomationPauseData(telemetry=telemetry_client, hass=hass)
@@ -120,11 +155,11 @@ async def test_report_telemetry_noop_when_disabled(hass, telemetry_client) -> No
 
     await async_handle_report_telemetry(hass, data, call)
 
-    assert telemetry_client._queue == []
+    assert captured_captures == []
 
 
 @pytest.mark.asyncio
-async def test_report_telemetry_noop_when_event_not_string(hass, telemetry_client) -> None:
+async def test_report_telemetry_noop_when_event_not_string(hass, telemetry_client, captured_captures) -> None:
     await telemetry_client.async_setup()
     data = AutomationPauseData(telemetry=telemetry_client, hass=hass)
     call = MagicMock()
@@ -132,11 +167,11 @@ async def test_report_telemetry_noop_when_event_not_string(hass, telemetry_clien
 
     await async_handle_report_telemetry(hass, data, call)
 
-    assert telemetry_client._queue == []
+    assert captured_captures == []
 
 
 @pytest.mark.asyncio
-async def test_report_telemetry_ignores_non_dict_properties(hass, telemetry_client) -> None:
+async def test_report_telemetry_ignores_non_dict_properties(hass, telemetry_client, captured_captures) -> None:
     await telemetry_client.async_setup()
     data = AutomationPauseData(telemetry=telemetry_client, hass=hass)
     call = MagicMock()
@@ -148,12 +183,12 @@ async def test_report_telemetry_ignores_non_dict_properties(hass, telemetry_clie
 
     await async_handle_report_telemetry(hass, data, call)
 
-    assert len(telemetry_client._queue) == 1
-    assert telemetry_client._queue[0]["type"] == "selection_feature_used"
+    assert len(captured_captures) == 1
+    assert captured_captures[0]["event"] == "selection_feature_used"
 
 
 @pytest.mark.asyncio
-async def test_report_telemetry_coerces_bad_source_and_card_type(hass, telemetry_client) -> None:
+async def test_report_telemetry_coerces_bad_source_and_card_type(hass, telemetry_client, captured_captures) -> None:
     await telemetry_client.async_setup()
     data = AutomationPauseData(telemetry=telemetry_client, hass=hass)
     call = MagicMock()
@@ -165,5 +200,4 @@ async def test_report_telemetry_coerces_bad_source_and_card_type(hass, telemetry
 
     await async_handle_report_telemetry(hass, data, call)
 
-    # Bad card_type becomes None → sanitize rejects card_viewed without card_type.
-    assert telemetry_client._queue == []
+    assert captured_captures == []

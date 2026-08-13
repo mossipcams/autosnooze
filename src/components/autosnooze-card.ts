@@ -260,7 +260,8 @@ export class AutomationPauseCard extends LitElement {
       trackSnoozeButtonClicked(
         this.hass,
         this._selected.length,
-        this._scheduleMode || this._untilTomorrow,
+        this._scheduleMode,
+        this._untilTomorrow,
       );
 
       const count = this._selected.length;
@@ -492,7 +493,7 @@ export class AutomationPauseCard extends LitElement {
 
   private async _cancelScheduled(entityId: string): Promise<void> {
     if (!this.hass) return;
-    trackScheduledCancelClicked(this.hass);
+    trackScheduledCancelClicked(this.hass, 1);
     try {
       await runCancelScheduledFeature(this.hass, entityId);
       this._hapticFeedback('success');
@@ -589,6 +590,7 @@ export class AutomationPauseCard extends LitElement {
         this.hass,
         this._notificationsEnabled ? this._notificationTrigger : 'none',
         this._notificationsEnabled,
+        this._notificationLeadMinutes,
       );
     }
   }
@@ -596,14 +598,24 @@ export class AutomationPauseCard extends LitElement {
   private _handleNotificationWhenChange(e: Event): void {
     this._notificationTrigger = (e.target as HTMLSelectElement).value as Exclude<NotificationTrigger, 'none'>;
     if (this.hass) {
-      trackNotificationOptionsChanged(this.hass, this._notificationTrigger, this._notificationsEnabled);
+      trackNotificationOptionsChanged(
+        this.hass,
+        this._notificationTrigger,
+        this._notificationsEnabled,
+        this._notificationLeadMinutes,
+      );
     }
   }
 
   private _handleNotificationLeadChange(e: Event): void {
     this._notificationLeadMinutes = Number((e.target as HTMLSelectElement).value);
     if (this.hass) {
-      trackNotificationOptionsChanged(this.hass, this._notificationTrigger, this._notificationsEnabled);
+      trackNotificationOptionsChanged(
+        this.hass,
+        this._notificationTrigger,
+        this._notificationsEnabled,
+        this._notificationLeadMinutes,
+      );
     }
   }
 
@@ -619,14 +631,14 @@ export class AutomationPauseCard extends LitElement {
   private _handleGuardrailCancel(): void {
     this._guardrailConfirmOpen = false;
     if (this.hass) {
-      trackConfirmationDismissed(this.hass);
+      trackConfirmationDismissed(this.hass, this._selected.length);
     }
   }
 
   private async _handleGuardrailContinue(): Promise<void> {
     this._guardrailConfirmOpen = false;
     if (this.hass) {
-      trackConfirmationResult(this.hass);
+      trackConfirmationResult(this.hass, this._selected.length);
     }
     await this._snooze(true);
   }
