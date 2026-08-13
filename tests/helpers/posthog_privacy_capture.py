@@ -714,7 +714,7 @@ def main() -> int:
     parser.add_argument(
         "--write-golden",
         type=Path,
-        help="Write payload map to docs/telemetry-payloads.json",
+        help="Write payload map to docs/posthog-payloads.json",
     )
     args = parser.parse_args()
     result = asyncio.run(capture())

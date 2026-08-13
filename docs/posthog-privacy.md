@@ -1,6 +1,6 @@
-# AutoSnooze Telemetry Privacy Verification
+# AutoSnooze PostHog Privacy Verification
 
-[![Telemetry Privacy Verification](https://github.com/mossipcams/autosnooze/actions/workflows/telemetry-privacy.yml/badge.svg)](https://github.com/mossipcams/autosnooze/actions/workflows/telemetry-privacy.yml)
+[![PostHog Privacy Verification](https://github.com/mossipcams/autosnooze/actions/workflows/posthog-privacy.yml/badge.svg)](https://github.com/mossipcams/autosnooze/actions/workflows/posthog-privacy.yml)
 
 This check runs on every push to `main` and on pull requests. It drives the real Python `TelemetryClient`, sends contract-shaped golden payloads and polluted reject-path payloads, intercepts outbound PostHog SDK calls via a strict spy, and fails on any private or undocumented field.
 
@@ -105,7 +105,7 @@ Version fields are **not** duplicated on the event body.
 
 The committed golden file lists the exact `properties` object for each of the 26 events after sanitization (native bool/int types). Golden captures are built from clean contract-shaped payloads with no canary fields:
 
-- [telemetry-payloads.json](./telemetry-payloads.json)
+- [posthog-payloads.json](./posthog-payloads.json)
 
 CI compares live capture output to this file with strict equality. Polluted payloads that add extra keys must produce zero new captures.
 
@@ -132,14 +132,15 @@ These Home Assistant and PostHog field names are forbidden inside `properties`:
 
 ## Test source
 
-- [tests/test_telemetry_privacy.py](../tests/test_telemetry_privacy.py)
+- [tests/test_posthog_privacy.py](../tests/test_posthog_privacy.py)
+- [tests/helpers/posthog_privacy_capture.py](../tests/helpers/posthog_privacy_capture.py)
 
-The pytest module runs the Python capture helper, which calls `TelemetryClient.track` and `report_telemetry` while spying on `posthog.Posthog` constructor and `capture` calls.
+The pytest module drives `TelemetryClient.track` and `report_telemetry` through a PostHog SDK spy that records constructor arguments and `capture` calls.
 
 ## Reproduce locally
 
 ```bash
 python3 -m venv .venv
 .venv/bin/pip install -r requirements_test.txt
-.venv/bin/python -m pytest tests/test_telemetry_privacy.py -q -s
+.venv/bin/python -m pytest tests/test_posthog_privacy.py -q -s
 ```
