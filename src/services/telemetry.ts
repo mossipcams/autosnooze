@@ -3,11 +3,27 @@
  */
 
 import type { HomeAssistant } from '../types/hass.js';
-import type { ReportTelemetryInput } from './telemetry-schema.js';
+import type { ReportTelemetryInput, TelemetryPlatform } from './telemetry-schema.js';
 
 export type { ReportTelemetryInput };
 
 const SENSOR_ENTITY_ID = 'sensor.autosnooze_snoozed_automations';
+
+export function detectTelemetryPlatform(): TelemetryPlatform {
+  const navigator = globalThis.navigator;
+  const userAgent = navigator?.userAgent ?? '';
+  const touch = (navigator?.maxTouchPoints ?? 0) > 1;
+  if (/iPad/i.test(userAgent) || (navigator?.platform === 'MacIntel' && touch)) {
+    return 'tablet';
+  }
+  if (/Android/i.test(userAgent)) {
+    return /Mobile/i.test(userAgent) ? 'mobile' : 'tablet';
+  }
+  if (/iPhone|iPod|Mobile/i.test(userAgent)) {
+    return 'mobile';
+  }
+  return 'web';
+}
 
 function isTelemetryEnabled(hass: HomeAssistant): boolean {
   const attributes = hass.states?.[SENSOR_ENTITY_ID]?.attributes as
@@ -30,6 +46,7 @@ export function reportTelemetry(hass: HomeAssistant, input: ReportTelemetryInput
     const serviceData: Record<string, unknown> = {
       event: input.event,
       source: input.source ?? 'card',
+      platform: input.platform ?? detectTelemetryPlatform(),
     };
     if ('properties' in input && input.properties !== undefined && input.properties !== null) {
       serviceData.properties = input.properties;

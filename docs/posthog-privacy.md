@@ -20,6 +20,7 @@ When telemetry is enabled, `Posthog()` must be called exactly once with:
 - `enable_exception_autocapture=False`
 - `enable_local_evaluation=False`
 - `sync_mode=False`
+- `before_send` filters the final SDK-enriched message to the AutoSnooze allowlist
 
 Any extra init kwargs (`super_properties`, `personal_api_key`, `on_error`, `privacy_mode`, `debug`, `send`, etc.) or wrong values fail CI. A disabled client may still construct but must capture nothing.
 
@@ -45,12 +46,13 @@ capture(event, distinct_id=..., properties=..., disable_geoip=True)
 For each captured event, `properties.keys()` must equal exactly:
 
 ```
-{"source"} | EVENT_SCHEMAS[event] | {"$set", "$set_once"}
+{"source"} | EVENT_SCHEMAS[event] | {"$set", "$set_once"} | optional {"platform"}
 ```
 
 Missing keys and extra keys both fail. Event-body values are only `bool`, `int` (not bool), or `str` — no lists, `None`, or nested dicts except `$set` and `$set_once`.
 
 - `source` in `{card, service, timer, startup}`
+- optional `platform` in `{web, mobile, tablet}`; no user-agent, model, or screen data is sent
 - `$set` keys/values exactly `{autosnooze_version, home_assistant_version, event_schema_version}` with fixed test versions
 - `$set_once` keys/values exactly `{initial_autosnooze_version, initial_home_assistant_version}`
 - any other property key starting with `$` is rejected (PostHog reserved keys such as `$ip`, `$email`, `$geoip_*`, `$groups`)

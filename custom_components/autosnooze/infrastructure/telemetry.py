@@ -2,12 +2,14 @@
 
 from __future__ import annotations
 
+import asyncio
 import hashlib
 import logging
 import uuid
 from collections.abc import Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
+from queue import Empty, Queue
 from typing import Any
 
 from homeassistant.config_entries import ConfigEntry
@@ -25,6 +27,7 @@ from ..const import (
 _LOGGER = logging.getLogger(__name__)
 
 EVENT_SCHEMA_VERSION = "3"
+TELEMETRY_PLATFORMS = frozenset({"web", "mobile", "tablet"})
 POSTHOG_PROJECT_API_KEY = "phc_uQFMpY3C9L9Dj4wLqudjNyJVBwAdCisMyUkZ6EqhxWxB"
 POSTHOG_HOST = "https://us.i.posthog.com"
 TELEMETRY_STORAGE_KEY = f"{DOMAIN}.telemetry"
@@ -121,6 +124,25 @@ EVENT_SCHEMAS: dict[str, frozenset[str]] = {
     "confirmation_dismissed": frozenset({"target_count"}),
 }
 
+REQUIRED_EVENT_PROPERTIES = {
+    event: properties - ({"strategy"} if event == "operation_failed" else set())
+    for event, properties in EVENT_SCHEMAS.items()
+}
+
+_POSTHOG_SET_KEYS = frozenset(
+    {
+        "autosnooze_version",
+        "home_assistant_version",
+        "event_schema_version",
+    }
+)
+_POSTHOG_SET_ONCE_KEYS = frozenset(
+    {
+        "initial_autosnooze_version",
+        "initial_home_assistant_version",
+    }
+)
+
 
 def map_translation_key_to_error_code(translation_key: str | None) -> str:
     if not translation_key:
@@ -197,10 +219,13 @@ def sanitize_event_properties(
     *,
     source: str,
     card_type: str | None = None,
+    platform: str | None = None,
 ) -> dict[str, Any] | None:
     if event not in EVENT_SCHEMAS:
         return None
     if source not in SOURCES:
+        return None
+    if platform is not None and platform not in TELEMETRY_PLATFORMS:
         return None
     if properties is not None and not isinstance(properties, dict):
         return None
@@ -221,6 +246,9 @@ def sanitize_event_properties(
             return None
         cleaned["card_type"] = validated_card_type
 
+    if not REQUIRED_EVENT_PROPERTIES[event].issubset(cleaned):
+        return None
+
     if event == "card_viewed" and cleaned.get("card_type") not in CARD_TYPES:
         return None
     if event == "snooze_created" and cleaned.get("strategy") not in SNOOZE_STRATEGIES:
@@ -236,7 +264,63 @@ def sanitize_event_properties(
         "source": source,
         **cleaned,
     }
+    if platform is not None:
+        payload["platform"] = platform
     return payload
+
+
+def _filter_posthog_message(message: dict[str, Any]) -> dict[str, Any] | None:
+    """Keep only AutoSnooze properties after PostHog SDK enrichment."""
+    event = message.get("event")
+    properties = message.get("properties")
+    if not isinstance(event, str) or event not in EVENT_SCHEMAS or not isinstance(properties, dict):
+        return None
+
+    allowed = {"source", "platform", *EVENT_SCHEMAS[event], "$set", "$set_once"}
+    filtered: dict[str, Any] = {}
+    for key, value in properties.items():
+        if key not in allowed:
+            continue
+        if key == "$set":
+            if isinstance(value, dict):
+                filtered[key] = {k: v for k, v in value.items() if k in _POSTHOG_SET_KEYS}
+            continue
+        if key == "$set_once":
+            if isinstance(value, dict):
+                filtered[key] = {k: v for k, v in value.items() if k in _POSTHOG_SET_ONCE_KEYS}
+            continue
+        filtered[key] = value
+
+    return {**message, "properties": filtered}
+
+
+def _discard_posthog_queues(client: Posthog) -> None:
+    """Drop buffered events before disabling and shutting down PostHog."""
+    lanes = getattr(client, "_lanes", None)
+    if not isinstance(lanes, (list, tuple)):
+        lane = getattr(client, "_analytics_lane", None)
+        lanes = [lane] if lane is not None else []
+
+    for lane in lanes:
+        if lane is None:
+            continue
+        close = getattr(lane, "close", None)
+        if callable(close):
+            close()
+        for consumer in getattr(lane, "consumers", ()):
+            pause = getattr(consumer, "pause", None)
+            if callable(pause):
+                pause()
+        queue = getattr(lane, "queue", None)
+        if not isinstance(queue, Queue):
+            continue
+        while True:
+            try:
+                queue.get_nowait()
+            except Empty:
+                break
+            else:
+                queue.task_done()
 
 
 def _ha_version() -> str:
@@ -265,6 +349,8 @@ class TelemetryClient:
     _last_card_viewed_day: str | None = None
     _last_integration_active_day: str | None = None
     _disabled: bool = False
+    _persistence_lock: asyncio.Lock = field(default_factory=asyncio.Lock)
+    _persistence_tasks: set[asyncio.Future[Any]] = field(default_factory=set)
 
     def is_enabled(self) -> bool:
         if self._disabled:
@@ -289,6 +375,7 @@ class TelemetryClient:
                 enable_exception_autocapture=False,
                 enable_local_evaluation=False,
                 sync_mode=False,
+                before_send=_filter_posthog_message,
             )
         except Exception:
             _LOGGER.debug("Telemetry storage unavailable; disabling telemetry", exc_info=True)
@@ -300,12 +387,15 @@ class TelemetryClient:
 
     async def async_unload(self) -> None:
         self._disabled = True
+        if self._persistence_tasks:
+            await asyncio.gather(*self._persistence_tasks, return_exceptions=True)
         client = self._posthog
         self._posthog = None
         if client is None:
             return
         client.disabled = True
         try:
+            _discard_posthog_queues(client)
             await self.hass.async_add_executor_job(client.shutdown)
         except Exception:
             _LOGGER.debug("Telemetry PostHog shutdown failed", exc_info=True)
@@ -317,20 +407,26 @@ class TelemetryClient:
         *,
         source: str,
         card_type: str | None = None,
+        platform: str | None = None,
     ) -> None:
         try:
             if not self.is_enabled():
                 return
-            if event == "card_viewed" and not self._should_emit_once_per_utc_day(
-                "last_card_viewed_day", "_last_card_viewed_day"
-            ):
-                return
-            if event == "integration_active" and not self._should_emit_once_per_utc_day(
-                "last_integration_active_day", "_last_integration_active_day"
-            ):
+            throttle: tuple[str, str] | None = None
+            if event == "card_viewed":
+                throttle = ("last_card_viewed_day", "_last_card_viewed_day")
+            elif event == "integration_active":
+                throttle = ("last_integration_active_day", "_last_integration_active_day")
+            if throttle is not None and not self._should_emit_once_per_utc_day(*throttle):
                 return
 
-            payload = sanitize_event_properties(event, properties, source=source, card_type=card_type)
+            payload = sanitize_event_properties(
+                event,
+                properties,
+                source=source,
+                card_type=card_type,
+                platform=platform,
+            )
             if payload is None:
                 return
 
@@ -357,6 +453,8 @@ class TelemetryClient:
                 properties=payload,
                 disable_geoip=True,
             )
+            if throttle is not None:
+                self._record_emitted_once_per_utc_day(*throttle)
         except Exception:
             _LOGGER.debug("Telemetry track failed", exc_info=True)
 
@@ -390,19 +488,33 @@ class TelemetryClient:
     def _should_emit_once_per_utc_day(self, storage_key: str, cached_attr: str) -> bool:
         today = dt_util.utcnow().strftime("%Y-%m-%d")
         last_day = getattr(self, cached_attr)
-        if last_day == today:
-            return False
+        return last_day != today
+
+    def _record_emitted_once_per_utc_day(self, storage_key: str, cached_attr: str) -> None:
+        today = dt_util.utcnow().strftime("%Y-%m-%d")
         setattr(self, cached_attr, today)
-        self.hass.async_create_task(self._persist_throttle_day(storage_key, today))
-        return True
+        coroutine = self._persist_throttle_day(storage_key, today)
+        try:
+            task = self.hass.async_create_task(coroutine)
+        except Exception:
+            coroutine.close()
+            return
+        if isinstance(task, asyncio.Future):
+            self._persistence_tasks.add(task)
+            task.add_done_callback(self._persistence_tasks.discard)
+        else:
+            coroutine.close()
 
     async def _persist_throttle_day(self, storage_key: str, day: str) -> None:
-        stored = await self.store.async_load() or {}
-        stored[storage_key] = day
-        if self._install_id:
-            stored.setdefault("install_id", self._install_id)
         try:
-            await self.store.async_save(stored)
+            async with self._persistence_lock:
+                stored = await self.store.async_load()
+                if not isinstance(stored, dict):
+                    stored = {}
+                stored[storage_key] = day
+                if self._install_id:
+                    stored.setdefault("install_id", self._install_id)
+                await self.store.async_save(stored)
         except Exception:
             _LOGGER.debug("Failed to persist telemetry throttle day", exc_info=True)
 
@@ -414,10 +526,11 @@ def track_if_enabled(
     *,
     source: str,
     card_type: str | None = None,
+    platform: str | None = None,
 ) -> None:
     client = getattr(data, "telemetry", None)
     if client is not None:
-        client.track(event, properties, source=source, card_type=card_type)
+        client.track(event, properties, source=source, card_type=card_type, platform=platform)
 
 
 def input_method_from_call(call: ServiceCall) -> str:

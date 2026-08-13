@@ -24,10 +24,14 @@ async def async_handle_report_telemetry(
     card_type = call.data.get("card_type")
     if card_type is not None and not isinstance(card_type, str):
         card_type = None
+    platform = call.data.get("platform")
+    if platform is not None and not isinstance(platform, str):
+        platform = None
     properties = call.data.get("properties")
     client.track(
         event,
         properties if isinstance(properties, dict) else None,
         source=source,
         card_type=card_type,
+        platform=platform,
     )

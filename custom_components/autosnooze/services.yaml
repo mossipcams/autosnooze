@@ -431,3 +431,15 @@ report_telemetry:
               value: full
             - label: Snoozed-only card
               value: snoozed_only
+    platform:
+      name: Platform
+      description: Coarse client platform reported by the dashboard card.
+      selector:
+        select:
+          options:
+            - label: Web
+              value: web
+            - label: Mobile
+              value: mobile
+            - label: Tablet
+              value: tablet
