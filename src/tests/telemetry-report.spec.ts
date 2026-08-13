@@ -64,7 +64,7 @@ describe('reportTelemetry', () => {
     const hass = hassWithTelemetryService(callService);
 
     reportTelemetry(hass, {
-      event: 'selection_feature_used',
+      event: 'until_tomorrow_selected',
       source: 'card',
     });
 
@@ -72,7 +72,7 @@ describe('reportTelemetry', () => {
       'autosnooze',
       'report_telemetry',
       {
-        event: 'selection_feature_used',
+        event: 'until_tomorrow_selected',
         source: 'card',
       },
       undefined,
@@ -88,6 +88,7 @@ describe('reportTelemetry', () => {
 
     reportTelemetry(hass, {
       event: 'selection_feature_used',
+      properties: { target_count: 3 },
       source: 'card',
     });
     reportTelemetry(hass, {
@@ -97,6 +98,7 @@ describe('reportTelemetry', () => {
     });
     reportTelemetry(hass, {
       event: 'confirmation_result',
+      properties: { target_count: 2 },
       source: 'card',
     });
 
@@ -196,7 +198,11 @@ describe('reportTelemetry', () => {
   test('does not throw when callService is missing', () => {
     const hass = {} as HomeAssistant;
     expect(() =>
-      reportTelemetry(hass, { event: 'selection_feature_used', source: 'card' })
+      reportTelemetry(hass, {
+        event: 'selection_feature_used',
+        properties: { target_count: 1 },
+        source: 'card',
+      })
     ).not.toThrow();
   });
 

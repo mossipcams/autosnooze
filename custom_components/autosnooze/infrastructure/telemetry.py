@@ -298,7 +298,7 @@ class TelemetryClient:
             self._last_integration_active_day = None
             self._posthog = None
 
-    def async_unload(self) -> None:
+    async def async_unload(self) -> None:
         self._disabled = True
         client = self._posthog
         self._posthog = None
@@ -306,7 +306,7 @@ class TelemetryClient:
             return
         client.disabled = True
         try:
-            self.hass.async_add_executor_job(client.shutdown)
+            await self.hass.async_add_executor_job(client.shutdown)
         except Exception:
             _LOGGER.debug("Telemetry PostHog shutdown failed", exc_info=True)
 

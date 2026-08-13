@@ -63,7 +63,12 @@ async def smoke_hass(hass: HomeAssistant):
     turn_on = AsyncMock(side_effect=turn_on_handler)
     hass.services.async_register("automation", "turn_off", turn_off)
     hass.services.async_register("automation", "turn_on", turn_on)
-    yield hass, turn_off, turn_on
+    mock_posthog = MagicMock(disabled=False, capture=MagicMock(), shutdown=MagicMock())
+    with patch(
+        "custom_components.autosnooze.infrastructure.telemetry.Posthog",
+        return_value=mock_posthog,
+    ):
+        yield hass, turn_off, turn_on
 
 
 async def setup_entry(hass: HomeAssistant) -> MockConfigEntry:
@@ -344,7 +349,7 @@ async def test_setup_recovers_active_storage_and_discards_expired(smoke_hass) ->
     hass.states.async_set("automation.expired", "off", {"friendly_name": "Expired"})
     hass.states.async_set("automation.future", "on", {"friendly_name": "Future"})
     timer_unsubs = [MagicMock(), MagicMock()]
-    load = AsyncMock(side_effect=[{}, stored])
+    load = AsyncMock(side_effect=[{}, stored, {}])
     save = AsyncMock()
 
     with (
@@ -363,7 +368,7 @@ async def test_setup_recovers_active_storage_and_discards_expired(smoke_hass) ->
     assert entry.runtime_data.paused["automation.active"].friendly_name == "Active"
     assert entry.runtime_data.scheduled["automation.future"].disable_at == now + timedelta(minutes=10)
     load.assert_awaited()
-    assert load.await_count == 2
+    assert load.await_count == 3
     assert [call.args[2] for call in track.call_args_list] == [
         now + timedelta(minutes=30),
         now + timedelta(minutes=10),

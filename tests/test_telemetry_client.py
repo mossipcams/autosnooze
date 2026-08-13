@@ -198,8 +198,8 @@ async def test_async_unload_disables_client_and_blocks_track(telemetry_client, c
     telemetry_client.track("integration_active", {}, source="startup")
     assert len(captures) == 1
 
-    telemetry_client.hass.async_add_executor_job = MagicMock()
-    telemetry_client.async_unload()
+    telemetry_client.hass.async_add_executor_job = AsyncMock()
+    await telemetry_client.async_unload()
     assert mock_posthog.disabled is True
     telemetry_client.hass.async_add_executor_job.assert_called_with(mock_posthog.shutdown)
     assert telemetry_client._posthog is None
