@@ -39,8 +39,8 @@ jobs:
         include:
           - ha: "2026.8.1"
             fixture: "pytest-homeassistant-custom-component==0.13.355"
-          - ha: "2026.7.4"
-            fixture: "pytest-homeassistant-custom-component==0.13.348"
+          - ha: "2026.6.0"
+            fixture: "pytest-homeassistant-custom-component==0.13.336"
 
     steps:
       - name: Checkout repository

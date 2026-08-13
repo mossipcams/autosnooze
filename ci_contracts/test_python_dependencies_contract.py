@@ -58,7 +58,8 @@ def test_smoke_backend_tests_ha_floor_and_current() -> None:
     """Smoke-backend CI should cover the HA floor patch and current release."""
     workflow = BUILD_WORKFLOW_PATH.read_text(encoding="utf-8")
 
-    assert "pytest-homeassistant-custom-component==0.13.348" in workflow
+    assert 'ha: "2026.6.0"' in workflow
+    assert "pytest-homeassistant-custom-component==0.13.336" in workflow
     assert "pytest-homeassistant-custom-component==0.13.355" in workflow
     assert "fail-fast: false" in workflow
     assert "tests/test_smoke.py" in workflow
