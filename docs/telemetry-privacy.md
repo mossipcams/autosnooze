@@ -2,23 +2,59 @@
 
 [![Telemetry Privacy Verification](https://github.com/mossipcams/autosnooze/actions/workflows/telemetry-privacy.yml/badge.svg)](https://github.com/mossipcams/autosnooze/actions/workflows/telemetry-privacy.yml)
 
-This check runs on every push to `main` and on pull requests. It drives the real Python `TelemetryClient`, sends contract-shaped golden payloads and polluted reject-path payloads, intercepts outbound PostHog `capture` calls, and fails on any private or undocumented field.
+This check runs on every push to `main` and on pull requests. It drives the real Python `TelemetryClient`, sends contract-shaped golden payloads and polluted reject-path payloads, intercepts outbound PostHog SDK calls via a strict spy, and fails on any private or undocumented field.
 
 Telemetry is **not fully anonymous**: each signal uses `distinct_id` (SHA-256 of a random per-install UUID). That groups events per install without sending the raw ID, HA user identity, or home configuration. PostHog can see the source IP of your Home Assistant instance on HTTPS requests; AutoSnooze disables geo-IP enrichment and does not put IPs in event properties.
 
-## Collected fields
+## PostHog SDK spy
 
-PostHog capture envelope per event (exact kwargs only):
+The privacy harness replaces `posthog.Posthog` with a callable spy that records constructor arguments and returns a minimal client surface.
 
-- `capture(event, distinct_id=..., properties=..., disable_geoip=True)`
+### Constructor allowlist
 
-Inside `properties`:
+When telemetry is enabled, `Posthog()` must be called exactly once with:
 
-- `distinct_id` is never duplicated in the property object
+- positional project API key only (`POSTHOG_PROJECT_API_KEY`)
+- `host=POSTHOG_HOST` (`https://us.i.posthog.com`)
+- `disable_geoip=True`
+- `enable_exception_autocapture=False`
+- `enable_local_evaluation=False`
+- `sync_mode=False`
 
-Shared `properties` keys on every event:
+Any extra init kwargs (`super_properties`, `personal_api_key`, `on_error`, `privacy_mode`, `debug`, `send`, etc.) or wrong values fail CI. A disabled client may still construct but must capture nothing.
 
-- `source` (`card`, `service`, `timer`, or `startup`)
+### Capture-only SDK surface
+
+The spy implements `capture`, `disabled`, and `shutdown` only. Calls to `set`, `set_once`, `alias`, `capture_exception`, `group_identify`, `identify_context`, `capture_ai`, feature-flag APIs, or any other SDK method fail CI.
+
+### Capture envelope
+
+Approved AutoSnooze capture is only:
+
+```
+capture(event, distinct_id=..., properties=..., disable_geoip=True)
+```
+
+- `event` is positional (not a keyword)
+- no `timestamp`, `uuid`, `groups`, `flags`, `send_feature_flags`, or `_property_allowlist`
+- `disable_geoip` must be `True`
+- `distinct_id` is SHA-256 of the install UUID (`^[0-9a-f]{64}$`)
+
+### Exact property shape
+
+For each captured event, `properties.keys()` must equal exactly:
+
+```
+{"source"} | EVENT_SCHEMAS[event] | {"$set", "$set_once"}
+```
+
+Missing keys and extra keys both fail. Event-body values are only `bool`, `int` (not bool), or `str` — no lists, `None`, or nested dicts except `$set` and `$set_once`.
+
+- `source` in `{card, service, timer, startup}`
+- `$set` keys/values exactly `{autosnooze_version, home_assistant_version, event_schema_version}` with fixed test versions
+- `$set_once` keys/values exactly `{initial_autosnooze_version, initial_home_assistant_version}`
+- any other property key starting with `$` is rejected (PostHog reserved keys such as `$ip`, `$email`, `$geoip_*`, `$groups`)
+- event body must not contain version keys, `distinct_id`, `install_id`, `clientUser`, or the project API key
 
 Unknown property keys **reject the event** at sanitize time; they are not stripped. Callers must not pass `$set`, `$set_once`, `entity_id`, or other extras in event properties.
 
@@ -85,20 +121,25 @@ The harness sends clean contract payloads for golden capture, then re-sends ever
 - `private-user-id-12345`
 - `private-config-entry-67890`
 
-These Home Assistant field names are also forbidden inside `properties`:
+PostHog leak canaries also include `$ip`, `$email`, `$geoip_city_name`, evil `$set_once`, `$groups`, and numeric `latitude`/`longitude`.
 
-- `entity_id`, `friendly_name`, `user_id`, `config_entry_id`, `area_id`, `device_id`, `latitude`, `longitude`, `install_id`, `clientUser`, `distinct_id`, `$ip`
+Card report calls also place `entity_id` and `friendly_name` on the top-level service `call.data`; the handler must not forward them.
+
+These Home Assistant and PostHog field names are forbidden inside `properties`:
+
+- `entity_id`, `friendly_name`, `user_id`, `config_entry_id`, `area_id`, `device_id`, `latitude`, `longitude`, `install_id`, `clientUser`, `distinct_id`, `email`, `name`, `ip_address`
+- `$ip`, `$email`, `$name`, `$user_id`, `$device_id`, `$anon_distinct_id`, `$session_id`, `$groups`, `$group_key`, `$group_type`, `$group_set`, `$unset`, `$geoip_city_name`, `$geoip_country_code`, `$current_url`, `$host`
 
 ## Test source
 
 - [tests/test_telemetry_privacy.py](../tests/test_telemetry_privacy.py)
 
-The pytest module runs the Python capture helper, which calls `TelemetryClient.track` and `report_telemetry` while mocking `posthog.Posthog.capture`.
+The pytest module runs the Python capture helper, which calls `TelemetryClient.track` and `report_telemetry` while spying on `posthog.Posthog` constructor and `capture` calls.
 
 ## Reproduce locally
 
 ```bash
 python3 -m venv .venv
 .venv/bin/pip install -r requirements_test.txt
-.venv/bin/python -m pytest tests/test_telemetry_privacy.py -q
+.venv/bin/python -m pytest tests/test_telemetry_privacy.py -q -s
 ```

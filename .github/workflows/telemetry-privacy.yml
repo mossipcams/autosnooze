@@ -6,7 +6,10 @@ on:
     paths:
       - '.github/workflows/telemetry-privacy.yml'
       - 'custom_components/autosnooze/infrastructure/telemetry.py'
+      - 'custom_components/autosnooze/application/**'
       - 'custom_components/autosnooze/application/report_telemetry.py'
+      - 'custom_components/autosnooze/runtime/restore.py'
+      - 'custom_components/autosnooze/manifest.json'
       - 'docs/telemetry-payloads.json'
       - 'docs/telemetry-privacy.md'
       - 'tests/test_telemetry_privacy.py'
@@ -16,7 +19,10 @@ on:
     paths:
       - '.github/workflows/telemetry-privacy.yml'
       - 'custom_components/autosnooze/infrastructure/telemetry.py'
+      - 'custom_components/autosnooze/application/**'
       - 'custom_components/autosnooze/application/report_telemetry.py'
+      - 'custom_components/autosnooze/runtime/restore.py'
+      - 'custom_components/autosnooze/manifest.json'
       - 'docs/telemetry-payloads.json'
       - 'docs/telemetry-privacy.md'
       - 'tests/test_telemetry_privacy.py'
@@ -51,7 +57,7 @@ jobs:
         run: pip install -r requirements_test.txt
 
       - name: Run telemetry privacy verification
-        run: python -m pytest tests/test_telemetry_privacy.py -q
+        run: python -m pytest tests/test_telemetry_privacy.py -q -s
 
       - name: Upload captured payload golden
         if: always()
