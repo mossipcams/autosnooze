@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.1b1](https://github.com/mossipcams/autosnooze/compare/v0.3.0...v0.3.1b1) (2026-08-13)
+
+
+### Bug Fixes
+
+* **telemetry:** keep `$geoip_disable` on the PostHog wire so person GeoIP is not filled from the instance IP
+
 ## [0.3.0](https://github.com/mossipcams/autosnooze/compare/v0.2.29...v0.3.0) (2026-08-13)
 
 

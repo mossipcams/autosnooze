@@ -276,10 +276,14 @@ def _filter_posthog_message(message: dict[str, Any]) -> dict[str, Any] | None:
     if not isinstance(event, str) or event not in EVENT_SCHEMAS or not isinstance(properties, dict):
         return None
 
-    allowed = {"source", "platform", *EVENT_SCHEMAS[event], "$set", "$set_once"}
+    allowed = {"source", "platform", *EVENT_SCHEMAS[event], "$set", "$set_once", "$geoip_disable"}
     filtered: dict[str, Any] = {}
     for key, value in properties.items():
         if key not in allowed:
+            continue
+        if key == "$geoip_disable":
+            if value is True:
+                filtered[key] = True
             continue
         if key == "$set":
             if isinstance(value, dict):

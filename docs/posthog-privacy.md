@@ -55,7 +55,8 @@ Missing keys and extra keys both fail. Event-body values are only `bool`, `int` 
 - optional `platform` in `{web, mobile, tablet}`; no user-agent, model, or screen data is sent
 - `$set` keys/values exactly `{autosnooze_version, home_assistant_version, event_schema_version}` with fixed test versions
 - `$set_once` keys/values exactly `{initial_autosnooze_version, initial_home_assistant_version}`
-- any other property key starting with `$` is rejected (PostHog reserved keys such as `$ip`, `$email`, `$geoip_*`, `$groups`)
+- `$geoip_disable: true` is kept so PostHog Cloud does not geolocate the instance IP
+- any other property key starting with `$` is rejected (PostHog reserved keys such as `$ip`, `$email`, `$geoip_city_name`, `$groups`)
 - event body must not contain version keys, `distinct_id`, `install_id`, `clientUser`, or the project API key
 
 Unknown property keys **reject the event** at sanitize time; they are not stripped. Callers must not pass `$set`, `$set_once`, `entity_id`, or other extras in event properties.
