@@ -113,8 +113,8 @@ This is **not fully anonymous**. Events are not linked to your Home Assistant us
 
 Full event catalog and example payloads:
 
-- [Event properties](docs/telemetry-privacy.md#full-event-catalog)
-- [Exact sanitized payloads](docs/telemetry-payloads.json) (26 events, CI-verified)
+- [Event properties](docs/posthog-privacy.md#full-event-catalog)
+- [Exact sanitized payloads](docs/posthog-payloads.json) (26 events, CI-verified)
 
 ### What is never sent
 
@@ -124,7 +124,7 @@ Never included in payloads: automation IDs/names, areas/labels, search text, URL
 
 **On by default.** Turn it off anytime: **Settings → Devices & Services → AutoSnooze → Configure → Send product usage data**.
 
-Payloads are checked in public CI against private canaries. [Privacy verification](docs/telemetry-privacy.md)
+Payloads are checked in public CI against private canaries. [PostHog privacy verification](docs/posthog-privacy.md)
 
 -----
 

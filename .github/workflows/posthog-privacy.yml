@@ -1,26 +1,26 @@
-name: Telemetry Privacy Verification
+name: PostHog Privacy Verification
 
 on:
   push:
     branches: [main]
     paths:
-      - '.github/workflows/telemetry-privacy.yml'
+      - '.github/workflows/posthog-privacy.yml'
       - 'custom_components/autosnooze/infrastructure/telemetry.py'
       - 'custom_components/autosnooze/application/report_telemetry.py'
-      - 'docs/telemetry-payloads.json'
-      - 'docs/telemetry-privacy.md'
-      - 'tests/test_telemetry_privacy.py'
-      - 'tests/helpers/telemetry_privacy_capture.py'
+      - 'docs/posthog-payloads.json'
+      - 'docs/posthog-privacy.md'
+      - 'tests/test_posthog_privacy.py'
+      - 'tests/helpers/posthog_privacy_capture.py'
       - 'requirements_test.txt'
   pull_request:
     paths:
-      - '.github/workflows/telemetry-privacy.yml'
+      - '.github/workflows/posthog-privacy.yml'
       - 'custom_components/autosnooze/infrastructure/telemetry.py'
       - 'custom_components/autosnooze/application/report_telemetry.py'
-      - 'docs/telemetry-payloads.json'
-      - 'docs/telemetry-privacy.md'
-      - 'tests/test_telemetry_privacy.py'
-      - 'tests/helpers/telemetry_privacy_capture.py'
+      - 'docs/posthog-payloads.json'
+      - 'docs/posthog-privacy.md'
+      - 'tests/test_posthog_privacy.py'
+      - 'tests/helpers/posthog_privacy_capture.py'
       - 'requirements_test.txt'
   workflow_dispatch:
 
@@ -32,7 +32,7 @@ permissions:
   contents: read
 
 jobs:
-  telemetry-privacy:
+  posthog-privacy:
     runs-on: ubuntu-latest
     timeout-minutes: 10
 
@@ -50,13 +50,13 @@ jobs:
       - name: Install Python dependencies
         run: pip install -r requirements_test.txt
 
-      - name: Run telemetry privacy verification
-        run: python -m pytest tests/test_telemetry_privacy.py -q
+      - name: Run PostHog privacy verification
+        run: python -m pytest tests/test_posthog_privacy.py -q
 
       - name: Upload captured payload golden
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
-          name: telemetry-payloads
-          path: docs/telemetry-payloads.json
+          name: posthog-payloads
+          path: docs/posthog-payloads.json
           if-no-files-found: error

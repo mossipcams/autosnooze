@@ -1,4 +1,4 @@
-"""Privacy CI: capture all telemetry events and assert golden payloads."""
+"""Privacy CI: capture all PostHog events and assert golden payloads."""
 
 from __future__ import annotations
 
@@ -9,10 +9,10 @@ from pathlib import Path
 import pytest
 
 from custom_components.autosnooze.infrastructure.telemetry import EVENT_SCHEMAS
-from tests.helpers.telemetry_privacy_capture import capture
+from tests.helpers.posthog_privacy_capture import capture
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-GOLDEN_PATH = REPO_ROOT / "docs" / "telemetry-payloads.json"
+GOLDEN_PATH = REPO_ROOT / "docs" / "posthog-payloads.json"
 EXPECTED = len(EVENT_SCHEMAS)
 
 
@@ -32,7 +32,7 @@ def _publish_summary(meta: dict[str, object]) -> None:
     )
     report = "\n".join(
         [
-            "AutoSnooze Telemetry Privacy Verification",
+            "AutoSnooze PostHog Privacy Verification",
             f"Telemetry events exercised: {meta['events_exercised']}/{EXPECTED}",
             f"PostHog captures recorded: {meta['outbound_requests']}",
             f"Undocumented fields found: {meta['undocumented_fields']}",
@@ -56,7 +56,7 @@ def _publish_summary(meta: dict[str, object]) -> None:
 
 
 @pytest.mark.asyncio
-async def test_telemetry_privacy_capture() -> None:
+async def test_posthog_privacy_capture() -> None:
     result = await capture()
     meta = result["meta"]
 
