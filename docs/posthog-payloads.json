@@ -1,0 +1,359 @@
+{
+  "adjust_opened": {
+    "$set": {
+      "autosnooze_version": "0.2.27",
+      "event_schema_version": "3",
+      "home_assistant_version": "2024.1.0-test"
+    },
+    "$set_once": {
+      "initial_autosnooze_version": "0.2.27",
+      "initial_home_assistant_version": "2024.1.0-test"
+    },
+    "scope": "one",
+    "source": "card"
+  },
+  "adjust_option_selected": {
+    "$set": {
+      "autosnooze_version": "0.2.27",
+      "event_schema_version": "3",
+      "home_assistant_version": "2024.1.0-test"
+    },
+    "$set_once": {
+      "initial_autosnooze_version": "0.2.27",
+      "initial_home_assistant_version": "2024.1.0-test"
+    },
+    "delta_minutes": 15,
+    "direction": "extend",
+    "source": "card"
+  },
+  "card_viewed": {
+    "$set": {
+      "autosnooze_version": "0.2.27",
+      "event_schema_version": "3",
+      "home_assistant_version": "2024.1.0-test"
+    },
+    "$set_once": {
+      "initial_autosnooze_version": "0.2.27",
+      "initial_home_assistant_version": "2024.1.0-test"
+    },
+    "card_type": "full",
+    "source": "card"
+  },
+  "confirmation_dismissed": {
+    "$set": {
+      "autosnooze_version": "0.2.27",
+      "event_schema_version": "3",
+      "home_assistant_version": "2024.1.0-test"
+    },
+    "$set_once": {
+      "initial_autosnooze_version": "0.2.27",
+      "initial_home_assistant_version": "2024.1.0-test"
+    },
+    "source": "card",
+    "target_count": 1
+  },
+  "confirmation_result": {
+    "$set": {
+      "autosnooze_version": "0.2.27",
+      "event_schema_version": "3",
+      "home_assistant_version": "2024.1.0-test"
+    },
+    "$set_once": {
+      "initial_autosnooze_version": "0.2.27",
+      "initial_home_assistant_version": "2024.1.0-test"
+    },
+    "source": "card",
+    "target_count": 2
+  },
+  "custom_duration_toggled": {
+    "$set": {
+      "autosnooze_version": "0.2.27",
+      "event_schema_version": "3",
+      "home_assistant_version": "2024.1.0-test"
+    },
+    "$set_once": {
+      "initial_autosnooze_version": "0.2.27",
+      "initial_home_assistant_version": "2024.1.0-test"
+    },
+    "enabled": true,
+    "source": "card"
+  },
+  "duration_option_selected": {
+    "$set": {
+      "autosnooze_version": "0.2.27",
+      "event_schema_version": "3",
+      "home_assistant_version": "2024.1.0-test"
+    },
+    "$set_once": {
+      "initial_autosnooze_version": "0.2.27",
+      "initial_home_assistant_version": "2024.1.0-test"
+    },
+    "duration_minutes": 30,
+    "source": "card"
+  },
+  "filter_tab_selected": {
+    "$set": {
+      "autosnooze_version": "0.2.27",
+      "event_schema_version": "3",
+      "home_assistant_version": "2024.1.0-test"
+    },
+    "$set_once": {
+      "initial_autosnooze_version": "0.2.27",
+      "initial_home_assistant_version": "2024.1.0-test"
+    },
+    "source": "card",
+    "tab": "areas"
+  },
+  "hide_snoozed_toggled": {
+    "$set": {
+      "autosnooze_version": "0.2.27",
+      "event_schema_version": "3",
+      "home_assistant_version": "2024.1.0-test"
+    },
+    "$set_once": {
+      "initial_autosnooze_version": "0.2.27",
+      "initial_home_assistant_version": "2024.1.0-test"
+    },
+    "enabled": true,
+    "source": "card"
+  },
+  "integration_active": {
+    "$set": {
+      "autosnooze_version": "0.2.27",
+      "event_schema_version": "3",
+      "home_assistant_version": "2024.1.0-test"
+    },
+    "$set_once": {
+      "initial_autosnooze_version": "0.2.27",
+      "initial_home_assistant_version": "2024.1.0-test"
+    },
+    "source": "startup"
+  },
+  "notification_cleared": {
+    "$set": {
+      "autosnooze_version": "0.2.27",
+      "event_schema_version": "3",
+      "home_assistant_version": "2024.1.0-test"
+    },
+    "$set_once": {
+      "initial_autosnooze_version": "0.2.27",
+      "initial_home_assistant_version": "2024.1.0-test"
+    },
+    "source": "service",
+    "target_count": 1
+  },
+  "notification_options_changed": {
+    "$set": {
+      "autosnooze_version": "0.2.27",
+      "event_schema_version": "3",
+      "home_assistant_version": "2024.1.0-test"
+    },
+    "$set_once": {
+      "initial_autosnooze_version": "0.2.27",
+      "initial_home_assistant_version": "2024.1.0-test"
+    },
+    "enabled": true,
+    "notification_lead_minutes": 15,
+    "source": "card",
+    "trigger": "start"
+  },
+  "notification_used": {
+    "$set": {
+      "autosnooze_version": "0.2.27",
+      "event_schema_version": "3",
+      "home_assistant_version": "2024.1.0-test"
+    },
+    "$set_once": {
+      "initial_autosnooze_version": "0.2.27",
+      "initial_home_assistant_version": "2024.1.0-test"
+    },
+    "source": "card",
+    "trigger": "start"
+  },
+  "operation_failed": {
+    "$set": {
+      "autosnooze_version": "0.2.27",
+      "event_schema_version": "3",
+      "home_assistant_version": "2024.1.0-test"
+    },
+    "$set_once": {
+      "initial_autosnooze_version": "0.2.27",
+      "initial_home_assistant_version": "2024.1.0-test"
+    },
+    "error_code": "unknown",
+    "operation": "pause",
+    "source": "service",
+    "strategy": "duration",
+    "target_count": 1
+  },
+  "schedule_mode_toggled": {
+    "$set": {
+      "autosnooze_version": "0.2.27",
+      "event_schema_version": "3",
+      "home_assistant_version": "2024.1.0-test"
+    },
+    "$set_once": {
+      "initial_autosnooze_version": "0.2.27",
+      "initial_home_assistant_version": "2024.1.0-test"
+    },
+    "enabled": true,
+    "source": "card"
+  },
+  "scheduled_cancel_clicked": {
+    "$set": {
+      "autosnooze_version": "0.2.27",
+      "event_schema_version": "3",
+      "home_assistant_version": "2024.1.0-test"
+    },
+    "$set_once": {
+      "initial_autosnooze_version": "0.2.27",
+      "initial_home_assistant_version": "2024.1.0-test"
+    },
+    "source": "card",
+    "target_count": 1
+  },
+  "scheduled_snooze_cancelled": {
+    "$set": {
+      "autosnooze_version": "0.2.27",
+      "event_schema_version": "3",
+      "home_assistant_version": "2024.1.0-test"
+    },
+    "$set_once": {
+      "initial_autosnooze_version": "0.2.27",
+      "initial_home_assistant_version": "2024.1.0-test"
+    },
+    "minutes_before_start": 30,
+    "source": "service",
+    "target_count": 1
+  },
+  "scheduled_snooze_created": {
+    "$set": {
+      "autosnooze_version": "0.2.27",
+      "event_schema_version": "3",
+      "home_assistant_version": "2024.1.0-test"
+    },
+    "$set_once": {
+      "initial_autosnooze_version": "0.2.27",
+      "initial_home_assistant_version": "2024.1.0-test"
+    },
+    "minutes_until_start": 60,
+    "planned_duration_minutes": 120,
+    "resume_local_hour": 7,
+    "source": "service",
+    "target_count": 2
+  },
+  "scheduled_snooze_started": {
+    "$set": {
+      "autosnooze_version": "0.2.27",
+      "event_schema_version": "3",
+      "home_assistant_version": "2024.1.0-test"
+    },
+    "$set_once": {
+      "initial_autosnooze_version": "0.2.27",
+      "initial_home_assistant_version": "2024.1.0-test"
+    },
+    "planned_duration_minutes": 120,
+    "source": "timer",
+    "target_count": 2
+  },
+  "selection_feature_used": {
+    "$set": {
+      "autosnooze_version": "0.2.27",
+      "event_schema_version": "3",
+      "home_assistant_version": "2024.1.0-test"
+    },
+    "$set_once": {
+      "initial_autosnooze_version": "0.2.27",
+      "initial_home_assistant_version": "2024.1.0-test"
+    },
+    "source": "card",
+    "target_count": 3
+  },
+  "snooze_adjusted": {
+    "$set": {
+      "autosnooze_version": "0.2.27",
+      "event_schema_version": "3",
+      "home_assistant_version": "2024.1.0-test"
+    },
+    "$set_once": {
+      "initial_autosnooze_version": "0.2.27",
+      "initial_home_assistant_version": "2024.1.0-test"
+    },
+    "delta_minutes": 15,
+    "direction": "extend",
+    "source": "card",
+    "target_count": 2
+  },
+  "snooze_button_clicked": {
+    "$set": {
+      "autosnooze_version": "0.2.27",
+      "event_schema_version": "3",
+      "home_assistant_version": "2024.1.0-test"
+    },
+    "$set_once": {
+      "initial_autosnooze_version": "0.2.27",
+      "initial_home_assistant_version": "2024.1.0-test"
+    },
+    "schedule_mode": false,
+    "source": "card",
+    "target_count": 2,
+    "until_tomorrow": true
+  },
+  "snooze_created": {
+    "$set": {
+      "autosnooze_version": "0.2.27",
+      "event_schema_version": "3",
+      "home_assistant_version": "2024.1.0-test"
+    },
+    "$set_once": {
+      "initial_autosnooze_version": "0.2.27",
+      "initial_home_assistant_version": "2024.1.0-test"
+    },
+    "confirmation_used": false,
+    "duration_minutes": 30,
+    "input_method": "card",
+    "notification_lead_minutes": 0,
+    "notification_trigger": "none",
+    "source": "card",
+    "strategy": "duration",
+    "target_count": 1
+  },
+  "snooze_ended": {
+    "$set": {
+      "autosnooze_version": "0.2.27",
+      "event_schema_version": "3",
+      "home_assistant_version": "2024.1.0-test"
+    },
+    "$set_once": {
+      "initial_autosnooze_version": "0.2.27",
+      "initial_home_assistant_version": "2024.1.0-test"
+    },
+    "reason": "timer",
+    "source": "timer"
+  },
+  "until_tomorrow_selected": {
+    "$set": {
+      "autosnooze_version": "0.2.27",
+      "event_schema_version": "3",
+      "home_assistant_version": "2024.1.0-test"
+    },
+    "$set_once": {
+      "initial_autosnooze_version": "0.2.27",
+      "initial_home_assistant_version": "2024.1.0-test"
+    },
+    "source": "card"
+  },
+  "wake_clicked": {
+    "$set": {
+      "autosnooze_version": "0.2.27",
+      "event_schema_version": "3",
+      "home_assistant_version": "2024.1.0-test"
+    },
+    "$set_once": {
+      "initial_autosnooze_version": "0.2.27",
+      "initial_home_assistant_version": "2024.1.0-test"
+    },
+    "scope": "one",
+    "source": "card"
+  }
+}

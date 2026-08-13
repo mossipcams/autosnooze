@@ -148,9 +148,10 @@ export function trackCardViewed(hass: HomeAssistant, cardType: 'full' | 'snoozed
   reportTelemetry(hass, { event: 'card_viewed', card_type: cardType, source: 'card' });
 }
 
-export function trackDurationPresetSelected(hass: HomeAssistant): void {
+export function trackDurationPresetSelected(hass: HomeAssistant, minutes: number): void {
   reportTelemetry(hass, {
     event: 'duration_option_selected',
+    properties: { duration_minutes: minutes },
     source: 'card',
   });
 }
@@ -159,10 +160,15 @@ export function trackSnoozeButtonClicked(
   hass: HomeAssistant,
   targetCount: number,
   scheduleMode: boolean,
+  untilTomorrow: boolean,
 ): void {
   reportTelemetry(hass, {
     event: 'snooze_button_clicked',
-    properties: { target_count: targetCount, schedule_mode: scheduleMode },
+    properties: {
+      target_count: targetCount,
+      schedule_mode: scheduleMode,
+      until_tomorrow: untilTomorrow,
+    },
     source: 'card',
   });
 }
@@ -187,8 +193,12 @@ export function trackAdjustOptionSelected(
   });
 }
 
-export function trackScheduledCancelClicked(hass: HomeAssistant): void {
-  reportTelemetry(hass, { event: 'scheduled_cancel_clicked', source: 'card' });
+export function trackScheduledCancelClicked(hass: HomeAssistant, targetCount: number): void {
+  reportTelemetry(hass, {
+    event: 'scheduled_cancel_clicked',
+    properties: { target_count: targetCount },
+    source: 'card',
+  });
 }
 
 export function trackScheduleModeToggled(hass: HomeAssistant, enabled: boolean): void {
@@ -215,10 +225,11 @@ export function trackNotificationOptionsChanged(
   hass: HomeAssistant,
   trigger: 'none' | 'start' | 'about_to_end' | 'end',
   enabled: boolean,
+  notificationLeadMinutes: number,
 ): void {
   reportTelemetry(hass, {
     event: 'notification_options_changed',
-    properties: { trigger, enabled },
+    properties: { trigger, enabled, notification_lead_minutes: notificationLeadMinutes },
     source: 'card',
   });
 }

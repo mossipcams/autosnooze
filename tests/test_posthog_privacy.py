@@ -1,4 +1,4 @@
-"""Privacy CI: capture all telemetry events and assert golden payloads."""
+"""Privacy CI: capture all PostHog events and assert golden payloads."""
 
 from __future__ import annotations
 
@@ -9,10 +9,10 @@ from pathlib import Path
 import pytest
 
 from custom_components.autosnooze.infrastructure.telemetry import EVENT_SCHEMAS
-from tests.helpers.telemetry_privacy_capture import capture
+from tests.helpers.posthog_privacy_capture import capture
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-GOLDEN_PATH = REPO_ROOT / "docs" / "telemetry-payloads.json"
+GOLDEN_PATH = REPO_ROOT / "docs" / "posthog-payloads.json"
 EXPECTED = len(EVENT_SCHEMAS)
 
 
@@ -24,22 +24,36 @@ def _publish_summary(meta: dict[str, object]) -> None:
         and meta["undocumented_fields"] == 0
         and meta["forbidden_ha_fields"] == 0
         and meta["canary_hits"] == []
-        and meta["envelope_violations"] == []
-        and meta["client_user_mismatches"] == []
+        and meta["capture_violations"] == []
+        and meta["distinct_id_mismatches"] == []
+        and meta["disable_geoip_violations"] == []
         and meta["allowed_key_canary_rejected"] is True
+        and meta["extra_keys_rejected"] is True
+        and meta["constructor_violations"] == []
+        and meta["unexpected_sdk_calls"] == []
+        and meta["shape_violations"] == []
+        and meta["reserved_property_hits"] == []
+        and meta["project_key_leaks"] == []
     )
     report = "\n".join(
         [
-            "AutoSnooze Telemetry Privacy Verification",
+            "AutoSnooze PostHog Privacy Verification",
             f"Telemetry events exercised: {meta['events_exercised']}/{EXPECTED}",
-            f"Outbound requests captured: {meta['outbound_requests']}",
+            f"PostHog captures recorded: {meta['outbound_requests']}",
             f"Undocumented fields found: {meta['undocumented_fields']}",
             f"Private canary values found: {len(meta['canary_hits'])}",
             f"Forbidden Home Assistant fields found: {meta['forbidden_ha_fields']}",
-            f"Envelope violations: {len(meta['envelope_violations'])}",
-            f"clientUser mismatches: {len(meta['client_user_mismatches'])}",
+            f"Capture violations: {len(meta['capture_violations'])}",
+            f"Constructor violations: {len(meta['constructor_violations'])}",
+            f"Unexpected SDK calls: {len(meta['unexpected_sdk_calls'])}",
+            f"Shape violations: {len(meta['shape_violations'])}",
+            f"Reserved property hits: {len(meta['reserved_property_hits'])}",
+            f"Project key leaks: {len(meta['project_key_leaks'])}",
+            f"distinct_id mismatches: {len(meta['distinct_id_mismatches'])}",
+            f"disable_geoip violations: {len(meta['disable_geoip_violations'])}",
             f"Allowed-key canary rejected: {meta['allowed_key_canary_rejected']}",
-            f"Telemetry requests while disabled: {meta['telemetry_requests_while_disabled']}",
+            f"Extra keys rejected: {meta['extra_keys_rejected']}",
+            f"Telemetry captures while disabled: {meta['telemetry_requests_while_disabled']}",
             f"RESULT: {'PASSED' if passed else 'FAILED'}",
             "",
         ]
@@ -52,20 +66,28 @@ def _publish_summary(meta: dict[str, object]) -> None:
 
 
 @pytest.mark.asyncio
-async def test_telemetry_privacy_capture() -> None:
+async def test_posthog_privacy_capture() -> None:
     result = await capture()
     meta = result["meta"]
 
     assert meta["events_exercised"] == EXPECTED
     assert meta["expected_event_count"] == EXPECTED
     assert meta["outbound_requests"] == EXPECTED
+    assert meta["golden_capture_count"] == EXPECTED
     assert meta["telemetry_requests_while_disabled"] == 0
     assert meta["undocumented_fields"] == 0
     assert meta["forbidden_ha_fields"] == 0
     assert meta["canary_hits"] == []
-    assert meta["envelope_violations"] == []
-    assert meta["client_user_mismatches"] == []
+    assert meta["capture_violations"] == []
+    assert meta["distinct_id_mismatches"] == []
+    assert meta["disable_geoip_violations"] == []
     assert meta["allowed_key_canary_rejected"] is True
+    assert meta["extra_keys_rejected"] is True
+    assert meta["constructor_violations"] == []
+    assert meta["unexpected_sdk_calls"] == []
+    assert meta["shape_violations"] == []
+    assert meta["reserved_property_hits"] == []
+    assert meta["project_key_leaks"] == []
     assert set(result["payloads"].keys()) == set(EVENT_SCHEMAS)
 
     documented = json.loads(GOLDEN_PATH.read_text(encoding="utf-8"))

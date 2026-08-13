@@ -16,7 +16,7 @@
   * Persistent chip on the automation picker that hides currently snoozed rows
   * Preference survives reloads; hidden rows are pruned from selection and list counts
 
-* **Product telemetry** via TelemetryDeck ([#494](https://github.com/mossipcams/autosnooze/issues/494)) ([69b7cb9](https://github.com/mossipcams/autosnooze/commit/69b7cb953981973bd89274d35adb5c0b2f08b9b5)) — opt-out in integration options; allowlisted usage events only ([details](https://github.com/mossipcams/autosnooze/blob/main/docs/telemetry-privacy.md))
+* **Product telemetry** via TelemetryDeck ([#494](https://github.com/mossipcams/autosnooze/issues/494)) ([69b7cb9](https://github.com/mossipcams/autosnooze/commit/69b7cb953981973bd89274d35adb5c0b2f08b9b5)) — opt-out in integration options; allowlisted usage events only ([details](https://github.com/mossipcams/autosnooze/blob/main/docs/posthog-privacy.md))
 
 
 ### Bug Fixes

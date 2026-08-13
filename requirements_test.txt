@@ -11,3 +11,6 @@ ruff>=0.16.2
 
 # Type checking
 pyright>=1.1.411
+
+# Telemetry (matches manifest.json)
+posthog>=7.38.0,<8

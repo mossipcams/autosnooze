@@ -1,23 +1,21 @@
-"""TelemetryDeck product telemetry for AutoSnooze."""
+"""PostHog product telemetry for AutoSnooze."""
 
 from __future__ import annotations
 
-import asyncio
 import hashlib
 import logging
 import uuid
 from collections.abc import Mapping
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime
 from typing import Any
 
-from aiohttp import ClientTimeout
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, ServiceCall
 from homeassistant.exceptions import ServiceValidationError
-from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.storage import Store
 from homeassistant.util import dt as dt_util
+from posthog import Posthog
 
 from ..const import (
     DOMAIN,
@@ -26,15 +24,12 @@ from ..const import (
 
 _LOGGER = logging.getLogger(__name__)
 
-EVENT_SCHEMA_VERSION = "1"
-TELEMETRYDECK_APP_ID = "C7769C33-556B-40B1-9C4D-0982BE33DEDE"
-TELEMETRYDECK_NAMESPACE = "com.mossyhome"
-TELEMETRY_INGEST_URL = f"https://nom.telemetrydeck.com/v2/namespace/{TELEMETRYDECK_NAMESPACE}/"
+EVENT_SCHEMA_VERSION = "3"
+POSTHOG_PROJECT_API_KEY = "phc_uQFMpY3C9L9Dj4wLqudjNyJVBwAdCisMyUkZ6EqhxWxB"
+POSTHOG_HOST = "https://us.i.posthog.com"
 TELEMETRY_STORAGE_KEY = f"{DOMAIN}.telemetry"
 OPTION_TELEMETRY_ENABLED = "telemetry_enabled"
 TELEMETRY_STORAGE_VERSION = 1
-FLUSH_TIMEOUT_SECONDS = 3
-FLUSH_DEBOUNCE_SECONDS = 0.25
 
 SOURCES = frozenset({"card", "service", "timer", "startup"})
 CARD_TYPES = frozenset({"full", "snoozed_only"})
@@ -53,6 +48,7 @@ SNOOZE_STRATEGIES = frozenset(
 INPUT_METHODS = frozenset({"card", "service"})
 DIRECTIONS = frozenset({"extend", "shorten"})
 NOTIFICATION_TRIGGERS = frozenset({"none", "start", "about_to_end", "end"})
+SNOOZE_END_REASONS = frozenset({"timer", "manual"})
 OPERATIONS = frozenset({"pause", "adjust"})
 WAKE_SCOPES = frozenset({"one", "all"})
 ADJUST_SCOPES = frozenset({"one", "group"})
@@ -66,6 +62,10 @@ ERROR_CODE_ALLOWLIST = frozenset(
         "save_failed",
         "notification_lead_too_long",
         "automation_state_failed",
+        "not_automation",
+        "invalid_resume_preset",
+        "invalid_adjustment",
+        "adjust_time_too_short",
         "unknown",
     }
 )
@@ -78,8 +78,8 @@ MAX_TARGET_COUNT = 500
 EVENT_SCHEMAS: dict[str, frozenset[str]] = {
     "integration_active": frozenset(),
     "card_viewed": frozenset({"card_type"}),
-    "selection_feature_used": frozenset(),
-    "duration_option_selected": frozenset(),
+    "selection_feature_used": frozenset({"target_count"}),
+    "duration_option_selected": frozenset({"duration_minutes"}),
     "snooze_created": frozenset(
         {
             "strategy",
@@ -100,25 +100,25 @@ EVENT_SCHEMAS: dict[str, frozenset[str]] = {
         }
     ),
     "scheduled_snooze_started": frozenset({"target_count", "planned_duration_minutes"}),
-    "snooze_adjusted": frozenset({"delta_minutes", "direction"}),
-    "snooze_ended": frozenset(),
+    "snooze_adjusted": frozenset({"delta_minutes", "direction", "target_count"}),
+    "snooze_ended": frozenset({"reason"}),
     "scheduled_snooze_cancelled": frozenset({"target_count", "minutes_before_start"}),
-    "notification_used": frozenset(),
+    "notification_used": frozenset({"trigger"}),
     "notification_cleared": frozenset({"target_count"}),
     "operation_failed": frozenset({"operation", "error_code", "strategy", "target_count"}),
-    "confirmation_result": frozenset(),
-    "snooze_button_clicked": frozenset({"target_count", "schedule_mode"}),
+    "confirmation_result": frozenset({"target_count"}),
+    "snooze_button_clicked": frozenset({"target_count", "schedule_mode", "until_tomorrow"}),
     "wake_clicked": frozenset({"scope"}),
     "adjust_opened": frozenset({"scope"}),
     "adjust_option_selected": frozenset({"direction", "delta_minutes"}),
-    "scheduled_cancel_clicked": frozenset(),
+    "scheduled_cancel_clicked": frozenset({"target_count"}),
     "filter_tab_selected": frozenset({"tab"}),
     "hide_snoozed_toggled": frozenset({"enabled"}),
     "schedule_mode_toggled": frozenset({"enabled"}),
     "until_tomorrow_selected": frozenset(),
     "custom_duration_toggled": frozenset({"enabled"}),
-    "notification_options_changed": frozenset({"trigger", "enabled"}),
-    "confirmation_dismissed": frozenset(),
+    "notification_options_changed": frozenset({"trigger", "enabled", "notification_lead_minutes"}),
+    "confirmation_dismissed": frozenset({"target_count"}),
 }
 
 
@@ -137,15 +137,15 @@ def _validate_enum(value: Any, allowed: frozenset[str]) -> str | None:
     return None
 
 
-def _validate_bool(value: Any) -> str | None:
+def _validate_bool(value: Any) -> bool | None:
     if isinstance(value, bool):
-        return "true" if value else "false"
-    if value in ("true", "false"):
         return value
+    if value in ("true", "false"):
+        return value == "true"
     return None
 
 
-def _validate_int(value: Any, *, min_value: int = 0, max_value: int) -> str | None:
+def _validate_int(value: Any, *, min_value: int = 0, max_value: int) -> int | None:
     if isinstance(value, bool):
         return None
     if isinstance(value, int):
@@ -155,16 +155,17 @@ def _validate_int(value: Any, *, min_value: int = 0, max_value: int) -> str | No
     else:
         return None
     if min_value <= number <= max_value:
-        return str(number)
+        return number
     return None
 
 
-def _validate_property(key: str, value: Any) -> str | None:
+def _validate_property(key: str, value: Any) -> Any | None:
     validators: dict[str, Any] = {
         "strategy": lambda v: _validate_enum(v, SNOOZE_STRATEGIES),
         "input_method": lambda v: _validate_enum(v, INPUT_METHODS),
         "notification_trigger": lambda v: _validate_enum(v, NOTIFICATION_TRIGGERS),
         "trigger": lambda v: _validate_enum(v, NOTIFICATION_TRIGGERS),
+        "reason": lambda v: _validate_enum(v, SNOOZE_END_REASONS),
         "direction": lambda v: _validate_enum(v, DIRECTIONS),
         "operation": lambda v: _validate_enum(v, OPERATIONS),
         "error_code": lambda v: _validate_enum(v, ERROR_CODE_ALLOWLIST),
@@ -174,6 +175,7 @@ def _validate_property(key: str, value: Any) -> str | None:
         "confirmation_used": _validate_bool,
         "enabled": _validate_bool,
         "schedule_mode": _validate_bool,
+        "until_tomorrow": _validate_bool,
         "duration_minutes": lambda v: _validate_int(v, max_value=MAX_MINUTES),
         "notification_lead_minutes": lambda v: _validate_int(v, max_value=MAX_MINUTES),
         "minutes_until_start": lambda v: _validate_int(v, max_value=MAX_MINUTES),
@@ -195,7 +197,7 @@ def sanitize_event_properties(
     *,
     source: str,
     card_type: str | None = None,
-) -> dict[str, str] | None:
+) -> dict[str, Any] | None:
     if event not in EVENT_SCHEMAS:
         return None
     if source not in SOURCES:
@@ -204,10 +206,10 @@ def sanitize_event_properties(
         return None
 
     allowed = EVENT_SCHEMAS[event]
-    cleaned: dict[str, str] = {}
+    cleaned: dict[str, Any] = {}
     for key, value in (properties or {}).items():
         if key not in allowed:
-            continue
+            return None
         validated = _validate_property(key, value)
         if validated is None:
             return None
@@ -231,9 +233,6 @@ def sanitize_event_properties(
         return None
 
     payload = {
-        "autosnooze_version": VERSION,
-        "home_assistant_version": _ha_version(),
-        "event_schema_version": EVENT_SCHEMA_VERSION,
         "source": source,
         **cleaned,
     }
@@ -249,19 +248,23 @@ def _ha_version() -> str:
         return "unknown"
 
 
+def _load_stored_day(stored: dict[str, Any], key: str) -> str | None:
+    value = stored.get(key)
+    return value if isinstance(value, str) else None
+
+
 @dataclass
 class TelemetryClient:
-    """Fire-and-forget TelemetryDeck client."""
+    """Fire-and-forget PostHog client."""
 
     hass: HomeAssistant
     entry: ConfigEntry
     store: Store
     _install_id: str | None = None
-    _queue: list[dict[str, Any]] = field(default_factory=list)
+    _posthog: Posthog | None = None
     _last_card_viewed_day: str | None = None
+    _last_integration_active_day: str | None = None
     _disabled: bool = False
-    _flush_scheduled: bool = False
-    _debounce_task: asyncio.Task[None] | None = None
 
     def is_enabled(self) -> bool:
         if self._disabled:
@@ -277,21 +280,35 @@ class TelemetryClient:
                 stored["install_id"] = install_id
                 await self.store.async_save(stored)
             self._install_id = install_id
-            last_day = stored.get("last_card_viewed_day")
-            self._last_card_viewed_day = last_day if isinstance(last_day, str) else None
+            self._last_card_viewed_day = _load_stored_day(stored, "last_card_viewed_day")
+            self._last_integration_active_day = _load_stored_day(stored, "last_integration_active_day")
+            self._posthog = Posthog(
+                POSTHOG_PROJECT_API_KEY,
+                host=POSTHOG_HOST,
+                disable_geoip=True,
+                enable_exception_autocapture=False,
+                enable_local_evaluation=False,
+                sync_mode=False,
+            )
         except Exception:
             _LOGGER.debug("Telemetry storage unavailable; disabling telemetry", exc_info=True)
             self._disabled = True
             self._install_id = None
             self._last_card_viewed_day = None
+            self._last_integration_active_day = None
+            self._posthog = None
 
-    def async_unload(self) -> None:
+    async def async_unload(self) -> None:
         self._disabled = True
-        self._queue.clear()
-        if self._debounce_task is not None and not self._debounce_task.done():
-            self._debounce_task.cancel()
-        self._debounce_task = None
-        self._flush_scheduled = False
+        client = self._posthog
+        self._posthog = None
+        if client is None:
+            return
+        client.disabled = True
+        try:
+            await self.hass.async_add_executor_job(client.shutdown)
+        except Exception:
+            _LOGGER.debug("Telemetry PostHog shutdown failed", exc_info=True)
 
     def track(
         self,
@@ -304,57 +321,44 @@ class TelemetryClient:
         try:
             if not self.is_enabled():
                 return
-            if event == "card_viewed" and not self._should_emit_card_viewed():
+            if event == "card_viewed" and not self._should_emit_once_per_utc_day(
+                "last_card_viewed_day", "_last_card_viewed_day"
+            ):
+                return
+            if event == "integration_active" and not self._should_emit_once_per_utc_day(
+                "last_integration_active_day", "_last_integration_active_day"
+            ):
                 return
 
             payload = sanitize_event_properties(event, properties, source=source, card_type=card_type)
             if payload is None:
                 return
 
-            client_user = self._client_user_hash()
-            if client_user is None:
+            distinct_id = self._distinct_id()
+            if distinct_id is None or self._posthog is None:
                 return
 
-            self._queue.append(
-                {
-                    "appID": TELEMETRYDECK_APP_ID,
-                    "clientUser": client_user,
-                    "type": event,
-                    "payload": payload,
-                }
+            payload = {
+                **payload,
+                "$set": {
+                    "autosnooze_version": VERSION,
+                    "home_assistant_version": _ha_version(),
+                    "event_schema_version": EVENT_SCHEMA_VERSION,
+                },
+                "$set_once": {
+                    "initial_autosnooze_version": VERSION,
+                    "initial_home_assistant_version": _ha_version(),
+                },
+            }
+
+            self._posthog.capture(
+                event,
+                distinct_id=distinct_id,
+                properties=payload,
+                disable_geoip=True,
             )
-            self._schedule_flush()
         except Exception:
             _LOGGER.debug("Telemetry track failed", exc_info=True)
-
-    def _schedule_flush(self) -> None:
-        if self._flush_scheduled:
-            return
-        self._flush_scheduled = True
-        self._debounce_task = self.hass.async_create_task(self._debounced_flush())
-
-    async def _debounced_flush(self) -> None:
-        try:
-            await asyncio.sleep(FLUSH_DEBOUNCE_SECONDS)
-            await self.async_flush()
-        except asyncio.CancelledError:
-            raise
-        except Exception:
-            _LOGGER.debug("Telemetry debounced flush failed", exc_info=True)
-        finally:
-            self._flush_scheduled = False
-            self._debounce_task = None
-            if self.is_enabled() and self._queue:
-                self._schedule_flush()
-
-    async def async_flush(self) -> None:
-        try:
-            while self.is_enabled() and self._queue:
-                batch = self._queue[:]
-                self._queue.clear()
-                await self._post_batch(batch)
-        except Exception:
-            _LOGGER.debug("Telemetry flush failed", exc_info=True)
 
     def track_operation_failed(
         self,
@@ -378,41 +382,29 @@ class TelemetryClient:
             source=source,
         )
 
-    def _client_user_hash(self) -> str | None:
+    def _distinct_id(self) -> str | None:
         if not self._install_id:
             return None
         return hashlib.sha256(self._install_id.encode("utf-8")).hexdigest()
 
-    def _should_emit_card_viewed(self) -> bool:
+    def _should_emit_once_per_utc_day(self, storage_key: str, cached_attr: str) -> bool:
         today = dt_util.utcnow().strftime("%Y-%m-%d")
-        if self._last_card_viewed_day == today:
+        last_day = getattr(self, cached_attr)
+        if last_day == today:
             return False
-        self._last_card_viewed_day = today
-        self.hass.async_create_task(self._persist_card_viewed_day(today))
+        setattr(self, cached_attr, today)
+        self.hass.async_create_task(self._persist_throttle_day(storage_key, today))
         return True
 
-    async def _persist_card_viewed_day(self, day: str) -> None:
+    async def _persist_throttle_day(self, storage_key: str, day: str) -> None:
         stored = await self.store.async_load() or {}
-        stored["last_card_viewed_day"] = day
+        stored[storage_key] = day
         if self._install_id:
             stored.setdefault("install_id", self._install_id)
         try:
             await self.store.async_save(stored)
         except Exception:
-            _LOGGER.debug("Failed to persist card_viewed throttle day", exc_info=True)
-
-    async def _post_batch(self, batch: list[dict[str, Any]]) -> None:
-        session = async_get_clientsession(self.hass)
-        try:
-            async with session.post(
-                TELEMETRY_INGEST_URL,
-                json=batch,
-                timeout=ClientTimeout(total=FLUSH_TIMEOUT_SECONDS),
-            ) as response:
-                if response.status >= 400:
-                    _LOGGER.debug("TelemetryDeck ingest returned %s", response.status)
-        except Exception:
-            _LOGGER.debug("TelemetryDeck ingest failed", exc_info=True)
+            _LOGGER.debug("Failed to persist telemetry throttle day", exc_info=True)
 
 
 def track_if_enabled(

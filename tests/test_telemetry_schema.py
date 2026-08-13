@@ -50,15 +50,30 @@ def test_sanitize_strips_unknown_event() -> None:
     assert sanitize_event_properties("not_real", {}, source="card") is None
 
 
-def test_sanitize_strips_unknown_properties(monkeypatch) -> None:
-    monkeypatch.setattr(
-        "custom_components.autosnooze.infrastructure.telemetry.VERSION",
-        "1.2.3",
+def test_sanitize_rejects_unknown_properties() -> None:
+    assert (
+        sanitize_event_properties(
+            "snooze_created",
+            {
+                "strategy": "duration",
+                "input_method": "card",
+                "duration_minutes": 30,
+                "target_count": 1,
+                "notification_trigger": "none",
+                "notification_lead_minutes": 0,
+                "confirmation_used": False,
+                "entity_id": "automation.secret",
+                "_private": "hidden",
+                "user_email": "user@example.com",
+                "$set": {"autosnooze_version": "evil"},
+            },
+            source="card",
+        )
+        is None
     )
-    monkeypatch.setattr(
-        "custom_components.autosnooze.infrastructure.telemetry._ha_version",
-        lambda: "2024.1.0",
-    )
+
+
+def test_sanitize_accepts_clean_snooze_created() -> None:
     payload = sanitize_event_properties(
         "snooze_created",
         {
@@ -69,17 +84,11 @@ def test_sanitize_strips_unknown_properties(monkeypatch) -> None:
             "notification_trigger": "none",
             "notification_lead_minutes": 0,
             "confirmation_used": False,
-            "entity_id": "automation.secret",
-            "_private": "hidden",
-            "user_email": "user@example.com",
         },
         source="card",
     )
     assert payload is not None
     assert set(payload.keys()) == {
-        "autosnooze_version",
-        "home_assistant_version",
-        "event_schema_version",
         "source",
         "strategy",
         "input_method",
@@ -89,11 +98,9 @@ def test_sanitize_strips_unknown_properties(monkeypatch) -> None:
         "notification_lead_minutes",
         "confirmation_used",
     }
-    assert "entity_id" not in payload
-    assert all(not key.startswith("_") for key in payload)
-    assert all("secret" not in key for key in payload)
     assert payload["strategy"] == "duration"
-    assert payload["confirmation_used"] == "false"
+    assert payload["confirmation_used"] is False
+    assert payload["duration_minutes"] == 30
 
 
 def test_sanitize_rejects_invalid_strategy() -> None:
@@ -162,7 +169,27 @@ def test_sanitize_rejects_canary_string_in_allowed_field() -> None:
     [
         (
             "snooze_button_clicked",
-            {"target_count": 2, "schedule_mode": True},
+            {"target_count": 2, "schedule_mode": True, "until_tomorrow": False},
+            {},
+        ),
+        (
+            "selection_feature_used",
+            {"target_count": 5},
+            {},
+        ),
+        (
+            "confirmation_result",
+            {"target_count": 3},
+            {},
+        ),
+        (
+            "confirmation_dismissed",
+            {"target_count": 2},
+            {},
+        ),
+        (
+            "scheduled_cancel_clicked",
+            {"target_count": 1},
             {},
         ),
         ("wake_clicked", {"scope": "all"}, {}),
@@ -178,12 +205,13 @@ def test_sanitize_rejects_canary_string_in_allowed_field() -> None:
         ("custom_duration_toggled", {"enabled": True}, {}),
         (
             "notification_options_changed",
-            {"trigger": "start", "enabled": True},
+            {"trigger": "start", "enabled": True, "notification_lead_minutes": 15},
             {},
         ),
-        ("scheduled_cancel_clicked", {}, {}),
         ("until_tomorrow_selected", {}, {}),
-        ("confirmation_dismissed", {}, {}),
+        ("duration_option_selected", {"duration_minutes": 30}, {}),
+        ("snooze_ended", {"reason": "timer"}, {}),
+        ("notification_used", {"trigger": "start"}, {}),
     ],
 )
 def test_sanitize_accepts_card_action_events(event, properties, kwargs, monkeypatch) -> None:
@@ -232,9 +260,15 @@ def test_map_translation_key_confirm_required_alias() -> None:
     assert map_translation_key_to_error_code("confirm_required") == "confirmation_required"
 
 
+def test_map_translation_key_real_ha_codes_map_to_themselves() -> None:
+    assert map_translation_key_to_error_code("not_automation") == "not_automation"
+    assert map_translation_key_to_error_code("invalid_resume_preset") == "invalid_resume_preset"
+    assert map_translation_key_to_error_code("invalid_adjustment") == "invalid_adjustment"
+    assert map_translation_key_to_error_code("adjust_time_too_short") == "adjust_time_too_short"
+
+
 def test_map_translation_key_unlisted_becomes_unknown() -> None:
-    assert map_translation_key_to_error_code("not_automation") == "unknown"
-    assert map_translation_key_to_error_code("adjust_time_too_short") == "unknown"
+    assert map_translation_key_to_error_code("totally_made_up") == "unknown"
 
 
 def test_error_code_allowlist_matches_plan() -> None:

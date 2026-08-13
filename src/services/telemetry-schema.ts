@@ -20,6 +20,10 @@ type ErrorCode =
   | 'save_failed'
   | 'notification_lead_too_long'
   | 'automation_state_failed'
+  | 'not_automation'
+  | 'invalid_resume_preset'
+  | 'invalid_adjustment'
+  | 'adjust_time_too_short'
   | 'unknown';
 
 type NotificationTrigger = 'none' | 'start' | 'about_to_end' | 'end';
@@ -30,8 +34,13 @@ type WithSource = { source?: TelemetrySource };
 export type ReportTelemetryInput =
   | ({ event: 'integration_active' } & WithSource)
   | ({ event: 'card_viewed'; card_type: 'full' | 'snoozed_only' } & WithSource)
-  | ({ event: 'selection_feature_used' } & WithSource)
-  | ({ event: 'duration_option_selected' } & WithSource)
+  | ({ event: 'selection_feature_used'; properties: { target_count: Scalar } } & WithSource)
+  | ({
+      event: 'duration_option_selected';
+      properties: {
+        duration_minutes: Scalar;
+      };
+    } & WithSource)
   | ({
       event: 'snooze_created';
       properties: {
@@ -65,9 +74,10 @@ export type ReportTelemetryInput =
       properties: {
         delta_minutes: Scalar;
         direction: Scalar;
+        target_count: Scalar;
       };
     } & WithSource)
-  | ({ event: 'snooze_ended' } & WithSource)
+  | ({ event: 'snooze_ended'; properties: { reason: 'timer' | 'manual' } } & WithSource)
   | ({
       event: 'scheduled_snooze_cancelled';
       properties: {
@@ -75,7 +85,7 @@ export type ReportTelemetryInput =
         minutes_before_start: Scalar;
       };
     } & WithSource)
-  | ({ event: 'notification_used' } & WithSource)
+  | ({ event: 'notification_used'; properties: { trigger: NotificationTrigger } } & WithSource)
   | ({
       event: 'notification_cleared';
       properties: {
@@ -91,12 +101,13 @@ export type ReportTelemetryInput =
         target_count: Scalar;
       };
     } & WithSource)
-  | ({ event: 'confirmation_result' } & WithSource)
+  | ({ event: 'confirmation_result'; properties: { target_count: Scalar } } & WithSource)
   | ({
       event: 'snooze_button_clicked';
       properties: {
         target_count: Scalar;
         schedule_mode: boolean;
+        until_tomorrow: boolean;
       };
     } & WithSource)
   | ({ event: 'wake_clicked'; properties: { scope: 'one' | 'all' } } & WithSource)
@@ -108,7 +119,7 @@ export type ReportTelemetryInput =
         delta_minutes: Scalar;
       };
     } & WithSource)
-  | ({ event: 'scheduled_cancel_clicked' } & WithSource)
+  | ({ event: 'scheduled_cancel_clicked'; properties: { target_count: Scalar } } & WithSource)
   | ({ event: 'filter_tab_selected'; properties: { tab: FilterTab } } & WithSource)
   | ({ event: 'hide_snoozed_toggled'; properties: { enabled: boolean } } & WithSource)
   | ({ event: 'schedule_mode_toggled'; properties: { enabled: boolean } } & WithSource)
@@ -119,6 +130,7 @@ export type ReportTelemetryInput =
       properties: {
         trigger: NotificationTrigger;
         enabled: boolean;
+        notification_lead_minutes: Scalar;
       };
     } & WithSource)
-  | ({ event: 'confirmation_dismissed' } & WithSource);
+  | ({ event: 'confirmation_dismissed'; properties: { target_count: Scalar } } & WithSource);

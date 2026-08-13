@@ -417,7 +417,7 @@ async def async_pause_automations(
             track_if_enabled(
                 data,
                 "notification_used",
-                None,
+                {"trigger": NOTIFICATION_TRIGGER_START},
                 source="service",
             )
         if service_call is not None:

@@ -64,7 +64,7 @@ describe('reportTelemetry', () => {
     const hass = hassWithTelemetryService(callService);
 
     reportTelemetry(hass, {
-      event: 'selection_feature_used',
+      event: 'until_tomorrow_selected',
       source: 'card',
     });
 
@@ -72,7 +72,7 @@ describe('reportTelemetry', () => {
       'autosnooze',
       'report_telemetry',
       {
-        event: 'selection_feature_used',
+        event: 'until_tomorrow_selected',
         source: 'card',
       },
       undefined,
@@ -88,14 +88,17 @@ describe('reportTelemetry', () => {
 
     reportTelemetry(hass, {
       event: 'selection_feature_used',
+      properties: { target_count: 3 },
       source: 'card',
     });
     reportTelemetry(hass, {
       event: 'duration_option_selected',
+      properties: { duration_minutes: 30 },
       source: 'card',
     });
     reportTelemetry(hass, {
       event: 'confirmation_result',
+      properties: { target_count: 2 },
       source: 'card',
     });
 
@@ -195,7 +198,52 @@ describe('reportTelemetry', () => {
   test('does not throw when callService is missing', () => {
     const hass = {} as HomeAssistant;
     expect(() =>
-      reportTelemetry(hass, { event: 'selection_feature_used', source: 'card' })
+      reportTelemetry(hass, {
+        event: 'selection_feature_used',
+        properties: { target_count: 1 },
+        source: 'card',
+      })
     ).not.toThrow();
+  });
+
+  test('forwards backend-fired events with required properties', () => {
+    const callService = vi.fn();
+    const hass = hassWithTelemetryService(callService);
+
+    reportTelemetry(hass, {
+      event: 'snooze_ended',
+      properties: { reason: 'timer' },
+      source: 'timer',
+    });
+    reportTelemetry(hass, {
+      event: 'notification_used',
+      properties: { trigger: 'start' },
+      source: 'card',
+    });
+
+    expect(callService).toHaveBeenNthCalledWith(
+      1,
+      'autosnooze',
+      'report_telemetry',
+      {
+        event: 'snooze_ended',
+        properties: { reason: 'timer' },
+        source: 'timer',
+      },
+      undefined,
+      false
+    );
+    expect(callService).toHaveBeenNthCalledWith(
+      2,
+      'autosnooze',
+      'report_telemetry',
+      {
+        event: 'notification_used',
+        properties: { trigger: 'start' },
+        source: 'card',
+      },
+      undefined,
+      false
+    );
   });
 });

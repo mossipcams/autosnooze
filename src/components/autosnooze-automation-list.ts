@@ -140,7 +140,7 @@ export class AutoSnoozeAutomationList extends LitElement {
     const allIds = this._getViewModel().filtered.map((a) => a.id);
     const newSelected = [...new Set([...this.selected, ...allIds])];
     if (this.hass) {
-      trackSelectionFeatureUsed(this.hass);
+      trackSelectionFeatureUsed(this.hass, allIds.length);
     }
     this._fireSelectionChange(newSelected);
   }
