@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.1](https://github.com/mossipcams/autosnooze/compare/v0.3.0...v0.3.1) (2026-08-13)
+
+
+### Bug Fixes
+
+* **telemetry:** keep PostHog geoip disable on the wire ([#510](https://github.com/mossipcams/autosnooze/issues/510)) ([fe1fc42](https://github.com/mossipcams/autosnooze/commit/fe1fc42f020a2f274b14b83a3ed5bb03ba643942))
+
 ## [0.3.0](https://github.com/mossipcams/autosnooze/compare/v0.2.29...v0.3.0) (2026-08-13)
 
 
