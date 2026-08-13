@@ -35,6 +35,30 @@ def test_posthog_wire_filter_removes_sdk_context() -> None:
     assert filtered["properties"] == {"source": "startup"}
 
 
+def test_posthog_wire_filter_keeps_geoip_disable_flag() -> None:
+    message = {
+        "event": "snooze_created",
+        "properties": {
+            "source": "card",
+            "strategy": "duration",
+            "duration_minutes": 30,
+            "target_count": 1,
+            "$geoip_disable": True,
+            "$os": "Linux",
+            "$lib": "posthog-python",
+            "$geoip_city_name": "Quincy",
+        },
+    }
+
+    filtered = _filter_posthog_message(message)
+
+    assert filtered is not None
+    assert filtered["properties"]["$geoip_disable"] is True
+    assert "$os" not in filtered["properties"]
+    assert "$lib" not in filtered["properties"]
+    assert "$geoip_city_name" not in filtered["properties"]
+
+
 @pytest.mark.asyncio
 async def test_async_unload_discards_queued_posthog_events_after_opt_out() -> None:
     class Consumer:

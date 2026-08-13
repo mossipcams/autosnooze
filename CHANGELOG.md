@@ -10,6 +10,7 @@
 
 ### Bug Fixes
 
+* **telemetry:** keep `$geoip_disable` on the PostHog wire so person GeoIP is not filled from the instance IP
 * **card:** move hide snoozed toggle onto the header row ([#508](https://github.com/mossipcams/autosnooze/issues/508))
 * import StaticPathConfig on HA without http.server ([#505](https://github.com/mossipcams/autosnooze/issues/505)) ([9350c25](https://github.com/mossipcams/autosnooze/commit/9350c25294ae0b35dcef3dfe43655ba78427f135))
 * **telemetry:** harden PostHog privacy and platform reporting ([#507](https://github.com/mossipcams/autosnooze/issues/507)) ([0609fe3](https://github.com/mossipcams/autosnooze/commit/0609fe396e612b40e224c90bda1fb16a0da2744a))
