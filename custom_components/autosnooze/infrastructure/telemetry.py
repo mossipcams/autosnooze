@@ -28,7 +28,7 @@ _LOGGER = logging.getLogger(__name__)
 
 EVENT_SCHEMA_VERSION = "3"
 TELEMETRY_PLATFORMS = frozenset({"web", "mobile", "tablet"})
-POSTHOG_PROJECT_API_KEY = "phc_uQFMpY3C9L9Dj4wLqudjNyJVBwAdCisMyUkZ6EqhxWxB"
+POSTHOG_PROJECT_API_KEY = "phc_onzUF6SgjU9kfmCJN5XWxQL5SkDrYEJzeyCBFK3Xzfvb"
 POSTHOG_HOST = "https://us.i.posthog.com"
 TELEMETRY_STORAGE_KEY = f"{DOMAIN}.telemetry"
 OPTION_TELEMETRY_ENABLED = "telemetry_enabled"

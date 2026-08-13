@@ -10,25 +10,15 @@ export const automationListStyles = css`
       display: block;
     }
 
-    /* Filter row: tabs plus the hide-snoozed toggle.
-       The toggle lives here rather than in the search row because that row is
-       nowrap and the search input needs every pixel in a narrow card column. */
-    .filter-row {
-      display: flex;
-      align-items: flex-start;
-      gap: 8px;
-      margin-bottom: 12px;
-      border-bottom: 1px solid var(--divider-color);
-      padding-bottom: 8px;
-    }
-
     /* Filter Tabs */
     .filter-tabs {
       display: flex;
-      flex: 1 1 auto;
       min-width: 0;
       gap: 8px;
       flex-wrap: wrap;
+      margin-bottom: 12px;
+      border-bottom: 1px solid var(--divider-color);
+      padding-bottom: 8px;
     }
     .tab {
       padding: 6px 16px;
@@ -68,40 +58,6 @@ export const automationListStyles = css`
     .tab.active .tab-count {
       background: color-mix(in srgb, var(--primary-color) 20%, var(--card-background-color));
       color: var(--primary-text-color);
-    }
-
-    /* Icon-only at every width: the search row is nowrap, and a text label
-       costs ~100px that the input needs when the card is in a narrow column. */
-    .hide-snoozed-toggle {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      flex-shrink: 0;
-      padding: 6px 10px;
-      border-radius: 8px;
-      cursor: pointer;
-      font-size: 0.85em;
-      background: var(--card-background-color);
-      border: 1px solid var(--divider-color);
-      color: var(--primary-text-color);
-      min-height: 44px;
-      box-sizing: border-box;
-      transition: background 0.15s ease, border-color 0.15s ease;
-    }
-    .hide-snoozed-toggle ha-icon {
-      --mdc-icon-size: 18px;
-      flex-shrink: 0;
-    }
-    .hide-snoozed-toggle:hover {
-      background: color-mix(in srgb, var(--primary-color) 12%, var(--card-background-color));
-    }
-    .hide-snoozed-toggle:focus-visible {
-      outline: 2px solid var(--primary-color);
-      outline-offset: 2px;
-    }
-    .hide-snoozed-toggle.active {
-      background: color-mix(in srgb, var(--primary-color) 16%, var(--card-background-color));
-      border-color: var(--primary-color);
     }
 
     /* Search */
@@ -375,20 +331,13 @@ export const automationListStyles = css`
     /* Mobile Responsive Styles */
     @media (max-width: 480px) {
       /* --- Filter Tabs: Segmented control style --- */
-      .filter-row {
+      .filter-tabs {
         margin-bottom: 14px;
         border-bottom: none;
-        padding-bottom: 0;
-        gap: 6px;
-      }
-
-      .filter-tabs {
         gap: 2px;
         padding: 3px;
         background: color-mix(in srgb, var(--secondary-background-color) 80%, var(--divider-color));
         border-radius: 12px;
-        border-bottom: none;
-        padding-bottom: 3px;
       }
 
       .tab {
@@ -473,15 +422,6 @@ export const automationListStyles = css`
         padding: 2px 6px;
         border-radius: 6px;
         font-size: 0.85em;
-      }
-
-      .hide-snoozed-toggle {
-        padding: 0 8px;
-        min-height: 46px;
-        border-radius: 12px;
-        border: 1.5px solid color-mix(in srgb, var(--divider-color) 70%, transparent);
-        touch-action: manipulation;
-        -webkit-tap-highlight-color: transparent;
       }
 
       /* --- Selection Actions: Refined toolbar --- */

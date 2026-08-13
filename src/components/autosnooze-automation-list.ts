@@ -15,11 +15,8 @@ import {
   getAreaName,
   getLabelName,
   getCategoryName,
-  loadHideSnoozedPreference,
-  saveHideSnoozedPreference,
   trackSelectionFeatureUsed,
   trackFilterTabSelected,
-  trackHideSnoozedToggled,
   type AutomationListViewModel,
 } from '../features/automation-list/index.js';
 import type { HomeAssistant, HassLabel, HassCategory } from '../types/hass.js';
@@ -54,11 +51,13 @@ export class AutoSnoozeAutomationList extends LitElement {
   @property({ attribute: false })
   pausedEntityIds: string[] = [];
 
+  @property({ type: Boolean })
+  hideSnoozed: boolean = false;
+
   @state() _filterTab: FilterTab = 'all';
   @state() _search: string = '';
   @state() _searchInput: string = '';
   @state() _expandedGroups: Record<string, boolean> = {};
-  @state() _hideSnoozed: boolean = false;
 
   private _searchTimeout: number | null = null;
   private _viewModelCache: {
@@ -73,16 +72,11 @@ export class AutoSnoozeAutomationList extends LitElement {
     result: AutomationListViewModel;
   } | null = null;
 
-  connectedCallback(): void {
-    super.connectedCallback();
-    this._hideSnoozed = loadHideSnoozedPreference();
-  }
-
   protected updated(changedProps: PropertyValues): void {
     super.updated(changedProps);
     if (
-      this._hideSnoozed &&
-      (changedProps.has('pausedEntityIds') || changedProps.has('selected') || changedProps.has('_hideSnoozed'))
+      this.hideSnoozed &&
+      (changedProps.has('pausedEntityIds') || changedProps.has('selected') || changedProps.has('hideSnoozed'))
     ) {
       this._pruneHiddenSelection();
     }
@@ -205,7 +199,7 @@ export class AutoSnoozeAutomationList extends LitElement {
       emptyAreaLabel: localize(this.hass, 'group.unassigned'),
       emptyLabelLabel: localize(this.hass, 'group.unlabeled'),
       emptyCategoryLabel: localize(this.hass, 'group.uncategorized'),
-      hideSnoozed: this._hideSnoozed,
+      hideSnoozed: this.hideSnoozed,
       pausedEntityIds: new Set(this.pausedEntityIds),
     };
   }
@@ -220,7 +214,7 @@ export class AutoSnoozeAutomationList extends LitElement {
       cache.hass === this.hass &&
       cache.labelRegistry === this.labelRegistry &&
       cache.categoryRegistry === this.categoryRegistry &&
-      cache.hideSnoozed === this._hideSnoozed &&
+      cache.hideSnoozed === this.hideSnoozed &&
       cache.pausedEntityIds === this.pausedEntityIds
     ) {
       return cache.result;
@@ -235,7 +229,7 @@ export class AutoSnoozeAutomationList extends LitElement {
       hass: this.hass,
       labelRegistry: this.labelRegistry,
       categoryRegistry: this.categoryRegistry,
-      hideSnoozed: this._hideSnoozed,
+      hideSnoozed: this.hideSnoozed,
       pausedEntityIds: this.pausedEntityIds,
       result,
     };
@@ -244,7 +238,7 @@ export class AutoSnoozeAutomationList extends LitElement {
   }
 
   private _pruneHiddenSelection(): void {
-    if (!this._hideSnoozed || this.pausedEntityIds.length === 0 || this.selected.length === 0) {
+    if (!this.hideSnoozed || this.pausedEntityIds.length === 0 || this.selected.length === 0) {
       return;
     }
 
@@ -252,18 +246,6 @@ export class AutoSnoozeAutomationList extends LitElement {
     const nextSelected = this.selected.filter((id) => !paused.has(id));
     if (nextSelected.length !== this.selected.length) {
       this._fireSelectionChange(nextSelected);
-    }
-  }
-
-  private _toggleHideSnoozed(): void {
-    const hideSnoozed = !this._hideSnoozed;
-    this._hideSnoozed = hideSnoozed;
-    saveHideSnoozedPreference(hideSnoozed);
-    if (this.hass) {
-      trackHideSnoozedToggled(this.hass, hideSnoozed);
-    }
-    if (hideSnoozed) {
-      this._pruneHiddenSelection();
     }
   }
 
@@ -421,7 +403,6 @@ export class AutoSnoozeAutomationList extends LitElement {
     const allVisibleSelected =
       filtered.length > 0 && filtered.every((a) => selectedIds.has(a.id));
     return html`
-      <div class="filter-row">
       <div class="filter-tabs" role="tablist" aria-label="${localize(this.hass, 'a11y.filter_tabs')}">
         <button
           type="button"
@@ -466,17 +447,6 @@ export class AutoSnoozeAutomationList extends LitElement {
         >
           ${localize(this.hass, 'tab.labels')}
           <span class="tab-count" aria-label="${localize(this.hass, 'a11y.label_count', { count: viewModel.labelCount })}">${viewModel.labelCount}</span>
-        </button>
-        </div>
-        <button
-          type="button"
-          class="hide-snoozed-toggle ${this._hideSnoozed ? 'active' : ''}"
-          @click=${() => this._toggleHideSnoozed()}
-          aria-pressed=${this._hideSnoozed}
-          aria-label="${localize(this.hass, 'a11y.hide_snoozed')}"
-          title="${localize(this.hass, 'filter.hide_snoozed')}"
-        >
-          <ha-icon icon=${this._hideSnoozed ? 'mdi:eye-off' : 'mdi:eye'} aria-hidden="true"></ha-icon>
         </button>
       </div>
 
