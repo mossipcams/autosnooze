@@ -253,6 +253,10 @@
         "card_type": {
           "name": "Card Type",
           "description": "Card variant when the event originated from a dashboard card."
+        },
+        "platform": {
+          "name": "Platform",
+          "description": "Coarse client platform reported by the dashboard card."
         }
       }
     }

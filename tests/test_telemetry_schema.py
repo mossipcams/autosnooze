@@ -7,6 +7,7 @@ import pytest
 from custom_components.autosnooze.infrastructure.telemetry import (
     ERROR_CODE_ALLOWLIST,
     EVENT_SCHEMAS,
+    REQUIRED_EVENT_PROPERTIES,
     SNOOZE_STRATEGIES,
     map_translation_key_to_error_code,
     sanitize_event_properties,
@@ -48,6 +49,15 @@ def test_event_schemas_cover_planned_events() -> None:
 
 def test_sanitize_strips_unknown_event() -> None:
     assert sanitize_event_properties("not_real", {}, source="card") is None
+
+
+@pytest.mark.parametrize(
+    "event",
+    [event for event in EVENT_SCHEMAS if EVENT_SCHEMAS[event] and event != "card_viewed"],
+)
+def test_events_require_all_declared_properties(event: str) -> None:
+    assert sanitize_event_properties(event, {}, source="card", card_type="full") is None
+    assert REQUIRED_EVENT_PROPERTIES[event]
 
 
 def test_sanitize_rejects_unknown_properties() -> None:
@@ -254,6 +264,18 @@ def test_sanitize_rejects_out_of_range_int() -> None:
 def test_sanitize_card_viewed_requires_card_type() -> None:
     assert sanitize_event_properties("card_viewed", {}, source="card", card_type="full") is not None
     assert sanitize_event_properties("card_viewed", {}, source="card", card_type="bad") is None
+
+
+def test_sanitize_accepts_only_coarse_platform() -> None:
+    payload = sanitize_event_properties(
+        "wake_clicked",
+        {"scope": "one"},
+        source="card",
+        platform="tablet",
+    )
+    assert payload is not None
+    assert payload["platform"] == "tablet"
+    assert sanitize_event_properties("wake_clicked", {"scope": "one"}, source="card", platform="ios") is None
 
 
 def test_map_translation_key_confirm_required_alias() -> None:

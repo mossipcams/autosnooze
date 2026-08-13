@@ -3,13 +3,87 @@
 from __future__ import annotations
 
 import hashlib
+import asyncio
+from queue import Queue
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from homeassistant.exceptions import ServiceValidationError
 
-from custom_components.autosnooze.infrastructure.telemetry import TelemetryClient
+from custom_components.autosnooze.infrastructure.telemetry import (
+    TelemetryClient,
+    _filter_posthog_message,
+)
+
+
+def test_posthog_wire_filter_removes_sdk_context() -> None:
+    message = {
+        "event": "integration_active",
+        "properties": {
+            "source": "startup",
+            "$os": "Linux",
+            "$python_version": "3.13.0",
+            "$lib": "posthog-python",
+            "$is_server": True,
+        },
+    }
+
+    filtered = _filter_posthog_message(message)
+
+    assert filtered is not None
+    assert filtered["properties"] == {"source": "startup"}
+
+
+@pytest.mark.asyncio
+async def test_async_unload_discards_queued_posthog_events_after_opt_out() -> None:
+    class Consumer:
+        def __init__(self) -> None:
+            self.paused = False
+
+        def pause(self) -> None:
+            self.paused = True
+
+    class Lane:
+        def __init__(self) -> None:
+            self.queue: Queue[dict[str, Any]] = Queue()
+            self.consumers = [Consumer()]
+            self.closed = False
+
+        def close(self) -> None:
+            self.closed = True
+
+    class PostHog:
+        def __init__(self) -> None:
+            self.disabled = False
+            self._analytics_lane = Lane()
+            self._lanes = [self._analytics_lane]
+            self.shutdown_called = False
+
+        def shutdown(self) -> None:
+            self.shutdown_called = True
+
+    posthog = PostHog()
+    posthog._analytics_lane.queue.put({"event": "queued_before_opt_out"})
+
+    async def executor_job(callback: Any) -> None:
+        callback()
+
+    hass = MagicMock()
+    hass.async_add_executor_job = executor_job
+    client = TelemetryClient(
+        hass,
+        MagicMock(options={"telemetry_enabled": True}),
+        MagicMock(),
+        _posthog=posthog,
+    )
+
+    await client.async_unload()
+
+    assert posthog._analytics_lane.closed is True
+    assert posthog._analytics_lane.consumers[0].paused is True
+    assert posthog._analytics_lane.queue.empty()
+    assert posthog.shutdown_called is True
 
 
 @pytest.fixture
@@ -170,6 +244,80 @@ def test_track_does_not_raise_when_sanitize_raises(telemetry_client) -> None:
         side_effect=RuntimeError("boom"),
     ):
         telemetry_client.track("integration_active", {}, source="startup")
+
+
+@pytest.mark.asyncio
+async def test_invalid_daily_event_does_not_consume_throttle(telemetry_client, captured_captures) -> None:
+    captures, _mock_posthog = captured_captures
+    await telemetry_client.async_setup()
+
+    telemetry_client.track("card_viewed", {}, source="card", card_type="invalid")
+    telemetry_client.track("card_viewed", {"card_type": "full"}, source="card", card_type="full")
+
+    assert len(captures) == 1
+    assert captures[0]["event"] == "card_viewed"
+
+
+@pytest.mark.asyncio
+async def test_posthog_failure_does_not_consume_throttle(telemetry_client, captured_captures) -> None:
+    captures, mock_posthog = captured_captures
+    await telemetry_client.async_setup()
+    mock_posthog.capture.side_effect = [RuntimeError("offline"), None]
+
+    telemetry_client.track("integration_active", {}, source="startup")
+    telemetry_client.track("integration_active", {}, source="startup")
+
+    assert mock_posthog.capture.call_count == 2
+    assert len(captures) == 0
+
+
+@pytest.mark.asyncio
+async def test_throttle_persistence_normalizes_corrupt_storage(telemetry_client) -> None:
+    telemetry_client._install_id = "test-install-id"
+    telemetry_client.store.async_load = AsyncMock(return_value="corrupt")
+    telemetry_client.store.async_save = AsyncMock()
+
+    await telemetry_client._persist_throttle_day("last_card_viewed_day", "2026-08-13")
+
+    telemetry_client.store.async_save.assert_awaited_once_with(
+        {
+            "last_card_viewed_day": "2026-08-13",
+            "install_id": telemetry_client._install_id,
+        }
+    )
+
+
+@pytest.mark.asyncio
+async def test_throttle_persistence_swallows_load_failure(telemetry_client) -> None:
+    telemetry_client.store.async_load = AsyncMock(side_effect=OSError("offline"))
+
+    await telemetry_client._persist_throttle_day("last_card_viewed_day", "2026-08-13")
+
+
+@pytest.mark.asyncio
+async def test_concurrent_throttle_persistence_preserves_both_keys(telemetry_client) -> None:
+    stored: dict[str, Any] = {"install_id": telemetry_client._install_id}
+
+    async def load() -> dict[str, Any]:
+        return dict(stored)
+
+    async def save(value: dict[str, Any]) -> None:
+        stored.clear()
+        stored.update(value)
+
+    telemetry_client.store.async_load = load
+    telemetry_client.store.async_save = save
+
+    await asyncio.gather(
+        telemetry_client._persist_throttle_day("last_card_viewed_day", "2026-08-13"),
+        telemetry_client._persist_throttle_day("last_integration_active_day", "2026-08-13"),
+    )
+
+    assert stored == {
+        "install_id": telemetry_client._install_id,
+        "last_card_viewed_day": "2026-08-13",
+        "last_integration_active_day": "2026-08-13",
+    }
 
 
 @pytest.mark.asyncio

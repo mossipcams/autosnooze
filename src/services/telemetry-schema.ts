@@ -1,4 +1,5 @@
 type TelemetrySource = 'card' | 'service' | 'timer' | 'startup';
+export type TelemetryPlatform = 'web' | 'mobile' | 'tablet';
 
 type Scalar = string | number | boolean;
 
@@ -29,7 +30,7 @@ type ErrorCode =
 type NotificationTrigger = 'none' | 'start' | 'about_to_end' | 'end';
 type FilterTab = 'all' | 'areas' | 'categories' | 'labels';
 
-type WithSource = { source?: TelemetrySource };
+type WithSource = { source?: TelemetrySource; platform?: TelemetryPlatform };
 
 export type ReportTelemetryInput =
   | ({ event: 'integration_active' } & WithSource)

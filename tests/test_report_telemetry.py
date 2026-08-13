@@ -74,6 +74,13 @@ def test_report_telemetry_schema_accepts_null_optional_fields() -> None:
         "card_type": "full",
         "properties": None,
     }
+
+
+def test_report_telemetry_schema_accepts_coarse_platform() -> None:
+    assert REPORT_TELEMETRY_SCHEMA({"event": "card_viewed", "platform": "tablet"})["platform"] == "tablet"
+
+    with pytest.raises(vol.Invalid):
+        REPORT_TELEMETRY_SCHEMA({"event": "card_viewed", "platform": "ios"})
     assert REPORT_TELEMETRY_SCHEMA(
         {
             "event": "card_viewed",
@@ -117,6 +124,23 @@ async def test_report_telemetry_tracks_valid_card_event(hass, telemetry_client, 
 
 
 @pytest.mark.asyncio
+async def test_report_telemetry_tracks_coarse_platform(hass, telemetry_client, captured_captures) -> None:
+    await telemetry_client.async_setup()
+    data = AutomationPauseData(telemetry=telemetry_client, hass=hass)
+    call = MagicMock()
+    call.data = {
+        "event": "wake_clicked",
+        "properties": {"scope": "one"},
+        "source": "card",
+        "platform": "tablet",
+    }
+
+    await async_handle_report_telemetry(hass, data, call)
+
+    assert captured_captures[0]["properties"]["platform"] == "tablet"
+
+
+@pytest.mark.asyncio
 async def test_report_telemetry_handles_null_properties_and_card_type(
     hass, telemetry_client, captured_captures
 ) -> None:
@@ -132,8 +156,7 @@ async def test_report_telemetry_handles_null_properties_and_card_type(
 
     await async_handle_report_telemetry(hass, data, call)
 
-    assert len(captured_captures) == 1
-    assert captured_captures[0]["event"] == "selection_feature_used"
+    assert captured_captures == []
 
 
 @pytest.mark.asyncio
@@ -183,8 +206,7 @@ async def test_report_telemetry_ignores_non_dict_properties(hass, telemetry_clie
 
     await async_handle_report_telemetry(hass, data, call)
 
-    assert len(captured_captures) == 1
-    assert captured_captures[0]["event"] == "selection_feature_used"
+    assert captured_captures == []
 
 
 @pytest.mark.asyncio

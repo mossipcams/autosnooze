@@ -1,6 +1,6 @@
 import { describe, expect, test, vi } from 'vitest';
 
-import { reportTelemetry } from '../services/telemetry.js';
+import { detectTelemetryPlatform, reportTelemetry } from '../services/telemetry.js';
 import type { HomeAssistant } from '../types/hass.js';
 
 function hassWithTelemetryService(
@@ -13,6 +13,35 @@ function hassWithTelemetryService(
 }
 
 describe('reportTelemetry', () => {
+  test('reports only the coarse client platform', () => {
+    const callService = vi.fn();
+    const hass = hassWithTelemetryService(callService);
+
+    reportTelemetry(hass, { event: 'card_viewed', card_type: 'full', source: 'card' });
+
+    expect(callService.mock.calls[0][2].platform).toMatch(/^(web|mobile|tablet)$/);
+    expect(callService.mock.calls[0][2]).not.toHaveProperty('user_agent');
+  });
+
+  test.each([
+    ['desktop', 'web'],
+    ['phone', 'mobile'],
+    ['tablet', 'tablet'],
+  ])('detects %s as %s', (_name, expected) => {
+    const originalNavigator = globalThis.navigator;
+    Object.defineProperty(globalThis, 'navigator', {
+      configurable: true,
+      value:
+        _name === 'desktop'
+          ? { userAgent: 'Mozilla/5.0', maxTouchPoints: 0, platform: 'MacIntel' }
+          : _name === 'phone'
+            ? { userAgent: 'Mozilla/5.0 (iPhone)', maxTouchPoints: 5, platform: 'iPhone' }
+            : { userAgent: 'Mozilla/5.0 (iPad)', maxTouchPoints: 5, platform: 'iPad' },
+    });
+
+    expect(detectTelemetryPlatform()).toBe(expected);
+    Object.defineProperty(globalThis, 'navigator', { configurable: true, value: originalNavigator });
+  });
   test('calls autosnooze.report_telemetry for valid payloads and swallows errors', async () => {
     const callService = vi.fn().mockRejectedValueOnce(new Error('offline'));
     const hass = hassWithTelemetryService(callService);
@@ -34,6 +63,7 @@ describe('reportTelemetry', () => {
         event: 'card_viewed',
         source: 'card',
         card_type: 'full',
+        platform: 'web',
       },
       undefined,
       false
@@ -74,6 +104,7 @@ describe('reportTelemetry', () => {
       {
         event: 'until_tomorrow_selected',
         source: 'card',
+        platform: 'web',
       },
       undefined,
       false
@@ -188,6 +219,7 @@ describe('reportTelemetry', () => {
         event: 'wake_clicked',
         properties: { scope: 'one' },
         source: 'card',
+        platform: 'web',
       },
       undefined,
       false
@@ -212,6 +244,7 @@ describe('reportTelemetry', () => {
         event: 'selection_feature_used',
         properties: { target_count: 3 },
         source: 'card',
+        platform: 'web',
       },
       undefined,
       false
@@ -252,6 +285,7 @@ describe('reportTelemetry', () => {
         event: 'snooze_ended',
         properties: { reason: 'timer' },
         source: 'timer',
+        platform: 'web',
       },
       undefined,
       false
@@ -264,6 +298,7 @@ describe('reportTelemetry', () => {
         event: 'notification_used',
         properties: { trigger: 'start' },
         source: 'card',
+        platform: 'web',
       },
       undefined,
       false

@@ -25,6 +25,7 @@ from custom_components.autosnooze.infrastructure.telemetry import (  # noqa: E40
     POSTHOG_PROJECT_API_KEY,
     SOURCES,
     TelemetryClient,
+    _filter_posthog_message,
 )
 from custom_components.autosnooze.runtime.state import AutomationPauseData  # noqa: E402
 
@@ -40,6 +41,7 @@ APPROVED_CONSTRUCTOR_KWARGS: dict[str, Any] = {
     "enable_exception_autocapture": False,
     "enable_local_evaluation": False,
     "sync_mode": False,
+    "before_send": _filter_posthog_message,
 }
 
 APPROVED_CAPTURE_KWARGS = frozenset({"distinct_id", "properties", "disable_geoip"})
@@ -310,7 +312,10 @@ def _validate_constructor(args: tuple[Any, ...], kwargs: dict[str, Any]) -> list
         if extra:
             violations.append(f"constructor extra kwargs: {extra}")
     for key, expected in APPROVED_CONSTRUCTOR_KWARGS.items():
-        if kwargs.get(key) != expected:
+        if key == "before_send":
+            if kwargs.get(key) is not expected:
+                violations.append("constructor before_send must use AutoSnooze wire filter")
+        elif kwargs.get(key) != expected:
             violations.append(f"constructor kwarg {key}={kwargs.get(key)!r} expected {expected!r}")
     return violations
 
@@ -330,7 +335,7 @@ def _polluted_properties(base: dict[str, Any]) -> dict[str, Any]:
 
 
 def _allowed_payload_keys(event: str) -> frozenset[str]:
-    return STANDARD_PAYLOAD_KEYS | EVENT_SCHEMAS[event] | {"$set", "$set_once"}
+    return STANDARD_PAYLOAD_KEYS | EVENT_SCHEMAS[event] | {"platform", "$set", "$set_once"}
 
 
 def _scan_set_payload(prefix: str, payload: dict[str, Any], allowed_keys: frozenset[str]) -> list[str]:
@@ -375,9 +380,10 @@ def _scan_reserved_keys(payload: Any, prefix: str = "") -> list[str]:
 def _validate_shape(event: str, payload: dict[str, Any]) -> list[str]:
     violations: list[str] = []
     expected_keys = _allowed_payload_keys(event)
+    required_keys = expected_keys - {"platform"}
     actual_keys = set(payload.keys())
-    if actual_keys != expected_keys:
-        missing = sorted(expected_keys - actual_keys)
+    if actual_keys not in (required_keys, expected_keys):
+        missing = sorted(required_keys - actual_keys)
         extra = sorted(actual_keys - expected_keys)
         if missing:
             violations.append(f"{event}: missing keys {missing}")

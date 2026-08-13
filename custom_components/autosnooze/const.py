@@ -198,6 +198,7 @@ REPORT_TELEMETRY_SCHEMA = vol.Schema(
         vol.Optional("properties"): vol.Any(dict, None),
         vol.Optional("source", default="card"): cv.string,
         vol.Optional("card_type"): vol.Any(cv.string, None),
+        vol.Optional("platform"): vol.In({"web", "mobile", "tablet"}),
     }
 )
 
