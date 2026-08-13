@@ -39,11 +39,7 @@ import {
   trackNotificationOptionsChanged,
   type LastDurationData,
 } from '../features/card-shell/index.js';
-import {
-  loadHideSnoozedPreference,
-  saveHideSnoozedPreference,
-  trackHideSnoozedToggled,
-} from '../features/automation-list/index.js';
+import { loadHideSnoozedPreference, saveHideSnoozedPreference, trackHideSnoozedToggled } from '../features/automation-list/index.js';
 import { formatDateTime, formatDuration } from '../utils/time-formatting.js';
 import { durationToMinutes, isDurationValid, minutesToDuration } from '../utils/duration-parsing.js';
 import { hapticFeedback } from '../utils/haptic.js';
@@ -636,12 +632,9 @@ export class AutomationPauseCard extends LitElement {
   }
 
   private _toggleHideSnoozed(): void {
-    const hideSnoozed = !this._hideSnoozed;
-    this._hideSnoozed = hideSnoozed;
-    saveHideSnoozedPreference(hideSnoozed);
-    if (this.hass) {
-      trackHideSnoozedToggled(this.hass, hideSnoozed);
-    }
+    this._hideSnoozed = !this._hideSnoozed;
+    saveHideSnoozedPreference(this._hideSnoozed);
+    if (this.hass) trackHideSnoozedToggled(this.hass, this._hideSnoozed);
   }
 
   private _handleGuardrailCancel(): void {
