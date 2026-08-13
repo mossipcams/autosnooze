@@ -101,10 +101,19 @@ def test_existing_python_contract_surface_stays_compatible() -> None:
     adapter_source = FRONTEND_ADAPTER_PATH.read_text(encoding="utf-8")
 
     assert "from homeassistant.components.http.server import StaticPathConfig" in adapter_source
-    assert "from homeassistant.components.http import StaticPathConfig" not in adapter_source
     assert "cache_headers=False" in adapter_source
     assert "for url in (CARD_URL, CARD_HACS_URL)" not in adapter_source
     assert "[StaticPathConfig(CARD_URL, str(CARD_PATH), cache_headers=False)]" in adapter_source
+
+
+def test_static_path_config_import_supports_ha_without_http_server() -> None:
+    """HA Core before 2026.8 has no homeassistant.components.http.server (issue #500)."""
+    adapter_source = FRONTEND_ADAPTER_PATH.read_text(encoding="utf-8")
+
+    assert "TYPE_CHECKING" in adapter_source
+    assert "from homeassistant.components.http.server import StaticPathConfig" in adapter_source
+    assert "from homeassistant.components.http import StaticPathConfig" in adapter_source
+    assert "except ImportError" in adapter_source
 
 
 def test_root_does_not_keep_frontend_compatibility_shims() -> None:

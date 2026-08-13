@@ -4,8 +4,16 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from typing import TYPE_CHECKING
 
-from homeassistant.components.http.server import StaticPathConfig
+if TYPE_CHECKING:
+    from homeassistant.components.http.server import StaticPathConfig
+else:
+    try:
+        from homeassistant.components.http.server import StaticPathConfig
+    except ImportError:
+        from homeassistant.components.http import StaticPathConfig
+
 from homeassistant.core import HomeAssistant
 
 from ..const import CARD_PATH, CARD_URL, CARD_URL_VERSIONED, VERSION
