@@ -29,6 +29,11 @@ def _publish_summary(meta: dict[str, object]) -> None:
         and meta["disable_geoip_violations"] == []
         and meta["allowed_key_canary_rejected"] is True
         and meta["extra_keys_rejected"] is True
+        and meta["constructor_violations"] == []
+        and meta["unexpected_sdk_calls"] == []
+        and meta["shape_violations"] == []
+        and meta["reserved_property_hits"] == []
+        and meta["project_key_leaks"] == []
     )
     report = "\n".join(
         [
@@ -39,6 +44,11 @@ def _publish_summary(meta: dict[str, object]) -> None:
             f"Private canary values found: {len(meta['canary_hits'])}",
             f"Forbidden Home Assistant fields found: {meta['forbidden_ha_fields']}",
             f"Capture violations: {len(meta['capture_violations'])}",
+            f"Constructor violations: {len(meta['constructor_violations'])}",
+            f"Unexpected SDK calls: {len(meta['unexpected_sdk_calls'])}",
+            f"Shape violations: {len(meta['shape_violations'])}",
+            f"Reserved property hits: {len(meta['reserved_property_hits'])}",
+            f"Project key leaks: {len(meta['project_key_leaks'])}",
             f"distinct_id mismatches: {len(meta['distinct_id_mismatches'])}",
             f"disable_geoip violations: {len(meta['disable_geoip_violations'])}",
             f"Allowed-key canary rejected: {meta['allowed_key_canary_rejected']}",
@@ -73,6 +83,11 @@ async def test_posthog_privacy_capture() -> None:
     assert meta["disable_geoip_violations"] == []
     assert meta["allowed_key_canary_rejected"] is True
     assert meta["extra_keys_rejected"] is True
+    assert meta["constructor_violations"] == []
+    assert meta["unexpected_sdk_calls"] == []
+    assert meta["shape_violations"] == []
+    assert meta["reserved_property_hits"] == []
+    assert meta["project_key_leaks"] == []
     assert set(result["payloads"].keys()) == set(EVENT_SCHEMAS)
 
     documented = json.loads(GOLDEN_PATH.read_text(encoding="utf-8"))
