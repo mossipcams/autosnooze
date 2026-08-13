@@ -110,6 +110,7 @@ def test_static_path_config_import_supports_ha_without_http_server() -> None:
     """HA Core before 2026.8 has no homeassistant.components.http.server (issue #500)."""
     adapter_source = FRONTEND_ADAPTER_PATH.read_text(encoding="utf-8")
 
+    assert "TYPE_CHECKING" in adapter_source
     assert "from homeassistant.components.http.server import StaticPathConfig" in adapter_source
     assert "from homeassistant.components.http import StaticPathConfig" in adapter_source
     assert "except ImportError" in adapter_source
