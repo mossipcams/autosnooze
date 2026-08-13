@@ -395,7 +395,7 @@ def _validate_shape(event: str, payload: dict[str, Any]) -> list[str]:
         if not _is_allowed_scalar(value):
             violations.append(f"{event}: invalid type for {key}")
 
-    for key, value in payload.items():
+    for key in payload:
         if key in ("$set", "$set_once"):
             continue
         if key in EVENT_SCHEMAS[event] or key == "source":
