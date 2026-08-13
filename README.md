@@ -5,7 +5,7 @@
 [![GitHub Stars](https://img.shields.io/github/stars/mossipcams/autosnooze?style=flat-square)](https://github.com/mossipcams/autosnooze/stargazers)
 [![HA Analytics](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fanalytics.home-assistant.io%2Fcustom_integrations.json&query=%24.autosnooze.total&suffix=%20installs&label=Active%20Installs&style=flat-square&color=41BDF5)](https://analytics.home-assistant.io)
 [![Build Status](https://img.shields.io/github/actions/workflow/status/mossipcams/autosnooze/build.yml?branch=main&style=flat-square)](https://github.com/mossipcams/autosnooze/actions)
-[![Home Assistant](https://img.shields.io/badge/Home%20Assistant-2024.1+-blue.svg?style=flat-square)](https://www.home-assistant.io/)
+[![Home Assistant](https://img.shields.io/badge/Home%20Assistant-2026.7+-blue.svg?style=flat-square)](https://www.home-assistant.io/)
 
 Temporarily pause Home Assistant automations with automatic re-enabling. Snooze an automation, it comes back on its own. No more forgotten disabled automations cluttering your setup.
 
@@ -338,7 +338,7 @@ Make sure AutoSnooze is configured in **Settings → Devices & Services**.
 
 ## Requirements
 
-- Home Assistant **2024.1** or newer
+- Home Assistant **2026.7** or newer
 - Areas and Labels configured (optional, for filtering)
 
 -----
