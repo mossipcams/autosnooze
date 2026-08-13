@@ -403,7 +403,7 @@ describe('automation list mutation boundaries', () => {
     const automationsChanged = (element as never as { _getViewModel: () => unknown })._getViewModel();
     expect(automationsChanged).not.toBe(categoriesChanged);
 
-    (element as never as { _hideSnoozed: boolean })._hideSnoozed = true;
+    element.hideSnoozed = true;
     const hideChanged = (element as never as { _getViewModel: () => unknown })._getViewModel();
     expect(hideChanged).not.toBe(automationsChanged);
 
@@ -421,7 +421,7 @@ describe('automation list mutation boundaries', () => {
       pausedEntityIds: string[];
       _search: string;
       _filterTab: string;
-      _hideSnoozed: boolean;
+      hideSnoozed: boolean;
       _buildViewModelInput: (filterTab: string) => {
         filterTab: string;
         hideSnoozed: boolean;
@@ -438,7 +438,7 @@ describe('automation list mutation boundaries', () => {
     element.pausedEntityIds = ['automation.porch'];
     element._search = '';
     element._filterTab = 'areas';
-    element._hideSnoozed = true;
+    element.hideSnoozed = true;
 
     expect(typeof element._buildViewModelInput).toBe('function');
     const input = element._buildViewModelInput('areas');
@@ -462,17 +462,12 @@ describe('automation list mutation boundaries', () => {
     expect(element._searchTimeout).toBeNull();
   });
 
-  test('always shows hide snoozed toggle and filters paused ids when pressed', async () => {
+  test('filters paused ids when hideSnoozed is enabled', async () => {
     const element = await connectList();
-    const toggle = element.shadowRoot?.querySelector<HTMLButtonElement>('.hide-snoozed-toggle');
-    expect(toggle).not.toBeNull();
-    expect(toggle?.getAttribute('aria-pressed')).toBe('false');
     expect(element.shadowRoot?.querySelectorAll('.list-item').length).toBe(3);
 
-    toggle?.click();
+    element.hideSnoozed = true;
     await element.updateComplete;
-    expect(toggle?.getAttribute('aria-pressed')).toBe('true');
-    expect(localStorage.getItem('autosnooze_hide_snoozed')).toBe('true');
     expect(element.shadowRoot?.querySelectorAll('.list-item').length).toBe(3);
 
     element.pausedEntityIds = ['automation.porch'];
@@ -485,8 +480,7 @@ describe('automation list mutation boundaries', () => {
     ).toEqual(['Kitchen Lights', 'Office Fan']);
   });
 
-  test('loads persisted hide snoozed preference and drops paused ids from selection when enabling', async () => {
-    localStorage.setItem('autosnooze_hide_snoozed', 'true');
+  test('drops paused ids from selection when hideSnoozed is enabled', async () => {
     const events: CustomEvent[] = [];
     const element = await connectList((el) => {
       el.pausedEntityIds = ['automation.kitchen_lights'];
@@ -494,23 +488,19 @@ describe('automation list mutation boundaries', () => {
     });
     element.addEventListener('selection-change', (event) => events.push(event as CustomEvent));
 
-    expect(element.shadowRoot?.querySelector('.hide-snoozed-toggle')?.getAttribute('aria-pressed')).toBe(
-      'true'
-    );
-    expect(element.shadowRoot?.querySelectorAll('.list-item').length).toBe(2);
+    expect(element.shadowRoot?.querySelectorAll('.list-item').length).toBe(3);
 
-    (element as never as { _hideSnoozed: boolean })._hideSnoozed = false;
-    await element.updateComplete;
-    element.shadowRoot?.querySelector<HTMLButtonElement>('.hide-snoozed-toggle')?.click();
+    element.hideSnoozed = true;
     await element.updateComplete;
 
     expect(lastEvent(events)?.detail).toEqual({ selected: ['automation.office_fan'] });
+    expect(element.shadowRoot?.querySelectorAll('.list-item').length).toBe(2);
   });
 
   test('prunes selection when paused ids grow while hide snoozed is already on', async () => {
-    localStorage.setItem('autosnooze_hide_snoozed', 'true');
     const events: CustomEvent[] = [];
     const element = await connectList((el) => {
+      el.hideSnoozed = true;
       el.selected = ['automation.kitchen_lights', 'automation.office_fan'];
     });
     element.addEventListener('selection-change', (event) => events.push(event as CustomEvent));

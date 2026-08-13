@@ -25,13 +25,44 @@ export const cardStyles = css`
       font-weight: 500;
       color: var(--primary-text-color);
     }
-    .header ha-icon {
+    .header > ha-icon {
       color: var(--primary-color);
     }
     .status-summary {
-      margin-left: auto;
       font-size: 0.85em;
       color: var(--secondary-text-color);
+    }
+    .hide-snoozed-toggle {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      margin-left: auto;
+      padding: 6px 10px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 0.85em;
+      background: var(--card-background-color);
+      border: 1px solid var(--divider-color);
+      color: var(--primary-text-color);
+      min-height: 44px;
+      box-sizing: border-box;
+      transition: background 0.15s ease, border-color 0.15s ease;
+    }
+    .hide-snoozed-toggle ha-icon {
+      --mdc-icon-size: 18px;
+      flex-shrink: 0;
+    }
+    .hide-snoozed-toggle:hover {
+      background: color-mix(in srgb, var(--primary-color) 12%, var(--card-background-color));
+    }
+    .hide-snoozed-toggle:focus-visible {
+      outline: 2px solid var(--primary-color);
+      outline-offset: 2px;
+    }
+    .hide-snoozed-toggle.active {
+      background: color-mix(in srgb, var(--primary-color) 16%, var(--card-background-color));
+      border-color: var(--primary-color);
     }
     .sensor-health-banner {
       margin-bottom: 12px;
@@ -311,7 +342,7 @@ export const cardStyles = css`
         letter-spacing: -0.01em;
       }
 
-      .header ha-icon {
+      .header > ha-icon {
         --mdc-icon-size: 22px;
         opacity: 0.9;
       }
@@ -324,6 +355,15 @@ export const cardStyles = css`
         border-radius: 12px;
         letter-spacing: 0.02em;
         text-transform: uppercase;
+      }
+
+      .hide-snoozed-toggle {
+        padding: 0 8px;
+        min-height: 46px;
+        border-radius: 12px;
+        border: 1.5px solid color-mix(in srgb, var(--divider-color) 70%, transparent);
+        touch-action: manipulation;
+        -webkit-tap-highlight-color: transparent;
       }
 
       /* --- Section Separator --- */

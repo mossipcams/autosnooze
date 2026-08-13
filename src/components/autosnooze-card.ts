@@ -39,6 +39,11 @@ import {
   trackNotificationOptionsChanged,
   type LastDurationData,
 } from '../features/card-shell/index.js';
+import {
+  loadHideSnoozedPreference,
+  saveHideSnoozedPreference,
+  trackHideSnoozedToggled,
+} from '../features/automation-list/index.js';
 import { formatDateTime, formatDuration } from '../utils/time-formatting.js';
 import { durationToMinutes, isDurationValid, minutesToDuration } from '../utils/duration-parsing.js';
 import { hapticFeedback } from '../utils/haptic.js';
@@ -95,6 +100,7 @@ export class AutomationPauseCard extends LitElement {
   @state() private _adjustModalEntityIds: string[] = [];
   @state() private _adjustModalFriendlyNames: string[] = [];
   @state() private _guardrailConfirmOpen: boolean = false;
+  @state() private _hideSnoozed: boolean = false;
 
   private _pausedEntityIdsCache: string[] = [];
 
@@ -166,6 +172,7 @@ export class AutomationPauseCard extends LitElement {
       void this._shell.connect(this.hass);
     }
     this._lastDuration = loadCardLastDuration();
+    this._hideSnoozed = loadHideSnoozedPreference();
     this._refreshRecentSnoozeIds();
   }
 
@@ -628,6 +635,15 @@ export class AutomationPauseCard extends LitElement {
     this._setSelected(e.detail.selected);
   }
 
+  private _toggleHideSnoozed(): void {
+    const hideSnoozed = !this._hideSnoozed;
+    this._hideSnoozed = hideSnoozed;
+    saveHideSnoozedPreference(hideSnoozed);
+    if (this.hass) {
+      trackHideSnoozedToggled(this.hass, hideSnoozed);
+    }
+  }
+
   private _handleGuardrailCancel(): void {
     this._guardrailConfirmOpen = false;
     if (this.hass) {
@@ -666,6 +682,16 @@ export class AutomationPauseCard extends LitElement {
                 >${pausedCount > 0 ? localize(this.hass, 'status.active_count', { count: pausedCount }) : ''}${pausedCount > 0 && scheduledCount > 0 ? ', ' : ''}${scheduledCount > 0 ? localize(this.hass, 'status.scheduled_count', { count: scheduledCount }) : ''}</span
               >`
             : ''}
+          <button
+            type="button"
+            class="hide-snoozed-toggle ${this._hideSnoozed ? 'active' : ''}"
+            @click=${() => this._toggleHideSnoozed()}
+            aria-pressed=${this._hideSnoozed}
+            aria-label="${localize(this.hass, 'a11y.hide_snoozed')}"
+            title="${localize(this.hass, 'filter.hide_snoozed')}"
+          >
+            <ha-icon icon=${this._hideSnoozed ? 'mdi:eye-off' : 'mdi:eye'} aria-hidden="true"></ha-icon>
+          </button>
         </div>
 
         ${!sensorAvailable
@@ -686,6 +712,7 @@ export class AutomationPauseCard extends LitElement {
             .categoryRegistry=${this._shell.categories}
             .recentSnoozeIds=${this._recentSnoozeIds}
             .pausedEntityIds=${this._pausedEntityIdsCache}
+            .hideSnoozed=${this._hideSnoozed}
             @selection-change=${this._handleSelectionChange}
           ></autosnooze-automation-list>
 
