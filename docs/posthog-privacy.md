@@ -84,7 +84,7 @@ Version fields are **not** duplicated on the event body.
 | `snooze_adjusted` | `delta_minutes`, `direction`, `target_count` |
 | `snooze_ended` | `reason` (`timer` or `manual`) |
 | `scheduled_snooze_cancelled` | `target_count`, `minutes_before_start` |
-| `notification_used` | `trigger` |
+| `notification_used` | `trigger` (`none`, `start`, `about_to_end`, or `end`) |
 | `notification_cleared` | `target_count` |
 | `operation_failed` | `operation`, `error_code`, `strategy`, `target_count` |
 | `confirmation_result` | `target_count` |

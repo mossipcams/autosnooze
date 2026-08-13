@@ -77,7 +77,7 @@ export type ReportTelemetryInput =
         target_count: Scalar;
       };
     } & WithSource)
-  | ({ event: 'snooze_ended' } & WithSource)
+  | ({ event: 'snooze_ended'; properties: { reason: 'timer' | 'manual' } } & WithSource)
   | ({
       event: 'scheduled_snooze_cancelled';
       properties: {
@@ -85,7 +85,7 @@ export type ReportTelemetryInput =
         minutes_before_start: Scalar;
       };
     } & WithSource)
-  | ({ event: 'notification_used' } & WithSource)
+  | ({ event: 'notification_used'; properties: { trigger: NotificationTrigger } } & WithSource)
   | ({
       event: 'notification_cleared';
       properties: {

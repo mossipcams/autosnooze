@@ -199,4 +199,45 @@ describe('reportTelemetry', () => {
       reportTelemetry(hass, { event: 'selection_feature_used', source: 'card' })
     ).not.toThrow();
   });
+
+  test('forwards backend-fired events with required properties', () => {
+    const callService = vi.fn();
+    const hass = hassWithTelemetryService(callService);
+
+    reportTelemetry(hass, {
+      event: 'snooze_ended',
+      properties: { reason: 'timer' },
+      source: 'timer',
+    });
+    reportTelemetry(hass, {
+      event: 'notification_used',
+      properties: { trigger: 'start' },
+      source: 'card',
+    });
+
+    expect(callService).toHaveBeenNthCalledWith(
+      1,
+      'autosnooze',
+      'report_telemetry',
+      {
+        event: 'snooze_ended',
+        properties: { reason: 'timer' },
+        source: 'timer',
+      },
+      undefined,
+      false
+    );
+    expect(callService).toHaveBeenNthCalledWith(
+      2,
+      'autosnooze',
+      'report_telemetry',
+      {
+        event: 'notification_used',
+        properties: { trigger: 'start' },
+        source: 'card',
+      },
+      undefined,
+      false
+    );
+  });
 });
