@@ -30,8 +30,17 @@ permissions: {}
 
 jobs:
   smoke-backend:
+    name: smoke-backend (HA ${{ matrix.ha }})
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - ha: "2026.8.1"
+            fixture: "pytest-homeassistant-custom-component==0.13.355"
+          - ha: "2026.7.4"
+            fixture: "pytest-homeassistant-custom-component==0.13.348"
 
     steps:
       - name: Checkout repository
@@ -45,7 +54,13 @@ jobs:
           cache-dependency-path: 'requirements_test.txt'
 
       - name: Install Python dependencies
-        run: pip install -r requirements_test.txt
+        run: |
+          pip install -r requirements_test.txt
+          pip install "${{ matrix.fixture }}"
+
+      - name: Verify Home Assistant version
+        run: |
+          python3 -c "from homeassistant.const import __version__; print(__version__); assert __version__ == '${{ matrix.ha }}', __version__"
 
       - name: Run backend release-gate smoke suite
         run: python3 -m pytest -q tests/test_smoke.py
