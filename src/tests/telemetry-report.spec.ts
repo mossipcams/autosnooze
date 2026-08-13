@@ -195,6 +195,29 @@ describe('reportTelemetry', () => {
     expect(callService.mock.calls[0][2]).not.toHaveProperty('card_type');
   });
 
+  test('uses the PostHog-compatible service call shape', () => {
+    const callService = vi.fn();
+    const hass = hassWithTelemetryService(callService);
+
+    reportTelemetry(hass, {
+      event: 'selection_feature_used',
+      properties: { target_count: 3 },
+      source: 'card',
+    });
+
+    expect(callService).toHaveBeenCalledWith(
+      'autosnooze',
+      'report_telemetry',
+      {
+        event: 'selection_feature_used',
+        properties: { target_count: 3 },
+        source: 'card',
+      },
+      undefined,
+      false
+    );
+  });
+
   test('does not throw when callService is missing', () => {
     const hass = {} as HomeAssistant;
     expect(() =>

@@ -421,6 +421,7 @@ export class AutoSnoozeAutomationList extends LitElement {
     const allVisibleSelected =
       filtered.length > 0 && filtered.every((a) => selectedIds.has(a.id));
     return html`
+      <div class="filter-row">
       <div class="filter-tabs" role="tablist" aria-label="${localize(this.hass, 'a11y.filter_tabs')}">
         <button
           type="button"
@@ -466,17 +467,16 @@ export class AutoSnoozeAutomationList extends LitElement {
           ${localize(this.hass, 'tab.labels')}
           <span class="tab-count" aria-label="${localize(this.hass, 'a11y.label_count', { count: viewModel.labelCount })}">${viewModel.labelCount}</span>
         </button>
-      </div>
-
-      <div class="hide-snoozed-row">
+        </div>
         <button
           type="button"
           class="hide-snoozed-toggle ${this._hideSnoozed ? 'active' : ''}"
           @click=${() => this._toggleHideSnoozed()}
           aria-pressed=${this._hideSnoozed}
           aria-label="${localize(this.hass, 'a11y.hide_snoozed')}"
+          title="${localize(this.hass, 'filter.hide_snoozed')}"
         >
-          ${localize(this.hass, 'filter.hide_snoozed')}
+          <ha-icon icon=${this._hideSnoozed ? 'mdi:eye-off' : 'mdi:eye'} aria-hidden="true"></ha-icon>
         </button>
       </div>
 
@@ -484,6 +484,7 @@ export class AutoSnoozeAutomationList extends LitElement {
         <div class="search-box">
           <input
             type="search"
+            size="1"
             placeholder="${localize(this.hass, 'search.placeholder')}"
             .value=${this._searchInput || this._search}
             @input=${(e: Event) => this._handleSearchInput(e)}
@@ -506,8 +507,13 @@ export class AutoSnoozeAutomationList extends LitElement {
 
         ${filtered.length > 0
           ? html`
-              <span class="selection-count" role="status" aria-live="polite">
-                ${localize(this.hass, 'selection.count', { selected: this.selected.length, total: filtered.length })}
+              <span
+                class="selection-count"
+                role="status"
+                aria-live="polite"
+                data-short="${this.selected.length}/${filtered.length}"
+              >
+                <span class="selection-count-full">${localize(this.hass, 'selection.count', { selected: this.selected.length, total: filtered.length })}</span>
               </span>
               ${!allVisibleSelected
                 ? html`
