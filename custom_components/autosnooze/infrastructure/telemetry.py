@@ -419,8 +419,6 @@ class TelemetryClient:
             throttle: tuple[str, str] | None = None
             if event == "card_viewed":
                 throttle = ("last_card_viewed_day", "_last_card_viewed_day")
-            elif event == "integration_active":
-                throttle = ("last_integration_active_day", "_last_integration_active_day")
             if throttle is not None and not self._should_emit_once_per_utc_day(*throttle):
                 return
 

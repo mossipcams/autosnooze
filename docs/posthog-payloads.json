@@ -1,5 +1,6 @@
 {
   "adjust_opened": {
+    "$geoip_disable": true,
     "$set": {
       "autosnooze_version": "0.2.27",
       "event_schema_version": "3",
@@ -13,6 +14,7 @@
     "source": "card"
   },
   "adjust_option_selected": {
+    "$geoip_disable": true,
     "$set": {
       "autosnooze_version": "0.2.27",
       "event_schema_version": "3",
@@ -27,6 +29,7 @@
     "source": "card"
   },
   "card_viewed": {
+    "$geoip_disable": true,
     "$set": {
       "autosnooze_version": "0.2.27",
       "event_schema_version": "3",
@@ -40,6 +43,7 @@
     "source": "card"
   },
   "confirmation_dismissed": {
+    "$geoip_disable": true,
     "$set": {
       "autosnooze_version": "0.2.27",
       "event_schema_version": "3",
@@ -53,6 +57,7 @@
     "target_count": 1
   },
   "confirmation_result": {
+    "$geoip_disable": true,
     "$set": {
       "autosnooze_version": "0.2.27",
       "event_schema_version": "3",
@@ -66,6 +71,7 @@
     "target_count": 2
   },
   "custom_duration_toggled": {
+    "$geoip_disable": true,
     "$set": {
       "autosnooze_version": "0.2.27",
       "event_schema_version": "3",
@@ -79,6 +85,7 @@
     "source": "card"
   },
   "duration_option_selected": {
+    "$geoip_disable": true,
     "$set": {
       "autosnooze_version": "0.2.27",
       "event_schema_version": "3",
@@ -92,6 +99,7 @@
     "source": "card"
   },
   "filter_tab_selected": {
+    "$geoip_disable": true,
     "$set": {
       "autosnooze_version": "0.2.27",
       "event_schema_version": "3",
@@ -105,6 +113,7 @@
     "tab": "areas"
   },
   "hide_snoozed_toggled": {
+    "$geoip_disable": true,
     "$set": {
       "autosnooze_version": "0.2.27",
       "event_schema_version": "3",
@@ -118,6 +127,7 @@
     "source": "card"
   },
   "integration_active": {
+    "$geoip_disable": true,
     "$set": {
       "autosnooze_version": "0.2.27",
       "event_schema_version": "3",
@@ -130,6 +140,7 @@
     "source": "startup"
   },
   "notification_cleared": {
+    "$geoip_disable": true,
     "$set": {
       "autosnooze_version": "0.2.27",
       "event_schema_version": "3",
@@ -143,6 +154,7 @@
     "target_count": 1
   },
   "notification_options_changed": {
+    "$geoip_disable": true,
     "$set": {
       "autosnooze_version": "0.2.27",
       "event_schema_version": "3",
@@ -158,6 +170,7 @@
     "trigger": "start"
   },
   "notification_used": {
+    "$geoip_disable": true,
     "$set": {
       "autosnooze_version": "0.2.27",
       "event_schema_version": "3",
@@ -171,6 +184,7 @@
     "trigger": "start"
   },
   "operation_failed": {
+    "$geoip_disable": true,
     "$set": {
       "autosnooze_version": "0.2.27",
       "event_schema_version": "3",
@@ -187,6 +201,7 @@
     "target_count": 1
   },
   "schedule_mode_toggled": {
+    "$geoip_disable": true,
     "$set": {
       "autosnooze_version": "0.2.27",
       "event_schema_version": "3",
@@ -200,6 +215,7 @@
     "source": "card"
   },
   "scheduled_cancel_clicked": {
+    "$geoip_disable": true,
     "$set": {
       "autosnooze_version": "0.2.27",
       "event_schema_version": "3",
@@ -213,6 +229,7 @@
     "target_count": 1
   },
   "scheduled_snooze_cancelled": {
+    "$geoip_disable": true,
     "$set": {
       "autosnooze_version": "0.2.27",
       "event_schema_version": "3",
@@ -227,6 +244,7 @@
     "target_count": 1
   },
   "scheduled_snooze_created": {
+    "$geoip_disable": true,
     "$set": {
       "autosnooze_version": "0.2.27",
       "event_schema_version": "3",
@@ -243,6 +261,7 @@
     "target_count": 2
   },
   "scheduled_snooze_started": {
+    "$geoip_disable": true,
     "$set": {
       "autosnooze_version": "0.2.27",
       "event_schema_version": "3",
@@ -257,6 +276,7 @@
     "target_count": 2
   },
   "selection_feature_used": {
+    "$geoip_disable": true,
     "$set": {
       "autosnooze_version": "0.2.27",
       "event_schema_version": "3",
@@ -270,6 +290,7 @@
     "target_count": 3
   },
   "snooze_adjusted": {
+    "$geoip_disable": true,
     "$set": {
       "autosnooze_version": "0.2.27",
       "event_schema_version": "3",
@@ -285,6 +306,7 @@
     "target_count": 2
   },
   "snooze_button_clicked": {
+    "$geoip_disable": true,
     "$set": {
       "autosnooze_version": "0.2.27",
       "event_schema_version": "3",
@@ -300,6 +322,7 @@
     "until_tomorrow": true
   },
   "snooze_created": {
+    "$geoip_disable": true,
     "$set": {
       "autosnooze_version": "0.2.27",
       "event_schema_version": "3",
@@ -319,6 +342,7 @@
     "target_count": 1
   },
   "snooze_ended": {
+    "$geoip_disable": true,
     "$set": {
       "autosnooze_version": "0.2.27",
       "event_schema_version": "3",
@@ -332,6 +356,7 @@
     "source": "timer"
   },
   "until_tomorrow_selected": {
+    "$geoip_disable": true,
     "$set": {
       "autosnooze_version": "0.2.27",
       "event_schema_version": "3",
@@ -344,6 +369,7 @@
     "source": "card"
   },
   "wake_clicked": {
+    "$geoip_disable": true,
     "$set": {
       "autosnooze_version": "0.2.27",
       "event_schema_version": "3",
