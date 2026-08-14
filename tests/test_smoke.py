@@ -425,7 +425,7 @@ async def test_setup_recovers_active_storage_and_discards_expired(smoke_hass) ->
     hass.states.async_set("automation.expired", "off", {"friendly_name": "Expired"})
     hass.states.async_set("automation.future", "on", {"friendly_name": "Future"})
     timer_unsubs = [MagicMock(), MagicMock()]
-    load = AsyncMock(side_effect=[{}, stored])
+    load = AsyncMock(side_effect=[{}, stored, {}])
     save = AsyncMock()
 
     with (
@@ -444,7 +444,7 @@ async def test_setup_recovers_active_storage_and_discards_expired(smoke_hass) ->
     assert entry.runtime_data.paused["automation.active"].friendly_name == "Active"
     assert entry.runtime_data.scheduled["automation.future"].disable_at == now + timedelta(minutes=10)
     load.assert_awaited()
-    assert load.await_count == 2
+    assert load.await_count == 3
     assert [call.args[2] for call in track.call_args_list] == [
         now + timedelta(minutes=30),
         now + timedelta(minutes=10),

@@ -241,12 +241,12 @@ async def test_card_supplied_set_rejects_event(telemetry_client, captured_captur
 
 
 @pytest.mark.asyncio
-async def test_integration_active_is_not_daily_throttled(telemetry_client, captured_captures) -> None:
+async def test_integration_active_throttled_once_per_day(telemetry_client, captured_captures) -> None:
     captures, _mock_posthog = captured_captures
     await telemetry_client.async_setup()
     telemetry_client.track("integration_active", {}, source="startup")
     telemetry_client.track("integration_active", {}, source="startup")
-    assert len(captures) == 2
+    assert len(captures) == 1
 
 
 @pytest.mark.asyncio
