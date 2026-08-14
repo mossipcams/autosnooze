@@ -2,8 +2,14 @@
 
 from __future__ import annotations
 
+import asyncio
+import gzip
 import importlib
+import json
+import threading
 from datetime import timedelta
+from http.server import BaseHTTPRequestHandler, HTTPServer
+from typing import Any
 from unittest.mock import ANY, AsyncMock, MagicMock, patch
 
 import pytest
@@ -69,6 +75,76 @@ async def smoke_hass(hass: HomeAssistant):
         return_value=mock_posthog,
     ):
         yield hass, turn_off, turn_on
+
+
+@pytest.fixture
+async def smoke_hass_real_posthog(hass: HomeAssistant, socket_enabled: None):
+    """Provide HA with faked deps and real PostHog SDK redirected to a local sink."""
+    bodies: list[bytes] = []
+
+    class _SinkHandler(BaseHTTPRequestHandler):
+        def do_POST(self) -> None:
+            length = int(self.headers.get("Content-Length", 0))
+            bodies.append(self.rfile.read(length))
+            self.send_response(200)
+            self.end_headers()
+
+        def log_message(self, _format: str, *_args: object) -> None:
+            pass
+
+    server = HTTPServer(("127.0.0.1", 0), _SinkHandler)
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    posthog_host = f"http://127.0.0.1:{server.server_address[1]}"
+
+    resources = MagicMock()
+    resources.async_items.return_value = []
+    resources.async_create_item = AsyncMock()
+    hass.data["lovelace"] = MagicMock(resources=resources)
+    hass.http = MagicMock()
+    hass.http.async_register_static_paths = AsyncMock()
+    hass.config.components.update({"automation", "frontend", "http", "lovelace"})
+
+    async def set_automation_state(call, state: str) -> None:
+        entity_ids = call.data[ATTR_ENTITY_ID]
+        for entity_id in entity_ids if isinstance(entity_ids, list) else [entity_ids]:
+            current = hass.states.get(entity_id)
+            hass.states.async_set(entity_id, state, current.attributes if current else {})
+
+    async def turn_off_handler(call) -> None:
+        await set_automation_state(call, "off")
+
+    async def turn_on_handler(call) -> None:
+        await set_automation_state(call, "on")
+
+    turn_off = AsyncMock(side_effect=turn_off_handler)
+    turn_on = AsyncMock(side_effect=turn_on_handler)
+    hass.services.async_register("automation", "turn_off", turn_off)
+    hass.services.async_register("automation", "turn_on", turn_on)
+
+    with patch(
+        "custom_components.autosnooze.infrastructure.telemetry.POSTHOG_HOST",
+        posthog_host,
+    ):
+        try:
+            yield hass, turn_off, turn_on, bodies
+        finally:
+            server.shutdown()
+            thread.join(timeout=5)
+
+
+def _posthog_events_from_body(raw: bytes) -> list[dict[str, Any]]:
+    try:
+        decoded = gzip.decompress(raw)
+    except OSError:
+        decoded = raw
+    payload = json.loads(decoded)
+    if isinstance(payload, dict) and "batch" in payload:
+        batch = payload["batch"]
+        return batch if isinstance(batch, list) else [batch]
+    if isinstance(payload, list):
+        return payload
+    return [payload]
 
 
 async def setup_entry(hass: HomeAssistant) -> MockConfigEntry:
@@ -444,3 +520,52 @@ async def test_unload_reload_cleans_up_without_duplicates(smoke_hass) -> None:
     sensor = hass.states.get("sensor.autosnooze_snoozed_automations")
     assert sensor.state == "1"
     assert set(sensor.attributes["paused"]) == {"automation.kitchen"}
+
+
+async def test_real_posthog_sdk_sends_privacy_filtered_integration_active(
+    smoke_hass_real_posthog,
+) -> None:
+    """Real PostHog SDK emits privacy-filtered integration_active to a local sink."""
+    hass, _, _, bodies = smoke_hass_real_posthog
+    entry = await setup_entry(hass)
+    client = entry.runtime_data.telemetry._posthog
+    assert client is not None
+    await hass.async_add_executor_job(client.flush)
+
+    deadline = asyncio.get_running_loop().time() + 5
+    integration_events: list[dict[str, Any]] = []
+    while asyncio.get_running_loop().time() < deadline:
+        events: list[dict[str, Any]] = []
+        for raw in bodies:
+            events.extend(_posthog_events_from_body(raw))
+        integration_events = [event for event in events if event.get("event") == "integration_active"]
+        if integration_events:
+            break
+        await asyncio.sleep(0.05)
+
+    assert integration_events
+    properties = integration_events[0]["properties"]
+    assert properties["source"] == "startup"
+    for junk in ("$lib", "$os", "$python_version"):
+        assert junk not in properties
+    assert properties["$geoip_disable"] is True
+    assert "autosnooze_version" in properties["$set"]
+    assert "home_assistant_version" in properties["$set"]
+    assert "event_schema_version" in properties["$set"]
+    assert "initial_autosnooze_version" in properties["$set_once"]
+    assert "initial_home_assistant_version" in properties["$set_once"]
+    assert isinstance(properties["$set"]["home_assistant_version"], str)
+    assert properties["$set"]["home_assistant_version"]
+
+    assert await hass.config_entries.async_unload(entry.entry_id)
+    await hass.async_block_till_done()
+
+
+def test_static_path_config_resolves_from_real_homeassistant() -> None:
+    """StaticPathConfig resolves from HA core, not the conftest compatibility stub."""
+    from custom_components.autosnooze.infrastructure import frontend
+
+    assert frontend.StaticPathConfig.__module__ in (
+        "homeassistant.components.http",
+        "homeassistant.components.http.server",
+    )

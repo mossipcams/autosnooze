@@ -2,20 +2,20 @@
 
 [![PostHog Privacy Verification](https://github.com/mossipcams/autosnooze/actions/workflows/posthog-privacy.yml/badge.svg)](https://github.com/mossipcams/autosnooze/actions/workflows/posthog-privacy.yml)
 
-This check runs on every push to `main` and on pull requests. It drives the real Python `TelemetryClient`, sends contract-shaped golden payloads and polluted reject-path payloads, intercepts outbound PostHog SDK calls via a strict spy, and fails on any private or undocumented field.
+This check runs on every push to `main` and on pull requests. It drives the real Python `TelemetryClient`, sends contract-shaped golden payloads and polluted reject-path payloads, wraps the real `posthog.Posthog` SDK against a local HTTP sink, and fails on any private or undocumented field in the **wire HTTP bodies** after `before_send` filtering (not only `capture()` kwargs).
 
 Telemetry is **not fully anonymous**: each signal uses `distinct_id` (SHA-256 of a random per-install UUID). That groups events per install without sending the raw ID, HA user identity, or home configuration. PostHog can see the source IP of your Home Assistant instance on HTTPS requests; AutoSnooze disables geo-IP enrichment and does not put IPs in event properties.
 
-## PostHog SDK spy
+## PostHog SDK harness
 
-The privacy harness replaces `posthog.Posthog` with a callable spy that records constructor arguments and returns a minimal client surface.
+The privacy harness replaces `posthog.Posthog` with a factory that records constructor arguments, constructs the real SDK client, validates each `capture()` envelope, and forwards to a local stdlib HTTP sink (`POSTHOG_HOST` patched to `http://127.0.0.1:<port>` — never `https://us.i.posthog.com`). After golden events (and after polluted reject paths), it calls `flush()` and parses gzip-or-JSON POST bodies for privacy assertions.
 
 ### Constructor allowlist
 
 When telemetry is enabled, `Posthog()` must be called exactly once with:
 
 - positional project API key only (`POSTHOG_PROJECT_API_KEY`)
-- `host=POSTHOG_HOST` (`https://us.i.posthog.com`)
+- `host=POSTHOG_HOST` (patched to a local sink in CI; production default is `https://us.i.posthog.com`)
 - `disable_geoip=True`
 - `enable_exception_autocapture=False`
 - `enable_local_evaluation=False`
@@ -43,10 +43,10 @@ capture(event, distinct_id=..., properties=..., disable_geoip=True)
 
 ### Exact property shape
 
-For each captured event, `properties.keys()` must equal exactly:
+For each wire event, `properties.keys()` must equal exactly:
 
 ```
-{"source"} | EVENT_SCHEMAS[event] | {"$set", "$set_once"} | optional {"platform"}
+{"source", "$geoip_disable"} | EVENT_SCHEMAS[event] | {"$set", "$set_once"} | optional {"platform"}
 ```
 
 Missing keys and extra keys both fail. Event-body values are only `bool`, `int` (not bool), or `str` — no lists, `None`, or nested dicts except `$set` and `$set_once`.
@@ -71,7 +71,7 @@ Person properties are attached by `TelemetryClient.track()` after a successful s
 
 Version fields are **not** duplicated on the event body.
 
-`integration_active` and `card_viewed` are throttled to once per UTC day per install.
+`card_viewed` is throttled to once per UTC day per install. `integration_active` is not; every successful setup may emit it.
 
 ### Full event catalog
 
@@ -138,7 +138,7 @@ These Home Assistant and PostHog field names are forbidden inside `properties`:
 - [tests/test_posthog_privacy.py](../tests/test_posthog_privacy.py)
 - [tests/helpers/posthog_privacy_capture.py](../tests/helpers/posthog_privacy_capture.py)
 
-The pytest module drives `TelemetryClient.track` and `report_telemetry` through a PostHog SDK spy that records constructor arguments and `capture` calls.
+The pytest module drives `TelemetryClient.track` and `report_telemetry` through a real PostHog SDK wrapper redirected to a local HTTP sink; privacy assertions use parsed wire bodies after `before_send`.
 
 ## Reproduce locally
 

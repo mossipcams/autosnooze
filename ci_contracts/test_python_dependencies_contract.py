@@ -54,12 +54,20 @@ def test_hacs_has_no_homeassistant_version_floor() -> None:
     assert "homeassistant" not in hacs
 
 
-def test_smoke_backend_tests_ha_floor_and_current() -> None:
-    """Smoke-backend CI should cover the HA floor patch and current release."""
+def test_smoke_backend_tests_ha_floor() -> None:
+    """Compatibility CI should cover the supported HA floor patch."""
     workflow = BUILD_WORKFLOW_PATH.read_text(encoding="utf-8")
 
     assert 'ha: "2026.6.0"' in workflow
     assert "pytest-homeassistant-custom-component==0.13.336" in workflow
-    assert "pytest-homeassistant-custom-component==0.13.355" in workflow
     assert "fail-fast: false" in workflow
-    assert "tests/test_smoke.py" in workflow
+    assert 'tests: "tests/"' in workflow
+
+
+def test_smoke_backend_runs_full_suite_on_ha_floor() -> None:
+    """The supported HA floor must exercise the full backend test suite."""
+    workflow = BUILD_WORKFLOW_PATH.read_text(encoding="utf-8")
+
+    assert '- ha: "2026.8.1"' not in workflow
+    assert 'tests: "tests/"' in workflow
+    assert 'run: python3 -m pytest -q "${{ matrix.tests }}"' in workflow

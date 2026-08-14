@@ -66,7 +66,7 @@ def _publish_summary(meta: dict[str, object]) -> None:
 
 
 @pytest.mark.asyncio
-async def test_posthog_privacy_capture() -> None:
+async def test_posthog_privacy_capture(socket_enabled: None) -> None:
     result = await capture()
     meta = result["meta"]
 
@@ -94,5 +94,8 @@ async def test_posthog_privacy_capture() -> None:
     assert set(result["payloads"].keys()) == set(documented.keys())
     for event, actual in result["payloads"].items():
         assert actual == documented[event]
+        assert actual["$geoip_disable"] is True
+        for forbidden in ("$lib", "$ip", "$geoip_city_name"):
+            assert forbidden not in actual
 
     _publish_summary(meta)
