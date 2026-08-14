@@ -47,11 +47,11 @@ def test_build_workflow_uses_python_3_14_for_homeassistant_2026_5_fixture() -> N
     assert "python-version: '3.14" in workflow
 
 
-def test_hacs_declares_homeassistant_2026_7_floor() -> None:
-    """HACS should hide installs on Home Assistant Core older than 2026.7.0."""
+def test_hacs_has_no_homeassistant_version_floor() -> None:
+    """HACS should not gate installs on a Home Assistant Core minimum (v0.2.29 had no key)."""
     hacs = json.loads(HACS_JSON_PATH.read_text(encoding="utf-8"))
 
-    assert hacs.get("homeassistant") == "2026.7.0"
+    assert "homeassistant" not in hacs
 
 
 def test_smoke_backend_tests_ha_floor_and_current() -> None:
