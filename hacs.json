@@ -1,6 +1,5 @@
 {
   "name": "AutoSnooze",
   "content_in_root": false,
-  "render_readme": true,
-  "homeassistant": "2026.7.0"
+  "render_readme": true
 }
