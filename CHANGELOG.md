@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.1](https://github.com/mossipcams/autosnooze/compare/v0.3.0...v0.3.1) (2026-08-14)
+
+
+### Bug Fixes
+
+* **hacs:** stop hiding updates from Home Assistant before 2026.7 ([#512](https://github.com/mossipcams/autosnooze/issues/512)) ([1254256](https://github.com/mossipcams/autosnooze/commit/12542565e3b2aa8404037bf55b7a673bf4cea4b2))
+
 ## [0.3.0](https://github.com/mossipcams/autosnooze/compare/v0.2.29...v0.3.0) (2026-08-13)
 
 
