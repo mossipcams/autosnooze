@@ -269,8 +269,7 @@ async def async_load_stored(
                 continue
 
             data.scheduled[scheduled.entity_id] = scheduled
-            if scheduled.entity_id not in failed_schedule_ids:
-                callbacks.schedule_disable(hass, data, scheduled.entity_id, scheduled)
+            callbacks.schedule_disable(hass, data, scheduled.entity_id, scheduled)
 
         if expired or expired_scheduled or restored_started:
             should_save = True
