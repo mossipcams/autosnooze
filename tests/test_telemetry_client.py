@@ -10,6 +10,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from homeassistant.exceptions import ServiceValidationError
+from posthog.utils import system_context
 
 from custom_components.autosnooze.infrastructure.telemetry import (
     TelemetryClient,
@@ -156,11 +157,24 @@ def telemetry_client(hass, captured_captures):
 
 
 @pytest.mark.asyncio
+async def test_async_setup_preloads_posthog_system_context_in_executor(telemetry_client) -> None:
+    telemetry_client.hass.async_add_executor_job = AsyncMock()
+
+    await telemetry_client.async_setup()
+
+    telemetry_client.hass.async_add_executor_job.assert_awaited_once_with(system_context)
+
+
+@pytest.mark.asyncio
 async def test_disabled_client_is_noop(telemetry_client, captured_captures) -> None:
     captures, mock_posthog = captured_captures
     telemetry_client.entry.options = {"telemetry_enabled": False}
+    telemetry_client.hass.async_add_executor_job = AsyncMock()
     await telemetry_client.async_setup()
     telemetry_client.track("integration_active", {}, source="startup")
+    telemetry_client.store.async_load.assert_not_awaited()
+    telemetry_client.hass.async_add_executor_job.assert_not_awaited()
+    assert telemetry_client._posthog is None
     assert captures == []
     mock_posthog.capture.assert_not_called()
 
