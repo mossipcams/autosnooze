@@ -122,7 +122,7 @@ def captured_captures():
         properties: dict[str, Any] | None = None,
         disable_geoip: bool | None = None,
         **_kwargs: Any,
-    ) -> None:
+    ) -> str:
         captures.append(
             {
                 "event": event,
@@ -131,6 +131,7 @@ def captured_captures():
                 "disable_geoip": disable_geoip,
             }
         )
+        return "capture-id"
 
     mock_posthog = MagicMock()
     mock_posthog.capture = MagicMock(side_effect=record_capture)
@@ -307,6 +308,19 @@ async def test_posthog_failure_does_not_consume_throttle(telemetry_client, captu
 
     assert mock_posthog.capture.call_count == 2
     assert len(captures) == 0
+
+
+@pytest.mark.asyncio
+async def test_posthog_dropped_capture_does_not_consume_throttle(telemetry_client, captured_captures) -> None:
+    _captures, mock_posthog = captured_captures
+    await telemetry_client.async_setup()
+    mock_posthog.capture.side_effect = [None, "capture-id"]
+
+    telemetry_client.track("integration_active", {}, source="startup")
+    telemetry_client.track("integration_active", {}, source="startup")
+    telemetry_client.track("integration_active", {}, source="startup")
+
+    assert mock_posthog.capture.call_count == 2
 
 
 @pytest.mark.asyncio

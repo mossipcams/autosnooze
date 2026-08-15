@@ -105,7 +105,7 @@ async def test_batch_resume_releases_lock_before_waiting_on_async_save() -> None
 
 
 @pytest.mark.asyncio
-async def test_batch_resume_retries_failures_and_drops_exhausted_entities() -> None:
+async def test_batch_resume_retries_failures_and_retains_exhausted_entities() -> None:
     hass = MagicMock()
     data = AutomationPauseData(store=MagicMock())
     data.paused["automation.retry"] = _paused("automation.retry")
@@ -119,7 +119,7 @@ async def test_batch_resume_retries_failures_and_drops_exhausted_entities() -> N
         await async_resume_batch(hass, data, ["automation.retry", "automation.exhausted"])
 
     assert "automation.retry" in data.paused
-    assert "automation.exhausted" not in data.paused
+    assert "automation.exhausted" in data.paused
     schedule_resume.assert_called_once()
 
 
@@ -163,7 +163,44 @@ async def test_batch_resume_redisables_entity_when_a_newer_pause_wins() -> None:
 
 
 @pytest.mark.asyncio
-async def test_single_resume_retries_then_drops_an_exhausted_entity() -> None:
+async def test_batch_resume_cancellation_restores_entities_woken_before_commit() -> None:
+    hass = MagicMock()
+    data = AutomationPauseData(store=MagicMock())
+    data.paused["automation.one"] = _paused("automation.one")
+    data.paused["automation.two"] = _paused("automation.two")
+    second_started = asyncio.Event()
+    allow_second_finish = asyncio.Event()
+
+    async def set_state(_hass: object, entity_id: str, *, enabled: bool) -> bool:
+        if entity_id == "automation.two" and enabled:
+            second_started.set()
+            await allow_second_finish.wait()
+        return True
+
+    with (
+        patch("custom_components.autosnooze.runtime.ports.async_set_automation_state", side_effect=set_state) as state,
+        patch("custom_components.autosnooze.runtime.ports.async_save", AsyncMock(return_value=True)) as save,
+    ):
+        task = asyncio.create_task(async_resume_batch(hass, data, ["automation.one", "automation.two"]))
+        await asyncio.wait_for(second_started.wait(), timeout=1)
+        task.cancel()
+        allow_second_finish.set()
+
+        with pytest.raises(asyncio.CancelledError):
+            await task
+
+    assert list(data.paused) == ["automation.one", "automation.two"]
+    assert [(call.args[1], call.kwargs["enabled"]) for call in state.await_args_list] == [
+        ("automation.one", True),
+        ("automation.two", True),
+        ("automation.one", False),
+        ("automation.two", False),
+    ]
+    save.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_single_resume_retries_then_retains_an_exhausted_entity() -> None:
     hass = MagicMock()
     data = AutomationPauseData(store=MagicMock())
     data.paused["automation.test"] = _paused("automation.test")
@@ -185,7 +222,7 @@ async def test_single_resume_retries_then_drops_an_exhausted_entity() -> None:
     ):
         await async_resume(hass, data, "automation.test")
 
-    assert "automation.test" not in data.paused
+    assert "automation.test" in data.paused
 
 
 @pytest.mark.asyncio

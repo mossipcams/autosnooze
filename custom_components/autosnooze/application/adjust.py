@@ -38,6 +38,7 @@ async def async_adjust_snooze_batch(
             return
         if not entity_ids:
             return
+        entity_ids = list(dict.fromkeys(entity_ids))
 
         now = dt_util.utcnow()
         updates: list[tuple[str, PausedAutomation, datetime]] = []

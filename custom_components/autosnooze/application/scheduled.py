@@ -2,11 +2,12 @@
 
 from __future__ import annotations
 
+import asyncio
 from datetime import datetime
 import logging
 from time import perf_counter
 
-from homeassistant.const import ATTR_ENTITY_ID
+from homeassistant.const import ATTR_ENTITY_ID, STATE_ON
 from homeassistant.core import HomeAssistant, ServiceCall
 from homeassistant.util import dt as dt_util
 
@@ -38,7 +39,26 @@ async def async_execute_scheduled_disable(
         cancel_scheduled_timer(data, entity_id)
         expected_scheduled = data.scheduled.get(entity_id)
 
-    disabled_successfully = await runtime_ports.async_set_automation_state(hass, entity_id, enabled=False)
+    initial_state = hass.states.get(entity_id)
+    was_enabled = initial_state is not None and initial_state.state == STATE_ON
+    cancellation: asyncio.CancelledError | None = None
+    state_change = asyncio.create_task(runtime_ports.async_set_automation_state(hass, entity_id, enabled=False))
+    try:
+        disabled_successfully = await asyncio.shield(state_change)
+    except asyncio.CancelledError as err:
+        cancellation = err
+        disabled_successfully = await state_change
+
+    def raise_cancellation() -> None:
+        if cancellation is not None:
+            raise cancellation
+
+    if data.unloaded:
+        if disabled_successfully and was_enabled:
+            if not await runtime_ports.async_set_automation_state(hass, entity_id, enabled=True):
+                _LOGGER.warning("Failed to restore %s after unload interrupted scheduled disable", entity_id)
+        raise_cancellation()
+        return
 
     stale_after_disable = False
     undo_stale_disable = False
@@ -120,11 +140,17 @@ async def async_execute_scheduled_disable(
         if not await runtime_ports.async_save(data):
             _raise_save_failed()
 
+    if data.unloaded:
+        raise_cancellation()
+        return
+
     if undo_stale_disable:
         if not await runtime_ports.async_set_automation_state(hass, entity_id, enabled=True):
             _LOGGER.warning("Failed to undo stale scheduled disable for %s", entity_id)
+        raise_cancellation()
         return
     if stale_after_disable:
+        raise_cancellation()
         return
     if early_notify:
         if skip_retry_log:
@@ -139,8 +165,10 @@ async def async_execute_scheduled_disable(
                 retry_log_at,
             )
         data.notify()
+        raise_cancellation()
         return
     if success_paused is None:
+        raise_cancellation()
         return
     data.notify()
     await notify_started(hass, [success_paused])
@@ -166,6 +194,7 @@ async def async_execute_scheduled_disable(
         source="timer",
     )
     _LOGGER.info("Executed scheduled snooze for %s until %s", entity_id, resume_at)
+    raise_cancellation()
 
 
 async def async_cancel_scheduled_batch(
@@ -181,6 +210,7 @@ async def async_cancel_scheduled_batch(
             return
         if not entity_ids:
             return
+        entity_ids = list(dict.fromkeys(entity_ids))
 
         async with data.lock:
             for entity_id in entity_ids:

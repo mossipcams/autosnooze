@@ -118,3 +118,44 @@ async def test_startup_recovery_replay_reregistration_is_idempotent() -> None:
     # First generation timers should have been cancelled on re-register.
     created_unsubs[0].assert_called_once()
     created_unsubs[1].assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_startup_recovery_retains_entries_when_backend_state_changes_fail() -> None:
+    now = datetime.now(UTC)
+    data = AutomationPauseData(store=MagicMock())
+    data.store.async_load = AsyncMock(
+        return_value={
+            "paused": {
+                "automation.failed_pause": {
+                    "resume_at": (now + timedelta(hours=1)).isoformat(),
+                    "paused_at": now.isoformat(),
+                },
+                "automation.restored_pause": {
+                    "resume_at": (now + timedelta(hours=2)).isoformat(),
+                    "paused_at": now.isoformat(),
+                },
+            },
+            "scheduled": {
+                "automation.failed_schedule": {
+                    "disable_at": (now - timedelta(minutes=5)).isoformat(),
+                    "resume_at": (now + timedelta(hours=3)).isoformat(),
+                }
+            },
+        }
+    )
+    data.store.async_save = AsyncMock()
+    hass = _build_hass()
+
+    async def set_state(_hass: object, entity_id: str, *, enabled: bool) -> bool:
+        assert enabled is False
+        return entity_id == "automation.restored_pause"
+
+    with pytest.MonkeyPatch.context() as mp:
+        mp.setattr("custom_components.autosnooze.runtime.ports.async_set_automation_state", set_state)
+        mp.setattr("custom_components.autosnooze.runtime.ports.schedule_resume", MagicMock())
+        await async_load_stored(hass, data)
+
+    assert set(data.paused) == {"automation.failed_pause", "automation.restored_pause"}
+    assert set(data.scheduled) == {"automation.failed_schedule"}
+    data.store.async_save.assert_not_awaited()

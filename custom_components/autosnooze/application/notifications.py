@@ -117,11 +117,13 @@ async def send_pre_resume_notification(
     hass: HomeAssistant,
     data: AutomationPauseData,
     entity_id: str,
+    expected_pause: PausedAutomation | None = None,
 ) -> None:
     async with data.lock:
         paused = data.paused.get(entity_id)
         if (
             paused is None
+            or (expected_pause is not None and paused is not expected_pause)
             or paused.notification_trigger != NOTIFICATION_TRIGGER_ABOUT_TO_END
             or paused.notification_lead_minutes is None
         ):

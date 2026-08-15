@@ -557,3 +557,33 @@ async def test_async_send_pre_resume_notification_skips_non_matching_or_missing_
     await async_send_pre_resume_notification(hass, data, "automation.missing")
 
     hass.services.async_call.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_async_send_pre_resume_notification_skips_replaced_pause() -> None:
+    from custom_components.autosnooze.application.notifications import send_pre_resume_notification
+
+    hass = MagicMock()
+    hass.services.async_call = AsyncMock()
+    data = AutomationPauseData(store=MagicMock())
+    now = datetime.now(UTC)
+    old_pause = PausedAutomation(
+        entity_id="automation.kitchen",
+        friendly_name="Old Kitchen Snooze",
+        paused_at=now,
+        resume_at=now + timedelta(minutes=15),
+        notification_trigger="about_to_end",
+        notification_lead_minutes=5,
+    )
+    data.paused[old_pause.entity_id] = PausedAutomation(
+        entity_id=old_pause.entity_id,
+        friendly_name="New Kitchen Snooze",
+        paused_at=now + timedelta(minutes=1),
+        resume_at=now + timedelta(hours=1),
+        notification_trigger="about_to_end",
+        notification_lead_minutes=5,
+    )
+
+    await send_pre_resume_notification(hass, data, old_pause.entity_id, old_pause)
+
+    hass.services.async_call.assert_not_awaited()

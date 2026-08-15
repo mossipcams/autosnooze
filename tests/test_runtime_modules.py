@@ -314,6 +314,50 @@ def test_runtime_pre_resume_timer_uses_injected_callback() -> None:
     hass.async_create_task.assert_called_once()
 
 
+def test_runtime_pre_resume_timer_carries_expected_pause_identity() -> None:
+    from custom_components.autosnooze.models import PausedAutomation
+    from custom_components.autosnooze.runtime.state import AutomationPauseData
+    from custom_components.autosnooze.runtime.timers import schedule_pre_resume_notification
+
+    hass = MagicMock()
+    data = AutomationPauseData()
+    now = datetime.now(UTC)
+    paused = PausedAutomation(
+        entity_id="automation.test",
+        friendly_name="Test",
+        resume_at=now + timedelta(hours=1),
+        paused_at=now,
+        notification_trigger="about_to_end",
+        notification_lead_minutes=30,
+    )
+    scheduled_callbacks: list[object] = []
+    callback_args: list[tuple[object, ...]] = []
+
+    def track_time(_hass: object, callback: object, _when: datetime) -> MagicMock:
+        scheduled_callbacks.append(callback)
+        return MagicMock()
+
+    async def noop() -> None:
+        return None
+
+    def notification_callback(*args: object):
+        callback_args.append(args)
+        return noop()
+
+    hass.async_create_task.side_effect = lambda coro: coro.close()
+    schedule_pre_resume_notification(
+        hass,
+        data,
+        paused,
+        notification_callback=notification_callback,
+        track_point_in_time=track_time,
+    )
+
+    scheduled_callbacks[0](now)
+
+    assert callback_args == [(hass, data, "automation.test", paused)]
+
+
 def test_schedule_pre_resume_notification_requires_explicit_callback() -> None:
     """Pre-resume timers reject missing callbacks at the scheduling boundary."""
     from custom_components.autosnooze.models import PausedAutomation

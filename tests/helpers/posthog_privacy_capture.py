@@ -341,8 +341,11 @@ def _start_posthog_sink() -> tuple[HTTPServer, threading.Thread, list[bytes], st
 
 
 def _stop_posthog_sink(server: HTTPServer, thread: threading.Thread) -> None:
-    server.shutdown()
-    thread.join(timeout=5)
+    try:
+        server.shutdown()
+        thread.join(timeout=5)
+    finally:
+        server.server_close()
 
 
 def _posthog_events_from_body(raw: bytes) -> list[dict[str, Any]]:
