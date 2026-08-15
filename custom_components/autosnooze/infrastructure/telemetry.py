@@ -18,6 +18,7 @@ from homeassistant.exceptions import ServiceValidationError
 from homeassistant.helpers.storage import Store
 from homeassistant.util import dt as dt_util
 from posthog import Posthog
+from posthog.utils import system_context
 
 from ..const import (
     DOMAIN,
@@ -362,6 +363,8 @@ class TelemetryClient:
         return bool(self.entry.options.get(OPTION_TELEMETRY_ENABLED, True))
 
     async def async_setup(self) -> None:
+        if not self.is_enabled():
+            return
         try:
             stored = await self.store.async_load() or {}
             install_id = stored.get("install_id")
@@ -372,6 +375,7 @@ class TelemetryClient:
             self._install_id = install_id
             self._last_card_viewed_day = _load_stored_day(stored, "last_card_viewed_day")
             self._last_integration_active_day = _load_stored_day(stored, "last_integration_active_day")
+            await self.hass.async_add_executor_job(system_context)
             self._posthog = Posthog(
                 POSTHOG_PROJECT_API_KEY,
                 host=POSTHOG_HOST,

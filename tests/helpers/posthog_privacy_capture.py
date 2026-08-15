@@ -549,6 +549,9 @@ async def _build_client(
         capture_calls,
     )
     hass = MagicMock()
+    hass.async_add_executor_job = lambda callback, *args: asyncio.get_running_loop().run_in_executor(
+        None, callback, *args
+    )
     hass.async_create_task = MagicMock()
     entry = MagicMock()
     entry.options = {"telemetry_enabled": enabled}
