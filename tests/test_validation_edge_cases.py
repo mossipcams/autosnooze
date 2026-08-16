@@ -85,6 +85,16 @@ class TestValidateStoredEntryEdgeCases:
         }
         assert validate_stored_entry("automation.test", data, "paused") is True
 
+    @pytest.mark.parametrize("resume_retries", [-1, 1.5, "2", True])
+    def test_rejects_invalid_resume_retry_counters(self, now: datetime, resume_retries: object) -> None:
+        data = {
+            "resume_at": (now + timedelta(hours=1)).isoformat(),
+            "paused_at": now.isoformat(),
+            "resume_retries": resume_retries,
+        }
+
+        assert validate_stored_entry("automation.test", data, "paused") is False
+
     @pytest.mark.parametrize(
         "entity_id,expected",
         [

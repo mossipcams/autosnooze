@@ -63,6 +63,14 @@ def validate_stored_entry(
             if not isinstance(value, (int, float)) or value < 0:
                 _LOGGER.warning("Invalid data for %s: %s must be non-negative, got %s", entity_id, field_name, value)
                 return False
+        resume_retries = entry_data.get("resume_retries", 0)
+        if type(resume_retries) is not int or resume_retries < 0:
+            _LOGGER.warning(
+                "Invalid data for %s: resume_retries must be a non-negative integer, got %s",
+                entity_id,
+                resume_retries,
+            )
+            return False
 
     try:
         validate_notification_config(
@@ -142,7 +150,9 @@ async def async_load_stored(
     scheduled_to_execute: list[ScheduledSnooze] = []
     scheduled_to_restore: list[ScheduledSnooze] = []
     restored_paused: list[PausedAutomation] = []
+    failed_pause_ids: set[str] = set()
     executed_scheduled: list[ScheduledSnooze] = []
+    failed_schedule_ids: set[str] = set()
     restored_started: list[PausedAutomation] = []
 
     for entity_id, info in validated.get("paused", {}).items():
@@ -184,18 +194,20 @@ async def async_load_stored(
         if await callbacks.set_automation_state(hass, paused.entity_id, enabled=False):
             restored_paused.append(paused)
         else:
-            _LOGGER.warning("Failed to restore paused state for %s, removing from storage", paused.entity_id)
-            expired.append(paused.entity_id)
+            _LOGGER.warning("Failed to restore paused state for %s; preserving entry", paused.entity_id)
+            restored_paused.append(paused)
+            failed_pause_ids.add(paused.entity_id)
 
     for scheduled in scheduled_to_execute:
         if await callbacks.set_automation_state(hass, scheduled.entity_id, enabled=False):
             executed_scheduled.append(scheduled)
         else:
             _LOGGER.warning(
-                "Failed to execute scheduled disable for %s, removing from storage",
+                "Failed to execute scheduled disable for %s; preserving entry",
                 scheduled.entity_id,
             )
-            expired_scheduled.append(scheduled.entity_id)
+            scheduled_to_restore.append(scheduled)
+            failed_schedule_ids.add(scheduled.entity_id)
 
     for entity_id in expired:
         await callbacks.set_automation_state(hass, entity_id, enabled=True)
@@ -216,7 +228,8 @@ async def async_load_stored(
 
             data.paused[paused.entity_id] = paused
             callbacks.schedule_resume(hass, data, paused.entity_id, paused.resume_at)
-            pre_resume_targets.append(paused)
+            if paused.entity_id not in failed_pause_ids:
+                pre_resume_targets.append(paused)
 
         for scheduled in executed_scheduled:
             paused = PausedAutomation(

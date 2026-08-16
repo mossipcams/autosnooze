@@ -36,6 +36,7 @@ class AutomationPauseData:
     telemetry: TelemetryClient | None = None
     hass: HomeAssistant | None = None
     lock: asyncio.Lock = field(default_factory=asyncio.Lock)
+    save_lock: asyncio.Lock = field(default_factory=asyncio.Lock)
     unloaded: bool = False
     startup_listener_unsub: Callable[[], None] | None = None
 

@@ -8,6 +8,7 @@ These tests verify:
 
 from __future__ import annotations
 
+import asyncio
 from datetime import datetime, timedelta, timezone
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -400,3 +401,55 @@ class TestSaveFailureRecovery:
         # Runtime data should be unchanged even after save failure
         assert "automation.test" in data.paused
         assert data.paused["automation.test"].friendly_name == "Test"
+
+    @pytest.mark.asyncio
+    async def test_retry_does_not_overwrite_a_newer_save(self) -> None:
+        """An older retry must not become the final persisted snapshot."""
+        from custom_components.autosnooze.infrastructure.storage import async_save
+        from custom_components.autosnooze.models import PausedAutomation
+        from custom_components.autosnooze.runtime.state import AutomationPauseData
+
+        now = datetime.now(UTC)
+        writes: list[set[str]] = []
+        save_calls = 0
+
+        async def save(payload: dict[str, dict[str, object]]) -> None:
+            nonlocal save_calls
+            save_calls += 1
+            if save_calls == 1:
+                raise OSError("transient disk failure")
+            writes.append(set(payload["paused"]))
+
+        retry_waiting = asyncio.Event()
+        release_retry = asyncio.Event()
+
+        async def wait_before_retry(_delay: float) -> None:
+            retry_waiting.set()
+            await release_retry.wait()
+
+        store = MagicMock()
+        store.async_save = save
+        data = AutomationPauseData(store=store)
+        data.paused["automation.first"] = PausedAutomation(
+            entity_id="automation.first",
+            friendly_name="First",
+            resume_at=now + timedelta(hours=1),
+            paused_at=now,
+        )
+
+        older_save = asyncio.create_task(async_save(data, sleep=wait_before_retry))
+        await asyncio.wait_for(retry_waiting.wait(), timeout=1)
+
+        data.paused["automation.second"] = PausedAutomation(
+            entity_id="automation.second",
+            friendly_name="Second",
+            resume_at=now + timedelta(hours=1),
+            paused_at=now,
+        )
+        newer_save = asyncio.create_task(async_save(data))
+        await asyncio.sleep(0)
+        release_retry.set()
+
+        assert await older_save is True
+        assert await newer_save is True
+        assert writes[-1] == {"automation.first", "automation.second"}

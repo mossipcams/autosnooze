@@ -455,13 +455,13 @@ class TelemetryClient:
                 },
             }
 
-            self._posthog.capture(
+            capture_id = self._posthog.capture(
                 event,
                 distinct_id=distinct_id,
                 properties=payload,
                 disable_geoip=True,
             )
-            if throttle is not None:
+            if throttle is not None and capture_id is not None:
                 self._record_emitted_once_per_utc_day(*throttle)
         except Exception:
             _LOGGER.debug("Telemetry track failed", exc_info=True)

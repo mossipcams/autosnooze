@@ -17,7 +17,7 @@ from .state import AutomationPauseData
 ResumeReason = Literal["manual", "expired"]
 ResumeCallback = Callable[..., Coroutine[Any, Any, None]]
 ScheduledDisableCallback = Callable[[HomeAssistant, AutomationPauseData, str, datetime], Coroutine[Any, Any, None]]
-NotificationCallback = Callable[[HomeAssistant, AutomationPauseData, str], Coroutine[Any, Any, None]]
+NotificationCallback = Callable[[HomeAssistant, AutomationPauseData, str, PausedAutomation], Coroutine[Any, Any, None]]
 
 
 async_track_point_in_time = ha_async_track_point_in_time
@@ -85,7 +85,7 @@ def schedule_pre_resume_notification(
     if notify_at <= now:
         if paused.resume_at <= now:
             return False
-        hass.async_create_task(notification_callback(hass, data, paused.entity_id))
+        hass.async_create_task(notification_callback(hass, data, paused.entity_id, paused))
         return True
 
     schedule_at = track_point_in_time or async_track_point_in_time
@@ -94,7 +94,7 @@ def schedule_pre_resume_notification(
     def on_notification_timer(_now: datetime) -> None:
         if data.unloaded:
             return
-        hass.async_create_task(notification_callback(hass, data, paused.entity_id))
+        hass.async_create_task(notification_callback(hass, data, paused.entity_id, paused))
 
     data.notification_timers[paused.entity_id] = schedule_at(hass, on_notification_timer, notify_at)
     return True

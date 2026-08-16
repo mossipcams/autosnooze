@@ -1003,7 +1003,7 @@ class TestAsyncResume:
 
     @pytest.mark.asyncio
     async def test_gives_up_resume_retry_after_max_attempts(self) -> None:
-        """Verify resume stops retrying and removes entity after max retries."""
+        """Verify resume stops retrying but retains entity after max retries."""
         mock_hass = MagicMock()
         mock_store = MagicMock()
         mock_store.async_save = AsyncMock()
@@ -1027,8 +1027,7 @@ class TestAsyncResume:
         ):
             await async_resume(mock_hass, data, "automation.test")
 
-        # Entity should be removed after max retries exhausted
-        assert "automation.test" not in data.paused
+        assert "automation.test" in data.paused
         mock_schedule_resume.assert_not_called()
         mock_store.async_save.assert_called_once()
 
@@ -1636,6 +1635,115 @@ class TestAsyncExecuteScheduledDisable:
 
         assert "automation.test" not in data.paused
         assert state_calls == [False, True]
+
+    @pytest.mark.asyncio
+    async def test_task_cancellation_finishes_scheduled_disable_reconciliation(self) -> None:
+        """Cancellation after turn-off must not orphan a disabled automation."""
+        mock_hass = MagicMock()
+        mock_store = MagicMock()
+        mock_store.async_save = AsyncMock()
+        data = AutomationPauseData(store=mock_store)
+
+        now = datetime.now(UTC)
+        resume_at = now + timedelta(hours=1)
+        data.scheduled["automation.test"] = ScheduledSnooze(
+            entity_id="automation.test",
+            friendly_name="Original Name",
+            disable_at=now,
+            resume_at=resume_at,
+        )
+        data.scheduled_timers["automation.test"] = MagicMock()
+
+        service_started = asyncio.Event()
+        allow_service_finish = asyncio.Event()
+        external_enabled = True
+
+        async def slow_turn_off(*_args, enabled: bool) -> bool:
+            nonlocal external_enabled
+            external_enabled = enabled
+            service_started.set()
+            await allow_service_finish.wait()
+            return True
+
+        with (
+            patch(
+                "custom_components.autosnooze.runtime.ports.async_set_automation_state",
+                side_effect=slow_turn_off,
+            ),
+            patch("custom_components.autosnooze.runtime.ports.schedule_resume") as schedule_resume,
+            patch("custom_components.autosnooze.runtime.ports.schedule_pre_resume_notification"),
+        ):
+            disable_task = asyncio.create_task(
+                async_execute_scheduled_disable(mock_hass, data, "automation.test", resume_at)
+            )
+            await asyncio.wait_for(service_started.wait(), timeout=1)
+
+            disable_task.cancel()
+            allow_service_finish.set()
+            with pytest.raises(asyncio.CancelledError):
+                await disable_task
+
+        assert external_enabled is False
+        assert "automation.test" not in data.scheduled
+        assert "automation.test" in data.paused
+        schedule_resume.assert_called_once()
+        mock_store.async_save.assert_awaited_once()
+
+    @pytest.mark.asyncio
+    async def test_unload_during_turn_off_restores_state_without_creating_runtime_work(self) -> None:
+        """An in-flight scheduled disable must stop cleanly after unload."""
+        mock_hass = MagicMock()
+        mock_hass.states.get.return_value = MagicMock(state="on")
+        mock_store = MagicMock()
+        mock_store.async_save = AsyncMock()
+        data = AutomationPauseData(store=mock_store)
+
+        now = datetime.now(UTC)
+        resume_at = now + timedelta(hours=1)
+        data.scheduled["automation.test"] = ScheduledSnooze(
+            entity_id="automation.test",
+            friendly_name="Original Name",
+            disable_at=now,
+            resume_at=resume_at,
+        )
+
+        service_started = asyncio.Event()
+        allow_service_finish = asyncio.Event()
+        state_calls: list[bool] = []
+
+        async def slow_turn_off(*_args, enabled: bool) -> bool:
+            state_calls.append(enabled)
+            if not enabled:
+                service_started.set()
+                await allow_service_finish.wait()
+            return True
+
+        with (
+            patch(
+                "custom_components.autosnooze.runtime.ports.async_set_automation_state",
+                side_effect=slow_turn_off,
+            ),
+            patch("custom_components.autosnooze.runtime.ports.schedule_resume") as schedule_resume,
+            patch("custom_components.autosnooze.runtime.ports.schedule_pre_resume_notification"),
+            patch(
+                "custom_components.autosnooze.application.scheduled.notify_started", new_callable=AsyncMock
+            ) as notify,
+        ):
+            disable_task = asyncio.create_task(
+                async_execute_scheduled_disable(mock_hass, data, "automation.test", resume_at)
+            )
+            await asyncio.wait_for(service_started.wait(), timeout=1)
+
+            data.unloaded = True
+            allow_service_finish.set()
+            await disable_task
+
+        assert state_calls == [False, True]
+        assert "automation.test" in data.scheduled
+        assert "automation.test" not in data.paused
+        schedule_resume.assert_not_called()
+        mock_store.async_save.assert_not_awaited()
+        notify.assert_not_awaited()
 
 
 # =============================================================================

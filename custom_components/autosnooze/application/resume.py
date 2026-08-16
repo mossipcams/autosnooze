@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from time import perf_counter
 from typing import Literal
@@ -39,6 +40,7 @@ async def async_resume(
 
     woke_successfully = await runtime_ports.async_set_automation_state(hass, entity_id, enabled=True)
     re_disable_entity = False
+    retry_scheduled = False
     resumed: list[PausedAutomation] = []
     async with data.lock:
         paused = data.paused.get(entity_id)
@@ -56,13 +58,13 @@ async def async_resume(
             cancel_notification_timer(data, entity_id)
             if paused.resume_retries >= MAX_RESUME_RETRIES:
                 cancel_timer(data, entity_id)
-                data.paused.pop(entity_id, None)
                 _LOGGER.error("Giving up waking %s after %d retries", entity_id, paused.resume_retries)
             else:
                 paused.resume_retries += 1
                 retry_at = dt_util.utcnow() + RESUME_RETRY_DELAY
                 paused.resume_at = retry_at
                 runtime_ports.schedule_resume(hass, data, entity_id, retry_at, resume_callback=async_resume)
+                retry_scheduled = True
     if not await runtime_ports.async_save(data):
         _raise_save_failed()
     if re_disable_entity:
@@ -79,9 +81,7 @@ async def async_resume(
         )
     if woke_successfully:
         _LOGGER.info("Woke automation: %s", entity_id)
-    elif entity_id not in data.paused:
-        pass
-    else:
+    elif retry_scheduled:
         _LOGGER.warning("Failed to wake %s; retry scheduled", entity_id)
 
 
@@ -108,8 +108,23 @@ async def async_resume_batch(
             candidate_ids = list(candidates)
 
         results: dict[str, bool] = {}
+        cancellation: asyncio.CancelledError | None = None
         for entity_id in candidate_ids:
-            results[entity_id] = await runtime_ports.async_set_automation_state(hass, entity_id, enabled=True)
+            state_change = asyncio.ensure_future(
+                runtime_ports.async_set_automation_state(hass, entity_id, enabled=True)
+            )
+            try:
+                results[entity_id] = await asyncio.shield(state_change)
+            except asyncio.CancelledError as err:
+                cancellation = err
+                results[entity_id] = await state_change
+                break
+
+        if cancellation is not None:
+            for entity_id, woke in results.items():
+                if woke and not await runtime_ports.async_set_automation_state(hass, entity_id, enabled=False):
+                    _LOGGER.warning("Failed to restore %s after resume cancellation", entity_id)
+            raise cancellation
 
         failed = 0
         woke = 0
@@ -134,7 +149,6 @@ async def async_resume_batch(
                 else:
                     if paused.resume_retries >= MAX_RESUME_RETRIES:
                         cancel_timer(data, entity_id)
-                        data.paused.pop(entity_id, None)
                         _LOGGER.error("Giving up waking %s after %d retries", entity_id, paused.resume_retries)
                     else:
                         failed += 1

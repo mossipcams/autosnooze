@@ -10,6 +10,7 @@ from __future__ import annotations
 
 from datetime import datetime, time, timedelta, timezone
 from unittest.mock import AsyncMock, MagicMock
+from zoneinfo import ZoneInfo
 
 import pytest
 import voluptuous as vol
@@ -281,6 +282,14 @@ class TestResumeStrategyResolution:
         resolved = next_local_time_occurrence(time(6, 25))
 
         assert resolved == datetime(2026, 7, 8, 10, 25, tzinfo=timezone.utc)
+
+    def test_next_local_time_occurrence_skips_spring_forward_gap(self) -> None:
+        new_york = ZoneInfo("America/New_York")
+        now = datetime(2026, 3, 8, 1, 30, tzinfo=new_york)
+
+        resolved = next_local_time_occurrence(time(2, 30), now)
+
+        assert resolved == datetime(2026, 3, 9, 6, 30, tzinfo=timezone.utc)
 
 
 # =============================================================================

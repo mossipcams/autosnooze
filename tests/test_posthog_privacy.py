@@ -9,11 +9,23 @@ from pathlib import Path
 import pytest
 
 from custom_components.autosnooze.infrastructure.telemetry import EVENT_SCHEMAS
-from tests.helpers.posthog_privacy_capture import capture
+from tests.helpers.posthog_privacy_capture import (
+    _start_posthog_sink,
+    _stop_posthog_sink,
+    capture,
+)
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 GOLDEN_PATH = REPO_ROOT / "docs" / "posthog-payloads.json"
 EXPECTED = len(EVENT_SCHEMAS)
+
+
+def test_posthog_privacy_sink_closes_listening_socket(socket_enabled: None) -> None:
+    server, thread, _bodies, _host = _start_posthog_sink()
+
+    _stop_posthog_sink(server, thread)
+
+    assert server.socket.fileno() == -1
 
 
 def _publish_summary(meta: dict[str, object]) -> None:

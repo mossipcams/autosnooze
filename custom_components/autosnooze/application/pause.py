@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from collections.abc import Awaitable, Callable, Mapping
 from datetime import datetime, time, timedelta
 import logging
@@ -9,7 +10,7 @@ import re
 from time import perf_counter
 from typing import Any
 
-from homeassistant.const import ATTR_ENTITY_ID, SUN_EVENT_SUNRISE, SUN_EVENT_SUNSET
+from homeassistant.const import ATTR_ENTITY_ID, STATE_ON, SUN_EVENT_SUNRISE, SUN_EVENT_SUNSET
 from homeassistant.core import HomeAssistant, ServiceCall
 from homeassistant.exceptions import ServiceValidationError
 from homeassistant.helpers import entity_registry as er
@@ -162,6 +163,9 @@ def next_local_time_occurrence(target: time, now_local: datetime | None = None) 
     )
     if candidate <= now:
         candidate += timedelta(days=1)
+    normalized = dt_util.as_utc(candidate).astimezone(candidate.tzinfo)
+    if normalized.replace(tzinfo=None) != candidate.replace(tzinfo=None):
+        candidate += timedelta(days=1)
     return dt_util.as_utc(candidate)
 
 
@@ -244,6 +248,16 @@ async def async_pause_automations(
             hass, data, paused, notification_callback=send_pre_resume_notification
         )
     )
+    cancellation: asyncio.CancelledError | None = None
+
+    async def set_state_safely(entity_id: str, enabled: bool) -> bool:
+        nonlocal cancellation
+        state_change = asyncio.ensure_future(set_state(hass, entity_id, enabled))
+        try:
+            return await asyncio.shield(state_change)
+        except asyncio.CancelledError as err:
+            cancellation = err
+            return await state_change
 
     started_at = perf_counter()
     outcome = "success"
@@ -253,6 +267,7 @@ async def async_pause_automations(
 
         if not entity_ids:
             return
+        entity_ids = list(dict.fromkeys(entity_ids))
 
         for entity_id in entity_ids:
             if not entity_id.startswith("automation."):
@@ -308,6 +323,7 @@ async def async_pause_automations(
 
         scheduled_entries: list[ScheduledSnooze] = []
         paused_entries: list[PausedAutomation] = []
+        initially_enabled: dict[str, bool] = {}
         active_replacements: dict[str, PausedAutomation] = {}
         replacement_wake_results: dict[str, bool] = {}
 
@@ -328,7 +344,11 @@ async def async_pause_automations(
                 )
                 continue
 
-            if not await set_state(hass, entity_id, False):
+            state = hass.states.get(entity_id)
+            initially_enabled[entity_id] = state is not None and state.state == STATE_ON
+            if not await set_state_safely(entity_id, False):
+                if cancellation is not None:
+                    break
                 continue
 
             schedule_mode_disable_at = (
@@ -348,6 +368,14 @@ async def async_pause_automations(
                     notification_lead_minutes=notification_lead_minutes,
                 )
             )
+            if cancellation is not None:
+                break
+
+        if cancellation is not None:
+            for paused in paused_entries:
+                if initially_enabled.get(paused.entity_id) and not await set_state(hass, paused.entity_id, True):
+                    _LOGGER.warning("Failed to restore %s after pause cancellation", paused.entity_id)
+            raise cancellation
 
         if scheduled_entries:
             async with data.lock:
@@ -358,12 +386,20 @@ async def async_pause_automations(
                 }
 
             for entity_id in active_replacements:
-                replacement_wake_results[entity_id] = await set_state(hass, entity_id, True)
+                replacement_wake_results[entity_id] = await set_state_safely(entity_id, True)
                 if not replacement_wake_results[entity_id]:
                     _LOGGER.warning(
                         "Failed to wake %s before replacing active snooze with a future schedule",
                         entity_id,
                     )
+                if cancellation is not None:
+                    break
+
+        if cancellation is not None:
+            for entity_id, woke in replacement_wake_results.items():
+                if woke and not await set_state(hass, entity_id, False):
+                    _LOGGER.warning("Failed to restore %s after scheduled replacement cancellation", entity_id)
+            raise cancellation
 
         re_disable_stale_replacements: list[str] = []
         pre_resume_targets: list[PausedAutomation] = []

@@ -96,6 +96,7 @@ class PausedAutomation:
             "hours": self.hours,
             "minutes": self.minutes,
             "notification_trigger": self.notification_trigger,
+            "resume_retries": self.resume_retries,
         }
         if self.disable_at is not None:
             result["disable_at"] = self.disable_at.isoformat()
@@ -123,6 +124,7 @@ class PausedAutomation:
             disable_at=disable_at,
             notification_trigger=notification_trigger,
             notification_lead_minutes=notification_lead_minutes,
+            resume_retries=data.get("resume_retries", 0),
         )
 
 

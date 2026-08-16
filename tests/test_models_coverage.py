@@ -230,6 +230,21 @@ class TestPausedAutomationWithDisableAt:
         # Compare timestamps (allowing for microsecond precision loss in ISO format)
         assert abs((restored.disable_at - original.disable_at).total_seconds()) < 1
 
+    def test_roundtrip_preserves_resume_retries(self) -> None:
+        """A restart must not reset a failed resume's retry budget."""
+        now = datetime.now(UTC)
+        original = PausedAutomation(
+            entity_id="automation.test",
+            friendly_name="Test",
+            resume_at=now + timedelta(hours=1),
+            paused_at=now,
+            resume_retries=3,
+        )
+
+        restored = PausedAutomation.from_dict(original.entity_id, original.to_dict())
+
+        assert restored.resume_retries == 3
+
 
 class TestScheduledSnoozeEdgeCases:
     """Edge case tests for ScheduledSnooze."""
