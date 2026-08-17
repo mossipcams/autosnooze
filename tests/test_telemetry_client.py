@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import asyncio
+import logging
 from queue import Queue
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -15,6 +16,7 @@ from posthog.utils import system_context
 from custom_components.autosnooze.infrastructure.telemetry import (
     TelemetryClient,
     _filter_posthog_message,
+    _silence_posthog_sdk_logs,
 )
 
 
@@ -155,6 +157,55 @@ def telemetry_client(hass, captured_captures):
     hass.async_create_task = MagicMock()
     client = TelemetryClient(hass, entry, store)
     return client
+
+
+@pytest.mark.asyncio
+async def test_async_setup_silences_posthog_sdk_logger(telemetry_client) -> None:
+    telemetry_client.hass.async_add_executor_job = AsyncMock()
+    posthog_logger = logging.getLogger("posthog")
+    original_level = posthog_logger.level
+
+    try:
+        await telemetry_client.async_setup()
+        assert posthog_logger.getEffectiveLevel() == logging.CRITICAL
+    finally:
+        posthog_logger.setLevel(original_level)
+
+
+def test_silence_posthog_sdk_logs_blocks_error_records() -> None:
+    posthog_logger = logging.getLogger("posthog")
+    original_level = posthog_logger.level
+    handler = logging.Handler()
+    handler.setLevel(logging.WARNING)
+    handler.emit = MagicMock()
+    posthog_logger.addHandler(handler)
+
+    try:
+        _silence_posthog_sdk_logs()
+        posthog_logger.error("error uploading: boom")
+        posthog_logger.warning("warning uploading: boom")
+        handler.emit.assert_not_called()
+    finally:
+        posthog_logger.removeHandler(handler)
+        posthog_logger.setLevel(original_level)
+
+
+@pytest.mark.asyncio
+async def test_track_capture_failure_does_not_log_warning_or_error(telemetry_client, captured_captures) -> None:
+    _captures, mock_posthog = captured_captures
+    telemetry_logger = logging.getLogger("custom_components.autosnooze.infrastructure.telemetry")
+    handler = logging.Handler()
+    handler.setLevel(logging.WARNING)
+    handler.emit = MagicMock()
+    telemetry_logger.addHandler(handler)
+
+    try:
+        await telemetry_client.async_setup()
+        mock_posthog.capture.side_effect = RuntimeError("boom")
+        telemetry_client.track("integration_active", {}, source="startup")
+        handler.emit.assert_not_called()
+    finally:
+        telemetry_logger.removeHandler(handler)
 
 
 @pytest.mark.asyncio

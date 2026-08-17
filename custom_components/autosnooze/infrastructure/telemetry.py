@@ -337,6 +337,11 @@ def _ha_version() -> str:
         return "unknown"
 
 
+def _silence_posthog_sdk_logs() -> None:
+    """ponytail: hides all PostHog SDK logs including debug; upgrade path is a dedicated Filter if we need SDK debug in HA."""
+    logging.getLogger("posthog").setLevel(logging.CRITICAL)
+
+
 def _load_stored_day(stored: dict[str, Any], key: str) -> str | None:
     value = stored.get(key)
     return value if isinstance(value, str) else None
@@ -366,6 +371,7 @@ class TelemetryClient:
         if not self.is_enabled():
             return
         try:
+            _silence_posthog_sdk_logs()
             stored = await self.store.async_load() or {}
             install_id = stored.get("install_id")
             if not isinstance(install_id, str) or not install_id:
