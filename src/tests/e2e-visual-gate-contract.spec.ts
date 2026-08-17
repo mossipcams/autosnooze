@@ -18,5 +18,19 @@ describe('E2E visual gate contract', () => {
     const prePushHook = fs.readFileSync(path.join(repoRoot, '.husky', 'pre-push'), 'utf8');
 
     expect(prePushHook).toContain('npm run e2e:critical');
+    expect(prePushHook).toMatch(/scripts\/ensure-ha-e2e\.sh/);
+  });
+
+  test('starts host hass instead of docker exec into a sleep-loop container', () => {
+    const ensureHa = fs.readFileSync(
+      path.join(repoRoot, 'scripts', 'ensure-ha-e2e.sh'),
+      'utf8',
+    );
+
+    expect(ensureHa).not.toContain('docker exec');
+    expect(ensureHa).not.toMatch(/\bdocker start\b/);
+    expect(ensureHa).toContain('docker stop');
+    expect(ensureHa).toContain('nohup');
+    expect(ensureHa).toContain('/tmp/autosnooze-e2e-ha-config');
   });
 });
