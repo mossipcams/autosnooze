@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.3.2](https://github.com/mossipcams/autosnooze/compare/v0.3.1...v0.3.2) (2026-08-17)
+
+
+### Bug Fixes
+
+* harden runtime recovery paths ([#519](https://github.com/mossipcams/autosnooze/issues/519)) ([e69e476](https://github.com/mossipcams/autosnooze/commit/e69e47608f9e26dee96c27651d3430d62bb72819))
+* **telemetry:** avoid blocking PostHog context collection ([#517](https://github.com/mossipcams/autosnooze/issues/517)) ([71628d8](https://github.com/mossipcams/autosnooze/commit/71628d85d4ccab962cc673d41b705baea73c105d))
+* **telemetry:** keep PostHog upload failures out of HA logs ([#520](https://github.com/mossipcams/autosnooze/issues/520)) ([c427464](https://github.com/mossipcams/autosnooze/commit/c42746416b509dbd0b1ab8ffbb6366f68d4410f5))
+
 ## [0.3.1](https://github.com/mossipcams/autosnooze/compare/v0.3.0...v0.3.1) (2026-08-14)
 
 
