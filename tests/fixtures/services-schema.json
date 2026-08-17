@@ -56,6 +56,52 @@
             "datetime": {}
           }
         },
+        "resume_at_time": {
+          "required": false,
+          "selector": {
+            "time": {}
+          }
+        },
+        "resume_preset": {
+          "required": false,
+          "selector": {
+            "select": {
+              "options": [
+                { "label": "End of day (next midnight)", "value": "end_of_day" },
+                { "label": "Next morning (08:00)", "value": "next_morning" },
+                { "label": "Next sunrise", "value": "next_sunrise" },
+                { "label": "Next sunset", "value": "next_sunset" }
+              ]
+            }
+          }
+        },
+        "notification_trigger": {
+          "required": false,
+          "default": "none",
+          "selector": {
+            "select": {
+              "options": [
+                { "label": "No notification", "value": "none" },
+                { "label": "When snooze starts", "value": "start" },
+                { "label": "Before snooze ends", "value": "about_to_end" },
+                { "label": "When snooze ends", "value": "end" }
+              ]
+            }
+          }
+        },
+        "notification_lead_minutes": {
+          "required": false,
+          "selector": {
+            "select": {
+              "options": [
+                { "label": "30 minutes", "value": "30" },
+                { "label": "1 hour", "value": "60" },
+                { "label": "2 hours", "value": "120" },
+                { "label": "4 hours", "value": "240" }
+              ]
+            }
+          }
+        },
         "confirm": {
           "required": false,
           "default": false,
@@ -82,6 +128,20 @@
     "cancel_all": {
       "name": "Wake All",
       "fields": {}
+    },
+    "clear_notification": {
+      "name": "Clear Notification",
+      "fields": {
+        "entity_id": {
+          "required": true,
+          "selector": {
+            "entity": {
+              "domain": "automation",
+              "multiple": true
+            }
+          }
+        }
+      }
     },
     "pause_by_area": {
       "name": "Snooze by Area",
@@ -134,6 +194,52 @@
           "required": false,
           "selector": {
             "datetime": {}
+          }
+        },
+        "resume_at_time": {
+          "required": false,
+          "selector": {
+            "time": {}
+          }
+        },
+        "resume_preset": {
+          "required": false,
+          "selector": {
+            "select": {
+              "options": [
+                { "label": "End of day (next midnight)", "value": "end_of_day" },
+                { "label": "Next morning (08:00)", "value": "next_morning" },
+                { "label": "Next sunrise", "value": "next_sunrise" },
+                { "label": "Next sunset", "value": "next_sunset" }
+              ]
+            }
+          }
+        },
+        "notification_trigger": {
+          "required": false,
+          "default": "none",
+          "selector": {
+            "select": {
+              "options": [
+                { "label": "No notification", "value": "none" },
+                { "label": "When snooze starts", "value": "start" },
+                { "label": "Before snooze ends", "value": "about_to_end" },
+                { "label": "When snooze ends", "value": "end" }
+              ]
+            }
+          }
+        },
+        "notification_lead_minutes": {
+          "required": false,
+          "selector": {
+            "select": {
+              "options": [
+                { "label": "30 minutes", "value": "30" },
+                { "label": "1 hour", "value": "60" },
+                { "label": "2 hours", "value": "120" },
+                { "label": "4 hours", "value": "240" }
+              ]
+            }
           }
         },
         "confirm": {
@@ -198,6 +304,52 @@
             "datetime": {}
           }
         },
+        "resume_at_time": {
+          "required": false,
+          "selector": {
+            "time": {}
+          }
+        },
+        "resume_preset": {
+          "required": false,
+          "selector": {
+            "select": {
+              "options": [
+                { "label": "End of day (next midnight)", "value": "end_of_day" },
+                { "label": "Next morning (08:00)", "value": "next_morning" },
+                { "label": "Next sunrise", "value": "next_sunrise" },
+                { "label": "Next sunset", "value": "next_sunset" }
+              ]
+            }
+          }
+        },
+        "notification_trigger": {
+          "required": false,
+          "default": "none",
+          "selector": {
+            "select": {
+              "options": [
+                { "label": "No notification", "value": "none" },
+                { "label": "When snooze starts", "value": "start" },
+                { "label": "Before snooze ends", "value": "about_to_end" },
+                { "label": "When snooze ends", "value": "end" }
+              ]
+            }
+          }
+        },
+        "notification_lead_minutes": {
+          "required": false,
+          "selector": {
+            "select": {
+              "options": [
+                { "label": "30 minutes", "value": "30" },
+                { "label": "1 hour", "value": "60" },
+                { "label": "2 hours", "value": "120" },
+                { "label": "4 hours", "value": "240" }
+              ]
+            }
+          }
+        },
         "confirm": {
           "required": false,
           "default": false,
@@ -260,6 +412,53 @@
             "number": {
               "min": -59,
               "max": 59
+            }
+          }
+        }
+      }
+    },
+    "report_telemetry": {
+      "name": "Report Telemetry",
+      "fields": {
+        "event": {
+          "required": true,
+          "selector": {
+            "text": {}
+          }
+        },
+        "properties": {
+          "required": false,
+          "selector": {
+            "object": {}
+          }
+        },
+        "source": {
+          "required": false,
+          "default": "card",
+          "selector": {
+            "text": {}
+          }
+        },
+        "card_type": {
+          "required": false,
+          "selector": {
+            "select": {
+              "options": [
+                { "label": "Full card", "value": "full" },
+                { "label": "Snoozed-only card", "value": "snoozed_only" }
+              ]
+            }
+          }
+        },
+        "platform": {
+          "required": false,
+          "selector": {
+            "select": {
+              "options": [
+                { "label": "Web", "value": "web" },
+                { "label": "Mobile", "value": "mobile" },
+                { "label": "Tablet", "value": "tablet" }
+              ]
             }
           }
         }

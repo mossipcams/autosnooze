@@ -1,3 +1,4 @@
 #!/usr/bin/env sh
 
+scripts/ensure-ha-e2e.sh
 npm run e2e:critical
