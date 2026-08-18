@@ -1,0 +1,5 @@
+file="$1"
+root="$(CDPATH= cd -- "$(dirname "$0")/.." && pwd)"
+tmp="$(mktemp)"
+"$root/scripts/strip-cursor-attribution" < "$file" > "$tmp"
+mv "$tmp" "$file"

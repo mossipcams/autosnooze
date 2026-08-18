@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+# Create a GitHub PR and strip Cursor footer lines from the body.
+set -euo pipefail
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+pr_url="$(gh pr create "$@")"
+body="$(gh pr view "$pr_url" --json body --jq '.body')"
+clean_body="$(
+  printf '%s\n' "$body" |
+    "$ROOT/scripts/strip-cursor-attribution"
+)"
+if [ "$body" != "$clean_body" ]; then
+  gh pr edit "$pr_url" --body "$clean_body"
+fi
+printf '%s\n' "$pr_url"
