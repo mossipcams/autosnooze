@@ -552,10 +552,23 @@ async def _build_client(
         capture_calls,
     )
     hass = MagicMock()
+    pending_tasks: set[asyncio.Task[Any]] = set()
+
+    def async_create_task(coro: Any) -> asyncio.Task[Any]:
+        task = asyncio.create_task(coro)
+        pending_tasks.add(task)
+        task.add_done_callback(pending_tasks.discard)
+        return task
+
+    async def async_block_till_done() -> None:
+        if pending_tasks:
+            await asyncio.gather(*pending_tasks, return_exceptions=True)
+
     hass.async_add_executor_job = lambda callback, *args: asyncio.get_running_loop().run_in_executor(
         None, callback, *args
     )
-    hass.async_create_task = MagicMock()
+    hass.async_create_task = async_create_task
+    hass.async_block_till_done = async_block_till_done
     entry = MagicMock()
     entry.options = {"telemetry_enabled": enabled}
     store = MagicMock()
@@ -674,6 +687,7 @@ async def capture() -> dict[str, Any]:
                     card_type=spec.get("card_type"),
                 )
 
+            await hass.async_block_till_done()
             assert client._posthog is not None
             client._posthog.flush()
             golden_count = len(_wire_events(bodies))
@@ -690,6 +704,7 @@ async def capture() -> dict[str, Any]:
                     properties=_polluted_properties(spec.get("properties", {})),
                     call_data_extras=POLLUTED_CALL_DATA_EXTRAS,
                 )
+                await hass.async_block_till_done()
                 if len(enabled_capture_calls) != before:
                     extra_keys_reject_failures.append(event)
 
@@ -701,6 +716,7 @@ async def capture() -> dict[str, Any]:
                     source=spec["source"],
                     card_type=spec.get("card_type"),
                 )
+                await hass.async_block_till_done()
                 if len(enabled_capture_calls) != before:
                     extra_keys_reject_failures.append(event)
 
@@ -720,8 +736,10 @@ async def capture() -> dict[str, Any]:
                 },
                 source="card",
             )
+            await hass.async_block_till_done()
             rejected_after = len(enabled_capture_calls)
 
+            await hass.async_block_till_done()
             client._posthog.flush()
 
         for args, kwargs in enabled_constructor_calls:
@@ -772,6 +790,7 @@ async def capture() -> dict[str, Any]:
                         source=spec["source"],
                         card_type=spec.get("card_type"),
                     )
+                await disabled_hass.async_block_till_done()
                 if disabled_client._posthog is not None:
                     disabled_client._posthog.flush()
 

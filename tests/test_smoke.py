@@ -528,6 +528,7 @@ async def test_real_posthog_sdk_sends_privacy_filtered_integration_active(
     """Real PostHog SDK emits privacy-filtered integration_active to a local sink."""
     hass, _, _, bodies = smoke_hass_real_posthog
     entry = await setup_entry(hass)
+    await hass.async_block_till_done()
     client = entry.runtime_data.telemetry._posthog
     assert client is not None
     await hass.async_add_executor_job(client.flush)

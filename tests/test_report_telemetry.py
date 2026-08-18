@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -55,8 +56,15 @@ def telemetry_client(hass, captured_captures):
     store = MagicMock()
     store.async_load = AsyncMock(return_value={"install_id": "test-install-uuid"})
     store.async_save = AsyncMock(return_value=None)
-    hass.async_create_task = MagicMock()
+    hass.async_add_executor_job = lambda callback, *args: asyncio.get_running_loop().run_in_executor(
+        None, callback, *args
+    )
     return TelemetryClient(hass, entry, store)
+
+
+async def _drain_report_telemetry_captures(client: TelemetryClient) -> None:
+    if client._capture_tasks:
+        await asyncio.gather(*client._capture_tasks, return_exceptions=True)
 
 
 def test_report_telemetry_schema_accepts_null_optional_fields() -> None:
@@ -118,6 +126,7 @@ async def test_report_telemetry_tracks_valid_card_event(hass, telemetry_client, 
 
     await async_handle_report_telemetry(hass, data, call)
 
+    await _drain_report_telemetry_captures(telemetry_client)
     assert len(captured_captures) == 1
     assert captured_captures[0]["event"] == "wake_clicked"
     assert captured_captures[0]["properties"]["scope"] == "one"
@@ -137,6 +146,7 @@ async def test_report_telemetry_tracks_coarse_platform(hass, telemetry_client, c
 
     await async_handle_report_telemetry(hass, data, call)
 
+    await _drain_report_telemetry_captures(telemetry_client)
     assert captured_captures[0]["properties"]["platform"] == "tablet"
 
 
@@ -156,6 +166,7 @@ async def test_report_telemetry_handles_null_properties_and_card_type(
 
     await async_handle_report_telemetry(hass, data, call)
 
+    await _drain_report_telemetry_captures(telemetry_client)
     assert captured_captures == []
 
 
@@ -178,6 +189,7 @@ async def test_report_telemetry_noop_when_disabled(hass, telemetry_client, captu
 
     await async_handle_report_telemetry(hass, data, call)
 
+    await _drain_report_telemetry_captures(telemetry_client)
     assert captured_captures == []
 
 
@@ -190,6 +202,7 @@ async def test_report_telemetry_noop_when_event_not_string(hass, telemetry_clien
 
     await async_handle_report_telemetry(hass, data, call)
 
+    await _drain_report_telemetry_captures(telemetry_client)
     assert captured_captures == []
 
 
@@ -206,6 +219,7 @@ async def test_report_telemetry_ignores_non_dict_properties(hass, telemetry_clie
 
     await async_handle_report_telemetry(hass, data, call)
 
+    await _drain_report_telemetry_captures(telemetry_client)
     assert captured_captures == []
 
 
@@ -222,4 +236,5 @@ async def test_report_telemetry_coerces_bad_source_and_card_type(hass, telemetry
 
     await async_handle_report_telemetry(hass, data, call)
 
+    await _drain_report_telemetry_captures(telemetry_client)
     assert captured_captures == []

@@ -8,6 +8,7 @@ import logging
 import uuid
 from collections.abc import Mapping
 from dataclasses import dataclass, field
+from functools import partial
 from datetime import datetime
 from queue import Empty, Queue
 from typing import Any
@@ -18,7 +19,6 @@ from homeassistant.exceptions import ServiceValidationError
 from homeassistant.helpers.storage import Store
 from homeassistant.util import dt as dt_util
 from posthog import Posthog
-from posthog.utils import system_context
 
 from ..const import (
     DOMAIN,
@@ -361,6 +361,8 @@ class TelemetryClient:
     _disabled: bool = False
     _persistence_lock: asyncio.Lock = field(default_factory=asyncio.Lock)
     _persistence_tasks: set[asyncio.Future[Any]] = field(default_factory=set)
+    _capture_tasks: set[asyncio.Future[Any]] = field(default_factory=set)
+    _pending_throttles: set[str] = field(default_factory=set)
 
     def is_enabled(self) -> bool:
         if self._disabled:
@@ -381,7 +383,6 @@ class TelemetryClient:
             self._install_id = install_id
             self._last_card_viewed_day = _load_stored_day(stored, "last_card_viewed_day")
             self._last_integration_active_day = _load_stored_day(stored, "last_integration_active_day")
-            await self.hass.async_add_executor_job(system_context)
             self._posthog = Posthog(
                 POSTHOG_PROJECT_API_KEY,
                 host=POSTHOG_HOST,
@@ -401,6 +402,8 @@ class TelemetryClient:
 
     async def async_unload(self) -> None:
         self._disabled = True
+        if self._capture_tasks:
+            await asyncio.gather(*self._capture_tasks, return_exceptions=True)
         if self._persistence_tasks:
             await asyncio.gather(*self._persistence_tasks, return_exceptions=True)
         client = self._posthog
@@ -431,8 +434,12 @@ class TelemetryClient:
                 throttle = ("last_card_viewed_day", "_last_card_viewed_day")
             elif event == "integration_active":
                 throttle = ("last_integration_active_day", "_last_integration_active_day")
-            if throttle is not None and not self._should_emit_once_per_utc_day(*throttle):
-                return
+            if throttle is not None:
+                storage_key, cached_attr = throttle
+                if not self._should_emit_once_per_utc_day(storage_key, cached_attr):
+                    return
+                if storage_key in self._pending_throttles:
+                    return
 
             payload = sanitize_event_properties(
                 event,
@@ -445,7 +452,8 @@ class TelemetryClient:
                 return
 
             distinct_id = self._distinct_id()
-            if distinct_id is None or self._posthog is None:
+            client = self._posthog
+            if distinct_id is None or client is None:
                 return
 
             payload = {
@@ -461,16 +469,53 @@ class TelemetryClient:
                 },
             }
 
-            capture_id = self._posthog.capture(
-                event,
-                distinct_id=distinct_id,
-                properties=payload,
-                disable_geoip=True,
+            if throttle is not None:
+                self._pending_throttles.add(throttle[0])
+
+            coroutine = self._capture_in_executor(client, event, distinct_id, payload, throttle)
+            try:
+                capture_task = self.hass.async_create_task(coroutine)
+            except Exception:
+                if throttle is not None:
+                    self._pending_throttles.discard(throttle[0])
+                coroutine.close()
+                raise
+            if isinstance(capture_task, asyncio.Future):
+                self._capture_tasks.add(capture_task)
+                capture_task.add_done_callback(self._capture_tasks.discard)
+            else:
+                if throttle is not None:
+                    self._pending_throttles.discard(throttle[0])
+                coroutine.close()
+        except Exception:
+            _LOGGER.debug("Telemetry track failed", exc_info=True)
+
+    async def _capture_in_executor(
+        self,
+        client: Posthog,
+        event: str,
+        distinct_id: str,
+        payload: dict[str, Any],
+        throttle: tuple[str, str] | None,
+    ) -> None:
+        storage_key = throttle[0] if throttle is not None else None
+        try:
+            capture_id = await self.hass.async_add_executor_job(
+                partial(
+                    client.capture,
+                    event,
+                    distinct_id=distinct_id,
+                    properties=payload,
+                    disable_geoip=True,
+                )
             )
             if throttle is not None and capture_id is not None:
                 self._record_emitted_once_per_utc_day(*throttle)
         except Exception:
-            _LOGGER.debug("Telemetry track failed", exc_info=True)
+            _LOGGER.debug("Telemetry capture failed", exc_info=True)
+        finally:
+            if storage_key is not None:
+                self._pending_throttles.discard(storage_key)
 
     def track_operation_failed(
         self,

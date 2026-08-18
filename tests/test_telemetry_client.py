@@ -5,19 +5,34 @@ from __future__ import annotations
 import hashlib
 import asyncio
 import logging
+import threading
+from functools import partial
 from queue import Queue
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from homeassistant.exceptions import ServiceValidationError
-from posthog.utils import system_context
 
 from custom_components.autosnooze.infrastructure.telemetry import (
     TelemetryClient,
     _filter_posthog_message,
     _silence_posthog_sdk_logs,
 )
+
+
+async def _drain_capture_tasks(client: TelemetryClient) -> None:
+    if client._capture_tasks:
+        await asyncio.gather(*client._capture_tasks, return_exceptions=True)
+
+
+async def _run_executor_job(callback: Any, *args: Any) -> Any:
+    loop = asyncio.get_running_loop()
+    return await loop.run_in_executor(None, callback, *args)
+
+
+def _configure_telemetry_hass(hass: Any) -> None:
+    hass.async_add_executor_job = _run_executor_job
 
 
 def test_posthog_wire_filter_removes_sdk_context() -> None:
@@ -154,7 +169,7 @@ def telemetry_client(hass, captured_captures):
     store = MagicMock()
     store.async_load = AsyncMock(return_value={"install_id": "test-install-uuid"})
     store.async_save = AsyncMock(return_value=None)
-    hass.async_create_task = MagicMock()
+    _configure_telemetry_hass(hass)
     client = TelemetryClient(hass, entry, store)
     return client
 
@@ -203,18 +218,119 @@ async def test_track_capture_failure_does_not_log_warning_or_error(telemetry_cli
         await telemetry_client.async_setup()
         mock_posthog.capture.side_effect = RuntimeError("boom")
         telemetry_client.track("integration_active", {}, source="startup")
+        await _drain_capture_tasks(telemetry_client)
         handler.emit.assert_not_called()
     finally:
         telemetry_logger.removeHandler(handler)
 
 
 @pytest.mark.asyncio
-async def test_async_setup_preloads_posthog_system_context_in_executor(telemetry_client) -> None:
-    telemetry_client.hass.async_add_executor_job = AsyncMock()
+async def test_track_capture_runs_on_executor_not_event_loop(telemetry_client, captured_captures) -> None:
+    _captures, mock_posthog = captured_captures
+    loop = asyncio.get_running_loop()
+    on_loop = False
+    executor_calls: list[Any] = []
+
+    async def recording_executor_job(callback: Any, *args: Any) -> Any:
+        executor_calls.append(callback)
+        return await loop.run_in_executor(None, callback, *args)
+
+    telemetry_client.hass.async_add_executor_job = recording_executor_job
+
+    def capture_on_loop(*_args: Any, **_kwargs: Any) -> str:
+        nonlocal on_loop
+        on_loop = asyncio.get_running_loop() is loop
+        return "capture-id"
+
+    mock_posthog.capture.side_effect = capture_on_loop
 
     await telemetry_client.async_setup()
+    telemetry_client.track("integration_active", {}, source="startup")
+    await _drain_capture_tasks(telemetry_client)
 
-    telemetry_client.hass.async_add_executor_job.assert_awaited_once_with(system_context)
+    assert on_loop is False
+    assert len(executor_calls) == 1
+    assert isinstance(executor_calls[0], partial)
+    assert executor_calls[0].func is mock_posthog.capture
+
+
+@pytest.mark.asyncio
+async def test_async_unload_waits_for_pending_capture_tasks(telemetry_client, captured_captures) -> None:
+    _captures, mock_posthog = captured_captures
+    capture_started = asyncio.Event()
+    allow_capture = threading.Event()
+
+    def slow_capture(*_args: Any, **_kwargs: Any) -> str:
+        capture_started.set()
+        allow_capture.wait(timeout=5)
+        return "capture-id"
+
+    mock_posthog.capture.side_effect = slow_capture
+
+    await telemetry_client.async_setup()
+    telemetry_client.track("wake_clicked", {"scope": "one"}, source="card")
+    await capture_started.wait()
+
+    unload_task = asyncio.create_task(telemetry_client.async_unload())
+    await asyncio.sleep(0.05)
+    assert not unload_task.done()
+
+    allow_capture.set()
+    await asyncio.wait_for(unload_task, timeout=5)
+    assert mock_posthog.disabled is True
+
+
+@pytest.mark.asyncio
+async def test_create_task_failure_discards_pending_throttle_and_allows_retry(
+    telemetry_client, captured_captures
+) -> None:
+    captures, mock_posthog = captured_captures
+    original_create_task = telemetry_client.hass.async_create_task
+
+    def failing_create_task(_coro: object) -> None:
+        raise RuntimeError("create_task failed")
+
+    await telemetry_client.async_setup()
+    telemetry_client.hass.async_create_task = failing_create_task
+
+    telemetry_client.track("integration_active", {}, source="startup")
+
+    assert "last_integration_active_day" not in telemetry_client._pending_throttles
+
+    telemetry_client.hass.async_create_task = original_create_task
+    telemetry_client.track("integration_active", {}, source="startup")
+    await _drain_capture_tasks(telemetry_client)
+
+    assert len(captures) == 1
+    assert captures[0]["event"] == "integration_active"
+    mock_posthog.capture.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_repeated_throttled_events_before_capture_complete_do_not_duplicate(
+    telemetry_client, captured_captures
+) -> None:
+    _captures, mock_posthog = captured_captures
+    capture_started = asyncio.Event()
+    allow_capture = threading.Event()
+
+    def slow_capture(*_args: Any, **_kwargs: Any) -> str:
+        capture_started.set()
+        allow_capture.wait(timeout=5)
+        return "capture-id"
+
+    mock_posthog.capture.side_effect = slow_capture
+
+    await telemetry_client.async_setup()
+    telemetry_client.track("integration_active", {}, source="startup")
+    telemetry_client.track("integration_active", {}, source="startup")
+    telemetry_client.track("integration_active", {}, source="startup")
+    await capture_started.wait()
+
+    allow_capture.set()
+    await _drain_capture_tasks(telemetry_client)
+
+    assert mock_posthog.capture.call_count == 1
 
 
 @pytest.mark.asyncio
@@ -236,6 +352,7 @@ async def test_client_hashes_install_id_for_distinct_id(telemetry_client, captur
     captures, _mock_posthog = captured_captures
     await telemetry_client.async_setup()
     telemetry_client.track("integration_active", {}, source="startup")
+    await _drain_capture_tasks(telemetry_client)
     assert len(captures) == 1
     assert captures[0]["distinct_id"] == hashlib.sha256(b"test-install-uuid").hexdigest()
     assert "clientUser" not in captures[0]
@@ -260,6 +377,7 @@ async def test_install_id_never_in_properties(telemetry_client, captured_capture
         },
         source="card",
     )
+    await _drain_capture_tasks(telemetry_client)
     properties = captures[0]["properties"]
     assert properties is not None
     assert "test-install-uuid" not in str(properties)
@@ -271,6 +389,7 @@ async def test_capture_called_with_disable_geoip(telemetry_client, captured_capt
     captures, _mock_posthog = captured_captures
     await telemetry_client.async_setup()
     telemetry_client.track("integration_active", {}, source="startup")
+    await _drain_capture_tasks(telemetry_client)
     assert captures[0]["disable_geoip"] is True
 
 
@@ -280,6 +399,7 @@ async def test_every_event_includes_set_person_properties(telemetry_client, capt
     await telemetry_client.async_setup()
     telemetry_client.track("integration_active", {}, source="startup")
     telemetry_client.track("wake_clicked", {"scope": "one"}, source="card")
+    await _drain_capture_tasks(telemetry_client)
     for capture in captures:
         properties = capture["properties"]
         assert properties is not None
@@ -302,6 +422,7 @@ async def test_card_supplied_set_rejects_event(telemetry_client, captured_captur
         {"scope": "one", "$set": {"autosnooze_version": "evil"}, "$set_once": {"initial_autosnooze_version": "evil"}},
         source="card",
     )
+    await _drain_capture_tasks(telemetry_client)
     assert captures == []
     mock_posthog.capture.assert_not_called()
 
@@ -312,6 +433,7 @@ async def test_integration_active_throttled_once_per_day(telemetry_client, captu
     await telemetry_client.async_setup()
     telemetry_client.track("integration_active", {}, source="startup")
     telemetry_client.track("integration_active", {}, source="startup")
+    await _drain_capture_tasks(telemetry_client)
     assert len(captures) == 1
 
 
@@ -321,6 +443,7 @@ async def test_card_viewed_throttled_once_per_day(hass, telemetry_client, captur
     await telemetry_client.async_setup()
     telemetry_client.track("card_viewed", {"card_type": "full"}, source="card", card_type="full")
     telemetry_client.track("card_viewed", {"card_type": "full"}, source="card", card_type="full")
+    await _drain_capture_tasks(telemetry_client)
     assert len(captures) == 1
 
 
@@ -343,6 +466,7 @@ async def test_invalid_daily_event_does_not_consume_throttle(telemetry_client, c
 
     telemetry_client.track("card_viewed", {}, source="card", card_type="invalid")
     telemetry_client.track("card_viewed", {"card_type": "full"}, source="card", card_type="full")
+    await _drain_capture_tasks(telemetry_client)
 
     assert len(captures) == 1
     assert captures[0]["event"] == "card_viewed"
@@ -355,7 +479,9 @@ async def test_posthog_failure_does_not_consume_throttle(telemetry_client, captu
     mock_posthog.capture.side_effect = [RuntimeError("offline"), None]
 
     telemetry_client.track("integration_active", {}, source="startup")
+    await _drain_capture_tasks(telemetry_client)
     telemetry_client.track("integration_active", {}, source="startup")
+    await _drain_capture_tasks(telemetry_client)
 
     assert mock_posthog.capture.call_count == 2
     assert len(captures) == 0
@@ -368,8 +494,10 @@ async def test_posthog_dropped_capture_does_not_consume_throttle(telemetry_clien
     mock_posthog.capture.side_effect = [None, "capture-id"]
 
     telemetry_client.track("integration_active", {}, source="startup")
+    await _drain_capture_tasks(telemetry_client)
     telemetry_client.track("integration_active", {}, source="startup")
     telemetry_client.track("integration_active", {}, source="startup")
+    await _drain_capture_tasks(telemetry_client)
 
     assert mock_posthog.capture.call_count == 2
 
@@ -429,6 +557,7 @@ async def test_capture_does_not_raise_on_posthog_failure(telemetry_client, captu
     await telemetry_client.async_setup()
     mock_posthog.capture.side_effect = RuntimeError("boom")
     telemetry_client.track("integration_active", {}, source="startup")
+    await _drain_capture_tasks(telemetry_client)
 
 
 @pytest.mark.asyncio
@@ -447,6 +576,7 @@ async def test_async_unload_disables_client_and_blocks_track(telemetry_client, c
     captures, mock_posthog = captured_captures
     await telemetry_client.async_setup()
     telemetry_client.track("integration_active", {}, source="startup")
+    await _drain_capture_tasks(telemetry_client)
     assert len(captures) == 1
 
     telemetry_client.hass.async_add_executor_job = AsyncMock()
@@ -456,6 +586,7 @@ async def test_async_unload_disables_client_and_blocks_track(telemetry_client, c
     assert telemetry_client._posthog is None
 
     telemetry_client.track("integration_active", {}, source="startup")
+    await _drain_capture_tasks(telemetry_client)
     assert len(captures) == 1
 
 
@@ -467,6 +598,8 @@ async def test_track_operation_failed_omits_invalid_strategy(telemetry_client, c
     error.translation_key = "invalid_duration"
 
     telemetry_client.track_operation_failed("pause", error, strategy="", target_count=2)
+    telemetry_client.track_operation_failed("pause", error, strategy="duration", target_count=1)
+    await _drain_capture_tasks(telemetry_client)
     properties = captures[0]["properties"]
     assert properties is not None
     assert properties["operation"] == "pause"
@@ -474,5 +607,4 @@ async def test_track_operation_failed_omits_invalid_strategy(telemetry_client, c
     assert properties["target_count"] == 2
     assert "strategy" not in properties
 
-    telemetry_client.track_operation_failed("pause", error, strategy="duration", target_count=1)
     assert captures[1]["properties"]["strategy"] == "duration"
