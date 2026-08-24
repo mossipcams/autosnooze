@@ -89,6 +89,8 @@ export const ERROR_MESSAGES: Record<string, string> = {
   notification_lead_too_long: 'The notification lead time must be shorter than the snooze window.',
   invalid_resume_preset:
     'Failed to snooze: Unknown resume preset. Valid presets: end_of_day, next_morning, next_sunrise, next_sunset.',
+  invalid_previous_state:
+    'Failed to snooze: Wait until the input Boolean is on or off, or choose a fixed resume state.',
 };
 
 /**

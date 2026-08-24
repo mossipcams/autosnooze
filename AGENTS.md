@@ -1,4 +1,4 @@
-# Workflow
+# Workflow (STRICT)
 
 For any code change, follow this sequence:
 
@@ -14,9 +14,9 @@ For any code change, follow this sequence:
 
 ## Step 2: Execute with TDD
 For each task after approval:
-1. Write failing test -> run it -> show failure
-2. Write minimal implementation -> run test -> show pass
-3. Ask: "Task N done. Continue?" and wait for approval before moving on
+1. Write failing test and run it
+2. Write the minimal implementation and run the test
+3. Continue through the approved plan
 
 ## Architecture
 

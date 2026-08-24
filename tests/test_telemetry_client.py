@@ -288,7 +288,7 @@ async def test_every_event_includes_set_person_properties(telemetry_client, capt
         assert "autosnooze_version" not in properties
         assert "home_assistant_version" not in properties
         assert "event_schema_version" not in properties
-        assert properties["$set"]["event_schema_version"] == "3"
+        assert properties["$set"]["event_schema_version"] == "4"
         assert properties["$set_once"]["initial_autosnooze_version"] == properties["$set"]["autosnooze_version"]
         assert properties["$set_once"]["initial_home_assistant_version"] == properties["$set"]["home_assistant_version"]
 

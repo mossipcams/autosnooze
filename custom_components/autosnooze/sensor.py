@@ -74,7 +74,7 @@ class AutoSnoozeCountSensor(SensorEntity):
     @property
     def native_value(self) -> int:
         """Return count of snoozed automations."""
-        return len(self._entry.runtime_data.paused)
+        return sum(entity_id.startswith("automation.") for entity_id in self._entry.runtime_data.paused)
 
     @property
     def extra_state_attributes(self) -> dict[str, Any]:
@@ -84,8 +84,16 @@ class AutoSnoozeCountSensor(SensorEntity):
         if not presets:
             presets = DEFAULT_DURATION_PRESETS
 
-        paused = self._entry.runtime_data.get_paused_dict()
-        scheduled = self._entry.runtime_data.get_scheduled_dict()
+        paused = {
+            entity_id: details
+            for entity_id, details in self._entry.runtime_data.get_paused_dict().items()
+            if entity_id.startswith("automation.")
+        }
+        scheduled = {
+            entity_id: details
+            for entity_id, details in self._entry.runtime_data.get_scheduled_dict().items()
+            if entity_id.startswith("automation.")
+        }
 
         return {
             "schema_version": SENSOR_SCHEMA_VERSION,

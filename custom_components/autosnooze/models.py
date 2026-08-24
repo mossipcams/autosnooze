@@ -13,6 +13,18 @@ from .domain.notifications import (
     NotificationTrigger,
     validate_notification_config,
 )
+from .const import RESUME_STATE_OFF, RESUME_STATE_ON, RESUME_STATE_PREVIOUS
+
+
+def resolve_resume_state(entity_id: str, requested_state: str, *, previous_state: str | None) -> str:
+    """Resolve the state to apply when this snooze ends."""
+    if entity_id.startswith("automation."):
+        return RESUME_STATE_ON
+    if requested_state == RESUME_STATE_PREVIOUS:
+        if previous_state not in (RESUME_STATE_ON, RESUME_STATE_OFF):
+            raise ValueError(f"Cannot restore unstable state: {previous_state}")
+        return previous_state
+    return requested_state
 
 
 def parse_datetime_utc(dt_str: str) -> datetime:
@@ -85,6 +97,12 @@ class PausedAutomation:
     notification_trigger: NotificationTrigger = NOTIFICATION_TRIGGER_NONE
     notification_lead_minutes: int | None = None
     resume_retries: int = 0
+    resume_state: str = RESUME_STATE_ON
+
+    @property
+    def resume_enabled(self) -> bool:
+        """Return whether the entity should be on when the snooze ends."""
+        return self.resume_state == RESUME_STATE_ON
 
     def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for storage/attributes."""
@@ -102,6 +120,8 @@ class PausedAutomation:
             result["disable_at"] = self.disable_at.isoformat()
         if self.notification_lead_minutes is not None:
             result["notification_lead_minutes"] = self.notification_lead_minutes
+        if self.resume_state != RESUME_STATE_ON:
+            result["resume_state"] = self.resume_state
         return result
 
     @classmethod
@@ -125,6 +145,7 @@ class PausedAutomation:
             notification_trigger=notification_trigger,
             notification_lead_minutes=notification_lead_minutes,
             resume_retries=data.get("resume_retries", 0),
+            resume_state=data.get("resume_state", RESUME_STATE_ON),
         )
 
 
@@ -138,6 +159,7 @@ class ScheduledSnooze:
     resume_at: datetime
     notification_trigger: NotificationTrigger = NOTIFICATION_TRIGGER_NONE
     notification_lead_minutes: int | None = None
+    resume_state: str = RESUME_STATE_ON
 
     def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for storage/attributes."""
@@ -149,6 +171,8 @@ class ScheduledSnooze:
         }
         if self.notification_lead_minutes is not None:
             result["notification_lead_minutes"] = self.notification_lead_minutes
+        if self.resume_state != RESUME_STATE_ON:
+            result["resume_state"] = self.resume_state
         return result
 
     @classmethod
@@ -164,4 +188,5 @@ class ScheduledSnooze:
             resume_at=parse_datetime_utc(data["resume_at"]),
             notification_trigger=notification_trigger,
             notification_lead_minutes=notification_lead_minutes,
+            resume_state=data.get("resume_state", RESUME_STATE_ON),
         )

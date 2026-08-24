@@ -59,15 +59,14 @@ async def mock_dependencies(hass: HomeAssistant):
     for dep in ["frontend", "http", "lovelace", "automation"]:
         hass.config.components.add(dep)
 
-    # Register mock automation services (turn_on, turn_off, toggle)
-    # These are needed because the pause service calls automation.turn_off
+    # Register mock generic entity services (turn_on, turn_off, toggle)
     async def mock_automation_service(call):
         """Mock automation service handler."""
         pass
 
-    hass.services.async_register("automation", "turn_on", mock_automation_service)
-    hass.services.async_register("automation", "turn_off", mock_automation_service)
-    hass.services.async_register("automation", "toggle", mock_automation_service)
+    hass.services.async_register("homeassistant", "turn_on", mock_automation_service)
+    hass.services.async_register("homeassistant", "turn_off", mock_automation_service)
+    hass.services.async_register("homeassistant", "toggle", mock_automation_service)
 
     yield
 
@@ -337,6 +336,76 @@ class TestCancelService:
 
         # Should be removed from paused
         assert "automation.test_automation_1" not in data.paused
+
+    async def test_pause_and_cancel_input_boolean(self, hass: HomeAssistant, setup_integration: ConfigEntry) -> None:
+        """Test pausing and canceling an input Boolean through services."""
+        turn_off = AsyncMock()
+        turn_on = AsyncMock()
+        hass.services.async_register("homeassistant", "turn_off", turn_off)
+        hass.services.async_register("homeassistant", "turn_on", turn_on)
+        hass.states.async_set("input_boolean.away_mode", "on", {"friendly_name": "Away mode"})
+        data = setup_integration.runtime_data
+
+        await hass.services.async_call(
+            DOMAIN,
+            "pause",
+            {ATTR_ENTITY_ID: ["input_boolean.away_mode"], "hours": 1},
+            blocking=True,
+        )
+
+        assert "input_boolean.away_mode" in data.paused
+        turn_off.assert_awaited_once()
+        assert turn_off.await_args.args[0].data == {ATTR_ENTITY_ID: "input_boolean.away_mode"}
+
+        await hass.services.async_call(
+            DOMAIN,
+            "cancel",
+            {ATTR_ENTITY_ID: ["input_boolean.away_mode"]},
+            blocking=True,
+        )
+
+        assert "input_boolean.away_mode" not in data.paused
+        turn_on.assert_awaited_once()
+        assert turn_on.await_args.args[0].data == {ATTR_ENTITY_ID: "input_boolean.away_mode"}
+
+    @pytest.mark.parametrize(
+        ("resume_state", "expected_enabled"),
+        [("previous", False), ("on", True), ("off", False)],
+    )
+    async def test_input_boolean_resume_state_options(
+        self,
+        hass: HomeAssistant,
+        setup_integration: ConfigEntry,
+        resume_state: str,
+        expected_enabled: bool,
+    ) -> None:
+        """Direct service calls apply every supported input Boolean end state."""
+        turn_off = AsyncMock()
+        turn_on = AsyncMock()
+        hass.services.async_register("homeassistant", "turn_off", turn_off)
+        hass.services.async_register("homeassistant", "turn_on", turn_on)
+        entity_id = "input_boolean.away_mode"
+        hass.states.async_set(entity_id, "off")
+
+        await hass.services.async_call(
+            DOMAIN,
+            "pause",
+            {ATTR_ENTITY_ID: [entity_id], "hours": 1, "resume_state": resume_state},
+            blocking=True,
+        )
+        await hass.services.async_call(
+            DOMAIN,
+            "cancel",
+            {ATTR_ENTITY_ID: [entity_id]},
+            blocking=True,
+        )
+
+        if expected_enabled:
+            turn_on.assert_awaited_once()
+            assert turn_off.await_count == 1
+        else:
+            turn_on.assert_not_awaited()
+            assert turn_off.await_count == 2
 
 
 class TestCancelAllService:

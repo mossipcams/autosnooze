@@ -22,6 +22,11 @@ _LOGGER = logging.getLogger(__name__)
 
 DOMAIN = "autosnooze"
 PLATFORMS = ["sensor"]
+SUPPORTED_ENTITY_PREFIXES = ("automation.", "input_boolean.")
+RESUME_STATE_ON = "on"
+RESUME_STATE_OFF = "off"
+RESUME_STATE_PREVIOUS = "previous"
+RESUME_STATE_VALUES = (RESUME_STATE_PREVIOUS, RESUME_STATE_ON, RESUME_STATE_OFF)
 STORAGE_VERSION = 2
 SIGNAL_STATE_CHANGED = f"{DOMAIN}_state_changed"
 SENSOR_SCHEMA_VERSION = 1
@@ -143,6 +148,7 @@ PAUSE_SCHEMA = vol.All(
     vol.Schema(
         {
             vol.Required(ATTR_ENTITY_ID): cv.entity_ids,
+            vol.Optional("resume_state", default=RESUME_STATE_PREVIOUS): vol.In(RESUME_STATE_VALUES),
             **_DURATION_AND_DATE_SCHEMA,
         }
     ),

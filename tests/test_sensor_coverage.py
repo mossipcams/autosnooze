@@ -122,6 +122,34 @@ class TestAutoSnoozeCountSensor:
         assert attrs["paused"]["automation.test1"]["friendly_name"] == "Test 1"
         assert attrs["scheduled"]["automation.test2"]["friendly_name"] == "Test 2"
 
+    def test_frontend_payload_exposes_only_automations(
+        self, sensor: AutoSnoozeCountSensor, data: AutomationPauseData
+    ) -> None:
+        """Keep service-only input booleans out of the frontend sensor contract."""
+        now = datetime.now(UTC)
+        for entity_id in ("automation.paused", "input_boolean.paused"):
+            data.paused[entity_id] = PausedAutomation(
+                entity_id=entity_id,
+                friendly_name=entity_id,
+                resume_at=now + timedelta(hours=1),
+                paused_at=now,
+            )
+        for entity_id in ("automation.scheduled", "input_boolean.scheduled"):
+            data.scheduled[entity_id] = ScheduledSnooze(
+                entity_id=entity_id,
+                friendly_name=entity_id,
+                disable_at=now + timedelta(minutes=30),
+                resume_at=now + timedelta(hours=1),
+            )
+
+        attrs = sensor.extra_state_attributes
+
+        assert sensor.native_value == 1
+        assert set(attrs["paused"]) == {"automation.paused"}
+        assert set(attrs["scheduled"]) == {"automation.scheduled"}
+        assert set(data.paused) == {"automation.paused", "input_boolean.paused"}
+        assert set(data.scheduled) == {"automation.scheduled", "input_boolean.scheduled"}
+
     @pytest.mark.asyncio
     async def test_async_added_to_hass_registers_listener(
         self, sensor: AutoSnoozeCountSensor, data: AutomationPauseData
