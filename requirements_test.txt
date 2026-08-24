@@ -7,7 +7,7 @@ pytest-homeassistant-custom-component>=0.13.355,<0.13.356
 pytest-cov==7.1.0
 
 # Linting and formatting (ruff handles both)
-ruff>=0.16.3
+ruff>=0.16.4
 
 # Type checking
 pyright>=1.1.411
