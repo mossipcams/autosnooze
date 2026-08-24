@@ -42,11 +42,11 @@
   "services": {
     "pause": {
       "name": "Snooze",
-      "description": "Snooze automation(s) for a specified duration or until a specific time.",
+      "description": "Snooze entities for a specified duration or until a specific time. The configured resume state is applied when the snooze ends.",
       "fields": {
         "entity_id": {
-          "name": "Automation",
-          "description": "Automation(s) to snooze."
+          "name": "Entity",
+          "description": "Automation(s) or input Boolean(s) to snooze."
         },
         "days": {
           "name": "Days",
@@ -62,19 +62,23 @@
         },
         "disable_at": {
           "name": "Disable At",
-          "description": "Schedule when to disable the automation (future datetime)."
+          "description": "Schedule when to disable the entities (future datetime)."
         },
         "resume_at": {
           "name": "Resume At",
-          "description": "Specific datetime when to re-enable the automation. Accepts template-rendered datetime strings. Use instead of duration fields."
+          "description": "Specific datetime when to re-enable the entities. Accepts template-rendered datetime strings. Use instead of duration fields."
         },
         "resume_at_time": {
           "name": "Resume At Time",
-          "description": "Local time of day when to re-enable the automation. Resumes today if the time is still upcoming, otherwise tomorrow. Use instead of duration fields."
+          "description": "Local time of day when to re-enable the entities. Resumes today if the time is still upcoming, otherwise tomorrow. Use instead of duration fields."
         },
         "resume_preset": {
           "name": "Resume Preset",
           "description": "Built-in resume time. Use instead of duration fields."
+        },
+        "resume_state": {
+          "name": "Resume State",
+          "description": "State to apply to input Booleans when the snooze ends. Previous captures the state when the snooze begins. Automations always turn on."
         },
         "notification_trigger": {
           "name": "Notification Trigger",
@@ -88,25 +92,25 @@
     },
     "cancel": {
       "name": "Wake",
-      "description": "Wake snoozed automation(s) immediately.",
+      "description": "End snoozes immediately and apply each entity's configured resume state.",
       "fields": {
         "entity_id": {
-          "name": "Automation",
-          "description": "Automation(s) to wake."
+          "name": "Entity",
+          "description": "Snoozed automation(s) or input Boolean(s) to wake."
         }
       }
     },
     "cancel_all": {
       "name": "Wake All",
-      "description": "Wake all snoozed automations immediately."
+      "description": "End all snoozes immediately and apply each entity's configured resume state."
     },
     "clear_notification": {
       "name": "Clear Notification",
-      "description": "Remove notification settings from currently snoozed automations.",
+      "description": "Remove notification settings from currently snoozed entities.",
       "fields": {
         "entity_id": {
-          "name": "Automation",
-          "description": "Snoozed automation(s) whose notification settings should be cleared."
+          "name": "Entity",
+          "description": "Snoozed automation(s) or input Boolean(s) whose notification settings should be cleared."
         }
       }
     },
@@ -207,8 +211,8 @@
       "description": "Cancel a scheduled snooze before it activates.",
       "fields": {
         "entity_id": {
-          "name": "Automation",
-          "description": "Automation(s) with scheduled snoozes to cancel."
+          "name": "Entity",
+          "description": "Automation(s) or input Boolean(s) with scheduled snoozes to cancel."
         }
       }
     },
@@ -217,8 +221,8 @@
       "description": "Add or subtract time from an active snooze.",
       "fields": {
         "entity_id": {
-          "name": "Automation",
-          "description": "Automation(s) to adjust."
+          "name": "Entity",
+          "description": "Snoozed automation(s) or input Boolean(s) to adjust."
         },
         "days": {
           "name": "Days",
@@ -266,7 +270,10 @@
       "message": "Duration must be greater than zero. Please specify at least one of: days, hours, or minutes."
     },
     "not_automation": {
-      "message": "{entity_id} is not an automation entity. Only entities starting with 'automation.' can be snoozed."
+      "message": "{entity_id} is not supported. Only automation and input Boolean entities can be snoozed."
+    },
+    "invalid_previous_state": {
+      "message": "Cannot restore the previous state for {entity_id} because its current state is {state}. Wait until it is on or off, or choose a fixed resume state."
     },
     "resume_time_past": {
       "message": "Resume time must be in the future. Please select a date and time that hasn't passed yet."
@@ -284,7 +291,7 @@
       "message": "Failed to save snooze changes. Please try again and check Home Assistant logs if the issue persists."
     },
     "confirm_required": {
-      "message": "Some selected automations are tagged autosnooze_confirm or detected as critical and require confirmation before snoozing."
+      "message": "Some selected entities are tagged autosnooze_confirm or detected as critical and require confirmation before snoozing."
     },
     "notification_lead_too_long": {
       "message": "The notification lead time must be shorter than the snooze window."

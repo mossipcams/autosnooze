@@ -122,7 +122,7 @@ This is **not fully anonymous**. Events are not linked to your Home Assistant us
 Full event catalog and example payloads:
 
 - [Event properties](docs/posthog-privacy.md#full-event-catalog)
-- [Exact sanitized payloads](docs/posthog-payloads.json) (26 events, CI-verified)
+- [Exact sanitized payloads](docs/posthog-payloads.json) (27 events, CI-verified)
 
 ### What is never sent
 
@@ -152,7 +152,7 @@ Pause security automations while fixing sensors:
 
 ### `autosnooze.pause`
 
-Snooze one or more automations.
+Snooze one or more automations or input Booleans.
 
 ```yaml
 action: autosnooze.pause
@@ -165,19 +165,32 @@ data:
 
 |Parameter                  |Required|Description                                       |
 |---------------------------|--------|--------------------------------------------------|
-|`entity_id`                |Yes     |Automation entity ID(s)                           |
+|`entity_id`                |Yes     |Automation or input Boolean entity ID(s)          |
 |`days`                     |No      |Duration in days (0-365)                          |
 |`hours`                    |No      |Duration in hours (0-23)                          |
 |`minutes`                  |No      |Duration in minutes (0-59)                        |
 |`resume_at`                |No      |Datetime when to re-enable                        |
 |`resume_at_time`           |No      |Local time of day when to re-enable (next occurrence)|
 |`resume_preset`            |No      |Built-in resume time: `end_of_day`, `next_morning`, `next_sunrise`, `next_sunset`|
+|`resume_state`             |No      |Input Boolean end state: `previous` (default), `on`, or `off`; automations always turn on|
 |`disable_at`               |No      |Datetime when to start the snooze (for scheduling)|
 |`notification_trigger`     |No      |`none` (default), `start`, `about_to_end`, or `end`|
 |`notification_lead_minutes`|No      |How far ahead `about_to_end` fires: `30`, `60`, `120`, or `240`|
 |`confirm`                  |No      |Set `true` to snooze critical/confirm-labeled automations|
 
 Provide exactly one resume strategy per call: duration (`days`/`hours`/`minutes`), `resume_at`, `resume_at_time`, or `resume_preset`.
+
+#### Input Boolean resume state
+
+Input Booleans restore the state they had when the snooze starts by default. Use `resume_state` to choose a fixed end state instead. Scheduled snoozes capture `previous` when they activate, not when they are created.
+
+```yaml
+action: autosnooze.pause
+data:
+  entity_id: input_boolean.away_mode
+  hours: 4
+  resume_state: "off"
+```
 
 #### Resume strategies
 

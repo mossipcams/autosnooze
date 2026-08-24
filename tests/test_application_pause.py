@@ -83,6 +83,203 @@ async def test_handle_pause_service_noops_when_unloaded() -> None:
 
 
 @pytest.mark.asyncio
+async def test_repause_input_boolean_previous_preserves_original_resume_state() -> None:
+    """Re-snoozing must not capture the Boolean's forced-off snooze state."""
+    from custom_components.autosnooze.application.pause import async_pause_automations
+    from custom_components.autosnooze.models import PausedAutomation
+    from custom_components.autosnooze.runtime.state import AutomationPauseData
+
+    now = datetime.now(UTC)
+    entity_id = "input_boolean.mode"
+    hass = MagicMock()
+    hass.states.get.return_value = MagicMock(state="off", attributes={"friendly_name": "Mode"})
+    data = AutomationPauseData(
+        paused={
+            entity_id: PausedAutomation(
+                entity_id=entity_id,
+                friendly_name="Mode",
+                resume_at=now + timedelta(minutes=5),
+                paused_at=now,
+                resume_state="on",
+            )
+        }
+    )
+
+    await async_pause_automations(
+        hass,
+        data,
+        [entity_id],
+        minutes=10,
+        resume_state="previous",
+        set_automation_state=AsyncMock(return_value=True),
+        save_data=AsyncMock(return_value=True),
+        notify_started_automations=AsyncMock(),
+        schedule_resume_callback=MagicMock(),
+        schedule_disable_callback=MagicMock(),
+        schedule_pre_resume_notification_callback=MagicMock(),
+    )
+
+    assert data.paused[entity_id].resume_state == "on"
+
+
+@pytest.mark.parametrize("state", ["unknown", "unavailable"])
+@pytest.mark.asyncio
+async def test_input_boolean_previous_rejects_unstable_state(state: str) -> None:
+    """Previous-state snoozes require a stable Boolean state before mutation."""
+    from homeassistant.exceptions import ServiceValidationError
+
+    from custom_components.autosnooze.application.pause import async_pause_automations
+    from custom_components.autosnooze.runtime.state import AutomationPauseData
+
+    entity_id = "input_boolean.mode"
+    hass = MagicMock()
+    hass.states.get.return_value = MagicMock(state=state, attributes={"friendly_name": "Mode"})
+    set_state = AsyncMock(return_value=True)
+    data = AutomationPauseData()
+
+    with pytest.raises(ServiceValidationError) as exc_info:
+        await async_pause_automations(
+            hass,
+            data,
+            [entity_id],
+            minutes=10,
+            resume_state="previous",
+            set_automation_state=set_state,
+            save_data=AsyncMock(return_value=True),
+            notify_started_automations=AsyncMock(),
+            schedule_resume_callback=MagicMock(),
+            schedule_disable_callback=MagicMock(),
+            schedule_pre_resume_notification_callback=MagicMock(),
+        )
+
+    assert exc_info.value.translation_key == "invalid_previous_state"
+    set_state.assert_not_awaited()
+    assert data.paused == {}
+
+
+@pytest.mark.asyncio
+async def test_mixed_pause_validates_previous_states_before_mutation() -> None:
+    """A later unstable Boolean must not leave earlier targets disabled."""
+    from homeassistant.exceptions import ServiceValidationError
+
+    from custom_components.autosnooze.application.pause import async_pause_automations
+    from custom_components.autosnooze.runtime.state import AutomationPauseData
+
+    hass = MagicMock()
+    states = {
+        "automation.first": MagicMock(state="on", attributes={}),
+        "input_boolean.unstable": MagicMock(state="unavailable", attributes={}),
+    }
+    hass.states.get.side_effect = states.get
+    set_state = AsyncMock(return_value=True)
+    data = AutomationPauseData()
+
+    with pytest.raises(ServiceValidationError) as exc_info:
+        await async_pause_automations(
+            hass,
+            data,
+            list(states),
+            minutes=10,
+            resume_state="previous",
+            set_automation_state=set_state,
+            save_data=AsyncMock(return_value=True),
+            notify_started_automations=AsyncMock(),
+            schedule_resume_callback=MagicMock(),
+            schedule_disable_callback=MagicMock(),
+            schedule_pre_resume_notification_callback=MagicMock(),
+        )
+
+    assert exc_info.value.translation_key == "invalid_previous_state"
+    set_state.assert_not_awaited()
+    assert data.paused == {}
+
+
+@pytest.mark.asyncio
+async def test_pause_tracks_successful_input_boolean_resume_state_usage() -> None:
+    """Telemetry counts successful Booleans without identifying their entities."""
+    from custom_components.autosnooze.application.pause import async_pause_automations
+    from custom_components.autosnooze.runtime.state import AutomationPauseData
+
+    hass = MagicMock()
+    hass.states.get.return_value = MagicMock(state="on", attributes={"friendly_name": "Test"})
+    telemetry = MagicMock()
+    data = AutomationPauseData(telemetry=telemetry)
+    service_call = MagicMock(
+        context=None,
+        data={"resume_state": "off"},
+    )
+
+    async def set_state(_hass, entity_id: str, _enabled: bool) -> bool:
+        return entity_id != "input_boolean.failed"
+
+    await async_pause_automations(
+        hass,
+        data,
+        ["automation.one", "input_boolean.success", "input_boolean.failed"],
+        minutes=10,
+        service_call=service_call,
+        set_automation_state=set_state,
+        save_data=AsyncMock(return_value=True),
+        notify_started_automations=AsyncMock(),
+        schedule_resume_callback=MagicMock(),
+        schedule_disable_callback=MagicMock(),
+        schedule_pre_resume_notification_callback=MagicMock(),
+    )
+
+    telemetry.track.assert_any_call(
+        "input_boolean_snooze_created",
+        {"resume_state": "off", "schedule_mode": False, "target_count": 1},
+        source="service",
+        card_type=None,
+        platform=None,
+    )
+
+
+@pytest.mark.asyncio
+async def test_failed_scheduled_replacement_emits_no_success_telemetry() -> None:
+    """Skipped schedule candidates must not be persisted or reported as created."""
+    from custom_components.autosnooze.application.pause import async_pause_automations
+    from custom_components.autosnooze.models import PausedAutomation
+    from custom_components.autosnooze.runtime.state import AutomationPauseData
+
+    now = datetime.now(UTC)
+    entity_id = "input_boolean.mode"
+    telemetry = MagicMock()
+    active_pause = PausedAutomation(
+        entity_id=entity_id,
+        friendly_name="Mode",
+        resume_at=now + timedelta(minutes=10),
+        paused_at=now,
+        resume_state="on",
+    )
+    data = AutomationPauseData(paused={entity_id: active_pause}, telemetry=telemetry)
+    save = AsyncMock(return_value=True)
+    service_call = MagicMock(context=None, data={"resume_state": "off"})
+
+    await async_pause_automations(
+        MagicMock(),
+        data,
+        [entity_id],
+        disable_at=now + timedelta(minutes=20),
+        resume_at_dt=now + timedelta(minutes=30),
+        service_call=service_call,
+        set_automation_state=AsyncMock(return_value=False),
+        save_data=save,
+        notify_started_automations=AsyncMock(),
+        schedule_resume_callback=MagicMock(),
+        schedule_disable_callback=MagicMock(),
+        schedule_pre_resume_notification_callback=MagicMock(),
+    )
+
+    assert data.paused == {entity_id: active_pause}
+    assert data.scheduled == {}
+    save.assert_not_awaited()
+    assert {call.args[0] for call in telemetry.track.call_args_list}.isdisjoint(
+        {"scheduled_snooze_created", "input_boolean_snooze_created"}
+    )
+
+
+@pytest.mark.asyncio
 async def test_pause_cancellation_restores_entities_disabled_before_commit() -> None:
     """Cancellation must not leave disabled automations outside runtime state."""
     from custom_components.autosnooze.application.pause import async_pause_automations
@@ -230,3 +427,60 @@ async def test_pause_deduplicates_backend_targets() -> None:
     set_state.assert_awaited_once_with(hass, "automation.test", False)
     notify_started.assert_awaited_once()
     assert [paused.entity_id for paused in notify_started.await_args.args[1]] == ["automation.test"]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "entity_ids",
+    [
+        ["input_boolean.away_mode"],
+        ["automation.arrival", "input_boolean.away_mode"],
+    ],
+)
+async def test_pause_accepts_supported_entity_domains(entity_ids: list[str]) -> None:
+    from custom_components.autosnooze.application.pause import async_pause_automations
+    from custom_components.autosnooze.runtime.state import AutomationPauseData
+
+    hass = MagicMock()
+    hass.states.get.return_value = MagicMock(state="on", attributes={})
+    data = AutomationPauseData(store=MagicMock())
+    set_state = AsyncMock(return_value=True)
+
+    await async_pause_automations(
+        hass,
+        data,
+        entity_ids,
+        minutes=5,
+        set_automation_state=set_state,
+        save_data=AsyncMock(return_value=True),
+        notify_started_automations=AsyncMock(),
+        schedule_resume_callback=MagicMock(),
+        schedule_disable_callback=MagicMock(),
+        schedule_pre_resume_notification_callback=MagicMock(),
+    )
+
+    assert set(data.paused) == set(entity_ids)
+    assert [call.args[1] for call in set_state.await_args_list] == entity_ids
+
+
+@pytest.mark.asyncio
+async def test_pause_rejects_unsupported_entity_domain() -> None:
+    from homeassistant.exceptions import ServiceValidationError
+
+    from custom_components.autosnooze.application.pause import async_pause_automations
+    from custom_components.autosnooze.runtime.state import AutomationPauseData
+
+    set_state = AsyncMock(return_value=True)
+
+    with pytest.raises(ServiceValidationError) as exc_info:
+        await async_pause_automations(
+            MagicMock(),
+            AutomationPauseData(store=MagicMock()),
+            ["light.living_room"],
+            minutes=5,
+            set_automation_state=set_state,
+        )
+
+    assert exc_info.value.translation_key == "not_automation"
+    assert str(exc_info.value) == "light.living_room is not a supported entity"
+    set_state.assert_not_awaited()

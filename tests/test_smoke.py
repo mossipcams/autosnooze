@@ -67,8 +67,8 @@ async def smoke_hass(hass: HomeAssistant):
 
     turn_off = AsyncMock(side_effect=turn_off_handler)
     turn_on = AsyncMock(side_effect=turn_on_handler)
-    hass.services.async_register("automation", "turn_off", turn_off)
-    hass.services.async_register("automation", "turn_on", turn_on)
+    hass.services.async_register("homeassistant", "turn_off", turn_off)
+    hass.services.async_register("homeassistant", "turn_on", turn_on)
     mock_posthog = MagicMock(disabled=False, capture=MagicMock(), shutdown=MagicMock())
     with patch(
         "custom_components.autosnooze.infrastructure.telemetry.Posthog",
@@ -119,8 +119,8 @@ async def smoke_hass_real_posthog(hass: HomeAssistant, socket_enabled: None):
 
     turn_off = AsyncMock(side_effect=turn_off_handler)
     turn_on = AsyncMock(side_effect=turn_on_handler)
-    hass.services.async_register("automation", "turn_off", turn_off)
-    hass.services.async_register("automation", "turn_on", turn_on)
+    hass.services.async_register("homeassistant", "turn_off", turn_off)
+    hass.services.async_register("homeassistant", "turn_on", turn_on)
 
     with patch(
         "custom_components.autosnooze.infrastructure.telemetry.POSTHOG_HOST",

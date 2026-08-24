@@ -26,6 +26,7 @@ from tests.test_smoke import fake_resume_scheduler, setup_entry
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 SERVICES_YAML_PATH = REPO_ROOT / "custom_components/autosnooze/services.yaml"
+TRANSLATIONS_PATH = REPO_ROOT / "custom_components/autosnooze/translations/en.json"
 SERVICES_FIXTURE_PATH = Path(__file__).parent / "fixtures/services-schema.json"
 SNOOZE_TS_PATH = REPO_ROOT / "src/services/snooze.ts"
 TELEMETRY_TS_PATH = REPO_ROOT / "src/services/telemetry.ts"
@@ -34,6 +35,7 @@ SENSOR_ENTITY_ID = "sensor.autosnooze_snoozed_automations"
 ENTITY_ONE = "automation.test_automation_1"
 
 PAUSE_FAMILY = ("pause", "pause_by_area", "pause_by_label")
+DIRECT_ENTITY_SERVICES = ("pause", "cancel", "clear_notification", "cancel_scheduled", "adjust")
 PAUSE_TARGET_FIELDS = {
     "pause": "entity_id",
     "pause_by_area": "area_id",
@@ -88,8 +90,8 @@ async def contract_hass(hass: HomeAssistant):
 
     turn_off = AsyncMock(side_effect=turn_off_handler)
     turn_on = AsyncMock(side_effect=turn_on_handler)
-    hass.services.async_register("automation", "turn_off", turn_off)
-    hass.services.async_register("automation", "turn_on", turn_on)
+    hass.services.async_register("homeassistant", "turn_off", turn_off)
+    hass.services.async_register("homeassistant", "turn_on", turn_on)
     mock_posthog = MagicMock(disabled=False, capture=MagicMock(), shutdown=MagicMock())
     with patch(
         "custom_components.autosnooze.infrastructure.telemetry.Posthog",
@@ -162,6 +164,41 @@ def test_services_fixture_keys_match_yaml() -> None:
     yaml_services = _load_services_yaml()
     fixture = _load_services_fixture()
     assert set(fixture["services"]) == set(yaml_services)
+
+
+@pytest.mark.parametrize("service_name", DIRECT_ENTITY_SERVICES)
+def test_direct_entity_services_support_automations_and_input_booleans(service_name: str) -> None:
+    domains = ["automation", "input_boolean"]
+    yaml_domains = _load_services_yaml()[service_name]["fields"]["entity_id"]["selector"]["entity"]["domain"]
+    fixture_domains = _load_services_fixture()["services"][service_name]["fields"]["entity_id"]["selector"]["entity"][
+        "domain"
+    ]
+    assert yaml_domains == domains
+    assert fixture_domains == domains
+
+
+def test_pause_target_supports_direct_domains_while_discovery_stays_automation_only() -> None:
+    services = _load_services_yaml()
+    assert services["pause"]["target"]["entity"] == [{"domain": ["automation", "input_boolean"]}]
+    assert services["pause_by_area"]["target"]["entity"] == [{"domain": "automation"}]
+    assert services["pause_by_label"]["target"]["entity"] == [{"domain": "automation"}]
+
+
+def test_resume_state_contract_is_exposed_only_on_direct_pause_service() -> None:
+    """Resume-state choices belong to direct service calls, not card discovery flows."""
+    expected_values = ["previous", "on", "off"]
+    services = _load_services_yaml()
+    field = services["pause"]["fields"]["resume_state"]
+    fixture_field = _load_services_fixture()["services"]["pause"]["fields"]["resume_state"]
+    translations = json.loads(TRANSLATIONS_PATH.read_text(encoding="utf-8"))
+
+    assert PAUSE_SCHEMA({ATTR_ENTITY_ID: ["input_boolean.mode"], "minutes": 5})["resume_state"] == "previous"
+    assert field["default"] == "previous"
+    assert [option["value"] for option in field["selector"]["select"]["options"]] == expected_values
+    assert [option["value"] for option in fixture_field["selector"]["select"]["options"]] == expected_values
+    assert "resume_state" in translations["services"]["pause"]["fields"]
+    assert "resume_state" not in services["pause_by_area"]["fields"]
+    assert "resume_state" not in services["pause_by_label"]["fields"]
 
 
 @pytest.mark.parametrize("service_name", PAUSE_FAMILY)

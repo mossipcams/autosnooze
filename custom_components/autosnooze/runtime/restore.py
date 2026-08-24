@@ -11,10 +11,17 @@ from typing import Any
 from homeassistant.core import HomeAssistant
 from homeassistant.util import dt as dt_util
 
+from ..const import (
+    RESUME_STATE_OFF,
+    RESUME_STATE_ON,
+    RESUME_STATE_VALUES,
+    SCHEDULED_DISABLE_RETRY_DELAY,
+    SUPPORTED_ENTITY_PREFIXES,
+)
 from ..domain.notifications import NOTIFICATION_TRIGGER_NONE, validate_notification_config
 from ..infrastructure.telemetry import track_if_enabled
 from ..infrastructure.storage import async_save
-from ..models import PausedAutomation, ScheduledSnooze, parse_datetime_utc
+from ..models import PausedAutomation, ScheduledSnooze, parse_datetime_utc, resolve_resume_state
 from .state import AutomationPauseData
 
 _LOGGER = logging.getLogger(__name__)
@@ -36,8 +43,8 @@ def validate_stored_entry(
     entry_data: Any,
     entry_type: str,
 ) -> bool:
-    if not entity_id.startswith("automation."):
-        _LOGGER.warning("Invalid entity_id %s: not an automation entity", entity_id)
+    if not entity_id.startswith(SUPPORTED_ENTITY_PREFIXES):
+        _LOGGER.warning("Invalid entity_id %s: unsupported entity domain", entity_id)
         return False
 
     if not isinstance(entry_data, dict):
@@ -71,6 +78,12 @@ def validate_stored_entry(
                 resume_retries,
             )
             return False
+
+    resume_state = entry_data.get("resume_state", RESUME_STATE_ON)
+    allowed_resume_states = RESUME_STATE_VALUES if entry_type == "scheduled" else (RESUME_STATE_ON, RESUME_STATE_OFF)
+    if resume_state not in allowed_resume_states:
+        _LOGGER.warning("Invalid data for %s: unsupported resume_state %s", entity_id, resume_state)
+        return False
 
     try:
         validate_notification_config(
@@ -144,7 +157,7 @@ async def async_load_stored(
 
     validated = validate_stored_data(stored)
     now = dt_util.utcnow()
-    expired: list[str] = []
+    expired: dict[str, bool] = {}
     expired_scheduled: list[str] = []
     paused_to_restore: list[PausedAutomation] = []
     scheduled_to_execute: list[ScheduledSnooze] = []
@@ -152,24 +165,24 @@ async def async_load_stored(
     restored_paused: list[PausedAutomation] = []
     failed_pause_ids: set[str] = set()
     executed_scheduled: list[ScheduledSnooze] = []
-    failed_schedule_ids: set[str] = set()
+    deferred_unstable_schedule = False
     restored_started: list[PausedAutomation] = []
 
     for entity_id, info in validated.get("paused", {}).items():
         try:
             if hass.states.get(entity_id) is None:
                 _LOGGER.info("Cleaning up deleted automation from storage: %s", entity_id)
-                expired.append(entity_id)
+                expired[entity_id] = True
                 continue
 
             paused = PausedAutomation.from_dict(entity_id, info)
             if paused.resume_at <= now:
-                expired.append(entity_id)
+                expired[entity_id] = paused.resume_enabled
             else:
                 paused_to_restore.append(paused)
         except (KeyError, ValueError) as err:
             _LOGGER.warning("Invalid stored data for %s: %s", entity_id, err)
-            expired.append(entity_id)
+            expired[entity_id] = True
 
     for entity_id, info in validated.get("scheduled", {}).items():
         try:
@@ -199,7 +212,28 @@ async def async_load_stored(
             failed_pause_ids.add(paused.entity_id)
 
     for scheduled in scheduled_to_execute:
+        state = hass.states.get(scheduled.entity_id)
+        try:
+            resolved_resume_state = resolve_resume_state(
+                scheduled.entity_id,
+                scheduled.resume_state,
+                previous_state=state.state if state is not None else None,
+            )
+        except ValueError:
+            retry_at = now + SCHEDULED_DISABLE_RETRY_DELAY
+            if retry_at >= scheduled.resume_at:
+                expired_scheduled.append(scheduled.entity_id)
+            else:
+                scheduled.disable_at = retry_at
+                scheduled_to_restore.append(scheduled)
+                deferred_unstable_schedule = True
+            _LOGGER.warning(
+                "Deferring scheduled snooze for %s until its state is stable",
+                scheduled.entity_id,
+            )
+            continue
         if await callbacks.set_automation_state(hass, scheduled.entity_id, enabled=False):
+            scheduled.resume_state = resolved_resume_state
             executed_scheduled.append(scheduled)
         else:
             _LOGGER.warning(
@@ -207,10 +241,9 @@ async def async_load_stored(
                 scheduled.entity_id,
             )
             scheduled_to_restore.append(scheduled)
-            failed_schedule_ids.add(scheduled.entity_id)
 
-    for entity_id in expired:
-        await callbacks.set_automation_state(hass, entity_id, enabled=True)
+    for entity_id, resume_enabled in expired.items():
+        await callbacks.set_automation_state(hass, entity_id, enabled=resume_enabled)
 
     pre_resume_targets: list[PausedAutomation] = []
     should_save = False
@@ -240,6 +273,7 @@ async def async_load_stored(
                 disable_at=scheduled.disable_at,
                 notification_trigger=scheduled.notification_trigger,
                 notification_lead_minutes=scheduled.notification_lead_minutes,
+                resume_state=scheduled.resume_state,
             )
             current_paused = data.paused.get(scheduled.entity_id)
             current_scheduled = data.scheduled.get(scheduled.entity_id)
@@ -271,7 +305,7 @@ async def async_load_stored(
             data.scheduled[scheduled.entity_id] = scheduled
             callbacks.schedule_disable(hass, data, scheduled.entity_id, scheduled)
 
-        if expired or expired_scheduled or restored_started:
+        if expired or expired_scheduled or restored_started or deferred_unstable_schedule:
             should_save = True
 
     for paused in pre_resume_targets:

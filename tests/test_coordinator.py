@@ -173,6 +173,20 @@ class TestValidateStoredEntry:
                 "accepts valid scheduled entry",
             ),
             (
+                "input_boolean.test",
+                {"resume_at": "2025-01-01T01:00:00+00:00", "paused_at": "2025-01-01T00:00:00+00:00"},
+                "paused",
+                True,
+                "accepts valid paused input Boolean entry",
+            ),
+            (
+                "input_boolean.test",
+                {"disable_at": "2025-01-01T01:00:00+00:00", "resume_at": "2025-01-01T02:00:00+00:00"},
+                "scheduled",
+                True,
+                "accepts valid scheduled input Boolean entry",
+            ),
+            (
                 "automation.test",
                 {"resume_at": "2025-01-01T01:00:00+00:00", "paused_at": "2025-01-01T00:00:00+00:00"},
                 "paused",
@@ -768,7 +782,7 @@ class TestAsyncSetAutomationState:
         await async_set_automation_state(mock_hass, "automation.test", enabled=enabled)
 
         call_args = mock_hass.services.async_call.call_args
-        assert call_args[0][0] == "automation"
+        assert call_args[0][0] == "homeassistant"
         assert call_args[0][1] == expected_service
 
     @pytest.mark.asyncio
@@ -1325,6 +1339,63 @@ class TestAsyncExecuteScheduledDisable:
             await async_execute_scheduled_disable(mock_hass, data, "automation.test", now + timedelta(hours=1))
 
         assert "automation.test" in data.paused
+
+    @pytest.mark.asyncio
+    async def test_input_boolean_previous_retries_when_state_is_unavailable(self) -> None:
+        """A scheduled snooze must not capture an unstable previous state."""
+        mock_hass = MagicMock()
+        mock_hass.states.get.return_value = MagicMock(state="unavailable", attributes={"friendly_name": "Mode"})
+        data = AutomationPauseData()
+        now = datetime.now(UTC)
+        entity_id = "input_boolean.mode"
+        data.scheduled[entity_id] = ScheduledSnooze(
+            entity_id=entity_id,
+            friendly_name="Mode",
+            disable_at=now,
+            resume_at=now + timedelta(minutes=10),
+            resume_state="previous",
+        )
+        set_state = AsyncMock(return_value=True)
+
+        with (
+            patch("custom_components.autosnooze.runtime.ports.async_set_automation_state", set_state),
+            patch("custom_components.autosnooze.runtime.ports.schedule_disable") as schedule_disable,
+        ):
+            await async_execute_scheduled_disable(mock_hass, data, entity_id, now + timedelta(minutes=10))
+
+        set_state.assert_not_awaited()
+        assert entity_id in data.scheduled
+        assert entity_id not in data.paused
+        assert data.scheduled[entity_id].disable_at > now
+        schedule_disable.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_input_boolean_scheduled_previous_captures_off_state(self) -> None:
+        """Scheduled snoozes capture previous state when they activate."""
+        mock_hass = MagicMock()
+        mock_hass.states.get.return_value = MagicMock(state="off", attributes={"friendly_name": "Mode"})
+        data = AutomationPauseData()
+        now = datetime.now(UTC)
+        entity_id = "input_boolean.mode"
+        data.scheduled[entity_id] = ScheduledSnooze(
+            entity_id=entity_id,
+            friendly_name="Mode",
+            disable_at=now,
+            resume_at=now + timedelta(minutes=10),
+            resume_state="previous",
+        )
+
+        with (
+            patch(
+                "custom_components.autosnooze.runtime.ports.async_set_automation_state",
+                new_callable=AsyncMock,
+                return_value=True,
+            ),
+            patch("custom_components.autosnooze.runtime.ports.schedule_resume"),
+        ):
+            await async_execute_scheduled_disable(mock_hass, data, entity_id, now + timedelta(minutes=10))
+
+        assert data.paused[entity_id].resume_state == "off"
 
     @pytest.mark.asyncio
     async def test_uses_scheduled_friendly_name(self) -> None:

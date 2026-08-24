@@ -126,7 +126,7 @@ def test_build_resume_batch_notification_lists_names_and_count() -> None:
             notification_trigger="end",
         ),
         PausedAutomation(
-            entity_id="automation.hallway",
+            entity_id="input_boolean.hallway",
             friendly_name="Hallway",
             paused_at=now,
             resume_at=now + timedelta(hours=1),
@@ -137,7 +137,35 @@ def test_build_resume_batch_notification_lists_names_and_count() -> None:
     title, message = _build_resume_batch_notification(items)
 
     assert title == "AutoSnooze finished"
-    assert message == "2 automations resumed automatically after their snooze ended: Kitchen, Hallway."
+    assert message == "2 entities resumed automatically after their snooze ended: Kitchen, Hallway."
+
+
+def test_build_started_batch_notification_is_entity_generic() -> None:
+    """Mixed-domain start notifications should describe entities."""
+    from custom_components.autosnooze.application.notifications import _build_started_batch_notification
+
+    now = datetime.now(UTC)
+    items = [
+        PausedAutomation(
+            entity_id="automation.kitchen",
+            friendly_name="Kitchen",
+            paused_at=now,
+            resume_at=now + timedelta(hours=1),
+            notification_trigger="start",
+        ),
+        PausedAutomation(
+            entity_id="input_boolean.guests",
+            friendly_name="Guest mode",
+            paused_at=now,
+            resume_at=now + timedelta(hours=1),
+            notification_trigger="start",
+        ),
+    ]
+
+    title, message = _build_started_batch_notification(items)
+
+    assert title == "AutoSnooze started"
+    assert message == "Snooze started for 2 entities: Kitchen, Guest mode."
 
 
 def test_build_started_notification_uses_friendly_name() -> None:

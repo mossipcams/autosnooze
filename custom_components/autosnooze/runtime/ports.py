@@ -35,7 +35,7 @@ async def async_set_automation_state(hass: HomeAssistant, entity_id: str, *, ena
 
     try:
         result = hass.services.async_call(
-            "automation",
+            "homeassistant",
             "turn_on" if enabled else "turn_off",
             {ATTR_ENTITY_ID: entity_id},
             blocking=True,

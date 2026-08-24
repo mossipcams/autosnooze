@@ -78,6 +78,7 @@ Version fields are **not** duplicated on the event body.
 | Event | Properties |
 |-------|------------|
 | `integration_active` | source and person properties only |
+| `input_boolean_snooze_created` | `resume_state` (`previous`, `on`, or `off`), `schedule_mode`, `target_count` |
 | `card_viewed` | `card_type` |
 | `selection_feature_used` | `target_count` |
 | `duration_option_selected` | `duration_minutes` |
@@ -106,7 +107,7 @@ Version fields are **not** duplicated on the event body.
 
 ## Captured payloads
 
-The committed golden file lists the exact `properties` object for each of the 26 events after sanitization (native bool/int types). Golden captures are built from clean contract-shaped payloads with no canary fields:
+The committed golden file lists the exact `properties` object for each of the 27 events after sanitization (native bool/int types). Golden captures are built from clean contract-shaped payloads with no canary fields:
 
 - [posthog-payloads.json](./posthog-payloads.json)
 
