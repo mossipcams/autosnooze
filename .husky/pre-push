@@ -1,4 +1,24 @@
 #!/usr/bin/env sh
 
+if [ "${ALLOW_SKIP_HA_E2E:-}" = "1" ]; then
+  echo "Skipping local HA E2E gate (ALLOW_SKIP_HA_E2E=1)."
+  exit 0
+fi
+
+HA_URL="${HA_URL:-http://localhost:8124}"
+ha_host="${HA_URL#*://}"
+ha_host="${ha_host%%/*}"
+ha_host="${ha_host%%:*}"
+
+case "$ha_host" in
+  localhost|127.0.0.1) ;;
+  *)
+    if [ "${ALLOW_REMOTE_HA:-}" != "1" ]; then
+      echo "pre-push: HA_URL must target localhost or 127.0.0.1 unless ALLOW_REMOTE_HA=1." >&2
+      exit 1
+    fi
+    ;;
+esac
+
 scripts/ensure-ha-e2e.sh
 npm run e2e:critical
