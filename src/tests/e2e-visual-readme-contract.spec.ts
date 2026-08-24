@@ -19,6 +19,8 @@ describe('E2E visual README contract', () => {
       'HA_COMMUNITY_THEME',
       '@critical',
       '.husky/pre-push',
+      'ALLOW_SKIP_HA_E2E',
+      'ALLOW_REMOTE_HA',
     ].forEach((requiredText) => {
       expect(source).toContain(requiredText);
     });

@@ -21,6 +21,22 @@ describe('E2E visual gate contract', () => {
     expect(prePushHook).toMatch(/scripts\/ensure-ha-e2e\.sh/);
   });
 
+  test('allows skipping the local HA gate only when ALLOW_SKIP_HA_E2E=1', () => {
+    const prePushHook = fs.readFileSync(path.join(repoRoot, '.husky', 'pre-push'), 'utf8');
+
+    expect(prePushHook).toContain('ALLOW_SKIP_HA_E2E');
+    expect(prePushHook).toMatch(/ALLOW_SKIP_HA_E2E=1/);
+    expect(prePushHook).toMatch(/Skipping.*HA E2E/i);
+  });
+
+  test('rejects non-local HA_URL unless ALLOW_REMOTE_HA=1', () => {
+    const prePushHook = fs.readFileSync(path.join(repoRoot, '.husky', 'pre-push'), 'utf8');
+
+    expect(prePushHook).toContain('ALLOW_REMOTE_HA');
+    expect(prePushHook).toMatch(/localhost|127\.0\.0\.1/);
+    expect(prePushHook).toMatch(/ALLOW_REMOTE_HA=1/);
+  });
+
   test('starts host hass instead of docker exec into a sleep-loop container', () => {
     const ensureHa = fs.readFileSync(
       path.join(repoRoot, 'scripts', 'ensure-ha-e2e.sh'),
