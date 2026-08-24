@@ -43,6 +43,7 @@ async def async_adjust_snooze_batch(
         now = dt_util.utcnow()
         updates: list[tuple[str, PausedAutomation, datetime]] = []
         pre_resume_targets: list[PausedAutomation] = []
+        original_resume_values: dict[str, tuple[datetime, int, int, int]] = {}
 
         async with data.lock:
             for entity_id in entity_ids:
@@ -70,6 +71,7 @@ async def async_adjust_snooze_batch(
                         translation_key="notification_lead_too_long",
                     )
 
+                original_resume_values[entity_id] = (paused.resume_at, paused.days, paused.hours, paused.minutes)
                 updates.append((entity_id, paused, new_resume_at))
 
             for entity_id, paused, new_resume_at in updates:
@@ -89,6 +91,16 @@ async def async_adjust_snooze_batch(
 
         if updates:
             if not await async_save(data):
+                for entity_id, (resume_at, days, hours, minutes) in original_resume_values.items():
+                    paused = data.paused[entity_id]
+                    paused.resume_at = resume_at
+                    paused.days = days
+                    paused.hours = hours
+                    paused.minutes = minutes
+                    schedule_resume(hass, data, entity_id, resume_at, resume_callback=async_resume)
+                    schedule_pre_resume_notification(
+                        hass, data, paused, notification_callback=send_pre_resume_notification
+                    )
                 _raise_save_failed()
             if delta.total_seconds() != 0:
                 delta_minutes = abs(int(delta.total_seconds() // 60))

@@ -502,7 +502,8 @@ async def test_pause_persists_partial_success_then_raises_pause_failed() -> None
     assert exc_info.value.translation_key == "pause_failed"
     assert set(data.paused) == {"automation.a"}
     save.assert_awaited_once()
-    notify_started.assert_not_awaited()
+    notify_started.assert_awaited_once()
+    assert [paused.entity_id for paused in notify_started.await_args.args[1]] == ["automation.a"]
 
 
 @pytest.mark.asyncio

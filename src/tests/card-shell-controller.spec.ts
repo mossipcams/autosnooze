@@ -210,4 +210,96 @@ describe('CardShellController', () => {
     expect(controller.shouldUpdate(current, hass({ ...states, 'automation.kitchen': { state: 'off' } } as never))).toBe(true);
     expect(controller.shouldUpdate(current, hass({ ...states, 'automation.new': { state: 'on' } } as never))).toBe(true);
   });
+
+  test('input_boolean state changes do not force card refresh', () => {
+    const controller = new CardShellController(vi.fn());
+    const states = {
+      'automation.kitchen': { state: 'on' },
+      'input_boolean.away_mode': { state: 'on' },
+    };
+    const current = hass(states as never);
+
+    expect(controller.shouldUpdate(current, hass({ ...states, 'input_boolean.away_mode': { state: 'off' } } as never))).toBe(false);
+  });
+
+  test('disconnect prevents pending registry retry from running', async () => {
+    const retry = vi.fn((_callback: () => void, _delay: number) => 1 as unknown as ReturnType<typeof setTimeout>);
+    const clearRetry = vi.fn();
+    const loadCategories = vi.fn().mockResolvedValue(null);
+    const controller = new CardShellController(vi.fn(), {
+      loadLabels: vi.fn().mockResolvedValue({}),
+      loadCategories,
+      loadEntities: vi.fn().mockResolvedValue({}),
+      setTimeout: retry,
+      clearTimeout: clearRetry,
+    });
+
+    await controller.connect(hass());
+    expect(retry).toHaveBeenCalledTimes(1);
+
+    controller.disconnect();
+    expect(clearRetry).toHaveBeenCalled();
+    expect(loadCategories).toHaveBeenCalledTimes(1);
+  });
+
+  test('labels can succeed while categories and entities keep retrying', async () => {
+    const retry = vi.fn((_callback: () => void, _delay: number) => 1 as unknown as ReturnType<typeof setTimeout>);
+    const clearRetry = vi.fn();
+    const loadLabels = vi.fn().mockResolvedValue({ important: { label_id: 'important', name: 'Important' } });
+    const loadCategories = vi.fn()
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce({ lights: { category_id: 'lights', name: 'Lights' } });
+    const loadEntities = vi.fn()
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce({ 'automation.kitchen': { entity_id: 'automation.kitchen', platform: 'automation' } });
+    const controller = new CardShellController(vi.fn(), {
+      loadLabels,
+      loadCategories,
+      loadEntities,
+      setTimeout: retry,
+      clearTimeout: clearRetry,
+    });
+
+    await controller.connect(hass());
+    expect(controller.snapshot.labels).toHaveProperty('important');
+    expect(controller.snapshot.categories).toEqual({});
+    expect(controller.snapshot.entities).toEqual({});
+    expect(retry).toHaveBeenCalledTimes(1);
+
+    const retryCallback = retry.mock.calls[0][0] as () => void;
+    retryCallback();
+    await vi.waitFor(() => {
+      expect(controller.snapshot.categories).toHaveProperty('lights');
+      expect(controller.snapshot.entities).toHaveProperty('automation.kitchen');
+    });
+    expect(loadCategories).toHaveBeenCalledTimes(2);
+    expect(loadEntities).toHaveBeenCalledTimes(2);
+  });
+
+  test('registry retry backoff doubles until the max delay', async () => {
+    const delays: number[] = [];
+    const retry = vi.fn((callback: () => void, delay: number) => {
+      delays.push(delay);
+      return 1 as unknown as ReturnType<typeof setTimeout>;
+    });
+    const clearRetry = vi.fn();
+    const loadCategories = vi.fn().mockResolvedValue(null);
+    const controller = new CardShellController(vi.fn(), {
+      loadLabels: vi.fn().mockResolvedValue({}),
+      loadCategories,
+      loadEntities: vi.fn().mockResolvedValue({}),
+      setTimeout: retry,
+      clearTimeout: clearRetry,
+    });
+
+    await controller.connect(hass());
+    const firstCallback = retry.mock.calls[0][0] as () => void;
+    firstCallback();
+    await Promise.resolve();
+    const secondCallback = retry.mock.calls[1][0] as () => void;
+    secondCallback();
+    await Promise.resolve();
+
+    expect(delays).toEqual([1000, 2000]);
+  });
 });

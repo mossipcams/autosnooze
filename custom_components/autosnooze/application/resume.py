@@ -25,6 +25,33 @@ ResumeReason = Literal["manual", "expired"]
 _LOGGER = logging.getLogger(__name__)
 
 
+def _clone_paused(data: AutomationPauseData) -> dict[str, PausedAutomation]:
+    return {
+        entity_id: PausedAutomation.from_dict(entity_id, paused.to_dict()) for entity_id, paused in data.paused.items()
+    }
+
+
+async def _restore_paused_after_save_failed(
+    hass: HomeAssistant,
+    data: AutomationPauseData,
+    paused_snapshot: dict[str, PausedAutomation],
+    entity_ids: set[str],
+) -> None:
+    async with data.lock:
+        for entity_id in entity_ids:
+            cancel_timer(data, entity_id)
+            cancel_notification_timer(data, entity_id)
+        data.paused.clear()
+        data.paused.update(
+            {
+                entity_id: PausedAutomation.from_dict(entity_id, paused.to_dict())
+                for entity_id, paused in paused_snapshot.items()
+            }
+        )
+    for entity_id, paused in data.paused.items():
+        runtime_ports.schedule_resume(hass, data, entity_id, paused.resume_at, resume_callback=async_resume)
+
+
 async def async_resume(
     hass: HomeAssistant,
     data: AutomationPauseData,
@@ -43,6 +70,7 @@ async def async_resume(
     re_disable_entity = False
     retry_scheduled = False
     resumed: list[PausedAutomation] = []
+    paused_snapshot = _clone_paused(data)
     async with data.lock:
         paused = data.paused.get(entity_id)
         if expected_pause is not None and paused is not expected_pause:
@@ -67,6 +95,11 @@ async def async_resume(
                 runtime_ports.schedule_resume(hass, data, entity_id, retry_at, resume_callback=async_resume)
                 retry_scheduled = True
     if not await runtime_ports.async_save(data):
+        if woke_successfully:
+            if not await runtime_ports.async_set_automation_state(hass, entity_id, enabled=False):
+                _LOGGER.warning("Failed to restore disabled state for %s after save failure", entity_id)
+        await _restore_paused_after_save_failed(hass, data, paused_snapshot, {entity_id})
+        data.notify()
         _raise_save_failed()
     if re_disable_entity:
         if not await runtime_ports.async_set_automation_state(hass, entity_id, enabled=False):
@@ -108,6 +141,7 @@ async def async_resume_batch(
             }
             candidate_ids = list(candidates)
 
+        paused_snapshot = _clone_paused(data)
         results: dict[str, bool] = {}
         cancellation: asyncio.CancelledError | None = None
         for entity_id in candidate_ids:
@@ -162,21 +196,26 @@ async def async_resume_batch(
                         paused.resume_at = retry_at
                         runtime_ports.schedule_resume(hass, data, entity_id, retry_at, resume_callback=async_resume)
         if not await runtime_ports.async_save(data):
+            for paused in resumed:
+                if not await runtime_ports.async_set_automation_state(hass, paused.entity_id, enabled=False):
+                    _LOGGER.warning("Failed to restore disabled state for %s after save failure", paused.entity_id)
+            await _restore_paused_after_save_failed(hass, data, paused_snapshot, set(candidate_ids))
+            data.notify()
             _raise_save_failed()
         for entity_id in re_disable_entities:
             if not await runtime_ports.async_set_automation_state(hass, entity_id, enabled=False):
                 _LOGGER.warning("Failed to restore disabled state for stale resume of %s", entity_id)
         data.notify()
-        if reason == "manual" and any(not results.get(entity_id) for entity_id in candidate_ids):
-            _raise_wake_failed()
-        await notify_resumed(hass, resumed, reason=reason, save_succeeded=True)
         if resumed:
+            await notify_resumed(hass, resumed, reason=reason, save_succeeded=True)
             track_if_enabled(
                 data,
                 "snooze_ended",
                 {"reason": "timer" if reason == "expired" else "manual"},
                 source="timer" if reason == "expired" else "service",
             )
+        if reason == "manual" and any(not results.get(entity_id) for entity_id in candidate_ids):
+            _raise_wake_failed()
         if failed:
             _LOGGER.warning("Woke %d automations, %d failed and were rescheduled", woke, failed)
         else:

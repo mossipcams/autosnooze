@@ -114,6 +114,28 @@ async def test_async_unload_discards_queued_posthog_events_after_opt_out() -> No
 
 
 @pytest.fixture
+def hass() -> MagicMock:
+    mock = MagicMock()
+
+    def run_executor_job(callback: Any) -> asyncio.Future[Any]:
+        future: asyncio.Future[Any] = asyncio.get_running_loop().create_future()
+        try:
+            future.set_result(callback())
+        except Exception as exc:
+            future.set_exception(exc)
+        return future
+
+    mock.async_add_executor_job = run_executor_job
+    mock.async_create_task = MagicMock(side_effect=lambda coro: asyncio.create_task(coro))
+
+    async def block_till_done() -> None:
+        await asyncio.sleep(0)
+
+    mock.async_block_till_done = block_till_done
+    return mock
+
+
+@pytest.fixture
 def captured_captures():
     captures: list[dict[str, Any]] = []
 
@@ -478,6 +500,250 @@ async def test_async_unload_disables_client_and_blocks_track(telemetry_client, c
 
     telemetry_client.track("integration_active", {}, source="startup")
     assert len(captures) == 1
+
+
+def _build_captured_posthog() -> tuple[list[dict[str, Any]], MagicMock]:
+    captures: list[dict[str, Any]] = []
+
+    def record_capture(
+        event: str,
+        *,
+        distinct_id: str | None = None,
+        properties: dict[str, Any] | None = None,
+        disable_geoip: bool | None = None,
+        **_kwargs: Any,
+    ) -> str:
+        captures.append(
+            {
+                "event": event,
+                "distinct_id": distinct_id,
+                "properties": properties,
+                "disable_geoip": disable_geoip,
+            }
+        )
+        return "capture-id"
+
+    mock_posthog = MagicMock()
+    mock_posthog.capture = MagicMock(side_effect=record_capture)
+    mock_posthog.disabled = False
+    return captures, mock_posthog
+
+
+def _build_telemetry_hass() -> MagicMock:
+    hass = MagicMock()
+    hass.async_create_task = MagicMock()
+    hass.async_add_executor_job = AsyncMock(return_value=None)
+    return hass
+
+
+@pytest.mark.asyncio
+async def test_daily_throttle_held_while_capture_is_pending() -> None:
+    """Second daily event must be dropped while the first capture is still in-flight."""
+    captures, mock_posthog = _build_captured_posthog()
+    hass = _build_telemetry_hass()
+    entry = MagicMock()
+    entry.options = {"telemetry_enabled": True}
+    store = MagicMock()
+    store.async_load = AsyncMock(return_value={"install_id": "test-install-uuid"})
+    store.async_save = AsyncMock(return_value=None)
+    capture_started = asyncio.Event()
+    release_capture = asyncio.Event()
+
+    def schedule_capture(callback: Any) -> asyncio.Task[Any]:
+        async def run() -> Any:
+            capture_started.set()
+            await release_capture.wait()
+            return callback()
+
+        return asyncio.create_task(run())
+
+    with patch(
+        "custom_components.autosnooze.infrastructure.telemetry.Posthog",
+        return_value=mock_posthog,
+    ):
+        telemetry_client = TelemetryClient(hass, entry, store)
+        await telemetry_client.async_setup()
+        telemetry_client.hass.async_add_executor_job = schedule_capture
+
+        telemetry_client.track("integration_active", {}, source="startup")
+        await asyncio.wait_for(capture_started.wait(), timeout=1)
+        telemetry_client.track("integration_active", {}, source="startup")
+        telemetry_client.track("card_viewed", {"card_type": "full"}, source="card", card_type="full")
+
+        assert mock_posthog.capture.call_count == 0
+        assert ("last_integration_active_day", "_last_integration_active_day") in telemetry_client._pending_throttles
+        assert ("last_card_viewed_day", "_last_card_viewed_day") in telemetry_client._pending_throttles
+
+        release_capture.set()
+        pending = list(telemetry_client._pending_tasks)
+        if pending:
+            await asyncio.gather(*pending, return_exceptions=True)
+        await asyncio.sleep(0)
+
+    assert mock_posthog.capture.call_count == 2
+    assert {capture["event"] for capture in captures} == {"integration_active", "card_viewed"}
+
+
+@pytest.mark.asyncio
+async def test_async_unload_waits_for_pending_executor_capture() -> None:
+    """Unload must await in-flight executor captures before shutdown."""
+    _captures, mock_posthog = _build_captured_posthog()
+    hass = _build_telemetry_hass()
+    entry = MagicMock()
+    entry.options = {"telemetry_enabled": True}
+    store = MagicMock()
+    store.async_load = AsyncMock(return_value={"install_id": "test-install-uuid"})
+    store.async_save = AsyncMock(return_value=None)
+    capture_started = asyncio.Event()
+    unload_finished = asyncio.Event()
+
+    def schedule_capture(callback: Any) -> asyncio.Task[Any]:
+        async def run() -> Any:
+            capture_started.set()
+            await asyncio.sleep(0.05)
+            return callback()
+
+        return asyncio.create_task(run())
+
+    with patch(
+        "custom_components.autosnooze.infrastructure.telemetry.Posthog",
+        return_value=mock_posthog,
+    ):
+        telemetry_client = TelemetryClient(hass, entry, store)
+        await telemetry_client.async_setup()
+        telemetry_client.hass.async_add_executor_job = schedule_capture
+        telemetry_client.track("wake_clicked", {"scope": "one"}, source="service")
+        await asyncio.wait_for(capture_started.wait(), timeout=1)
+
+        unload_task = asyncio.create_task(telemetry_client.async_unload())
+
+        async def mark_unload_done() -> None:
+            await unload_task
+            unload_finished.set()
+
+        waiter = asyncio.create_task(mark_unload_done())
+        await asyncio.sleep(0.01)
+        assert unload_finished.is_set() is False
+
+        await asyncio.wait_for(unload_finished.wait(), timeout=1)
+        await waiter
+
+    mock_posthog.capture.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_async_unload_returns_on_hung_executor_capture_after_timeout() -> None:
+    """Unload abandons a stuck in-flight capture after a bounded timeout."""
+    _captures, mock_posthog = _build_captured_posthog()
+    hass = _build_telemetry_hass()
+    entry = MagicMock()
+    entry.options = {"telemetry_enabled": True}
+    store = MagicMock()
+    store.async_load = AsyncMock(return_value={"install_id": "test-install-uuid"})
+    store.async_save = AsyncMock(return_value=None)
+    capture_started = asyncio.Event()
+    release_capture = asyncio.Event()
+
+    def schedule_capture(callback: Any) -> asyncio.Task[Any]:
+        async def run() -> Any:
+            capture_started.set()
+            await release_capture.wait()
+            return callback()
+
+        return asyncio.create_task(run())
+
+    with patch(
+        "custom_components.autosnooze.infrastructure.telemetry.Posthog",
+        return_value=mock_posthog,
+    ):
+        telemetry_client = TelemetryClient(hass, entry, store, unload_capture_timeout=0.05)
+        await telemetry_client.async_setup()
+        telemetry_client.hass.async_add_executor_job = schedule_capture
+        telemetry_client.track("wake_clicked", {"scope": "one"}, source="service")
+        await asyncio.wait_for(capture_started.wait(), timeout=1)
+
+        telemetry_client.hass.async_add_executor_job = AsyncMock(return_value=None)
+        await telemetry_client.async_unload()
+
+    assert mock_posthog.disabled is True
+    assert telemetry_client._posthog is None
+    mock_posthog.capture.assert_not_called()
+    release_capture.set()
+
+
+@pytest.mark.asyncio
+async def test_track_after_unload_does_not_dispatch_executor_job() -> None:
+    """Post-unload track calls must not enqueue new executor work."""
+    captures, mock_posthog = _build_captured_posthog()
+    hass = _build_telemetry_hass()
+    entry = MagicMock()
+    entry.options = {"telemetry_enabled": True}
+    store = MagicMock()
+    store.async_load = AsyncMock(return_value={"install_id": "test-install-uuid"})
+    store.async_save = AsyncMock(return_value=None)
+
+    def schedule_capture(callback: Any) -> asyncio.Task[Any]:
+        async def run() -> Any:
+            return callback()
+
+        return asyncio.create_task(run())
+
+    with patch(
+        "custom_components.autosnooze.infrastructure.telemetry.Posthog",
+        return_value=mock_posthog,
+    ):
+        telemetry_client = TelemetryClient(hass, entry, store)
+        await telemetry_client.async_setup()
+        telemetry_client.hass.async_add_executor_job = schedule_capture
+        telemetry_client.track("integration_active", {}, source="startup")
+        await asyncio.gather(*telemetry_client._pending_tasks, return_exceptions=True)
+
+        executor = AsyncMock()
+        telemetry_client.hass.async_add_executor_job = executor
+        await telemetry_client.async_unload()
+        executor.reset_mock()
+
+        telemetry_client.track("integration_active", {}, source="startup")
+        telemetry_client.track("card_viewed", {"card_type": "full"}, source="card", card_type="full")
+
+    executor.assert_not_awaited()
+    assert len(captures) == 1
+    mock_posthog.capture.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_capture_exception_does_not_break_track_caller() -> None:
+    """Executor capture failures must stay contained inside telemetry."""
+    _captures, mock_posthog = _build_captured_posthog()
+    hass = _build_telemetry_hass()
+    entry = MagicMock()
+    entry.options = {"telemetry_enabled": True}
+    store = MagicMock()
+    store.async_load = AsyncMock(return_value={"install_id": "test-install-uuid"})
+    store.async_save = AsyncMock(return_value=None)
+    mock_posthog.capture.side_effect = RuntimeError("posthog offline")
+
+    def schedule_capture(callback: Any) -> asyncio.Task[Any]:
+        async def run() -> Any:
+            return callback()
+
+        return asyncio.create_task(run())
+
+    with patch(
+        "custom_components.autosnooze.infrastructure.telemetry.Posthog",
+        return_value=mock_posthog,
+    ):
+        telemetry_client = TelemetryClient(hass, entry, store)
+        await telemetry_client.async_setup()
+        telemetry_client.hass.async_add_executor_job = schedule_capture
+
+        telemetry_client.track("wake_clicked", {"scope": "all"}, source="card")
+        await asyncio.gather(*telemetry_client._pending_tasks, return_exceptions=True)
+
+        telemetry_client.track("wake_clicked", {"scope": "one"}, source="card")
+        await asyncio.gather(*telemetry_client._pending_tasks, return_exceptions=True)
+
+    assert mock_posthog.capture.call_count == 2
 
 
 @pytest.mark.asyncio
