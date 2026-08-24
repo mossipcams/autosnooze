@@ -212,12 +212,18 @@ async def test_batch_resume_raises_when_persistence_fails() -> None:
     data = AutomationPauseData(store=MagicMock())
     data.paused["automation.test"] = _paused("automation.test")
 
+    set_state = AsyncMock(return_value=True)
     with (
-        patch("custom_components.autosnooze.runtime.ports.async_set_automation_state", AsyncMock(return_value=True)),
+        patch("custom_components.autosnooze.runtime.ports.async_set_automation_state", set_state),
         patch("custom_components.autosnooze.runtime.ports.async_save", AsyncMock(return_value=False)),
+        patch("custom_components.autosnooze.runtime.ports.schedule_resume"),
         pytest.raises(ServiceValidationError, match="Failed to persist autosnooze state"),
     ):
         await async_resume_batch(hass, data, ["automation.test"])
+
+    assert "automation.test" in data.paused
+    assert set_state.await_args_list[0].kwargs == {"enabled": True}
+    assert set_state.await_args_list[-1].kwargs == {"enabled": False}
 
 
 @pytest.mark.asyncio

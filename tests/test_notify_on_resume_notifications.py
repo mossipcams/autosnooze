@@ -425,15 +425,19 @@ async def test_async_resume_raises_and_skips_notification_when_save_fails_after_
         notification_trigger="end",
     )
 
+    set_state = AsyncMock(return_value=True)
     with (
-        patch("custom_components.autosnooze.runtime.ports.async_set_automation_state", AsyncMock(return_value=True)),
+        patch("custom_components.autosnooze.runtime.ports.async_set_automation_state", set_state),
         patch("custom_components.autosnooze.runtime.ports.async_save", AsyncMock(return_value=False)),
+        patch("custom_components.autosnooze.runtime.ports.schedule_resume"),
         pytest.raises(ServiceValidationError, match="Failed to persist autosnooze state"),
     ):
         await async_resume(hass, data, "automation.kitchen", reason="expired")
 
     hass.services.async_call.assert_not_awaited()
-    assert "automation.kitchen" not in data.paused
+    assert "automation.kitchen" in data.paused
+    assert set_state.await_args_list[0].kwargs == {"enabled": True}
+    assert set_state.await_args_list[-1].kwargs == {"enabled": False}
 
 
 @pytest.mark.asyncio
