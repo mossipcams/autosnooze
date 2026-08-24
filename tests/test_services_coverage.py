@@ -474,9 +474,7 @@ class TestAsyncPauseAutomations:
         data = AutomationPauseData(store=mock_store)
 
         async def turn_off_with_failure(_hass, entity_id, *, enabled: bool) -> bool:
-            if entity_id == "automation.test1" and not enabled:
-                return False
-            return True
+            return not (entity_id == "automation.test1" and not enabled)
 
         with (
             patch(
