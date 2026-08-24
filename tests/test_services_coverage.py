@@ -463,11 +463,8 @@ class TestAsyncPauseAutomations:
 
         mock_hass = MagicMock()
 
-        # First automation doesn't exist (state is None), second one does
         def get_state(entity_id):
-            if entity_id == "automation.test1":
-                return None  # Doesn't exist
-            return MagicMock(attributes={"friendly_name": "Test 2"})
+            return MagicMock(attributes={"friendly_name": f"Test {entity_id[-1]}"})
 
         mock_hass.states.get.side_effect = get_state
         mock_hass.services.async_call = AsyncMock()
@@ -476,7 +473,16 @@ class TestAsyncPauseAutomations:
         mock_store.async_save = AsyncMock()
         data = AutomationPauseData(store=mock_store)
 
+        async def turn_off_with_failure(_hass, entity_id, *, enabled: bool) -> bool:
+            if entity_id == "automation.test1" and not enabled:
+                return False
+            return True
+
         with (
+            patch(
+                "custom_components.autosnooze.application.pause.async_set_automation_state",
+                side_effect=turn_off_with_failure,
+            ),
             patch("custom_components.autosnooze.application.pause.schedule_resume"),
             pytest.raises(ServiceValidationError) as exc_info,
         ):
