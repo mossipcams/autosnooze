@@ -42,3 +42,30 @@ def _raise_save_failed() -> None:
         translation_domain=DOMAIN,
         translation_key="save_failed",
     )
+
+
+def _raise_pause_failed() -> None:
+    """Raise a translated service error when no automations were paused."""
+    raise ServiceValidationError(
+        "Failed to pause automations",
+        translation_domain=DOMAIN,
+        translation_key="pause_failed",
+    )
+
+
+def _raise_wake_failed() -> None:
+    """Raise a translated service error when no automations were woken."""
+    raise ServiceValidationError(
+        "Failed to wake automations",
+        translation_domain=DOMAIN,
+        translation_key="wake_failed",
+    )
+
+
+def _raise_adjust_failed() -> None:
+    """Raise a translated service error when no automations were adjusted."""
+    raise ServiceValidationError(
+        "Failed to adjust automations",
+        translation_domain=DOMAIN,
+        translation_key="adjust_failed",
+    )

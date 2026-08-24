@@ -38,6 +38,8 @@ Excluded:
 2. [phase-b-badge-counts.md](phase-b-badge-counts.md)
 3. [phase-c-prefs-cardstore.md](phase-c-prefs-cardstore.md)
 
+HA-aligned execution: [implementation.md](implementation.md)
+
 ## Verification
 
 - Python: targeted pytest modules for lock/adjust/pause/resume/restore.

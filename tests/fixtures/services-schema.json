@@ -473,6 +473,9 @@
     "invalid_adjustment",
     "adjust_time_too_short",
     "save_failed",
+    "pause_failed",
+    "wake_failed",
+    "adjust_failed",
     "confirm_required",
     "notification_lead_too_long",
     "invalid_resume_preset"

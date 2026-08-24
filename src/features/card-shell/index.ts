@@ -6,6 +6,8 @@ import { startCountdownSync, stopCountdownSync } from '../../services/countdown-
 import {
   loadLastDuration,
   loadRecentSnoozes,
+  loadHideSnoozedPreference,
+  saveHideSnoozedPreference,
   type LastDurationData,
 } from '../../services/storage.js';
 import {
@@ -118,6 +120,22 @@ export function loadCardLastDuration(): LastDurationData | null {
 
 export function loadCardRecentSnoozeIds(): string[] {
   return loadRecentSnoozes();
+}
+
+export function loadCardHideSnoozedPreference(): boolean {
+  return loadHideSnoozedPreference();
+}
+
+export function saveCardHideSnoozedPreference(hideSnoozed: boolean): void {
+  saveHideSnoozedPreference(hideSnoozed);
+}
+
+export function trackHideSnoozedToggled(hass: HomeAssistant, enabled: boolean): void {
+  reportTelemetry(hass, {
+    event: 'hide_snoozed_toggled',
+    properties: { enabled },
+    source: 'card',
+  });
 }
 
 export function getCardPausedSnapshot(hass: HomeAssistant): {

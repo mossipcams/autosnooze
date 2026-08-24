@@ -470,19 +470,16 @@ class TestAsyncPauseAutomations:
             return MagicMock(attributes={"friendly_name": "Test 2"})
 
         mock_hass.states.get.side_effect = get_state
-
-        # Service call fails for first, succeeds for second
-        async def mock_call(domain, service, data, blocking=False):
-            if data.get("entity_id") == "automation.test1":
-                raise Exception("Failed")
-
         mock_hass.services.async_call = AsyncMock()
 
         mock_store = MagicMock()
         mock_store.async_save = AsyncMock()
         data = AutomationPauseData(store=mock_store)
 
-        with patch("custom_components.autosnooze.application.pause.schedule_resume"):
+        with (
+            patch("custom_components.autosnooze.application.pause.schedule_resume"),
+            pytest.raises(ServiceValidationError) as exc_info,
+        ):
             await async_pause_automations(
                 mock_hass,
                 data,
@@ -490,8 +487,10 @@ class TestAsyncPauseAutomations:
                 hours=1,
             )
 
+        assert exc_info.value.translation_key == "pause_failed"
         # test2 should be paused, test1 should not (failed to set state)
         assert "automation.test2" in data.paused
+        assert "automation.test1" not in data.paused
 
     @pytest.mark.asyncio
     async def test_notifies_listeners_after_pause(self) -> None:

@@ -571,17 +571,20 @@ class TestAdjustService:
     async def test_adjust_skips_non_paused_automation(
         self, hass: HomeAssistant, setup_integration_with_automations: ConfigEntry
     ) -> None:
-        """Test that adjusting a non-paused automation does not crash."""
+        """Test that adjusting a non-paused automation raises adjust_failed."""
         entry = setup_integration_with_automations
         data = entry.runtime_data
 
         # Do NOT pause -- call adjust directly on non-paused entity
-        await hass.services.async_call(
-            DOMAIN,
-            "adjust",
-            {ATTR_ENTITY_ID: ["automation.test_automation_1"], "minutes": 30},
-            blocking=True,
-        )
+        with pytest.raises(ServiceValidationError) as exc_info:
+            await hass.services.async_call(
+                DOMAIN,
+                "adjust",
+                {ATTR_ENTITY_ID: ["automation.test_automation_1"], "minutes": 30},
+                blocking=True,
+            )
+
+        assert exc_info.value.translation_key == "adjust_failed"
 
         # Should not be in paused
         assert "automation.test_automation_1" not in data.paused

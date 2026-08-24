@@ -34,6 +34,18 @@
       "translation_key": "save_failed",
       "message": "Failed to save snooze changes"
     },
+    "pause_failed": {
+      "translation_key": "pause_failed",
+      "message": "Failed to pause automations"
+    },
+    "wake_failed": {
+      "translation_key": "wake_failed",
+      "message": "Failed to wake automations"
+    },
+    "adjust_failed": {
+      "translation_key": "adjust_failed",
+      "message": "Failed to adjust automations"
+    },
     "confirm_required": {
       "translation_key": "confirm_required",
       "message": "Some selected automations are tagged autosnooze_confirm or detected as critical and require confirmation before snoozing"

@@ -14,7 +14,7 @@ from homeassistant.util import dt as dt_util
 from ..const import MAX_RESUME_RETRIES, RESUME_RETRY_DELAY
 from ..domain.notifications import NOTIFICATION_TRIGGER_NONE
 from ..infrastructure.telemetry import track_if_enabled
-from ..logging_utils import _log_command, _raise_save_failed
+from ..logging_utils import _log_command, _raise_save_failed, _raise_wake_failed
 from ..models import PausedAutomation
 from ..runtime.state import AutomationPauseData
 from ..runtime import ports as runtime_ports
@@ -162,6 +162,8 @@ async def async_resume_batch(
             if not await runtime_ports.async_set_automation_state(hass, entity_id, enabled=False):
                 _LOGGER.warning("Failed to restore disabled state for stale resume of %s", entity_id)
         data.notify()
+        if reason == "manual" and any(not results.get(entity_id) for entity_id in candidate_ids):
+            _raise_wake_failed()
         await notify_resumed(hass, resumed, reason=reason, save_succeeded=True)
         if resumed:
             track_if_enabled(

@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import type { HomeAssistant } from '../types/hass.js';
 import type { ParsedDuration } from '../types/automation.js';
@@ -65,6 +67,8 @@ type TestCard = HTMLElement & {
   _adjustModalEntityIds: string[];
   _adjustModalFriendlyNames: string[];
   _guardrailConfirmOpen: boolean;
+  _hideSnoozed: boolean;
+  _toggleHideSnoozed: () => void;
   _shell: {
     labels: Record<string, unknown>;
     labelsUnavailable: boolean;
@@ -825,5 +829,27 @@ describe('AutomationPauseCard mutation boundaries', () => {
     expect(card.shadowRoot?.querySelector('autosnooze-active-pauses')).toBeNull();
     expect(card.shadowRoot?.querySelector('.scheduled-list')).toBeNull();
     expect(card.shadowRoot?.textContent).not.toContain('Stryker was here!');
+  });
+
+  test('imports hide-snoozed helpers only from card-shell', () => {
+    const source = readFileSync(resolve('src/components/autosnooze-card.ts'), 'utf-8');
+
+    expect(source).not.toContain("from '../features/automation-list/index.js'");
+    expect(source).toContain('trackHideSnoozedToggled');
+    expect(source).toContain("from '../features/card-shell/index.js'");
+  });
+
+  test('toggle hide snoozed updates Lit state and persists preference via card-shell', async () => {
+    localStorage.clear();
+    const card = await connectCard();
+    expect(card._hideSnoozed).toBe(false);
+
+    card._toggleHideSnoozed();
+    expect(card._hideSnoozed).toBe(true);
+    expect(localStorage.getItem('autosnooze_hide_snoozed')).toBe('true');
+
+    card._toggleHideSnoozed();
+    expect(card._hideSnoozed).toBe(false);
+    expect(localStorage.getItem('autosnooze_hide_snoozed')).toBe('false');
   });
 });

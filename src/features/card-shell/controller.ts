@@ -104,43 +104,65 @@ export class CardShellController {
     return this.labelsPromise ??= this.deps.loadLabels(this.hass!).then((labels) => {
       if (labels === null) {
         this.labelsUnavailable = true;
-        if (this.retryTimer === undefined) {
-          this.retryTimer = this.deps.setTimeout(() => {
-            this.finishRetry();
-            void this.loadLabels();
-          }, this.retryDelay);
-          this.retryDelay = Math.min(this.retryDelay * 2, UI_TIMING.REGISTRY_RETRY_MAX_MS);
-        }
+        this.scheduleRegistryRetry();
         this.changed();
         return;
       }
       this.labels = labels;
       this.labelsLoaded = true;
       this.labelsUnavailable = false;
-      this.retryDelay = UI_TIMING.REGISTRY_RETRY_MIN_MS;
-      this.finishRetry();
+      this.maybeFinishRetry();
       this.invalidate();
     }).finally(() => { this.labelsPromise = undefined; });
   }
 
   loadCategories(hass?: HomeAssistant): Promise<void> {
     if (hass) this.hass = hass;
-    if (this.categoriesLoaded) return Promise.resolve();
+    if (this.categoriesLoaded || this.retryTimer !== undefined) return Promise.resolve();
     return this.categoriesPromise ??= this.deps.loadCategories(this.hass!).then((categories) => {
+      if (categories === null) {
+        this.scheduleRegistryRetry();
+        this.changed();
+        return;
+      }
       this.categories = categories;
       this.categoriesLoaded = true;
+      this.maybeFinishRetry();
       this.changed();
     }).finally(() => { this.categoriesPromise = undefined; });
   }
 
   loadEntities(hass?: HomeAssistant): Promise<void> {
     if (hass) this.hass = hass;
-    if (this.entitiesLoaded) return Promise.resolve();
+    if (this.entitiesLoaded || this.retryTimer !== undefined) return Promise.resolve();
     return this.entitiesPromise ??= this.deps.loadEntities(this.hass!).then((entities) => {
+      if (entities === null) {
+        this.scheduleRegistryRetry();
+        this.changed();
+        return;
+      }
       this.entities = entities;
       this.entitiesLoaded = true;
+      this.maybeFinishRetry();
       this.invalidate();
     }).finally(() => { this.entitiesPromise = undefined; });
+  }
+
+  private scheduleRegistryRetry(): void {
+    if (this.retryTimer !== undefined) return;
+    this.retryTimer = this.deps.setTimeout(() => {
+      this.finishRetry();
+      void this.loadLabels();
+      void this.loadCategories();
+      void this.loadEntities();
+    }, this.retryDelay);
+    this.retryDelay = Math.min(this.retryDelay * 2, UI_TIMING.REGISTRY_RETRY_MAX_MS);
+  }
+
+  private maybeFinishRetry(): void {
+    if (!this.labelsLoaded || !this.categoriesLoaded || !this.entitiesLoaded) return;
+    this.retryDelay = UI_TIMING.REGISTRY_RETRY_MIN_MS;
+    this.finishRetry();
   }
 
   private finishRetry(): void {
