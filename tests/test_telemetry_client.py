@@ -218,6 +218,22 @@ async def test_async_setup_preloads_posthog_system_context_in_executor(telemetry
 
 
 @pytest.mark.asyncio
+async def test_track_dispatches_posthog_capture_to_executor(telemetry_client, captured_captures) -> None:
+    _captures, mock_posthog = captured_captures
+    await telemetry_client.async_setup()
+    capture_future = asyncio.get_running_loop().create_future()
+    telemetry_client.hass.async_add_executor_job = MagicMock(return_value=capture_future)
+
+    telemetry_client.track("wake_clicked", {"scope": "one"}, source="service")
+
+    mock_posthog.capture.assert_not_called()
+    capture = telemetry_client.hass.async_add_executor_job.call_args.args[0]
+    capture_future.set_result(capture())
+    await asyncio.sleep(0)
+    mock_posthog.capture.assert_called_once()
+
+
+@pytest.mark.asyncio
 async def test_disabled_client_is_noop(telemetry_client, captured_captures) -> None:
     captures, mock_posthog = captured_captures
     telemetry_client.entry.options = {"telemetry_enabled": False}
@@ -355,7 +371,9 @@ async def test_posthog_failure_does_not_consume_throttle(telemetry_client, captu
     mock_posthog.capture.side_effect = [RuntimeError("offline"), None]
 
     telemetry_client.track("integration_active", {}, source="startup")
+    await telemetry_client.hass.async_block_till_done()
     telemetry_client.track("integration_active", {}, source="startup")
+    await telemetry_client.hass.async_block_till_done()
 
     assert mock_posthog.capture.call_count == 2
     assert len(captures) == 0
@@ -368,8 +386,11 @@ async def test_posthog_dropped_capture_does_not_consume_throttle(telemetry_clien
     mock_posthog.capture.side_effect = [None, "capture-id"]
 
     telemetry_client.track("integration_active", {}, source="startup")
+    await telemetry_client.hass.async_block_till_done()
     telemetry_client.track("integration_active", {}, source="startup")
+    await telemetry_client.hass.async_block_till_done()
     telemetry_client.track("integration_active", {}, source="startup")
+    await telemetry_client.hass.async_block_till_done()
 
     assert mock_posthog.capture.call_count == 2
 

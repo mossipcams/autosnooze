@@ -9,6 +9,7 @@ import uuid
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 from datetime import datetime
+from functools import partial
 from queue import Empty, Queue
 from typing import Any
 
@@ -364,7 +365,8 @@ class TelemetryClient:
     _last_integration_active_day: str | None = None
     _disabled: bool = False
     _persistence_lock: asyncio.Lock = field(default_factory=asyncio.Lock)
-    _persistence_tasks: set[asyncio.Future[Any]] = field(default_factory=set)
+    _pending_tasks: set[asyncio.Future[Any]] = field(default_factory=set)
+    _pending_throttles: set[tuple[str, str]] = field(default_factory=set)
 
     def is_enabled(self) -> bool:
         if self._disabled:
@@ -405,8 +407,8 @@ class TelemetryClient:
 
     async def async_unload(self) -> None:
         self._disabled = True
-        if self._persistence_tasks:
-            await asyncio.gather(*self._persistence_tasks, return_exceptions=True)
+        if self._pending_tasks:
+            await asyncio.gather(*self._pending_tasks, return_exceptions=True)
         client = self._posthog
         self._posthog = None
         if client is None:
@@ -435,7 +437,9 @@ class TelemetryClient:
                 throttle = ("last_card_viewed_day", "_last_card_viewed_day")
             elif event == "integration_active":
                 throttle = ("last_integration_active_day", "_last_integration_active_day")
-            if throttle is not None and not self._should_emit_once_per_utc_day(*throttle):
+            if throttle is not None and (
+                throttle in self._pending_throttles or not self._should_emit_once_per_utc_day(*throttle)
+            ):
                 return
 
             payload = sanitize_event_properties(
@@ -465,16 +469,42 @@ class TelemetryClient:
                 },
             }
 
-            capture_id = self._posthog.capture(
+            capture = partial(
+                self._posthog.capture,
                 event,
                 distinct_id=distinct_id,
                 properties=payload,
                 disable_geoip=True,
             )
-            if throttle is not None and capture_id is not None:
-                self._record_emitted_once_per_utc_day(*throttle)
+            if throttle is not None:
+                self._pending_throttles.add(throttle)
+            try:
+                task = self.hass.async_add_executor_job(capture)
+            except Exception:
+                if throttle is not None:
+                    self._pending_throttles.discard(throttle)
+                raise
+            self._pending_tasks.add(task)
+            task.add_done_callback(partial(self._capture_done, throttle))
         except Exception:
             _LOGGER.debug("Telemetry track failed", exc_info=True)
+
+    def _capture_done(
+        self,
+        throttle: tuple[str, str] | None,
+        task: asyncio.Future[Any],
+    ) -> None:
+        self._pending_tasks.discard(task)
+        try:
+            capture_id = task.result()
+        except Exception:
+            _LOGGER.debug("Telemetry track failed", exc_info=True)
+            capture_id = None
+        if throttle is None:
+            return
+        self._pending_throttles.discard(throttle)
+        if capture_id is not None and not self._disabled:
+            self._record_emitted_once_per_utc_day(*throttle)
 
     def track_operation_failed(
         self,
@@ -518,8 +548,8 @@ class TelemetryClient:
             coroutine.close()
             return
         if isinstance(task, asyncio.Future):
-            self._persistence_tasks.add(task)
-            task.add_done_callback(self._persistence_tasks.discard)
+            self._pending_tasks.add(task)
+            task.add_done_callback(self._pending_tasks.discard)
         else:
             coroutine.close()
 
