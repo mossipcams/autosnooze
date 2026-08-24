@@ -290,6 +290,15 @@
     "save_failed": {
       "message": "Failed to save snooze changes. Please try again and check Home Assistant logs if the issue persists."
     },
+    "pause_failed": {
+      "message": "Failed to pause the selected automations. Please check Home Assistant logs and try again."
+    },
+    "wake_failed": {
+      "message": "Failed to wake the selected automations. Please check Home Assistant logs and try again."
+    },
+    "adjust_failed": {
+      "message": "Failed to adjust the selected automations. Please check Home Assistant logs and try again."
+    },
     "confirm_required": {
       "message": "Some selected entities are tagged autosnooze_confirm or detected as critical and require confirmation before snoozing."
     },

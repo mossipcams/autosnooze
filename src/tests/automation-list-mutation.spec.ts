@@ -480,6 +480,21 @@ describe('automation list mutation boundaries', () => {
     ).toEqual(['Kitchen Lights', 'Office Fan']);
   });
 
+  test('tab badge counts match visible list when hideSnoozed hides paused entities', async () => {
+    const element = await connectList((el) => {
+      el.hideSnoozed = true;
+      el.pausedEntityIds = ['automation.office_fan'];
+    });
+    await element.updateComplete;
+
+    const tabs = tabButtons(element);
+    expect(tabs.map(getText)).toEqual(['All 2', 'Areas 1', 'Categories 1', 'Labels 1']);
+    expect(tabs[0]?.querySelector('.tab-count')?.getAttribute('aria-label')).toBe('2 automations');
+    expect(tabs[1]?.querySelector('.tab-count')?.getAttribute('aria-label')).toBe('1 areas');
+    expect(tabs[2]?.querySelector('.tab-count')?.getAttribute('aria-label')).toBe('1 categories');
+    expect(tabs[3]?.querySelector('.tab-count')?.getAttribute('aria-label')).toBe('1 labels');
+  });
+
   test('drops paused ids from selection when hideSnoozed is enabled', async () => {
     const events: CustomEvent[] = [];
     const element = await connectList((el) => {

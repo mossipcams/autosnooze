@@ -9,10 +9,6 @@ import type { HassCategory, HassLabel, HomeAssistant } from '../../types/hass.js
 import { formatRegistryId } from '../../utils/registry-formatting.js';
 import { reportTelemetry } from '../../services/telemetry.js';
 export { getAutomations } from '../../state/automations.js';
-export {
-  loadHideSnoozedPreference,
-  saveHideSnoozedPreference,
-} from '../../services/storage.js';
 
 export interface AutomationListViewModel {
   filtered: AutomationItem[];
@@ -62,14 +58,6 @@ export function trackFilterTabSelected(
   reportTelemetry(hass, {
     event: 'filter_tab_selected',
     properties: { tab },
-    source: 'card',
-  });
-}
-
-export function trackHideSnoozedToggled(hass: HomeAssistant, enabled: boolean): void {
-  reportTelemetry(hass, {
-    event: 'hide_snoozed_toggled',
-    properties: { enabled },
     source: 'card',
   });
 }

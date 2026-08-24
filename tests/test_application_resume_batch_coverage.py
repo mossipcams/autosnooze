@@ -116,11 +116,86 @@ async def test_batch_resume_retries_failures_and_retains_exhausted_entities() ->
         patch("custom_components.autosnooze.runtime.ports.async_save", AsyncMock(return_value=True)),
         patch("custom_components.autosnooze.runtime.ports.schedule_resume") as schedule_resume,
     ):
-        await async_resume_batch(hass, data, ["automation.retry", "automation.exhausted"])
+        await async_resume_batch(hass, data, ["automation.retry", "automation.exhausted"], reason="expired")
 
     assert "automation.retry" in data.paused
     assert "automation.exhausted" in data.paused
     schedule_resume.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_batch_resume_raises_when_all_turn_on_fail_for_manual_reason() -> None:
+    """When every automation.turn_on fails on user-initiated cancel, persist retries then raise."""
+    hass = MagicMock()
+    data = AutomationPauseData(store=MagicMock())
+    data.paused["automation.a"] = _paused("automation.a")
+    data.paused["automation.b"] = _paused("automation.b")
+    set_state = AsyncMock(return_value=False)
+    save = AsyncMock(return_value=True)
+    listener = MagicMock()
+    data.add_listener(listener)
+
+    with (
+        patch("custom_components.autosnooze.runtime.ports.async_set_automation_state", set_state),
+        patch("custom_components.autosnooze.runtime.ports.async_save", save),
+        patch("custom_components.autosnooze.runtime.ports.schedule_resume") as schedule_resume,
+        patch("custom_components.autosnooze.application.resume.notify_resumed", AsyncMock()) as notify_resumed,
+        patch("custom_components.autosnooze.application.resume.track_if_enabled") as track_if_enabled,
+        pytest.raises(ServiceValidationError) as exc_info,
+    ):
+        await async_resume_batch(hass, data, ["automation.a", "automation.b"], reason="manual")
+
+    assert exc_info.value.translation_domain == "autosnooze"
+    assert exc_info.value.translation_key == "wake_failed"
+    assert set(data.paused) == {"automation.a", "automation.b"}
+    assert data.paused["automation.a"].resume_retries == 1
+    assert data.paused["automation.b"].resume_retries == 1
+    assert set_state.await_count == 2
+    save.assert_awaited_once()
+    listener.assert_called_once()
+    assert schedule_resume.call_count == 2
+    notify_resumed.assert_not_awaited()
+    track_if_enabled.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_batch_resume_raises_when_partial_turn_on_fail_for_manual_reason() -> None:
+    """Partial wake on user-initiated cancel must persist successes then raise wake_failed."""
+    hass = MagicMock()
+    data = AutomationPauseData(store=MagicMock())
+    data.paused["automation.a"] = _paused("automation.a")
+    data.paused["automation.b"] = _paused("automation.b")
+    listener = MagicMock()
+    data.add_listener(listener)
+
+    async def set_state(_hass: object, entity_id: str, *, enabled: bool) -> bool:
+        return entity_id == "automation.a" and enabled
+
+    with (
+        patch("custom_components.autosnooze.runtime.ports.async_set_automation_state", side_effect=set_state),
+        patch("custom_components.autosnooze.runtime.ports.async_save", AsyncMock(return_value=True)) as save,
+        patch("custom_components.autosnooze.runtime.ports.schedule_resume") as schedule_resume,
+        patch("custom_components.autosnooze.application.resume.notify_resumed", AsyncMock()) as notify_resumed,
+        patch("custom_components.autosnooze.application.resume.track_if_enabled") as track_if_enabled,
+        pytest.raises(ServiceValidationError) as exc_info,
+    ):
+        await async_resume_batch(hass, data, ["automation.a", "automation.b"], reason="manual")
+
+    assert exc_info.value.translation_domain == "autosnooze"
+    assert exc_info.value.translation_key == "wake_failed"
+    assert set(data.paused) == {"automation.b"}
+    assert data.paused["automation.b"].resume_retries == 1
+    save.assert_awaited_once()
+    listener.assert_called_once()
+    schedule_resume.assert_called_once_with(
+        hass,
+        data,
+        "automation.b",
+        data.paused["automation.b"].resume_at,
+        resume_callback=async_resume,
+    )
+    notify_resumed.assert_not_awaited()
+    track_if_enabled.assert_not_called()
 
 
 @pytest.mark.asyncio

@@ -2,6 +2,7 @@ import { expect, Page } from '@playwright/test';
 import * as path from 'path';
 import { test } from '../fixtures/hass.fixture';
 import { findCardScript } from '../helpers/shadow-dom';
+import { evaluateWithNavigationRetry, waitForHaUiReady } from '../helpers/ha';
 
 const AUTOSNOOZE_CARD_PATH = '/autosnooze-card.js';
 const DASHBOARD_PATH = 'dashboard-testing';
@@ -328,8 +329,19 @@ async function restoreDashboard(page: Page, originalDashboardConfig: LovelaceCon
 }
 
 async function ensureAutoSnoozeIntegration(page: Page): Promise<void> {
-  const existing = (await listAutoSnoozeEntries(page))[0];
+  let existing = (await listAutoSnoozeEntries(page))[0];
   if (existing?.state === 'loaded') {
+    await expect
+      .poll(
+        async () =>
+          (await listAutoSnoozeEntries(page)).find((entry) => entry.entry_id === existing.entry_id)
+            ?.state,
+        {
+          message: 'AutoSnooze config entry should remain loaded after restore',
+          timeout: 30000,
+        }
+      )
+      .toBe('loaded');
     return;
   }
 
@@ -352,11 +364,18 @@ async function restoreAutoSnoozeBaseline(
 ): Promise<void> {
   await restoreDashboard(page, originalDashboardConfig);
   await ensureAutoSnoozeIntegration(page);
+  await expect
+    .poll(async () => (await listAutoSnoozeEntries(page))[0]?.state, {
+      message: 'AutoSnooze config entry should be loaded before baseline restore completes',
+      timeout: 60000,
+    })
+    .toBe('loaded');
 }
 
 async function gotoTestDashboard(page: Page): Promise<void> {
   await page.goto(`/${DASHBOARD_PATH}/${TEST_VIEW_PATH}`, { waitUntil: 'domcontentloaded' });
-  await waitForHassConnection(page);
+  await waitForHaUiReady(page);
+  await page.waitForLoadState('networkidle').catch(() => undefined);
 }
 
 async function waitForAutoSnoozeCard(page: Page): Promise<void> {
@@ -722,6 +741,7 @@ test.describe('Auto card registration', () => {
     browser,
     page,
   }) => {
+    test.setTimeout(120000);
     const originalDashboardConfig = await prepareCleanState(page);
 
     try {
@@ -734,7 +754,9 @@ test.describe('Auto card registration', () => {
         await expect
           .poll(
             async () =>
-              await freshPage.evaluate(`
+              await evaluateWithNavigationRetry(
+                freshPage,
+                `
                 (() => {
                   function queryAllDeep(root, selector) {
                     const results = [];
@@ -763,17 +785,34 @@ test.describe('Auto card registration', () => {
 
                   const errorCards = queryAllDeep(document, 'hui-error-card, ha-alert[alert-type="error"]');
                   const pageText = collectTextDeep(document.body);
+                  const initPage = document.querySelector('ha-init-page');
+                  const initVisible = initPage && getComputedStyle(initPage).display !== 'none';
+                  const hasRegisteredCard = customElements.get('autosnooze-card') !== undefined;
+                  const hasMissingCustomElementMessage = pageText.includes("Custom element doesn't exist");
+                  const hasConfigurationError =
+                    pageText.includes('Configuration error') &&
+                    !hasRegisteredCard &&
+                    errorCards.length > 0;
+                  if (
+                    initVisible ||
+                    (pageText.includes('Loading...') &&
+                      !hasMissingCustomElementMessage &&
+                      !hasConfigurationError)
+                  ) {
+                    return null;
+                  }
                   return {
                     errorCount: errorCards.length,
-                    hasCustomElementError: pageText.includes("Custom element doesn't exist"),
-                    hasRegisteredCard: customElements.get('autosnooze-card') !== undefined,
+                    hasCustomElementError: hasMissingCustomElementMessage || hasConfigurationError,
+                    hasRegisteredCard,
                     pageText,
                   };
                 })()
-              `),
+              `
+              ),
             {
               message: 'Lovelace should report that custom:autosnooze-card is unavailable without the registered resource',
-              timeout: 30000,
+              timeout: 60000,
             }
           )
           .toMatchObject({

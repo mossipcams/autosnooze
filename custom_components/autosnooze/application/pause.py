@@ -43,7 +43,7 @@ from ..infrastructure.telemetry import (
     track_if_enabled,
     track_pause_success,
 )
-from ..logging_utils import _log_command, _raise_save_failed
+from ..logging_utils import _log_command, _raise_pause_failed, _raise_save_failed
 from ..models import PausedAutomation, ScheduledSnooze, ensure_utc_aware, resolve_resume_state
 from ..runtime.ports import (
     async_save as runtime_async_save,
@@ -330,6 +330,7 @@ async def async_pause_automations(
         scheduled_entries: list[ScheduledSnooze] = []
         committed_scheduled_entries: list[ScheduledSnooze] = []
         paused_entries: list[PausedAutomation] = []
+        turn_off_failed_entity_ids: list[str] = []
         initially_enabled: dict[str, bool] = {}
         previous_resume_states: dict[str, str] = {}
         resolved_resume_states: dict[str, str] = {}
@@ -384,6 +385,9 @@ async def async_pause_automations(
             if not await set_state_safely(entity_id, False):
                 if cancellation is not None:
                     break
+                # Missing entities are skipped; only existing automations count as turn_off failures.
+                if hass.states.get(entity_id) is not None:
+                    turn_off_failed_entity_ids.append(entity_id)
                 continue
 
             schedule_mode_disable_at = (
@@ -412,6 +416,9 @@ async def async_pause_automations(
                 if initially_enabled.get(paused.entity_id) and not await set_state(hass, paused.entity_id, True):
                     _LOGGER.warning("Failed to restore %s after pause cancellation", paused.entity_id)
             raise cancellation
+
+        if not paused_entries and not scheduled_entries:
+            _raise_pause_failed()
 
         if scheduled_entries:
             async with data.lock:
@@ -488,6 +495,9 @@ async def async_pause_automations(
                 _LOGGER.warning("Failed to restore disabled state for stale replacement of %s", entity_id)
 
         data.notify()
+        if turn_off_failed_entity_ids:
+            _raise_pause_failed()
+
         await notify_started_callback(hass, paused_entries)
         if any(paused.notification_trigger == NOTIFICATION_TRIGGER_START for paused in paused_entries):
             track_if_enabled(

@@ -344,4 +344,12 @@ describe('automation list feature mutation boundaries', () => {
     expect(withoutHide.categoryCount).toBe(2);
     expect(withoutHide.labelCount).toBe(2);
   });
+
+  test('does not re-export hide snoozed storage helpers or telemetry', async () => {
+    const module = await import('../features/automation-list/index.js');
+
+    expect(module).not.toHaveProperty('loadHideSnoozedPreference');
+    expect(module).not.toHaveProperty('saveHideSnoozedPreference');
+    expect(module).not.toHaveProperty('trackHideSnoozedToggled');
+  });
 });

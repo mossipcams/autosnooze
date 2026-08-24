@@ -209,13 +209,12 @@ async def test_pause_tracks_successful_input_boolean_resume_state_usage() -> Non
         data={"resume_state": "off"},
     )
 
-    async def set_state(_hass, entity_id: str, _enabled: bool) -> bool:
-        return entity_id != "input_boolean.failed"
+    set_state = AsyncMock(return_value=True)
 
     await async_pause_automations(
         hass,
         data,
-        ["automation.one", "input_boolean.success", "input_boolean.failed"],
+        ["automation.one", "input_boolean.success"],
         minutes=10,
         service_call=service_call,
         set_automation_state=set_state,
@@ -427,6 +426,83 @@ async def test_pause_deduplicates_backend_targets() -> None:
     set_state.assert_awaited_once_with(hass, "automation.test", False)
     notify_started.assert_awaited_once()
     assert [paused.entity_id for paused in notify_started.await_args.args[1]] == ["automation.test"]
+
+
+@pytest.mark.asyncio
+async def test_pause_raises_when_all_turn_off_fail() -> None:
+    """When every automation.turn_off fails, pause must not return success."""
+    from homeassistant.exceptions import ServiceValidationError
+
+    from custom_components.autosnooze.application.pause import async_pause_automations
+    from custom_components.autosnooze.runtime.state import AutomationPauseData
+
+    hass = MagicMock()
+    hass.states.get.return_value = MagicMock(state="on", attributes={"friendly_name": "Test"})
+    data = AutomationPauseData(store=MagicMock())
+    set_state = AsyncMock(return_value=False)
+    save = AsyncMock(return_value=True)
+    notify_started = AsyncMock()
+
+    with pytest.raises(ServiceValidationError) as exc_info:
+        await async_pause_automations(
+            hass,
+            data,
+            ["automation.a", "automation.b"],
+            minutes=5,
+            set_automation_state=set_state,
+            save_data=save,
+            notify_started_automations=notify_started,
+            schedule_resume_callback=MagicMock(),
+            schedule_disable_callback=MagicMock(),
+            schedule_pre_resume_notification_callback=MagicMock(),
+        )
+
+    assert exc_info.value.translation_domain == "autosnooze"
+    assert exc_info.value.translation_key == "pause_failed"
+    assert data.paused == {}
+    assert data.scheduled == {}
+    assert set_state.await_count == 2
+    save.assert_not_awaited()
+    notify_started.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_pause_persists_partial_success_then_raises_pause_failed() -> None:
+    """When some turn_off calls fail, persist successes then raise pause_failed."""
+    from homeassistant.exceptions import ServiceValidationError
+
+    from custom_components.autosnooze.application.pause import async_pause_automations
+    from custom_components.autosnooze.runtime.state import AutomationPauseData
+
+    hass = MagicMock()
+    hass.states.get.return_value = MagicMock(state="on", attributes={"friendly_name": "Test"})
+    data = AutomationPauseData(store=MagicMock())
+
+    async def set_state(_hass, entity_id: str, enabled: bool) -> bool:
+        return entity_id == "automation.a" and not enabled
+
+    save = AsyncMock(return_value=True)
+    notify_started = AsyncMock()
+
+    with pytest.raises(ServiceValidationError) as exc_info:
+        await async_pause_automations(
+            hass,
+            data,
+            ["automation.a", "automation.b"],
+            minutes=5,
+            set_automation_state=set_state,
+            save_data=save,
+            notify_started_automations=notify_started,
+            schedule_resume_callback=MagicMock(),
+            schedule_disable_callback=MagicMock(),
+            schedule_pre_resume_notification_callback=MagicMock(),
+        )
+
+    assert exc_info.value.translation_domain == "autosnooze"
+    assert exc_info.value.translation_key == "pause_failed"
+    assert set(data.paused) == {"automation.a"}
+    save.assert_awaited_once()
+    notify_started.assert_not_awaited()
 
 
 @pytest.mark.asyncio

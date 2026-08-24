@@ -1,5 +1,10 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import {
+  loadCardHideSnoozedPreference,
+  saveCardHideSnoozedPreference,
+  trackHideSnoozedToggled,
+} from '../features/card-shell/index.js';
+import {
   loadHideSnoozedPreference,
   loadLastDuration,
   loadRecentSnoozes,
@@ -151,6 +156,20 @@ describe('storage mutation boundaries', () => {
 
     saveHideSnoozedPreference(false);
     expect(loadHideSnoozedPreference()).toBe(false);
+  });
+
+  test('card-shell exports hide snoozed load/save facades and telemetry', () => {
+    expect(typeof loadCardHideSnoozedPreference).toBe('function');
+    expect(typeof saveCardHideSnoozedPreference).toBe('function');
+    expect(typeof trackHideSnoozedToggled).toBe('function');
+  });
+
+  test('card-shell hide snoozed facades delegate to storage service', () => {
+    expect(loadCardHideSnoozedPreference()).toBe(false);
+
+    saveCardHideSnoozedPreference(true);
+    expect(localStorage.getItem(HIDE_SNOOZED_KEY)).toBe('true');
+    expect(loadCardHideSnoozedPreference()).toBe(true);
   });
 
   test('hide snoozed preference treats corrupt storage as false and ignores write failures', () => {

@@ -33,7 +33,7 @@ export async function fetchLabelRegistry(
  */
 export async function fetchCategoryRegistry(
   hass: HomeAssistant
-): Promise<Record<string, HassCategory>> {
+): Promise<Record<string, HassCategory> | null> {
   try {
     const items = await hass.connection.sendMessagePromise<HassCategory[]>({
       type: 'config/category_registry/list',
@@ -49,7 +49,7 @@ export async function fetchCategoryRegistry(
     return categoryMap;
   } catch (err) {
     console.warn('[AutoSnooze] Failed to fetch category registry:', err);
-    return {};
+    return null;
   }
 }
 
@@ -58,7 +58,7 @@ export async function fetchCategoryRegistry(
  */
 export async function fetchEntityRegistry(
   hass: HomeAssistant
-): Promise<Record<string, HassEntityRegistryEntry>> {
+): Promise<Record<string, HassEntityRegistryEntry> | null> {
   try {
     const items = await hass.connection.sendMessagePromise<HassEntityRegistryEntry[]>({
       type: 'config/entity_registry/list',
@@ -75,6 +75,6 @@ export async function fetchEntityRegistry(
     return entityMap;
   } catch (err) {
     console.warn('[AutoSnooze] Failed to fetch entity registry:', err);
-    return {};
+    return null;
   }
 }

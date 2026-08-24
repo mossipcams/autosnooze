@@ -6,6 +6,7 @@ from datetime import datetime, timedelta, timezone
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from homeassistant.exceptions import ServiceValidationError
 
 from custom_components.autosnooze.application.resume import async_resume_batch
 from custom_components.autosnooze.runtime.state import AutomationPauseData
@@ -98,6 +99,7 @@ async def test_resume_batch_keeps_failed_entities_and_persists_once() -> None:
             AsyncMock(return_value=True),
         ) as save_state,
         patch("custom_components.autosnooze.runtime.ports.schedule_resume") as schedule_resume,
+        pytest.raises(ServiceValidationError) as exc_info,
     ):
         await async_resume_batch(
             MagicMock(),
@@ -105,6 +107,7 @@ async def test_resume_batch_keeps_failed_entities_and_persists_once() -> None:
             ["automation.success", "automation.missing", "automation.retry"],
         )
 
+    assert exc_info.value.translation_key == "wake_failed"
     assert set_state.await_args_list[0].args[1] == "automation.success"
     assert set_state.await_args_list[1].args[1] == "automation.retry"
     save_state.assert_awaited_once_with(data)

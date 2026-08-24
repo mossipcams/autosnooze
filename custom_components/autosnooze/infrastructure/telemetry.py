@@ -78,6 +78,9 @@ ERROR_CODE_ALLOWLIST = frozenset(
 )
 TRANSLATION_KEY_TO_ERROR_CODE: dict[str, str] = {
     "confirm_required": "confirmation_required",
+    "pause_failed": "automation_state_failed",
+    "wake_failed": "automation_state_failed",
+    "adjust_failed": "automation_state_failed",
 }
 MAX_MINUTES = 10080
 MAX_TARGET_COUNT = 500

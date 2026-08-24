@@ -41,6 +41,93 @@ const waitForHassConnection = async (page: Page): Promise<void> => {
   );
 };
 
+/** Wait until HA finished booting: websocket connected, states loaded, main UI visible (not splash). */
+export const waitForHaUiReady = async (page: Page): Promise<void> => {
+  await waitForHassConnection(page);
+  await expect
+    .poll(
+      async () =>
+        page.evaluate(() => {
+          const ha = document.querySelector('home-assistant') as {
+            hass?: { connection?: unknown; states?: Record<string, unknown> };
+          } | null;
+          if (!ha?.hass?.connection) {
+            return false;
+          }
+          if (Object.keys(ha.hass.states ?? {}).length === 0) {
+            return false;
+          }
+          const bodyText = document.body?.innerText ?? '';
+          const initPage = document.querySelector('ha-init-page');
+          if (initPage) {
+            const style = getComputedStyle(initPage);
+            if (style.display !== 'none' && style.visibility !== 'hidden' && style.opacity !== '0') {
+              return false;
+            }
+          }
+          if (
+            bodyText.includes('Loading...') &&
+            !bodyText.includes("Custom element doesn't exist") &&
+            !bodyText.includes('Configuration error')
+          ) {
+            return false;
+          }
+
+          const findInShadowRoots = (root: ParentNode, selector: string): boolean => {
+            if (root.querySelector?.(selector)) {
+              return true;
+            }
+            for (const element of root.querySelectorAll?.('*') ?? []) {
+              if (element.shadowRoot && findInShadowRoots(element.shadowRoot, selector)) {
+                return true;
+              }
+            }
+            return false;
+          };
+
+          return (
+            findInShadowRoots(document, 'home-assistant-main') ||
+            findInShadowRoots(document, 'ha-panel-lovelace') ||
+            findInShadowRoots(document, 'hui-root') ||
+            findInShadowRoots(document, 'hui-error-card')
+          );
+        }),
+      { timeout: 60000, message: 'Home Assistant UI should finish loading' },
+    )
+    .toBe(true);
+};
+
+/** Retry page.evaluate when HA reload/navigation destroys the execution context mid-poll. */
+export const evaluateWithNavigationRetry = async <T>(
+  page: Page,
+  script: string | (() => T),
+  options: { maxAttempts?: number; delayMs?: number } = {},
+): Promise<T> => {
+  const maxAttempts = options.maxAttempts ?? 8;
+  const delayMs = options.delayMs ?? 750;
+  let lastError: unknown;
+
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    try {
+      await waitForHaUiReady(page);
+      return typeof script === 'string' ? await page.evaluate(script) : await page.evaluate(script);
+    } catch (error) {
+      lastError = error;
+      const message = String(error);
+      if (
+        !message.includes('Execution context was destroyed') &&
+        !message.includes('execution context') &&
+        !message.includes('Target page, context or browser has been closed')
+      ) {
+        throw error;
+      }
+      await page.waitForTimeout(delayMs);
+    }
+  }
+
+  throw lastError;
+};
+
 const sendHassMessage = async <T>(page: Page, message: Record<string, unknown>): Promise<T> => {
   await waitForHassConnection(page);
   return await page.evaluate(async (msg) => {

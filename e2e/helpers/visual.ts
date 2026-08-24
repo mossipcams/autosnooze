@@ -14,6 +14,12 @@ type Offender = {
 };
 
 function collectLayoutOffendersInBrowser(rootElement: Element, mode: string): Offender[] {
+  /** Replaced/native text fields scroll content internally; scrollWidth > clientWidth is not layout overflow. */
+  const isNativeTextField = (element: HTMLElement): boolean => {
+    const tag = element.tagName;
+    return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT';
+  };
+
   const offenders: Offender[] = [];
   const cardRect = rootElement.getBoundingClientRect();
 
@@ -25,7 +31,11 @@ function collectLayoutOffendersInBrowser(rootElement: Element, mode: string): Of
       const text = (htmlElement.textContent ?? '').replace(/\s+/g, ' ').trim();
       const visible = style.display !== 'none' && style.visibility !== 'hidden' && style.opacity !== '0';
 
-      if (mode === 'overflow' && htmlElement.scrollWidth > htmlElement.clientWidth + 1) {
+      if (
+        mode === 'overflow' &&
+        !isNativeTextField(htmlElement) &&
+        htmlElement.scrollWidth > htmlElement.clientWidth + 1
+      ) {
         offenders.push({
           tag: htmlElement.tagName.toLowerCase(),
           className: htmlElement.className.toString(),

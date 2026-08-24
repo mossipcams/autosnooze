@@ -25,6 +25,8 @@ import {
   isCardSnoozeSensorAvailable,
   loadCardLastDuration,
   loadCardRecentSnoozeIds,
+  loadCardHideSnoozedPreference,
+  saveCardHideSnoozedPreference,
   createScheduleModeState,
   syncAdjustModalWithPaused,
   trackCardViewed,
@@ -37,9 +39,9 @@ import {
   trackUntilTomorrowSelected,
   trackCustomDurationToggled,
   trackNotificationOptionsChanged,
+  trackHideSnoozedToggled,
   type LastDurationData,
 } from '../features/card-shell/index.js';
-import { loadHideSnoozedPreference, saveHideSnoozedPreference, trackHideSnoozedToggled } from '../features/automation-list/index.js';
 import { formatDateTime, formatDuration } from '../utils/time-formatting.js';
 import { durationToMinutes, isDurationValid, minutesToDuration } from '../utils/duration-parsing.js';
 import { hapticFeedback } from '../utils/haptic.js';
@@ -168,7 +170,7 @@ export class AutomationPauseCard extends LitElement {
       void this._shell.connect(this.hass);
     }
     this._lastDuration = loadCardLastDuration();
-    this._hideSnoozed = loadHideSnoozedPreference();
+    this._hideSnoozed = loadCardHideSnoozedPreference();
     this._refreshRecentSnoozeIds();
   }
 
@@ -633,7 +635,7 @@ export class AutomationPauseCard extends LitElement {
 
   private _toggleHideSnoozed(): void {
     this._hideSnoozed = !this._hideSnoozed;
-    saveHideSnoozedPreference(this._hideSnoozed);
+    saveCardHideSnoozedPreference(this._hideSnoozed);
     if (this.hass) trackHideSnoozedToggled(this.hass, this._hideSnoozed);
   }
 

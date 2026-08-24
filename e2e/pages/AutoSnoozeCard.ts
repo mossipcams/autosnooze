@@ -608,9 +608,46 @@ export class AutoSnoozeCard extends BasePage {
     await this.restoreSelectedAutomationIds(selectedIds);
   }
 
+  private async isCustomInputVisible(): Promise<boolean> {
+    return await this.page.evaluate(
+      `
+      (() => {
+        ${findAutosnoozeCard}
+        const card = findAutosnoozeCard();
+        const input = deepQuery(card, '.duration-input');
+        if (!input) return false;
+        const container = deepQuery(card, '.custom-duration-input');
+        if (!container) return false;
+        return getComputedStyle(container).display !== 'none';
+      })()
+      `
+    );
+  }
+
+  private async ensureCustomInputOpen(): Promise<void> {
+    if (await this.isCustomInputVisible()) {
+      return;
+    }
+    await this.selectDuration('Custom');
+  }
+
+  private async getResumeAtsForEntities(entityIds: string[]): Promise<Record<string, string | null>> {
+    return await this.page.evaluate(
+      (ids) => {
+        const ha = document.querySelector('home-assistant') as HTMLElement & {
+          hass?: { states?: Record<string, { attributes?: { paused?: Record<string, { resume_at?: string }> } }> };
+        };
+        const sensor = ha?.hass?.states?.['sensor.autosnooze_snoozed_automations'];
+        const paused = sensor?.attributes?.paused ?? {};
+        return Object.fromEntries(ids.map((id) => [id, paused[id]?.resume_at ?? null]));
+      },
+      entityIds
+    );
+  }
+
   async setCustomDuration(duration: string): Promise<void> {
     const selectedIds = Array.from(this.selectedEntityIds);
-    await this.selectDuration('Custom');
+    await this.ensureCustomInputOpen();
     await this.page.evaluate(
       `
       (() => {
@@ -722,6 +759,9 @@ export class AutoSnoozeCard extends BasePage {
     // Get current paused and scheduled counts before snoozing
     const beforePaused = await this.getPausedCount();
     const beforeScheduled = await this.getScheduledCount();
+    const selectedIds = Array.from(this.selectedEntityIds);
+    const beforeResumeAts =
+      selectedIds.length > 0 ? await this.getResumeAtsForEntities(selectedIds) : {};
 
     await this.page.evaluate(
       `
@@ -734,21 +774,66 @@ export class AutoSnoozeCard extends BasePage {
       `
     );
 
-    // Wait for either paused or scheduled count to change
-    // The actual count should increase if there were selected automations
+    // Wait for either paused/scheduled count to increase, or resume_at to change on re-snooze
     try {
       await this.page.waitForFunction(
-        `
-        (() => {
-          ${findAutosnoozeCard}
+        ({ beforePaused, beforeScheduled, beforeResumeAts, selectedIds }) => {
+          const ha = document.querySelector('home-assistant') as {
+            hass?: { states?: Record<string, { attributes?: { paused?: Record<string, { resume_at?: string }> } }> };
+          } | null;
+          const sensor = ha?.hass?.states?.['sensor.autosnooze_snoozed_automations'];
+          const pausedAttrs = sensor?.attributes?.paused ?? {};
+
+          function findAutosnoozeCard(): Element | null {
+            const findCard = (root: ParentNode): Element | null => {
+              const card = root.querySelector('autosnooze-card');
+              if (card) return card;
+              for (const el of root.querySelectorAll('*')) {
+                if (el.shadowRoot) {
+                  const found = findCard(el.shadowRoot);
+                  if (found) return found;
+                }
+              }
+              return null;
+            };
+            return findCard(document);
+          }
+
+          function deepQueryAll(card: Element | null, selector: string): Element[] {
+            const results: Element[] = [];
+            if (!card?.shadowRoot) return results;
+            results.push(...card.shadowRoot.querySelectorAll(selector));
+            for (const child of card.shadowRoot.querySelectorAll('*')) {
+              if (child.shadowRoot) {
+                results.push(...child.shadowRoot.querySelectorAll(selector));
+              }
+            }
+            return results;
+          }
+
           const card = findAutosnoozeCard();
           const pausedItems = deepQueryAll(card, '.paused-item');
           const scheduledItems = deepQueryAll(card, '.scheduled-item');
           const currentPaused = pausedItems?.length ?? 0;
           const currentScheduled = scheduledItems?.length ?? 0;
-          return currentPaused > ${beforePaused} || currentScheduled > ${beforeScheduled};
-        })()
-        `,
+          if (currentPaused > beforePaused || currentScheduled > beforeScheduled) {
+            return true;
+          }
+
+          for (const entityId of selectedIds) {
+            const previous = beforeResumeAts[entityId];
+            if (!previous) {
+              continue;
+            }
+            const current = pausedAttrs[entityId]?.resume_at ?? null;
+            if (current && current !== previous) {
+              return true;
+            }
+          }
+
+          return false;
+        },
+        { beforePaused, beforeScheduled, beforeResumeAts, selectedIds },
         { timeout: DEFAULT_WAIT_TIMEOUT }
       );
     } catch {

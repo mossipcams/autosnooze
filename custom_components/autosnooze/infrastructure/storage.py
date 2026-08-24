@@ -22,12 +22,13 @@ async def async_save(
     if data.store is None:
         return True
 
-    async with data.save_lock:
+    async with data.lock:
         save_data = {
             "paused": data.get_paused_dict(),
             "scheduled": data.get_scheduled_dict(),
         }
 
+    async with data.save_lock:
         for attempt, delay in enumerate(SAVE_RETRY_DELAYS, start=1):
             try:
                 result = data.store.async_save(save_data)

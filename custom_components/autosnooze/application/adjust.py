@@ -14,7 +14,7 @@ from homeassistant.util import dt as dt_util
 from ..const import DOMAIN, MIN_ADJUST_BUFFER
 from ..domain.notifications import notification_window_supports_lead
 from ..infrastructure.telemetry import track_if_enabled
-from ..logging_utils import _log_command, _raise_save_failed
+from ..logging_utils import _log_command, _raise_adjust_failed, _raise_save_failed
 from ..models import PausedAutomation
 from ..runtime.ports import async_save, schedule_pre_resume_notification, schedule_resume
 from ..runtime.state import AutomationPauseData
@@ -83,6 +83,9 @@ async def async_adjust_snooze_batch(
 
         for paused in pre_resume_targets:
             schedule_pre_resume_notification(hass, data, paused, notification_callback=send_pre_resume_notification)
+
+        if not updates:
+            _raise_adjust_failed()
 
         if updates:
             if not await async_save(data):

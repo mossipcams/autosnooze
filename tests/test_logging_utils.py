@@ -86,3 +86,39 @@ def test_raise_save_failed_raises_with_correct_translation_key() -> None:
     assert str(exc_info.value) == "Failed to persist autosnooze state"
     assert exc_info.value.translation_domain == "autosnooze"
     assert exc_info.value.translation_key == "save_failed"
+
+
+def test_raise_pause_failed_raises_with_correct_translation_key() -> None:
+    from homeassistant.exceptions import ServiceValidationError
+
+    from custom_components.autosnooze.logging_utils import _raise_pause_failed
+
+    with pytest.raises(ServiceValidationError) as exc_info:
+        _raise_pause_failed()
+    assert str(exc_info.value) == "Failed to pause automations"
+    assert exc_info.value.translation_domain == "autosnooze"
+    assert exc_info.value.translation_key == "pause_failed"
+
+
+def test_raise_wake_failed_raises_with_correct_translation_key() -> None:
+    from homeassistant.exceptions import ServiceValidationError
+
+    from custom_components.autosnooze.logging_utils import _raise_wake_failed
+
+    with pytest.raises(ServiceValidationError) as exc_info:
+        _raise_wake_failed()
+    assert str(exc_info.value) == "Failed to wake automations"
+    assert exc_info.value.translation_domain == "autosnooze"
+    assert exc_info.value.translation_key == "wake_failed"
+
+
+def test_raise_adjust_failed_raises_with_correct_translation_key() -> None:
+    from homeassistant.exceptions import ServiceValidationError
+
+    from custom_components.autosnooze.logging_utils import _raise_adjust_failed
+
+    with pytest.raises(ServiceValidationError) as exc_info:
+        _raise_adjust_failed()
+    assert str(exc_info.value) == "Failed to adjust automations"
+    assert exc_info.value.translation_domain == "autosnooze"
+    assert exc_info.value.translation_key == "adjust_failed"
