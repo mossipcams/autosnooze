@@ -18,6 +18,10 @@ vi.mock('../services/registry.js', () => ({
 import { AutomationPauseCard } from '../components/autosnooze-card.js';
 import { loadHideSnoozedPreference, loadRecentSnoozes } from '../services/storage.js';
 
+type TestCard = HTMLElement & {
+  _hideSnoozed: boolean;
+};
+
 describe('Card loads recent snooze IDs on connect', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -43,9 +47,7 @@ describe('Card loads recent snooze IDs on connect', () => {
     if (!customElements.get('test-card-hide-snoozed')) {
       customElements.define('test-card-hide-snoozed', AutomationPauseCard);
     }
-    const el = document.createElement('test-card-hide-snoozed') as AutomationPauseCard & {
-      _hideSnoozed: boolean;
-    };
+    const el = document.createElement('test-card-hide-snoozed') as TestCard;
     document.body.appendChild(el);
 
     expect(loadHideSnoozedPreference).toHaveBeenCalledTimes(1);

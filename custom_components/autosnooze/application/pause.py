@@ -350,7 +350,9 @@ async def async_pause_automations(
             if not await set_state_safely(entity_id, False):
                 if cancellation is not None:
                     break
-                turn_off_failed_entity_ids.append(entity_id)
+                # Missing entities are skipped; only existing automations count as turn_off failures.
+                if hass.states.get(entity_id) is not None:
+                    turn_off_failed_entity_ids.append(entity_id)
                 continue
 
             schedule_mode_disable_at = (
