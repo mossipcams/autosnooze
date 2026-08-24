@@ -15,6 +15,7 @@ from custom_components.autosnooze.infrastructure.telemetry import (
 
 PLANNED_EVENTS = {
     "integration_active",
+    "input_boolean_snooze_created",
     "card_viewed",
     "selection_feature_used",
     "duration_option_selected",
@@ -111,6 +112,41 @@ def test_sanitize_accepts_clean_snooze_created() -> None:
     assert payload["strategy"] == "duration"
     assert payload["confirmation_used"] is False
     assert payload["duration_minutes"] == 30
+
+
+@pytest.mark.parametrize("resume_state", ["previous", "on", "off"])
+def test_sanitize_accepts_input_boolean_snooze_created(resume_state: str) -> None:
+    payload = sanitize_event_properties(
+        "input_boolean_snooze_created",
+        {
+            "resume_state": resume_state,
+            "schedule_mode": False,
+            "target_count": 2,
+        },
+        source="service",
+    )
+
+    assert payload == {
+        "source": "service",
+        "resume_state": resume_state,
+        "schedule_mode": False,
+        "target_count": 2,
+    }
+
+
+def test_sanitize_rejects_invalid_input_boolean_resume_state() -> None:
+    assert (
+        sanitize_event_properties(
+            "input_boolean_snooze_created",
+            {
+                "resume_state": "unknown",
+                "schedule_mode": False,
+                "target_count": 1,
+            },
+            source="service",
+        )
+        is None
+    )
 
 
 def test_sanitize_rejects_invalid_strategy() -> None:
@@ -284,6 +320,7 @@ def test_map_translation_key_confirm_required_alias() -> None:
 
 def test_map_translation_key_real_ha_codes_map_to_themselves() -> None:
     assert map_translation_key_to_error_code("not_automation") == "not_automation"
+    assert map_translation_key_to_error_code("invalid_previous_state") == "invalid_previous_state"
     assert map_translation_key_to_error_code("invalid_resume_preset") == "invalid_resume_preset"
     assert map_translation_key_to_error_code("invalid_adjustment") == "invalid_adjustment"
     assert map_translation_key_to_error_code("adjust_time_too_short") == "adjust_time_too_short"

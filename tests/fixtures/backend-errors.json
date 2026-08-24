@@ -60,6 +60,14 @@
       "translation_placeholders": {
         "preset": "tomorrow"
       }
+    },
+    "invalid_previous_state": {
+      "translation_key": "invalid_previous_state",
+      "message": "Cannot restore previous state for input_boolean.away_mode: unavailable",
+      "translation_placeholders": {
+        "entity_id": "input_boolean.away_mode",
+        "state": "unavailable"
+      }
     }
   }
 }

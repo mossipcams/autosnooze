@@ -22,12 +22,13 @@ from posthog.utils import system_context
 
 from ..const import (
     DOMAIN,
+    RESUME_STATE_VALUES,
     VERSION,
 )
 
 _LOGGER = logging.getLogger(__name__)
 
-EVENT_SCHEMA_VERSION = "3"
+EVENT_SCHEMA_VERSION = "4"
 TELEMETRY_PLATFORMS = frozenset({"web", "mobile", "tablet"})
 POSTHOG_PROJECT_API_KEY = "phc_onzUF6SgjU9kfmCJN5XWxQL5SkDrYEJzeyCBFK3Xzfvb"
 POSTHOG_HOST = "https://us.i.posthog.com"
@@ -60,6 +61,7 @@ FILTER_TABS = frozenset({"all", "areas", "categories", "labels"})
 ERROR_CODE_ALLOWLIST = frozenset(
     {
         "invalid_duration",
+        "invalid_previous_state",
         "resume_time_past",
         "disable_after_resume",
         "confirmation_required",
@@ -84,6 +86,7 @@ MAX_TARGET_COUNT = 500
 
 EVENT_SCHEMAS: dict[str, frozenset[str]] = {
     "integration_active": frozenset(),
+    "input_boolean_snooze_created": frozenset({"resume_state", "schedule_mode", "target_count"}),
     "card_viewed": frozenset({"card_type"}),
     "selection_feature_used": frozenset({"target_count"}),
     "duration_option_selected": frozenset({"duration_minutes"}),
@@ -202,6 +205,7 @@ def _validate_property(key: str, value: Any) -> Any | None:
         "enabled": _validate_bool,
         "schedule_mode": _validate_bool,
         "until_tomorrow": _validate_bool,
+        "resume_state": lambda v: _validate_enum(v, frozenset(RESUME_STATE_VALUES)),
         "duration_minutes": lambda v: _validate_int(v, max_value=MAX_MINUTES),
         "notification_lead_minutes": lambda v: _validate_int(v, max_value=MAX_MINUTES),
         "minutes_until_start": lambda v: _validate_int(v, max_value=MAX_MINUTES),
@@ -601,6 +605,8 @@ def track_pause_success(
     confirm: bool,
     paused_count: int,
     scheduled_count: int,
+    input_boolean_count: int,
+    resume_state: str,
     notification_trigger: str,
     notification_lead_minutes: int | None,
     now: datetime,
@@ -651,6 +657,18 @@ def track_pause_success(
                 "planned_duration_minutes": max(int((resume_at - disable_at).total_seconds() // 60), 0),
                 "target_count": scheduled_count,
                 "resume_local_hour": dt_util.as_local(resume_at).hour,
+            },
+            source=source,
+        )
+
+    if input_boolean_count > 0:
+        track_if_enabled(
+            data,
+            "input_boolean_snooze_created",
+            {
+                "resume_state": resume_state,
+                "schedule_mode": use_scheduled,
+                "target_count": input_boolean_count,
             },
             source=source,
         )

@@ -85,6 +85,100 @@ async def test_startup_recovery_restores_future_entries_and_skips_expired() -> N
 
 
 @pytest.mark.asyncio
+async def test_startup_recovery_restores_paused_input_boolean() -> None:
+    now = datetime.now(UTC)
+    data = AutomationPauseData(store=MagicMock())
+    data.store.async_load = AsyncMock(
+        return_value={
+            "paused": {
+                "input_boolean.away_mode": {
+                    "resume_at": (now + timedelta(hours=1)).isoformat(),
+                    "paused_at": now.isoformat(),
+                }
+            },
+            "scheduled": {},
+        }
+    )
+    hass = _build_hass()
+    set_state = AsyncMock(return_value=True)
+
+    with pytest.MonkeyPatch.context() as mp:
+        mp.setattr("custom_components.autosnooze.runtime.ports.async_set_automation_state", set_state)
+        mp.setattr("custom_components.autosnooze.runtime.ports.schedule_resume", MagicMock())
+        await async_load_stored(hass, data)
+
+    assert "input_boolean.away_mode" in data.paused
+    set_state.assert_awaited_once_with(hass, "input_boolean.away_mode", enabled=False)
+
+
+@pytest.mark.asyncio
+async def test_startup_recovery_defers_scheduled_previous_when_state_is_unavailable() -> None:
+    """Recovery must preserve a scheduled Boolean until its previous state is stable."""
+    now = datetime.now(UTC)
+    entity_id = "input_boolean.away_mode"
+    data = AutomationPauseData(store=MagicMock())
+    data.store.async_load = AsyncMock(
+        return_value={
+            "paused": {},
+            "scheduled": {
+                entity_id: {
+                    "disable_at": (now - timedelta(minutes=5)).isoformat(),
+                    "resume_at": (now + timedelta(minutes=10)).isoformat(),
+                    "resume_state": "previous",
+                }
+            },
+        }
+    )
+    data.store.async_save = AsyncMock()
+    hass = MagicMock()
+    hass.states.get.return_value = MagicMock(state="unavailable")
+    set_state = AsyncMock(return_value=True)
+    schedule_disable = MagicMock()
+
+    with pytest.MonkeyPatch.context() as mp:
+        mp.setattr("custom_components.autosnooze.runtime.ports.async_set_automation_state", set_state)
+        mp.setattr("custom_components.autosnooze.runtime.ports.schedule_disable", schedule_disable)
+        await async_load_stored(hass, data)
+
+    set_state.assert_not_awaited()
+    assert entity_id in data.scheduled
+    assert entity_id not in data.paused
+    assert data.scheduled[entity_id].disable_at > now
+    schedule_disable.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_startup_recovery_applies_persisted_off_resume_state() -> None:
+    """An expired snooze applies its persisted Boolean end state after restart."""
+    now = datetime.now(UTC)
+    entity_id = "input_boolean.away_mode"
+    data = AutomationPauseData(store=MagicMock())
+    data.store.async_load = AsyncMock(
+        return_value={
+            "paused": {
+                entity_id: {
+                    "resume_at": (now - timedelta(minutes=1)).isoformat(),
+                    "paused_at": (now - timedelta(hours=1)).isoformat(),
+                    "resume_state": "off",
+                }
+            },
+            "scheduled": {},
+        }
+    )
+    data.store.async_save = AsyncMock()
+    hass = MagicMock()
+    hass.states.get.return_value = MagicMock(state="off")
+    set_state = AsyncMock(return_value=True)
+
+    with pytest.MonkeyPatch.context() as mp:
+        mp.setattr("custom_components.autosnooze.runtime.ports.async_set_automation_state", set_state)
+        await async_load_stored(hass, data)
+
+    set_state.assert_awaited_once_with(hass, entity_id, enabled=False)
+    assert entity_id not in data.paused
+
+
+@pytest.mark.asyncio
 async def test_startup_recovery_replay_reregistration_is_idempotent() -> None:
     now = datetime.now(UTC)
     data = AutomationPauseData()

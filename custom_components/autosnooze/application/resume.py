@@ -38,7 +38,8 @@ async def async_resume(
     async with data.lock:
         expected_pause = data.paused.get(entity_id)
 
-    woke_successfully = await runtime_ports.async_set_automation_state(hass, entity_id, enabled=True)
+    resume_enabled = expected_pause.resume_enabled if expected_pause is not None else True
+    woke_successfully = await runtime_ports.async_set_automation_state(hass, entity_id, enabled=resume_enabled)
     re_disable_entity = False
     retry_scheduled = False
     resumed: list[PausedAutomation] = []
@@ -111,7 +112,11 @@ async def async_resume_batch(
         cancellation: asyncio.CancelledError | None = None
         for entity_id in candidate_ids:
             state_change = asyncio.ensure_future(
-                runtime_ports.async_set_automation_state(hass, entity_id, enabled=True)
+                runtime_ports.async_set_automation_state(
+                    hass,
+                    entity_id,
+                    enabled=candidates[entity_id].resume_enabled,
+                )
             )
             try:
                 results[entity_id] = await asyncio.shield(state_change)

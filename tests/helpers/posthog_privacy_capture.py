@@ -205,6 +205,10 @@ CARD_REPORT_EVENTS: dict[str, dict[str, Any]] = {
 
 TRACK_EVENTS: dict[str, dict[str, Any]] = {
     "integration_active": {"properties": {}, "source": "startup"},
+    "input_boolean_snooze_created": {
+        "properties": {"resume_state": "previous", "schedule_mode": False, "target_count": 1},
+        "source": "service",
+    },
     "scheduled_snooze_created": {
         "properties": {
             "minutes_until_start": 60,

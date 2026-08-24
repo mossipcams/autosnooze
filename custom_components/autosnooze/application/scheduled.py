@@ -11,11 +11,11 @@ from homeassistant.const import ATTR_ENTITY_ID, STATE_ON
 from homeassistant.core import HomeAssistant, ServiceCall
 from homeassistant.util import dt as dt_util
 
-from ..const import SCHEDULED_DISABLE_RETRY_DELAY
+from ..const import RESUME_STATE_ON, SCHEDULED_DISABLE_RETRY_DELAY
 from ..domain.notifications import NOTIFICATION_TRIGGER_START
 from ..infrastructure.telemetry import track_if_enabled
 from ..logging_utils import _log_command, _raise_save_failed
-from ..models import PausedAutomation, ScheduledSnooze
+from ..models import PausedAutomation, ScheduledSnooze, resolve_resume_state
 from ..runtime import ports as runtime_ports
 from ..runtime.timers import cancel_scheduled_timer
 from ..runtime.state import AutomationPauseData
@@ -42,12 +42,23 @@ async def async_execute_scheduled_disable(
     initial_state = hass.states.get(entity_id)
     was_enabled = initial_state is not None and initial_state.state == STATE_ON
     cancellation: asyncio.CancelledError | None = None
-    state_change = asyncio.create_task(runtime_ports.async_set_automation_state(hass, entity_id, enabled=False))
     try:
-        disabled_successfully = await asyncio.shield(state_change)
-    except asyncio.CancelledError as err:
-        cancellation = err
-        disabled_successfully = await state_change
+        resolved_resume_state = resolve_resume_state(
+            entity_id,
+            expected_scheduled.resume_state if expected_scheduled is not None else RESUME_STATE_ON,
+            previous_state=initial_state.state if initial_state is not None else None,
+        )
+    except ValueError:
+        resolved_resume_state = None
+        disabled_successfully = False
+        _LOGGER.warning("Deferring scheduled snooze for %s until its state is stable", entity_id)
+    else:
+        state_change = asyncio.create_task(runtime_ports.async_set_automation_state(hass, entity_id, enabled=False))
+        try:
+            disabled_successfully = await asyncio.shield(state_change)
+        except asyncio.CancelledError as err:
+            cancellation = err
+            disabled_successfully = await state_change
 
     def raise_cancellation() -> None:
         if cancellation is not None:
@@ -75,7 +86,8 @@ async def async_execute_scheduled_disable(
             expected_scheduled is None and current_scheduled is not None
         )
         if stale_after_disable:
-            undo_stale_disable = disabled_successfully and entity_id not in data.paused
+            restore_enabled = entity_id.startswith("automation.") or was_enabled
+            undo_stale_disable = disabled_successfully and restore_enabled and entity_id not in data.paused
         else:
             scheduled = current_scheduled if expected_scheduled is None else expected_scheduled
 
@@ -107,6 +119,7 @@ async def async_execute_scheduled_disable(
                     early_notify = True
                     retry_log_at = retry_at
             else:
+                assert resolved_resume_state is not None
                 scheduled = data.scheduled.pop(entity_id, None)
                 now = dt_util.utcnow()
                 friendly_name = (
@@ -122,6 +135,7 @@ async def async_execute_scheduled_disable(
                     disable_at=disable_at,
                     notification_trigger=(scheduled.notification_trigger if scheduled is not None else "none"),
                     notification_lead_minutes=(scheduled.notification_lead_minutes if scheduled is not None else None),
+                    resume_state=resolved_resume_state,
                 )
                 data.paused[entity_id] = success_paused
                 runtime_ports.schedule_resume(hass, data, entity_id, resume_at, resume_callback=async_resume)

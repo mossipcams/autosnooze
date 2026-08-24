@@ -71,8 +71,8 @@ async def mock_dependencies(hass: HomeAssistant):
     async def mock_automation_service(call):
         pass
 
-    hass.services.async_register("automation", "turn_on", mock_automation_service)
-    hass.services.async_register("automation", "turn_off", mock_automation_service)
+    hass.services.async_register("homeassistant", "turn_on", mock_automation_service)
+    hass.services.async_register("homeassistant", "turn_off", mock_automation_service)
     hass.services.async_register("automation", "toggle", mock_automation_service)
 
     yield

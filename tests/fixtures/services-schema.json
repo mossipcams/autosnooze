@@ -9,7 +9,7 @@
           "required": true,
           "selector": {
             "entity": {
-              "domain": "automation",
+              "domain": ["automation", "input_boolean"],
               "multiple": true
             }
           }
@@ -75,6 +75,19 @@
             }
           }
         },
+        "resume_state": {
+          "required": false,
+          "default": "previous",
+          "selector": {
+            "select": {
+              "options": [
+                { "label": "Previous state", "value": "previous" },
+                { "label": "On", "value": "on" },
+                { "label": "Off", "value": "off" }
+              ]
+            }
+          }
+        },
         "notification_trigger": {
           "required": false,
           "default": "none",
@@ -118,7 +131,7 @@
           "required": true,
           "selector": {
             "entity": {
-              "domain": "automation",
+              "domain": ["automation", "input_boolean"],
               "multiple": true
             }
           }
@@ -136,7 +149,7 @@
           "required": true,
           "selector": {
             "entity": {
-              "domain": "automation",
+              "domain": ["automation", "input_boolean"],
               "multiple": true
             }
           }
@@ -366,7 +379,7 @@
           "required": true,
           "selector": {
             "entity": {
-              "domain": "automation",
+              "domain": ["automation", "input_boolean"],
               "multiple": true
             }
           }
@@ -380,7 +393,7 @@
           "required": true,
           "selector": {
             "entity": {
-              "domain": "automation",
+              "domain": ["automation", "input_boolean"],
               "multiple": true
             }
           }
@@ -478,6 +491,7 @@
     "adjust_failed",
     "confirm_required",
     "notification_lead_too_long",
-    "invalid_resume_preset"
+    "invalid_resume_preset",
+    "invalid_previous_state"
   ]
 }

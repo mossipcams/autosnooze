@@ -27,6 +27,9 @@ from ..const import (
     RESUME_PRESET_NEXT_MORNING,
     RESUME_PRESET_NEXT_SUNRISE,
     RESUME_PRESET_NEXT_SUNSET,
+    RESUME_STATE_ON,
+    RESUME_STATE_PREVIOUS,
+    SUPPORTED_ENTITY_PREFIXES,
 )
 from ..domain.notifications import (
     NOTIFICATION_TRIGGER_NONE,
@@ -41,7 +44,7 @@ from ..infrastructure.telemetry import (
     track_pause_success,
 )
 from ..logging_utils import _log_command, _raise_pause_failed, _raise_save_failed
-from ..models import PausedAutomation, ScheduledSnooze, ensure_utc_aware
+from ..models import PausedAutomation, ScheduledSnooze, ensure_utc_aware, resolve_resume_state
 from ..runtime.ports import (
     async_save as runtime_async_save,
     async_set_automation_state,
@@ -141,7 +144,7 @@ def validate_guardrails(hass: HomeAssistant, entity_ids: list[str], confirm: boo
 
     if requires_confirm and not confirm:
         raise ServiceValidationError(
-            "One or more selected automations require confirmation before snoozing",
+            "One or more selected entities require confirmation before snoozing",
             translation_domain=DOMAIN,
             translation_key="confirm_required",
             translation_placeholders={"entity_id": ", ".join(sorted(requires_confirm))},
@@ -218,6 +221,7 @@ async def async_pause_automations(
     resume_at_dt: datetime | None = None,
     notification_trigger: NotificationTrigger = NOTIFICATION_TRIGGER_NONE,
     notification_lead_minutes: int | None = None,
+    resume_state: str = RESUME_STATE_ON,
     *,
     set_automation_state: SetAutomationState | None = None,
     save_data: SaveData | None = None,
@@ -228,6 +232,8 @@ async def async_pause_automations(
     service_call: ServiceCall | None = None,
 ) -> None:
     """Pause automations with duration or dates."""
+    if service_call is not None:
+        resume_state = service_call.data.get("resume_state", resume_state)
     set_state = set_automation_state or (
         lambda hass, entity_id, enabled: async_set_automation_state(hass, entity_id, enabled=enabled)
     )
@@ -270,9 +276,9 @@ async def async_pause_automations(
         entity_ids = list(dict.fromkeys(entity_ids))
 
         for entity_id in entity_ids:
-            if not entity_id.startswith("automation."):
+            if not entity_id.startswith(SUPPORTED_ENTITY_PREFIXES):
                 raise ServiceValidationError(
-                    f"{entity_id} is not an automation",
+                    f"{entity_id} is not a supported entity",
                     translation_domain=DOMAIN,
                     translation_key="not_automation",
                     translation_placeholders={"entity_id": entity_id},
@@ -322,11 +328,41 @@ async def async_pause_automations(
             )
 
         scheduled_entries: list[ScheduledSnooze] = []
+        committed_scheduled_entries: list[ScheduledSnooze] = []
         paused_entries: list[PausedAutomation] = []
         turn_off_failed_entity_ids: list[str] = []
         initially_enabled: dict[str, bool] = {}
+        previous_resume_states: dict[str, str] = {}
+        resolved_resume_states: dict[str, str] = {}
         active_replacements: dict[str, PausedAutomation] = {}
-        replacement_wake_results: dict[str, bool] = {}
+        replacement_resume_results: dict[str, bool] = {}
+
+        if resume_state == RESUME_STATE_PREVIOUS:
+            async with data.lock:
+                previous_resume_states = {
+                    entity_id: paused.resume_state
+                    for entity_id in entity_ids
+                    if (paused := data.paused.get(entity_id)) is not None
+                }
+
+        if not use_scheduled:
+            for entity_id in entity_ids:
+                state = hass.states.get(entity_id)
+                initially_enabled[entity_id] = state is not None and state.state == STATE_ON
+                previous_state = previous_resume_states.get(entity_id, state.state if state is not None else None)
+                try:
+                    resolved_resume_states[entity_id] = resolve_resume_state(
+                        entity_id,
+                        resume_state,
+                        previous_state=previous_state,
+                    )
+                except ValueError as err:
+                    raise ServiceValidationError(
+                        f"Cannot restore previous state for {entity_id}: {previous_state}",
+                        translation_domain=DOMAIN,
+                        translation_key="invalid_previous_state",
+                        translation_placeholders={"entity_id": entity_id, "state": str(previous_state)},
+                    ) from err
 
         for entity_id in entity_ids:
             friendly_name = get_friendly_name(hass, entity_id)
@@ -341,12 +377,11 @@ async def async_pause_automations(
                         resume_at=resume_at,
                         notification_trigger=notification_trigger,
                         notification_lead_minutes=notification_lead_minutes,
+                        resume_state=(RESUME_STATE_ON if entity_id.startswith("automation.") else resume_state),
                     )
                 )
                 continue
 
-            state = hass.states.get(entity_id)
-            initially_enabled[entity_id] = state is not None and state.state == STATE_ON
             if not await set_state_safely(entity_id, False):
                 if cancellation is not None:
                     break
@@ -370,6 +405,7 @@ async def async_pause_automations(
                     disable_at=schedule_mode_disable_at,
                     notification_trigger=notification_trigger,
                     notification_lead_minutes=notification_lead_minutes,
+                    resume_state=resolved_resume_states[entity_id],
                 )
             )
             if cancellation is not None:
@@ -393,18 +429,21 @@ async def async_pause_automations(
                 }
 
             for entity_id in active_replacements:
-                replacement_wake_results[entity_id] = await set_state_safely(entity_id, True)
-                if not replacement_wake_results[entity_id]:
+                replacement_resume_results[entity_id] = await set_state_safely(
+                    entity_id,
+                    active_replacements[entity_id].resume_enabled,
+                )
+                if not replacement_resume_results[entity_id]:
                     _LOGGER.warning(
-                        "Failed to wake %s before replacing active snooze with a future schedule",
+                        "Failed to apply resume state to %s before replacing its active snooze",
                         entity_id,
                     )
                 if cancellation is not None:
                     break
 
         if cancellation is not None:
-            for entity_id, woke in replacement_wake_results.items():
-                if woke and not await set_state(hass, entity_id, False):
+            for entity_id, resumed in replacement_resume_results.items():
+                if resumed and not await set_state(hass, entity_id, False):
                     _LOGGER.warning("Failed to restore %s after scheduled replacement cancellation", entity_id)
             raise cancellation
 
@@ -415,7 +454,7 @@ async def async_pause_automations(
                 active_replacement = active_replacements.get(scheduled.entity_id)
                 if active_replacement is not None:
                     current_paused = data.paused.get(scheduled.entity_id)
-                    if not replacement_wake_results.get(scheduled.entity_id, False):
+                    if not replacement_resume_results.get(scheduled.entity_id, False):
                         continue
                     if current_paused is not active_replacement:
                         if current_paused is not None:
@@ -426,6 +465,7 @@ async def async_pause_automations(
                 cancel_notification_timer(data, scheduled.entity_id)
                 data.paused.pop(scheduled.entity_id, None)
                 data.scheduled[scheduled.entity_id] = scheduled
+                committed_scheduled_entries.append(scheduled)
                 disable_scheduler(hass, data, scheduled.entity_id, scheduled)
                 _LOGGER.info(
                     "Scheduled snooze for %s: disable at %s, resume at %s",
@@ -446,7 +486,7 @@ async def async_pause_automations(
         for paused in pre_resume_targets:
             pre_resume_scheduler(hass, data, paused)
 
-        if scheduled_entries or paused_entries:
+        if committed_scheduled_entries or paused_entries:
             if not await save_runtime_data(data):
                 _raise_save_failed()
 
@@ -473,7 +513,12 @@ async def async_pause_automations(
                 input_method=input_method_from_call(service_call),
                 confirm=service_call.data.get("confirm", False),
                 paused_count=len(paused_entries),
-                scheduled_count=len(scheduled_entries),
+                scheduled_count=len(committed_scheduled_entries),
+                input_boolean_count=sum(
+                    entry.entity_id.startswith("input_boolean.")
+                    for entry in (*paused_entries, *committed_scheduled_entries)
+                ),
+                resume_state=resume_state,
                 notification_trigger=notification_trigger,
                 notification_lead_minutes=notification_lead_minutes,
                 now=now,

@@ -388,27 +388,33 @@ describe('Services.yaml Schema Validation', () => {
   });
 
   describe('Entity selectors', () => {
-    test('pause entity_id selector restricts to automation domain', () => {
+    test('pause entity_id selector supports automation and input Boolean domains', () => {
       const entityId = servicesYaml.pause.fields.entity_id;
-      expect(entityId.selector.entity.domain).toBe('automation');
+      expect(entityId.selector.entity.domain).toEqual(['automation', 'input_boolean']);
       expect(entityId.selector.entity.multiple).toBe(true);
     });
 
-    test('cancel entity_id selector restricts to automation domain', () => {
-      const entityId = servicesYaml.cancel.fields.entity_id;
-      expect(entityId.selector.entity.domain).toBe('automation');
-    });
-
-    test('all entity_id fields restrict to automation domain', () => {
-      const servicesWithEntityId = ['pause', 'cancel', 'cancel_scheduled'];
+    test('direct entity services support automation and input Boolean domains', () => {
+      const servicesWithEntityId = [
+        'pause',
+        'cancel',
+        'clear_notification',
+        'cancel_scheduled',
+        'adjust',
+      ];
 
       for (const serviceName of servicesWithEntityId) {
         const service = servicesYaml[serviceName];
         expect(
           service.fields.entity_id.selector.entity.domain,
-          `${serviceName} should restrict to automation domain`
-        ).toBe('automation');
+          `${serviceName} should support direct automation and input Boolean targets`
+        ).toEqual(['automation', 'input_boolean']);
       }
+    });
+
+    test('area and label discovery targets remain automation-only', () => {
+      expect(servicesYaml.pause_by_area.target.entity).toEqual([{ domain: 'automation' }]);
+      expect(servicesYaml.pause_by_label.target.entity).toEqual([{ domain: 'automation' }]);
     });
   });
 });

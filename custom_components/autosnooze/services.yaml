@@ -1,17 +1,21 @@
 pause:
   name: Snooze
-  description: Snooze automation(s) for a specified duration or until a specific time. They will automatically wake up when the time expires.
+  description: Snooze entities for a specified duration or until a specific time. The configured resume state is applied when the snooze ends.
   target:
     entity:
-      - domain: automation
+      - domain:
+          - automation
+          - input_boolean
   fields:
     entity_id:
-      name: Automation
-      description: Automation(s) to snooze.
+      name: Entity
+      description: Automation(s) or input Boolean(s) to snooze.
       required: true
       selector:
         entity:
-          domain: automation
+          domain:
+            - automation
+            - input_boolean
           multiple: true
     days:
       name: Days
@@ -42,17 +46,17 @@ pause:
           mode: box
     disable_at:
       name: Disable At
-      description: Schedule when to disable the automation (future datetime). If not set, disables immediately.
+      description: Schedule when to disable the entities (future datetime). If not set, disables immediately.
       selector:
         datetime:
     resume_at:
       name: Resume At
-      description: Specific datetime when to re-enable the automation. Accepts template-rendered datetime strings. Use instead of duration fields.
+      description: Specific datetime when to re-enable the entities. Accepts template-rendered datetime strings. Use instead of duration fields.
       selector:
         datetime:
     resume_at_time:
       name: Resume At Time
-      description: Local time of day when to re-enable the automation. Resumes today if the time is still upcoming, otherwise tomorrow. Use instead of duration fields.
+      description: Local time of day when to re-enable the entities. Resumes today if the time is still upcoming, otherwise tomorrow. Use instead of duration fields.
       selector:
         time:
     resume_preset:
@@ -69,6 +73,19 @@ pause:
               value: next_sunrise
             - label: Next sunset
               value: next_sunset
+    resume_state:
+      name: Resume State
+      description: State to apply to input Booleans when the snooze ends. Previous captures the state when the snooze begins. Automations always turn on.
+      default: previous
+      selector:
+        select:
+          options:
+            - label: Previous state
+              value: previous
+            - label: "On"
+              value: "on"
+            - label: "Off"
+              value: "off"
     notification_trigger:
       name: Notification Trigger
       description: Choose whether to notify when the snooze starts, shortly before it ends, or when it ends.
@@ -99,40 +116,44 @@ pause:
             - label: 4 hours
               value: "240"
     confirm:
-      name: Confirm Labeled Automations
-      description: Set to true to snooze automations tagged with autosnooze_confirm or detected as critical.
+      name: Confirm Protected Entities
+      description: Set to true to snooze entities tagged with autosnooze_confirm or detected as critical.
       default: false
       selector:
         boolean:
 
 cancel:
   name: Wake
-  description: Wake up snoozed automation(s) and re-enable them immediately.
+  description: End snoozes immediately and apply each entity's configured resume state.
   fields:
     entity_id:
-      name: Automation
-      description: Automation(s) to wake.
+      name: Entity
+      description: Snoozed automation(s) or input Boolean(s) to wake.
       required: true
       selector:
         entity:
-          domain: automation
+          domain:
+            - automation
+            - input_boolean
           multiple: true
 
 cancel_all:
   name: Wake All
-  description: Wake all snoozed automations and re-enable them immediately.
+  description: End all snoozes immediately and apply each entity's configured resume state.
 
 clear_notification:
   name: Clear Notification
-  description: Remove notification settings from currently snoozed automation(s).
+  description: Remove notification settings from currently snoozed entities.
   fields:
     entity_id:
-      name: Automation
-      description: Snoozed automation(s) whose notification settings should be cleared.
+      name: Entity
+      description: Snoozed automation(s) or input Boolean(s) whose notification settings should be cleared.
       required: true
       selector:
         entity:
-          domain: automation
+          domain:
+            - automation
+            - input_boolean
           multiple: true
 
 pause_by_area:
@@ -352,12 +373,14 @@ cancel_scheduled:
   description: Cancel a scheduled snooze before it activates.
   fields:
     entity_id:
-      name: Automation
-      description: Automation(s) with scheduled snoozes to cancel.
+      name: Entity
+      description: Automation(s) or input Boolean(s) with scheduled snoozes to cancel.
       required: true
       selector:
         entity:
-          domain: automation
+          domain:
+            - automation
+            - input_boolean
           multiple: true
 
 adjust:
@@ -365,12 +388,14 @@ adjust:
   description: Add or subtract time from an active snooze. Positive values extend the snooze, negative values shorten it.
   fields:
     entity_id:
-      name: Automation
-      description: Automation(s) to adjust.
+      name: Entity
+      description: Snoozed automation(s) or input Boolean(s) to adjust.
       required: true
       selector:
         entity:
-          domain: automation
+          domain:
+            - automation
+            - input_boolean
           multiple: true
     days:
       name: Days

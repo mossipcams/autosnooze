@@ -32,7 +32,7 @@ def _build_resume_notification(paused: PausedAutomation) -> tuple[str, str]:
 def _build_resume_batch_notification(paused_items: list[PausedAutomation]) -> tuple[str, str]:
     names = ", ".join(paused.friendly_name for paused in paused_items)
     return _RESUME_NOTIFICATION_TITLE, (
-        f"{len(paused_items)} automations resumed automatically after their snooze ended: {names}."
+        f"{len(paused_items)} entities resumed automatically after their snooze ended: {names}."
     )
 
 
@@ -42,7 +42,7 @@ def _build_started_notification(paused: PausedAutomation) -> tuple[str, str]:
 
 def _build_started_batch_notification(paused_items: list[PausedAutomation]) -> tuple[str, str]:
     names = ", ".join(paused.friendly_name for paused in paused_items)
-    return _START_NOTIFICATION_TITLE, f"{len(paused_items)} automations snooze started: {names}."
+    return _START_NOTIFICATION_TITLE, f"Snooze started for {len(paused_items)} entities: {names}."
 
 
 def _build_pre_resume_notification(paused: PausedAutomation) -> tuple[str, str]:

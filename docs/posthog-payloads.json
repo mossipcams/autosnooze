@@ -3,7 +3,7 @@
     "$geoip_disable": true,
     "$set": {
       "autosnooze_version": "0.2.27",
-      "event_schema_version": "3",
+      "event_schema_version": "4",
       "home_assistant_version": "2024.1.0-test"
     },
     "$set_once": {
@@ -17,7 +17,7 @@
     "$geoip_disable": true,
     "$set": {
       "autosnooze_version": "0.2.27",
-      "event_schema_version": "3",
+      "event_schema_version": "4",
       "home_assistant_version": "2024.1.0-test"
     },
     "$set_once": {
@@ -32,7 +32,7 @@
     "$geoip_disable": true,
     "$set": {
       "autosnooze_version": "0.2.27",
-      "event_schema_version": "3",
+      "event_schema_version": "4",
       "home_assistant_version": "2024.1.0-test"
     },
     "$set_once": {
@@ -46,7 +46,7 @@
     "$geoip_disable": true,
     "$set": {
       "autosnooze_version": "0.2.27",
-      "event_schema_version": "3",
+      "event_schema_version": "4",
       "home_assistant_version": "2024.1.0-test"
     },
     "$set_once": {
@@ -60,7 +60,7 @@
     "$geoip_disable": true,
     "$set": {
       "autosnooze_version": "0.2.27",
-      "event_schema_version": "3",
+      "event_schema_version": "4",
       "home_assistant_version": "2024.1.0-test"
     },
     "$set_once": {
@@ -74,7 +74,7 @@
     "$geoip_disable": true,
     "$set": {
       "autosnooze_version": "0.2.27",
-      "event_schema_version": "3",
+      "event_schema_version": "4",
       "home_assistant_version": "2024.1.0-test"
     },
     "$set_once": {
@@ -88,7 +88,7 @@
     "$geoip_disable": true,
     "$set": {
       "autosnooze_version": "0.2.27",
-      "event_schema_version": "3",
+      "event_schema_version": "4",
       "home_assistant_version": "2024.1.0-test"
     },
     "$set_once": {
@@ -102,7 +102,7 @@
     "$geoip_disable": true,
     "$set": {
       "autosnooze_version": "0.2.27",
-      "event_schema_version": "3",
+      "event_schema_version": "4",
       "home_assistant_version": "2024.1.0-test"
     },
     "$set_once": {
@@ -116,7 +116,7 @@
     "$geoip_disable": true,
     "$set": {
       "autosnooze_version": "0.2.27",
-      "event_schema_version": "3",
+      "event_schema_version": "4",
       "home_assistant_version": "2024.1.0-test"
     },
     "$set_once": {
@@ -126,11 +126,27 @@
     "enabled": true,
     "source": "card"
   },
+  "input_boolean_snooze_created": {
+    "$geoip_disable": true,
+    "$set": {
+      "autosnooze_version": "0.2.27",
+      "event_schema_version": "4",
+      "home_assistant_version": "2024.1.0-test"
+    },
+    "$set_once": {
+      "initial_autosnooze_version": "0.2.27",
+      "initial_home_assistant_version": "2024.1.0-test"
+    },
+    "resume_state": "previous",
+    "schedule_mode": false,
+    "source": "service",
+    "target_count": 1
+  },
   "integration_active": {
     "$geoip_disable": true,
     "$set": {
       "autosnooze_version": "0.2.27",
-      "event_schema_version": "3",
+      "event_schema_version": "4",
       "home_assistant_version": "2024.1.0-test"
     },
     "$set_once": {
@@ -143,7 +159,7 @@
     "$geoip_disable": true,
     "$set": {
       "autosnooze_version": "0.2.27",
-      "event_schema_version": "3",
+      "event_schema_version": "4",
       "home_assistant_version": "2024.1.0-test"
     },
     "$set_once": {
@@ -157,7 +173,7 @@
     "$geoip_disable": true,
     "$set": {
       "autosnooze_version": "0.2.27",
-      "event_schema_version": "3",
+      "event_schema_version": "4",
       "home_assistant_version": "2024.1.0-test"
     },
     "$set_once": {
@@ -173,7 +189,7 @@
     "$geoip_disable": true,
     "$set": {
       "autosnooze_version": "0.2.27",
-      "event_schema_version": "3",
+      "event_schema_version": "4",
       "home_assistant_version": "2024.1.0-test"
     },
     "$set_once": {
@@ -187,7 +203,7 @@
     "$geoip_disable": true,
     "$set": {
       "autosnooze_version": "0.2.27",
-      "event_schema_version": "3",
+      "event_schema_version": "4",
       "home_assistant_version": "2024.1.0-test"
     },
     "$set_once": {
@@ -204,7 +220,7 @@
     "$geoip_disable": true,
     "$set": {
       "autosnooze_version": "0.2.27",
-      "event_schema_version": "3",
+      "event_schema_version": "4",
       "home_assistant_version": "2024.1.0-test"
     },
     "$set_once": {
@@ -218,7 +234,7 @@
     "$geoip_disable": true,
     "$set": {
       "autosnooze_version": "0.2.27",
-      "event_schema_version": "3",
+      "event_schema_version": "4",
       "home_assistant_version": "2024.1.0-test"
     },
     "$set_once": {
@@ -232,7 +248,7 @@
     "$geoip_disable": true,
     "$set": {
       "autosnooze_version": "0.2.27",
-      "event_schema_version": "3",
+      "event_schema_version": "4",
       "home_assistant_version": "2024.1.0-test"
     },
     "$set_once": {
@@ -247,7 +263,7 @@
     "$geoip_disable": true,
     "$set": {
       "autosnooze_version": "0.2.27",
-      "event_schema_version": "3",
+      "event_schema_version": "4",
       "home_assistant_version": "2024.1.0-test"
     },
     "$set_once": {
@@ -264,7 +280,7 @@
     "$geoip_disable": true,
     "$set": {
       "autosnooze_version": "0.2.27",
-      "event_schema_version": "3",
+      "event_schema_version": "4",
       "home_assistant_version": "2024.1.0-test"
     },
     "$set_once": {
@@ -279,7 +295,7 @@
     "$geoip_disable": true,
     "$set": {
       "autosnooze_version": "0.2.27",
-      "event_schema_version": "3",
+      "event_schema_version": "4",
       "home_assistant_version": "2024.1.0-test"
     },
     "$set_once": {
@@ -293,7 +309,7 @@
     "$geoip_disable": true,
     "$set": {
       "autosnooze_version": "0.2.27",
-      "event_schema_version": "3",
+      "event_schema_version": "4",
       "home_assistant_version": "2024.1.0-test"
     },
     "$set_once": {
@@ -309,7 +325,7 @@
     "$geoip_disable": true,
     "$set": {
       "autosnooze_version": "0.2.27",
-      "event_schema_version": "3",
+      "event_schema_version": "4",
       "home_assistant_version": "2024.1.0-test"
     },
     "$set_once": {
@@ -325,7 +341,7 @@
     "$geoip_disable": true,
     "$set": {
       "autosnooze_version": "0.2.27",
-      "event_schema_version": "3",
+      "event_schema_version": "4",
       "home_assistant_version": "2024.1.0-test"
     },
     "$set_once": {
@@ -345,7 +361,7 @@
     "$geoip_disable": true,
     "$set": {
       "autosnooze_version": "0.2.27",
-      "event_schema_version": "3",
+      "event_schema_version": "4",
       "home_assistant_version": "2024.1.0-test"
     },
     "$set_once": {
@@ -359,7 +375,7 @@
     "$geoip_disable": true,
     "$set": {
       "autosnooze_version": "0.2.27",
-      "event_schema_version": "3",
+      "event_schema_version": "4",
       "home_assistant_version": "2024.1.0-test"
     },
     "$set_once": {
@@ -372,7 +388,7 @@
     "$geoip_disable": true,
     "$set": {
       "autosnooze_version": "0.2.27",
-      "event_schema_version": "3",
+      "event_schema_version": "4",
       "home_assistant_version": "2024.1.0-test"
     },
     "$set_once": {

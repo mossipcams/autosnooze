@@ -37,6 +37,21 @@ npm run e2e:report
 
 `npm run e2e:critical` runs tests tagged `@critical`. `.husky/pre-push` starts a host `hass` on port 8124 when it is not already reachable (`scripts/ensure-ha-e2e.sh`; it will `docker stop` a container occupying 8124 that is not serving HA), then runs this command before PR creation/push so the standard critical path catches card registration, resource loading, console/page errors, layout integrity, and the default loaded-card visual baseline.
 
+### Pre-push gate overrides
+
+The local HA E2E gate runs by default on `git push`. Two environment variables opt out of parts of that contract:
+
+- `ALLOW_SKIP_HA_E2E=1` — skip `scripts/ensure-ha-e2e.sh` and `npm run e2e:critical` entirely. The hook prints a short skip message and exits successfully.
+- `ALLOW_REMOTE_HA=1` — allow `HA_URL` to target a host other than `localhost` or `127.0.0.1`. Without this flag, pre-push rejects non-local `HA_URL` values before starting tests.
+
+```bash
+# Skip the Playwright local HA gate for one push
+ALLOW_SKIP_HA_E2E=1 git push
+
+# Run critical E2E against a remote HA instance
+ALLOW_REMOTE_HA=1 HA_URL=http://192.168.1.50:8123 git push
+```
+
 `npm run e2e:smoke` runs the compact release-gate workflow tagged `@smoke`.
 It covers card load, snooze, persisted rendering after reload, resume,
 invalid-input rejection, and disabling telemetry via integration options.
