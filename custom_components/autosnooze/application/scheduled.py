@@ -17,7 +17,7 @@ from ..infrastructure.telemetry import track_if_enabled
 from ..logging_utils import _log_command, _raise_save_failed
 from ..models import PausedAutomation, ScheduledSnooze, resolve_resume_state
 from ..runtime import ports as runtime_ports
-from ..runtime.timers import cancel_scheduled_timer
+from ..runtime.timers import cancel_notification_timer, cancel_scheduled_timer, cancel_timer
 from ..runtime.state import AutomationPauseData
 from .notifications import notify_started, send_pre_resume_notification
 from .resume import async_resume
@@ -39,6 +39,13 @@ async def async_execute_scheduled_disable(
         cancel_scheduled_timer(data, entity_id)
         expected_scheduled = data.scheduled.get(entity_id)
 
+    paused_snapshot = {
+        entity_id: PausedAutomation.from_dict(entity_id, paused.to_dict()) for entity_id, paused in data.paused.items()
+    }
+    scheduled_snapshot = {
+        entity_id: ScheduledSnooze.from_dict(entity_id, scheduled.to_dict())
+        for entity_id, scheduled in data.scheduled.items()
+    }
     initial_state = hass.states.get(entity_id)
     was_enabled = initial_state is not None and initial_state.state == STATE_ON
     cancellation: asyncio.CancelledError | None = None
@@ -152,6 +159,33 @@ async def async_execute_scheduled_disable(
 
     if should_save:
         if not await runtime_ports.async_save(data):
+            if disabled_successfully and was_enabled:
+                if not await runtime_ports.async_set_automation_state(hass, entity_id, enabled=True):
+                    _LOGGER.warning("Failed to restore %s after scheduled disable save failure", entity_id)
+            async with data.lock:
+                cancel_timer(data, entity_id)
+                cancel_scheduled_timer(data, entity_id)
+                cancel_notification_timer(data, entity_id)
+                data.paused.clear()
+                data.paused.update(
+                    {eid: PausedAutomation.from_dict(eid, paused.to_dict()) for eid, paused in paused_snapshot.items()}
+                )
+                data.scheduled.clear()
+                data.scheduled.update(
+                    {
+                        eid: ScheduledSnooze.from_dict(eid, scheduled.to_dict())
+                        for eid, scheduled in scheduled_snapshot.items()
+                    }
+                )
+            for paused in data.paused.values():
+                runtime_ports.schedule_resume(
+                    hass, data, paused.entity_id, paused.resume_at, resume_callback=async_resume
+                )
+            for scheduled in data.scheduled.values():
+                runtime_ports.schedule_disable(
+                    hass, data, scheduled.entity_id, scheduled, disable_callback=async_execute_scheduled_disable
+                )
+            data.notify()
             _raise_save_failed()
 
     if data.unloaded:

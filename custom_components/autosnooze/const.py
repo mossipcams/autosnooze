@@ -43,6 +43,9 @@ MINUTES_PER_YEAR = 525600
 # Minimum buffer for adjust operations
 MIN_ADJUST_BUFFER = timedelta(minutes=1)
 
+# Bounded wait for in-flight PostHog captures during telemetry unload
+TELEMETRY_UNLOAD_CAPTURE_TIMEOUT = 2.0
+
 # Retry delays for failed operations
 RESUME_RETRY_DELAY = timedelta(minutes=1)
 SCHEDULED_DISABLE_RETRY_DELAY = timedelta(minutes=1)

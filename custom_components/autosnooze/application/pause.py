@@ -73,6 +73,57 @@ type ScheduleDisable = Callable[[HomeAssistant, AutomationPauseData, str, Schedu
 type SchedulePreResumeNotification = Callable[[HomeAssistant, AutomationPauseData, PausedAutomation], bool]
 
 
+def _clone_paused(data: AutomationPauseData) -> dict[str, PausedAutomation]:
+    return {
+        entity_id: PausedAutomation.from_dict(entity_id, paused.to_dict()) for entity_id, paused in data.paused.items()
+    }
+
+
+def _clone_scheduled(data: AutomationPauseData) -> dict[str, ScheduledSnooze]:
+    return {
+        entity_id: ScheduledSnooze.from_dict(entity_id, scheduled.to_dict())
+        for entity_id, scheduled in data.scheduled.items()
+    }
+
+
+async def _restore_runtime_after_save_failed(
+    hass: HomeAssistant,
+    data: AutomationPauseData,
+    paused_snapshot: dict[str, PausedAutomation],
+    scheduled_snapshot: dict[str, ScheduledSnooze],
+    entity_ids: set[str],
+    *,
+    resume_scheduler: ScheduleResume,
+    disable_scheduler: ScheduleDisable,
+    pre_resume_scheduler: SchedulePreResumeNotification,
+) -> None:
+    async with data.lock:
+        for entity_id in entity_ids:
+            cancel_timer(data, entity_id)
+            cancel_scheduled_timer(data, entity_id)
+            cancel_notification_timer(data, entity_id)
+        data.paused.clear()
+        data.paused.update(
+            {
+                entity_id: PausedAutomation.from_dict(entity_id, item.to_dict())
+                for entity_id, item in paused_snapshot.items()
+            }
+        )
+        data.scheduled.clear()
+        data.scheduled.update(
+            {
+                entity_id: ScheduledSnooze.from_dict(entity_id, item.to_dict())
+                for entity_id, item in scheduled_snapshot.items()
+            }
+        )
+
+    for paused in data.paused.values():
+        resume_scheduler(hass, data, paused.entity_id, paused.resume_at)
+        pre_resume_scheduler(hass, data, paused)
+    for scheduled in data.scheduled.values():
+        disable_scheduler(hass, data, scheduled.entity_id, scheduled)
+
+
 def _get_automations_by_filter(
     hass: HomeAssistant,
     filter_fn: Callable[[Any], bool],
@@ -449,6 +500,8 @@ async def async_pause_automations(
 
         re_disable_stale_replacements: list[str] = []
         pre_resume_targets: list[PausedAutomation] = []
+        paused_snapshot = _clone_paused(data)
+        scheduled_snapshot = _clone_scheduled(data)
         async with data.lock:
             for scheduled in scheduled_entries:
                 active_replacement = active_replacements.get(scheduled.entity_id)
@@ -488,6 +541,23 @@ async def async_pause_automations(
 
         if committed_scheduled_entries or paused_entries:
             if not await save_runtime_data(data):
+                for paused in paused_entries:
+                    if initially_enabled.get(paused.entity_id) and not await set_state(hass, paused.entity_id, True):
+                        _LOGGER.warning("Failed to restore %s after save failure", paused.entity_id)
+                for entity_id, resumed in replacement_resume_results.items():
+                    if resumed and not await set_state(hass, entity_id, False):
+                        _LOGGER.warning("Failed to restore disabled state for %s after save failure", entity_id)
+                await _restore_runtime_after_save_failed(
+                    hass,
+                    data,
+                    paused_snapshot,
+                    scheduled_snapshot,
+                    set(entity_ids) | set(active_replacements),
+                    resume_scheduler=resume_scheduler,
+                    disable_scheduler=disable_scheduler,
+                    pre_resume_scheduler=pre_resume_scheduler,
+                )
+                data.notify()
                 _raise_save_failed()
 
         for entity_id in re_disable_stale_replacements:
@@ -495,10 +565,8 @@ async def async_pause_automations(
                 _LOGGER.warning("Failed to restore disabled state for stale replacement of %s", entity_id)
 
         data.notify()
-        if turn_off_failed_entity_ids:
-            _raise_pause_failed()
-
-        await notify_started_callback(hass, paused_entries)
+        if paused_entries:
+            await notify_started_callback(hass, paused_entries)
         if any(paused.notification_trigger == NOTIFICATION_TRIGGER_START for paused in paused_entries):
             track_if_enabled(
                 data,
@@ -530,6 +598,8 @@ async def async_pause_automations(
                 hours=hours,
                 minutes=minutes,
             )
+        if turn_off_failed_entity_ids:
+            _raise_pause_failed()
     except Exception:
         outcome = "error"
         raise

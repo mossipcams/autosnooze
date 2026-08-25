@@ -21,6 +21,7 @@ from homeassistant.util import dt as dt_util
 from posthog import Posthog
 from posthog.utils import system_context
 
+from .. import const
 from ..const import (
     DOMAIN,
     RESUME_STATE_VALUES,
@@ -370,6 +371,7 @@ class TelemetryClient:
     _persistence_lock: asyncio.Lock = field(default_factory=asyncio.Lock)
     _pending_tasks: set[asyncio.Future[Any]] = field(default_factory=set)
     _pending_throttles: set[tuple[str, str]] = field(default_factory=set)
+    unload_capture_timeout: float | None = None
 
     def is_enabled(self) -> bool:
         if self._disabled:
@@ -411,7 +413,21 @@ class TelemetryClient:
     async def async_unload(self) -> None:
         self._disabled = True
         if self._pending_tasks:
-            await asyncio.gather(*self._pending_tasks, return_exceptions=True)
+            pending = set(self._pending_tasks)
+            capture_timeout = (
+                self.unload_capture_timeout
+                if self.unload_capture_timeout is not None
+                else const.TELEMETRY_UNLOAD_CAPTURE_TIMEOUT
+            )
+            _done, still_pending = await asyncio.wait(
+                pending,
+                timeout=capture_timeout,
+            )
+            for task in still_pending:
+                task.cancel()
+                self._pending_tasks.discard(task)
+            if still_pending:
+                await asyncio.gather(*still_pending, return_exceptions=True)
         client = self._posthog
         self._posthog = None
         if client is None:
@@ -500,6 +516,8 @@ class TelemetryClient:
         self._pending_tasks.discard(task)
         try:
             capture_id = task.result()
+        except asyncio.CancelledError:
+            capture_id = None
         except Exception:
             _LOGGER.debug("Telemetry track failed", exc_info=True)
             capture_id = None

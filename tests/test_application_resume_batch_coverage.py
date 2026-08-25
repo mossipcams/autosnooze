@@ -12,6 +12,7 @@ from custom_components.autosnooze.application.resume import (
     async_resume,
     async_resume_batch,
 )
+from custom_components.autosnooze.domain.notifications import NOTIFICATION_TRIGGER_NONE
 from custom_components.autosnooze.models import PausedAutomation
 from custom_components.autosnooze.runtime.state import AutomationPauseData
 
@@ -26,7 +27,7 @@ def _paused(entity_id: str, *, retries: int = 0, trigger: str | None = None) -> 
         resume_at=now + timedelta(hours=1),
         paused_at=now,
         resume_retries=retries,
-        notification_trigger=trigger,
+        notification_trigger=trigger if trigger is not None else NOTIFICATION_TRIGGER_NONE,
     )
 
 
@@ -194,8 +195,15 @@ async def test_batch_resume_raises_when_partial_turn_on_fail_for_manual_reason()
         data.paused["automation.b"].resume_at,
         resume_callback=async_resume,
     )
-    notify_resumed.assert_not_awaited()
-    track_if_enabled.assert_not_called()
+    notify_resumed.assert_awaited_once()
+    resumed_entities = [paused.entity_id for paused in notify_resumed.await_args.args[1]]
+    assert resumed_entities == ["automation.a"]
+    track_if_enabled.assert_called_once_with(
+        data,
+        "snooze_ended",
+        {"reason": "manual"},
+        source="service",
+    )
 
 
 @pytest.mark.asyncio
@@ -204,12 +212,18 @@ async def test_batch_resume_raises_when_persistence_fails() -> None:
     data = AutomationPauseData(store=MagicMock())
     data.paused["automation.test"] = _paused("automation.test")
 
+    set_state = AsyncMock(return_value=True)
     with (
-        patch("custom_components.autosnooze.runtime.ports.async_set_automation_state", AsyncMock(return_value=True)),
+        patch("custom_components.autosnooze.runtime.ports.async_set_automation_state", set_state),
         patch("custom_components.autosnooze.runtime.ports.async_save", AsyncMock(return_value=False)),
+        patch("custom_components.autosnooze.runtime.ports.schedule_resume"),
         pytest.raises(ServiceValidationError, match="Failed to persist autosnooze state"),
     ):
         await async_resume_batch(hass, data, ["automation.test"])
+
+    assert "automation.test" in data.paused
+    assert set_state.await_args_list[0].kwargs == {"enabled": True}
+    assert set_state.await_args_list[-1].kwargs == {"enabled": False}
 
 
 @pytest.mark.asyncio
