@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.1](https://github.com/mossipcams/autosnooze/compare/v0.4.0...v0.4.1) (2026-08-25)
+
+
+### Bug Fixes
+
+* **services:** use target-only entity selection for pause service ([#548](https://github.com/mossipcams/autosnooze/issues/548)) ([386fc6c](https://github.com/mossipcams/autosnooze/commit/386fc6c6323a10ceb9bf6f997f773b278867953b))
+
 ## [0.4.0](https://github.com/mossipcams/autosnooze/compare/v0.3.2...v0.4.0) (2026-08-25)
 
 
