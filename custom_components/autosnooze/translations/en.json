@@ -44,10 +44,6 @@
       "name": "Snooze",
       "description": "Snooze entities for a specified duration or until a specific time. The configured resume state is applied when the snooze ends.",
       "fields": {
-        "entity_id": {
-          "name": "Entity",
-          "description": "Automation(s) or input Boolean(s) to snooze."
-        },
         "days": {
           "name": "Days",
           "description": "Number of days to snooze."

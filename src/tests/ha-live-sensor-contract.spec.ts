@@ -91,18 +91,22 @@ describe('getPausedSensorEntity', () => {
 });
 
 describe('card service and type contracts', () => {
-  test('PauseServiceParams field names are a subset of yaml pause fields', () => {
+  test('PauseServiceParams field names match yaml pause service contract', () => {
     const automationTs = readFileSync(automationTsPath, 'utf-8');
     const iface = automationTs.match(/export interface PauseServiceParams[\s\S]*?\{([\s\S]*?)\n\}/);
     expect(iface).not.toBeNull();
     const tsFields = [...(iface![1].matchAll(/^\s+(\w+)\??:/gm))].map((match) => match[1]);
     const servicesYaml = parseYaml(readFileSync(servicesYamlPath, 'utf-8')) as {
-      pause: { fields: Record<string, unknown> };
+      pause: { fields: Record<string, unknown>; target?: { entity?: unknown } };
     };
     const yamlFields = new Set(Object.keys(servicesYaml.pause.fields));
+    const yamlTargetFields = servicesYaml.pause.target?.entity ? new Set(['entity_id']) : new Set<string>();
 
     for (const field of tsFields) {
-      expect(yamlFields.has(field), `${field} not in services.yaml pause`).toBe(true);
+      expect(
+        yamlFields.has(field) || yamlTargetFields.has(field),
+        `${field} not in services.yaml pause fields or target`
+      ).toBe(true);
     }
     expect(tsFields).not.toContain('resume_preset');
   });

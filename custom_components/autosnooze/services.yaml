@@ -7,16 +7,6 @@ pause:
           - automation
           - input_boolean
   fields:
-    entity_id:
-      name: Entity
-      description: Automation(s) or input Boolean(s) to snooze.
-      required: true
-      selector:
-        entity:
-          domain:
-            - automation
-            - input_boolean
-          multiple: true
     days:
       name: Days
       description: Number of days to snooze (used with duration-based scheduling).
