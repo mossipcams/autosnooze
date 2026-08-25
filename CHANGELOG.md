@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.4.0](https://github.com/mossipcams/autosnooze/compare/v0.3.2...v0.4.0) (2026-08-25)
+
+
+### Features
+
+* support service snoozing for input booleans ([#540](https://github.com/mossipcams/autosnooze/issues/540)) ([8ccd855](https://github.com/mossipcams/autosnooze/commit/8ccd85568af8abd152e3dc4aafcf6ea91d81a23d))
+
+
+### Bug Fixes
+
+* fail closed on snooze errors and retry registry loads ([#541](https://github.com/mossipcams/autosnooze/issues/541)) ([04942e4](https://github.com/mossipcams/autosnooze/commit/04942e467eee0bb7115d5b0c1df67c75dee5eb27))
+* move posthog capture off event loop ([#545](https://github.com/mossipcams/autosnooze/issues/545)) ([b9880fb](https://github.com/mossipcams/autosnooze/commit/b9880fb2d0cc3528039f64f43390e11a5c047792))
+* roll back snooze state when persistence fails ([#547](https://github.com/mossipcams/autosnooze/issues/547)) ([316a9a7](https://github.com/mossipcams/autosnooze/commit/316a9a7d270e584894910eaa3cb8f58f90434006))
+
 ## [0.3.2](https://github.com/mossipcams/autosnooze/compare/v0.3.1...v0.3.2) (2026-08-17)
 
 
