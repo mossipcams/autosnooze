@@ -295,14 +295,14 @@ describe('Services.yaml Schema Validation', () => {
       }
     });
 
-    test('pause service has correct fields', () => {
+    test('pause service uses target.entity instead of fields.entity_id', () => {
       const pauseService = servicesYaml.pause;
       expect(pauseService).toBeDefined();
-      expect(pauseService.fields).toBeDefined();
-
-      // Required field
-      expect(pauseService.fields.entity_id).toBeDefined();
-      expect(pauseService.fields.entity_id.required).toBe(true);
+      expect(pauseService.target).toBeDefined();
+      expect(pauseService.target.entity).toEqual([
+        { domain: ['automation', 'input_boolean'] },
+      ]);
+      expect(pauseService.fields.entity_id).toBeUndefined();
 
       // Optional duration fields
       expect(pauseService.fields.days).toBeDefined();
@@ -388,15 +388,18 @@ describe('Services.yaml Schema Validation', () => {
   });
 
   describe('Entity selectors', () => {
-    test('pause entity_id selector supports automation and input Boolean domains', () => {
-      const entityId = servicesYaml.pause.fields.entity_id;
-      expect(entityId.selector.entity.domain).toEqual(['automation', 'input_boolean']);
-      expect(entityId.selector.entity.multiple).toBe(true);
+    test('pause target.entity supports automation and input Boolean domains', () => {
+      expect(servicesYaml.pause.target.entity).toEqual([
+        { domain: ['automation', 'input_boolean'] },
+      ]);
+      expect(servicesSchema.services.pause.target.entity).toEqual([
+        { domain: ['automation', 'input_boolean'] },
+      ]);
+      expect(servicesSchema.services.pause.fields.entity_id).toBeUndefined();
     });
 
     test('direct entity services support automation and input Boolean domains', () => {
       const servicesWithEntityId = [
-        'pause',
         'cancel',
         'clear_notification',
         'cancel_scheduled',

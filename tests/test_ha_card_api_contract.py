@@ -35,9 +35,8 @@ SENSOR_ENTITY_ID = "sensor.autosnooze_snoozed_automations"
 ENTITY_ONE = "automation.test_automation_1"
 
 PAUSE_FAMILY = ("pause", "pause_by_area", "pause_by_label")
-DIRECT_ENTITY_SERVICES = ("pause", "cancel", "clear_notification", "cancel_scheduled", "adjust")
+DIRECT_ENTITY_SERVICES = ("cancel", "clear_notification", "cancel_scheduled", "adjust")
 PAUSE_TARGET_FIELDS = {
-    "pause": "entity_id",
     "pause_by_area": "area_id",
     "pause_by_label": "label_id",
 }
@@ -154,8 +153,8 @@ def test_services_yaml_keys_match_service_names() -> None:
 def test_pause_family_yaml_includes_schema_optional_fields(service_name: str) -> None:
     services = _load_services_yaml()
     fields = set(services[service_name]["fields"])
-    target = PAUSE_TARGET_FIELDS[service_name]
-    assert target in fields
+    if service_name in PAUSE_TARGET_FIELDS:
+        assert PAUSE_TARGET_FIELDS[service_name] in fields
     missing = PAUSE_OPTIONAL_FIELDS - fields
     assert not missing, f"{service_name} missing yaml fields: {sorted(missing)}"
 
@@ -179,7 +178,11 @@ def test_direct_entity_services_support_automations_and_input_booleans(service_n
 
 def test_pause_target_supports_direct_domains_while_discovery_stays_automation_only() -> None:
     services = _load_services_yaml()
+    fixture = _load_services_fixture()
     assert services["pause"]["target"]["entity"] == [{"domain": ["automation", "input_boolean"]}]
+    assert fixture["services"]["pause"]["target"]["entity"] == [{"domain": ["automation", "input_boolean"]}]
+    assert "entity_id" not in services["pause"]["fields"]
+    assert "entity_id" not in fixture["services"]["pause"]["fields"]
     assert services["pause_by_area"]["target"]["entity"] == [{"domain": "automation"}]
     assert services["pause_by_label"]["target"]["entity"] == [{"domain": "automation"}]
 

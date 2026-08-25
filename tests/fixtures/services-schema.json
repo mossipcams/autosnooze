@@ -4,16 +4,12 @@
   "services": {
     "pause": {
       "name": "Snooze",
+      "target": {
+        "entity": [
+          { "domain": ["automation", "input_boolean"] }
+        ]
+      },
       "fields": {
-        "entity_id": {
-          "required": true,
-          "selector": {
-            "entity": {
-              "domain": ["automation", "input_boolean"],
-              "multiple": true
-            }
-          }
-        },
         "days": {
           "required": false,
           "default": 0,
