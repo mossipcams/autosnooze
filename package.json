@@ -58,19 +58,19 @@
     "@stryker-mutator/api": "^10.0.0",
     "@stryker-mutator/core": "^10.0.0",
     "@stryker-mutator/vitest-runner": "^10.0.0",
-    "@types/node": "^26.2.0",
-    "@typescript-eslint/eslint-plugin": "^8.67.0",
+    "@types/node": "^26.4.0",
+    "@typescript-eslint/eslint-plugin": "^8.68.0",
     "@typescript-eslint/parser": "^8.57.0",
     "@vitest/coverage-istanbul": "^4.1.11",
     "dependency-cruiser": "^17.4.3",
-    "eslint": "^10.9.0",
+    "eslint": "^10.9.1",
     "globals": "^17.11.0",
     "husky": "^9.0.0",
     "jscpd": "^5.0.16",
     "jsdom": "^29.1.1",
-    "knip": "^6.32.2",
-    "lint-staged": "^17.3.0",
-    "rollup": "^4.62.5",
+    "knip": "^6.32.3",
+    "lint-staged": "^17.4.1",
+    "rollup": "^4.63.1",
     "tdd-guard-vitest": "^0.2.0",
     "tslib": "^2.8.1",
     "typescript": "^6.0.3",
@@ -89,12 +89,12 @@
     }
   },
   "optionalDependencies": {
-    "@oxc-parser/binding-darwin-arm64": "0.146.0",
-    "@oxc-parser/binding-linux-x64-gnu": "0.146.0",
+    "@oxc-parser/binding-darwin-arm64": "0.147.0",
+    "@oxc-parser/binding-linux-x64-gnu": "0.147.0",
     "@oxc-resolver/binding-darwin-arm64": "11.24.2",
     "@oxc-resolver/binding-linux-x64-gnu": "11.24.2",
-    "@rollup/rollup-darwin-arm64": "4.62.5",
-    "@rollup/rollup-linux-x64-gnu": "4.62.5"
+    "@rollup/rollup-darwin-arm64": "4.63.1",
+    "@rollup/rollup-linux-x64-gnu": "4.63.1"
   },
   "lint-staged": {
     "src/**/*.ts": [
