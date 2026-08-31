@@ -13,4 +13,4 @@ ruff>=0.16.4
 pyright>=1.1.411
 
 # Telemetry (matches manifest.json)
-posthog>=7.42.0,<8
+posthog>=7.44.2,<8
