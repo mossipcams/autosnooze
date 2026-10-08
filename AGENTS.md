@@ -34,3 +34,8 @@ All implementation, refactoring, and reviews must follow `architecture.md`.
 - Never modify files in the `tests/` directory unless explicitly asked to
 - Never delete or weaken test assertions
 - When tests fail, fix the implementation, not the tests
+- You are not going to need it: do not add features, abstractions,
+  configuration, or dependencies for hypothetical future needs. Implement only
+  what the current task requires.
+- Prefer reusing existing code over writing a new equivalent. Search before
+  you write.
