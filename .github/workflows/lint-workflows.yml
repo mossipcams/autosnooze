@@ -25,6 +25,6 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v4
 
       - name: Run actionlint
-        uses: docker://rhysd/actionlint:1.7.4
+        uses: docker://rhysd/actionlint:1.7.4@sha256:82244e1db1c60d82c7792180a48dd0bcb838370bb589d53ff132503fc9485868
         with:
           args: -color
