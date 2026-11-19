@@ -27,6 +27,8 @@ export default defineConfig({
     video: 'retain-on-failure',
     actionTimeout: 10000,
     navigationTimeout: 30000,
+    // HA's service worker reloads the page on controllerchange a few seconds after first load.
+    serviceWorkers: 'block',
   },
   globalSetup: './global-setup.ts',
   projects: [
