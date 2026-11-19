@@ -16,7 +16,7 @@ def test_pytest_homeassistant_custom_component_tracks_current_fixture() -> None:
     """Keep the Home Assistant test fixture on the reviewed patch release."""
     requirements = REQUIREMENTS_TEST_PATH.read_text(encoding="utf-8")
 
-    assert "pytest-homeassistant-custom-component>=0.13.356,<0.13.357" in requirements
+    assert "pytest-homeassistant-custom-component>=0.13.364,<0.13.365" in requirements
 
 
 def test_pytest_matches_homeassistant_2026_5_fixture_dependency() -> None:
