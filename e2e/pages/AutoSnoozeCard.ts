@@ -685,9 +685,10 @@ export class AutoSnoozeCard extends BasePage {
       (() => {
         ${findAutosnoozeCard}
         const card = findAutosnoozeCard();
-        const link = deepQuery(card, '.schedule-link');
-        if (link?.textContent?.includes('Pick specific')) {
-          link.click();
+        const pills = deepQueryAll(card, '.duration-pills .pill');
+        const dateTime = Array.from(pills || []).find((p) => p.textContent?.trim() === 'Date/Time');
+        if (dateTime?.getAttribute('aria-checked') !== 'true') {
+          dateTime?.click();
         }
       })()
       `
@@ -701,10 +702,8 @@ export class AutoSnoozeCard extends BasePage {
       (() => {
         ${findAutosnoozeCard}
         const card = findAutosnoozeCard();
-        const link = deepQuery(card, '.schedule-link');
-        if (link?.textContent?.includes('Back to duration')) {
-          link.click();
-        }
+        // Any other "Snooze until" pill leaves date/time mode.
+        deepQuery(card, '.duration-pills .pill')?.click();
       })()
       `
     );
@@ -718,12 +717,16 @@ export class AutoSnoozeCard extends BasePage {
     const opts = JSON.stringify(options);
     await this.page.evaluate(
       `
-      (() => {
+      (async () => {
         ${findAutosnoozeCard}
         const card = findAutosnoozeCard();
         const opts = ${opts};
 
         if (opts.disableAt) {
+          if (!deepQuery(card, 'select[aria-labelledby="snooze-at-label"]')) {
+            deepQuery(card, '.start-later-toggle')?.click();
+            await new Promise((resolve) => setTimeout(resolve, 100));
+          }
           const disableDate = deepQuery(card, 'select[aria-labelledby="snooze-at-label"]');
           const disableTime = deepQuery(card, 'input[type="time"][aria-labelledby="snooze-at-label"]');
           if (disableDate) {

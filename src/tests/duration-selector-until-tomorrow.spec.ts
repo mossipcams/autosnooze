@@ -43,11 +43,11 @@ describe('duration selector until tomorrow', () => {
     document.body.innerHTML = '';
   });
 
-  test('Tomorrow pill renders after duration pills and before Custom', async () => {
+  test('Tomorrow pill renders after duration pills and before Custom and Date/Time', async () => {
     const element = await connectSelector();
 
     const pills = Array.from(element.shadowRoot?.querySelectorAll('.pill') ?? []) as HTMLButtonElement[];
-    expect(pills.map((pill) => getText(pill))).toEqual(['30m', '1h', 'Tomorrow', 'Custom']);
+    expect(pills.map((pill) => getText(pill))).toEqual(['30m', '1h', 'Tomorrow', 'Custom', 'Date/Time']);
   });
 
   test('clicking Tomorrow dispatches until-tomorrow-select', async () => {

@@ -91,19 +91,19 @@
   "schedule": {
     "snooze_at": "Pausar a las:",
     "select_date": "Seleccionar fecha",
-    "hint_immediate": "Dejar vacío para pausar inmediatamente",
     "resume_at": "Reanudar a las:",
-    "back_to_duration": "Volver a selección de duración",
-    "pick_datetime": "Elegir fecha/hora específica"
+    "start_later": "Empezar más tarde",
+    "start_now": "Empezar ahora"
   },
   "duration": {
-    "header": "Duración de la pausa",
+    "header": "Pausar hasta",
     "placeholder": "ej. 2h30m, 1.5h, 1d, 45m",
     "preview_label": "Duración:",
     "help": "Introducir duración: 30m, 2h, 1.5h, 4h30m, 1d, 1d2h",
     "last_used_tooltip": "Usar última duración: {duration}",
     "custom": "Personalizado",
-    "tomorrow": "Mañana"
+    "tomorrow": "Mañana",
+    "datetime": "Fecha/hora"
   },
   "section": {
     "snoozed_count": "Automatizaciones pausadas ({count})",

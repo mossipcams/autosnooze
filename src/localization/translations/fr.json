@@ -91,19 +91,19 @@
   "schedule": {
     "snooze_at": "Pause à :",
     "select_date": "Sélectionner la date",
-    "hint_immediate": "Laisser vide pour mettre en pause immédiatement",
     "resume_at": "Reprendre à :",
-    "back_to_duration": "Retour à la sélection de durée",
-    "pick_datetime": "Choisir une date/heure spécifique"
+    "start_later": "Commencer plus tard",
+    "start_now": "Commencer maintenant"
   },
   "duration": {
-    "header": "Durée de la pause",
+    "header": "Pause jusqu'à",
     "placeholder": "ex. 2h30m, 1.5h, 1j, 45m",
     "preview_label": "Durée :",
     "help": "Entrer la durée : 30m, 2h, 1.5h, 4h30m, 1j, 1j2h",
     "last_used_tooltip": "Utiliser la dernière durée : {duration}",
     "custom": "Personnalisé",
-    "tomorrow": "Demain"
+    "tomorrow": "Demain",
+    "datetime": "Date/heure"
   },
   "section": {
     "snoozed_count": "Automatisations en pause ({count})",

@@ -96,22 +96,22 @@
   "schedule": {
     "snooze_at": "Snooze at:",
     "select_date": "Select date",
-    "hint_immediate": "Leave empty to snooze immediately",
     "resume_at": "Resume at:",
-    "back_to_duration": "Back to duration selection",
-    "pick_datetime": "Pick specific date/time instead",
     "summary_immediate": "Will pause immediately and resume {resume}",
     "summary_with_disable": "Will pause {disable} and resume {resume}",
-    "summary_invalid_order": "Pause time must be before resume time"
+    "summary_invalid_order": "Pause time must be before resume time",
+    "start_later": "Start later",
+    "start_now": "Start now"
   },
   "duration": {
-    "header": "Snooze Duration",
+    "header": "Snooze until",
     "placeholder": "e.g. 2h30m, 1.5h, 1d, 45m",
     "preview_label": "Duration:",
     "help": "Enter duration: 30m, 2h, 1.5h, 4h30m, 1d, 1d2h",
     "last_used_tooltip": "Use last duration: {duration}",
     "custom": "Custom",
-    "tomorrow": "Tomorrow"
+    "tomorrow": "Tomorrow",
+    "datetime": "Date/Time"
   },
   "section": {
     "snoozed_count": "Snoozed Automations ({count})",

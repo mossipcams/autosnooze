@@ -523,6 +523,7 @@ export class AutomationPauseCard extends LitElement {
 
   private _handleDurationChange(e: CustomEvent<{ minutes: number; duration: ParsedDuration; input: string; showCustomInput?: boolean }>): void {
     const { duration, input, showCustomInput } = e.detail;
+    this._exitScheduleMode();
     this._untilTomorrow = false;
     this._setDurationState(duration, input);
     if (showCustomInput !== undefined) {
@@ -536,6 +537,7 @@ export class AutomationPauseCard extends LitElement {
     }
     if (e.detail.enabled) {
       this._untilTomorrow = false;
+      this._showCustomInput = false;
     }
     const scheduleState = createScheduleModeState({
       enabled: e.detail.enabled,
@@ -543,13 +545,16 @@ export class AutomationPauseCard extends LitElement {
       resumeMinutes: this._lastDuration?.minutes ?? DEFAULT_SNOOZE_MINUTES,
     });
     this._scheduleMode = scheduleState.scheduleMode;
-    if (!e.detail.enabled) {
-      return;
-    }
     this._disableAtDate = scheduleState.disableAtDate;
     this._disableAtTime = scheduleState.disableAtTime;
     this._resumeAtDate = scheduleState.resumeAtDate;
     this._resumeAtTime = scheduleState.resumeAtTime;
+  }
+
+  /** Picking any other "Snooze until" option leaves date/time mode. */
+  private _exitScheduleMode(): void {
+    if (!this._scheduleMode) return;
+    this._handleScheduleModeChange(new CustomEvent('schedule-mode-change', { detail: { enabled: false } }));
   }
 
   private _handleScheduleFieldChange(e: CustomEvent<{ field: string; value: string }>): void {
@@ -576,6 +581,7 @@ export class AutomationPauseCard extends LitElement {
     }
     this._showCustomInput = e.detail.show;
     if (e.detail.show) {
+      this._exitScheduleMode();
       this._untilTomorrow = false;
     }
   }
@@ -584,6 +590,7 @@ export class AutomationPauseCard extends LitElement {
     if (this.hass) {
       trackUntilTomorrowSelected(this.hass);
     }
+    this._exitScheduleMode();
     this._untilTomorrow = true;
     this._showCustomInput = false;
   }
@@ -666,6 +673,7 @@ export class AutomationPauseCard extends LitElement {
     const scheduledCount = Object.keys(scheduled).length;
     const automations = this._getAutomations();
     const sensorAvailable = this._isSnoozeSensorAvailable();
+    const isScheduled = this._scheduleMode && this._hasDisableAt();
 
     return html`
       <ha-card>
@@ -799,14 +807,14 @@ export class AutomationPauseCard extends LitElement {
             @click=${() => this._snooze()}
             aria-label="${this._loading
               ? localize(this.hass, 'a11y.snoozing')
-              : this._scheduleMode
+              : isScheduled
                 ? localize(this.hass, 'a11y.schedule_snooze', { count: this._selected.length })
                 : localize(this.hass, 'a11y.snooze_count', { count: this._selected.length })}"
             aria-busy=${this._loading}
           >
             ${this._loading
               ? localize(this.hass, 'button.snoozing')
-              : this._scheduleMode
+              : isScheduled
                 ? localize(this.hass, 'button.schedule_count', { count: this._selected.length })
                 : localize(this.hass, 'button.snooze_count', { count: this._selected.length })}
           </button>

@@ -8,7 +8,7 @@ import {
 } from '../src/features/card-shell/index.js';
 
 describe('Card Shell Feature', () => {
-  test('creates schedule mode defaults from last duration', () => {
+  test('creates schedule mode defaults from last duration with no start time', () => {
     const result = createScheduleModeState({
       enabled: true,
       now: new Date('2026-01-14T10:15:00'),
@@ -17,8 +17,8 @@ describe('Card Shell Feature', () => {
 
     expect(result).toEqual({
       scheduleMode: true,
-      disableAtDate: '2026-01-14',
-      disableAtTime: '10:15',
+      disableAtDate: '',
+      disableAtTime: '',
       resumeAtDate: '2026-01-14',
       resumeAtTime: '11:45',
     });

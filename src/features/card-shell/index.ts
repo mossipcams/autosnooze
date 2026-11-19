@@ -21,6 +21,7 @@ import type {
   ScheduledSnoozeAttribute,
 } from '../../types/hass.js';
 import type { CountdownState } from '../../utils/countdown-timer.js';
+import { toLocalDateTimeFields } from '../../utils/datetime.js';
 import { reportTelemetry } from '../../services/telemetry.js';
 
 export type { LastDurationData };
@@ -32,19 +33,6 @@ interface AdjustModalState {
   adjustModalResumeAt: string;
   adjustModalEntityIds: string[];
   adjustModalFriendlyNames: string[];
-}
-
-function formatLocalDate(value: Date): string {
-  const year = value.getFullYear();
-  const month = String(value.getMonth() + 1).padStart(2, '0');
-  const day = String(value.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
-}
-
-function formatLocalTime(value: Date): string {
-  const hours = String(value.getHours()).padStart(2, '0');
-  const minutes = String(value.getMinutes()).padStart(2, '0');
-  return `${hours}:${minutes}`;
 }
 
 export function createScheduleModeState(input: {
@@ -68,13 +56,15 @@ export function createScheduleModeState(input: {
     };
   }
 
-  const resumeDate = new Date(input.now.getTime() + (input.resumeMinutes * 60 * 1000));
+  // No start time: a prefilled "now" is already past when submitted, so the
+  // backend pauses immediately while the card would treat it as scheduled.
+  const resume = toLocalDateTimeFields(new Date(input.now.getTime() + (input.resumeMinutes * 60 * 1000)));
   return {
     scheduleMode: true,
-    disableAtDate: formatLocalDate(input.now),
-    disableAtTime: formatLocalTime(input.now),
-    resumeAtDate: formatLocalDate(resumeDate),
-    resumeAtTime: formatLocalTime(resumeDate),
+    disableAtDate: '',
+    disableAtTime: '',
+    resumeAtDate: resume.date,
+    resumeAtTime: resume.time,
   };
 }
 

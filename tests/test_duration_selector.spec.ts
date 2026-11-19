@@ -141,12 +141,14 @@ describe('AutoSnoozeDurationSelector', () => {
     document.body.removeChild(el);
   });
 
-  it('should render schedule link in duration mode', async () => {
+  it('should render a Date/Time pill in duration mode', async () => {
     const el = new AutoSnoozeDurationSelector();
     document.body.appendChild(el);
     await el.updateComplete;
-    const link = el.shadowRoot.querySelector('.schedule-link');
+    const link = Array.from(el.shadowRoot.querySelectorAll('.pill'))
+      .find((pill) => pill.textContent?.trim() === 'Date/Time');
     expect(link).toBeTruthy();
+    expect(link.getAttribute('aria-checked')).toBe('false');
     let detail = null;
     el.addEventListener('schedule-mode-change', (e: Event) => { detail = (e as CustomEvent).detail; });
     (link as HTMLElement).click();
@@ -173,8 +175,10 @@ describe('AutoSnoozeDurationSelector', () => {
     await el.updateComplete;
     const scheduleInputs = el.shadowRoot.querySelector('.schedule-inputs');
     expect(scheduleInputs).toBeTruthy();
+    // The pills stay visible so any other option leaves date/time mode.
     const selector = el.shadowRoot.querySelector('.duration-selector');
-    expect(selector).toBeFalsy();
+    expect(selector).toBeTruthy();
+    expect(selector.contains(scheduleInputs)).toBe(true);
     document.body.removeChild(el);
   });
 });
