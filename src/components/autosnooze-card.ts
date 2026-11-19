@@ -15,6 +15,7 @@ import {
   TIME_MS,
   UI_TIMING,
   DEFAULT_SNOOZE_MINUTES,
+  MAX_RESTORED_DURATION_MINUTES,
   NOTIFICATION_LEAD_OPTIONS,
   DEFAULT_NOTIFICATION_LEAD_MINUTES,
 } from '../constants/index.js';
@@ -27,6 +28,8 @@ import {
   loadCardRecentSnoozeIds,
   loadCardHideSnoozedPreference,
   saveCardHideSnoozedPreference,
+  loadCardNotificationPreference,
+  saveCardNotificationPreference,
   createScheduleModeState,
   syncAdjustModalWithPaused,
   trackCardViewed,
@@ -42,7 +45,7 @@ import {
   trackHideSnoozedToggled,
   type LastDurationData,
 } from '../features/card-shell/index.js';
-import { formatDateTime, formatDuration } from '../utils/time-formatting.js';
+import { formatDateTime, formatDuration, formatDurationShort } from '../utils/time-formatting.js';
 import { durationToMinutes, isDurationValid, minutesToDuration } from '../utils/duration-parsing.js';
 import { hapticFeedback } from '../utils/haptic.js';
 import { defineAutoSnoozeElement } from '../utils/custom-element-registration.js';
@@ -101,6 +104,7 @@ export class AutomationPauseCard extends LitElement {
   @state() private _hideSnoozed: boolean = false;
 
   private _pausedEntityIdsCache: string[] = [];
+  private _preferencesRestored = false;
 
   static getConfigElement(): HTMLElement {
     return document.createElement('autosnooze-card-editor');
@@ -172,6 +176,25 @@ export class AutomationPauseCard extends LitElement {
     this._lastDuration = loadCardLastDuration();
     this._hideSnoozed = loadCardHideSnoozedPreference();
     this._refreshRecentSnoozeIds();
+    if (!this._preferencesRestored) {
+      this._preferencesRestored = true;
+      this._restorePreferences();
+    }
+  }
+
+  /** First connect only, so a reconnect never overwrites an in-progress choice. */
+  private _restorePreferences(): void {
+    const last = this._lastDuration;
+    if (last && last.minutes <= MAX_RESTORED_DURATION_MINUTES) {
+      const { days, hours, minutes } = last.duration;
+      this._setDurationState(last.duration, formatDurationShort(days, hours, minutes));
+    }
+    const notification = loadCardNotificationPreference();
+    if (notification) {
+      this._notificationsEnabled = true;
+      this._notificationTrigger = notification.trigger;
+      this._notificationLeadMinutes = notification.leadMinutes;
+    }
   }
 
   disconnectedCallback(): void {
@@ -358,9 +381,6 @@ export class AutomationPauseCard extends LitElement {
       });
 
       this._setSelected([]);
-      this._notificationsEnabled = false;
-      this._notificationTrigger = 'end';
-      this._notificationLeadMinutes = DEFAULT_NOTIFICATION_LEAD_MINUTES;
       this._disableAtDate = '';
       this._disableAtTime = '';
       this._resumeAtDate = '';
@@ -595,8 +615,15 @@ export class AutomationPauseCard extends LitElement {
     this._showCustomInput = false;
   }
 
+  private _saveNotificationPreference(): void {
+    saveCardNotificationPreference(this._notificationsEnabled
+      ? { trigger: this._notificationTrigger, leadMinutes: this._notificationLeadMinutes }
+      : null);
+  }
+
   private _handleNotificationsToggle(e: Event): void {
     this._notificationsEnabled = (e.target as HTMLInputElement).checked;
+    this._saveNotificationPreference();
     if (this.hass) {
       trackNotificationOptionsChanged(
         this.hass,
@@ -609,6 +636,7 @@ export class AutomationPauseCard extends LitElement {
 
   private _handleNotificationWhenChange(e: Event): void {
     this._notificationTrigger = (e.target as HTMLSelectElement).value as Exclude<NotificationTrigger, 'none'>;
+    this._saveNotificationPreference();
     if (this.hass) {
       trackNotificationOptionsChanged(
         this.hass,
@@ -621,6 +649,7 @@ export class AutomationPauseCard extends LitElement {
 
   private _handleNotificationLeadChange(e: Event): void {
     this._notificationLeadMinutes = Number((e.target as HTMLSelectElement).value);
+    this._saveNotificationPreference();
     if (this.hass) {
       trackNotificationOptionsChanged(
         this.hass,

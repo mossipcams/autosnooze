@@ -11,6 +11,11 @@ import {
   type LastDurationData,
 } from '../../services/storage.js';
 import {
+  loadNotificationPreference,
+  saveNotificationPreference,
+  type NotificationPreference,
+} from '../../services/preferences.js';
+import {
   getPausedSensorEntity,
   getPausedSnapshot,
 } from '../../state/paused.js';
@@ -24,7 +29,7 @@ import type { CountdownState } from '../../utils/countdown-timer.js';
 import { toLocalDateTimeFields } from '../../utils/datetime.js';
 import { reportTelemetry } from '../../services/telemetry.js';
 
-export type { LastDurationData };
+export type { LastDurationData, NotificationPreference };
 
 interface AdjustModalState {
   adjustModalOpen: boolean;
@@ -118,6 +123,14 @@ export function loadCardHideSnoozedPreference(): boolean {
 
 export function saveCardHideSnoozedPreference(hideSnoozed: boolean): void {
   saveHideSnoozedPreference(hideSnoozed);
+}
+
+export function loadCardNotificationPreference(): NotificationPreference | null {
+  return loadNotificationPreference();
+}
+
+export function saveCardNotificationPreference(preference: NotificationPreference | null): void {
+  saveNotificationPreference(preference);
 }
 
 export function trackHideSnoozedToggled(hass: HomeAssistant, enabled: boolean): void {

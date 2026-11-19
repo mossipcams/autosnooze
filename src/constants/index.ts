@@ -63,6 +63,12 @@ export const UNTIL_TOMORROW_HOUR = 8;
 export const DEFAULT_SNOOZE_MINUTES = 30;
 
 /**
+ * Longest last-used duration preselected when the card loads; longer snoozes
+ * are offered via the history badge instead of being reused automatically.
+ */
+export const MAX_RESTORED_DURATION_MINUTES = 24 * 60;
+
+/**
  * Lead-time options (minutes) for the "Before snooze ends" notification trigger.
  * Must stay in sync with NOTIFICATION_LEAD_MINUTES_VALUES in
  * custom_components/autosnooze/domain/notifications.py.
