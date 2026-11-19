@@ -414,6 +414,21 @@ export class AutomationPauseCard extends LitElement {
     await this._wake(e.detail.entityId);
   }
 
+  private async _handleWakeGroupEvent(e: CustomEvent<{ entityIds: string[] }>): Promise<void> {
+    if (!this.hass) return;
+    trackWakeClicked(this.hass, 'group');
+    try {
+      await runWakeFeature(this.hass, e.detail.entityIds);
+      this._hapticFeedback('success');
+      if (this.isConnected && this.shadowRoot) {
+        this._showToast(localize(this.hass, 'toast.success.resumed_many', { count: e.detail.entityIds.length }));
+      }
+    } catch (err) {
+      console.error('Wake group failed:', err);
+      this._hapticFeedback('failure');
+    }
+  }
+
   private async _handleWakeAllEvent(): Promise<void> {
     if (!this.hass) return;
     trackWakeClicked(this.hass, 'all');
@@ -855,6 +870,7 @@ export class AutomationPauseCard extends LitElement {
               .pauseGroups=${pausedSnapshot.groups}
               .pausedCount=${pausedCount}
               @wake-automation=${this._handleWakeEvent}
+              @wake-group=${this._handleWakeGroupEvent}
               @wake-all=${this._handleWakeAllEvent}
               @clear-notification=${this._handleClearNotificationEvent}
               @adjust-automation=${this._handleAdjustAutomationEvent}

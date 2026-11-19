@@ -14,7 +14,9 @@
     "clear": "Effacer",
     "snoozing": "Mise en pause...",
     "schedule_count": "Programmer ({count})",
-    "snooze_count": "Pause ({count})"
+    "snooze_count": "Pause ({count})",
+    "resume_group": "Reprendre le groupe",
+    "confirm_resume_group": "Confirmer"
   },
   "a11y": {
     "undo_action": "Annuler la dernière action",
@@ -56,7 +58,8 @@
     "adjust_automation": "Ajuster la mise en veille pour {name}",
     "add_minutes": "Ajouter {label}",
     "reduce_minutes": "Réduire de {label}",
-    "adjust_group": "Ajuster le temps de pause pour {count} automatisations dans ce groupe"
+    "adjust_group": "Ajuster le temps de pause pour {count} automatisations dans ce groupe",
+    "resume_group": "Reprendre {count} automatisations dans ce groupe"
   },
   "toast": {
     "error": {
@@ -82,7 +85,8 @@
       "resumed": "Automatisation reprise avec succès",
       "resumed_all": "Toutes les automatisations ont été reprises avec succès",
       "cancelled": "Pause programmée annulée avec succès",
-      "adjusted": "Durée de mise en veille ajustée"
+      "adjusted": "Durée de mise en veille ajustée",
+      "resumed_many": "{count} automatisations reprises"
     }
   },
   "list": {

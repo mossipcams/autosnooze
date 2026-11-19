@@ -14,7 +14,9 @@
     "clear": "Cancella",
     "snoozing": "Messa in pausa...",
     "schedule_count": "Programma ({count})",
-    "snooze_count": "Pausa ({count})"
+    "snooze_count": "Pausa ({count})",
+    "resume_group": "Riprendi gruppo",
+    "confirm_resume_group": "Conferma"
   },
   "a11y": {
     "undo_action": "Annulla ultima azione",
@@ -56,7 +58,8 @@
     "adjust_automation": "Modifica tempo di snooze per {name}",
     "add_minutes": "Aggiungi {label}",
     "reduce_minutes": "Riduci di {label}",
-    "adjust_group": "Modifica il tempo di pausa per {count} automazioni in questo gruppo"
+    "adjust_group": "Modifica il tempo di pausa per {count} automazioni in questo gruppo",
+    "resume_group": "Riprendi {count} automazioni in questo gruppo"
   },
   "toast": {
     "error": {
@@ -82,7 +85,8 @@
       "resumed": "Automazione ripresa con successo",
       "resumed_all": "Tutte le automazioni riprese con successo",
       "cancelled": "Pausa programmata annullata con successo",
-      "adjusted": "Tempo di snooze modificato"
+      "adjusted": "Tempo di snooze modificato",
+      "resumed_many": "{count} automazioni riprese"
     }
   },
   "list": {

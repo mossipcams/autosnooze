@@ -194,7 +194,7 @@ export function trackSnoozeButtonClicked(
   });
 }
 
-export function trackWakeClicked(hass: HomeAssistant, scope: 'one' | 'all'): void {
+export function trackWakeClicked(hass: HomeAssistant, scope: 'one' | 'group' | 'all'): void {
   reportTelemetry(hass, { event: 'wake_clicked', properties: { scope }, source: 'card' });
 }
 

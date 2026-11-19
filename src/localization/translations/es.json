@@ -14,7 +14,9 @@
     "clear": "Limpiar",
     "snoozing": "Pausando...",
     "schedule_count": "Programar ({count})",
-    "snooze_count": "Pausar ({count})"
+    "snooze_count": "Pausar ({count})",
+    "resume_group": "Reanudar grupo",
+    "confirm_resume_group": "Confirmar"
   },
   "a11y": {
     "undo_action": "Deshacer última acción",
@@ -56,7 +58,8 @@
     "adjust_automation": "Ajustar tiempo de snooze para {name}",
     "add_minutes": "Agregar {label}",
     "reduce_minutes": "Reducir {label}",
-    "adjust_group": "Ajustar tiempo de pausa para {count} automatizaciones en este grupo"
+    "adjust_group": "Ajustar tiempo de pausa para {count} automatizaciones en este grupo",
+    "resume_group": "Reanudar {count} automatizaciones en este grupo"
   },
   "toast": {
     "error": {
@@ -82,7 +85,8 @@
       "resumed": "Automatización reanudada correctamente",
       "resumed_all": "Todas las automatizaciones reanudadas correctamente",
       "cancelled": "Pausa programada cancelada correctamente",
-      "adjusted": "Tiempo de snooze ajustado"
+      "adjusted": "Tiempo de snooze ajustado",
+      "resumed_many": "{count} automatizaciones reanudadas"
     }
   },
   "list": {

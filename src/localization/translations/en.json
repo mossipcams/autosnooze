@@ -17,7 +17,9 @@
     "continue": "Continue",
     "snoozing": "Snoozing...",
     "schedule_count": "Schedule ({count})",
-    "snooze_count": "Snooze ({count})"
+    "snooze_count": "Snooze ({count})",
+    "resume_group": "Resume group",
+    "confirm_resume_group": "Confirm"
   },
   "a11y": {
     "undo_action": "Undo last action",
@@ -60,7 +62,8 @@
     "adjust_automation": "Adjust snooze time for {name}",
     "add_minutes": "Add {label}",
     "reduce_minutes": "Reduce by {label}",
-    "adjust_group": "Adjust snooze time for {count} automations in this group"
+    "adjust_group": "Adjust snooze time for {count} automations in this group",
+    "resume_group": "Resume {count} automations in this group"
   },
   "toast": {
     "error": {
@@ -86,7 +89,8 @@
       "resumed": "Automation resumed successfully",
       "resumed_all": "All automations resumed successfully",
       "cancelled": "Scheduled snooze cancelled successfully",
-      "adjusted": "Snooze time adjusted"
+      "adjusted": "Snooze time adjusted",
+      "resumed_many": "Resumed {count} automations"
     }
   },
   "list": {

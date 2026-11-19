@@ -10,7 +10,7 @@ interface UndoFeatureResult {
   failed: string[];
 }
 
-export async function runWakeFeature(hass: HomeAssistant, entityId: string): Promise<void> {
+export async function runWakeFeature(hass: HomeAssistant, entityId: string | string[]): Promise<void> {
   await wakeAutomation(hass, entityId);
 }
 

@@ -14,7 +14,9 @@
     "clear": "Löschen",
     "snoozing": "Pausiere...",
     "schedule_count": "Planen ({count})",
-    "snooze_count": "Pausieren ({count})"
+    "snooze_count": "Pausieren ({count})",
+    "resume_group": "Gruppe fortsetzen",
+    "confirm_resume_group": "Bestätigen"
   },
   "a11y": {
     "undo_action": "Letzte Aktion rückgängig machen",
@@ -56,7 +58,8 @@
     "adjust_automation": "Schlummerzeit anpassen für {name}",
     "add_minutes": "{label} hinzufügen",
     "reduce_minutes": "Um {label} reduzieren",
-    "adjust_group": "Schlummerzeit für {count} Automatisierungen in dieser Gruppe anpassen"
+    "adjust_group": "Schlummerzeit für {count} Automatisierungen in dieser Gruppe anpassen",
+    "resume_group": "{count} Automatisierungen in dieser Gruppe fortsetzen"
   },
   "toast": {
     "error": {
@@ -82,7 +85,8 @@
       "resumed": "Automatisierung erfolgreich fortgesetzt",
       "resumed_all": "Alle Automatisierungen erfolgreich fortgesetzt",
       "cancelled": "Geplante Pause erfolgreich abgebrochen",
-      "adjusted": "Schlummerzeit angepasst"
+      "adjusted": "Schlummerzeit angepasst",
+      "resumed_many": "{count} Automatisierungen fortgesetzt"
     }
   },
   "list": {
