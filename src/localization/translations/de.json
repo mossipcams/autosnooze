@@ -35,7 +35,6 @@
     "scheduled_pause_for": "Geplante Pause für {name}",
     "cancel_scheduled_for": "Geplante Pause für {name} abbrechen",
     "filter_tabs": "Automatisierungen filtern nach",
-    "hide_snoozed": "Aktuell pausierte Automatisierungen aus der Liste ausblenden",
     "automation_count": "{count} Automatisierungen",
     "area_count": "{count} Bereiche",
     "category_count": "{count} Kategorien",
@@ -59,7 +58,8 @@
     "add_minutes": "{label} hinzufügen",
     "reduce_minutes": "Um {label} reduzieren",
     "adjust_group": "Schlummerzeit für {count} Automatisierungen in dieser Gruppe anpassen",
-    "resume_group": "{count} Automatisierungen in dieser Gruppe fortsetzen"
+    "resume_group": "{count} Automatisierungen in dieser Gruppe fortsetzen",
+    "view_options": "Ansichtsoptionen"
   },
   "toast": {
     "error": {

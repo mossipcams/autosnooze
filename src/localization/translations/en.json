@@ -38,7 +38,6 @@
     "scheduled_pause_for": "Scheduled pause for {name}",
     "cancel_scheduled_for": "Cancel scheduled pause for {name}",
     "filter_tabs": "Filter automations by",
-    "hide_snoozed": "Hide currently snoozed automations from the list",
     "automation_count": "{count} automations",
     "area_count": "{count} areas",
     "category_count": "{count} categories",
@@ -63,7 +62,8 @@
     "add_minutes": "Add {label}",
     "reduce_minutes": "Reduce by {label}",
     "adjust_group": "Adjust snooze time for {count} automations in this group",
-    "resume_group": "Resume {count} automations in this group"
+    "resume_group": "Resume {count} automations in this group",
+    "view_options": "View options"
   },
   "toast": {
     "error": {

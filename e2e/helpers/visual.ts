@@ -26,10 +26,10 @@ function collectLayoutOffendersInBrowser(rootElement: Element, mode: string): Of
   const visit = (root: ParentNode): void => {
     root.querySelectorAll('*').forEach((element) => {
       const htmlElement = element as HTMLElement;
-      const style = window.getComputedStyle(htmlElement);
       const rect = htmlElement.getBoundingClientRect();
       const text = (htmlElement.textContent ?? '').replace(/\s+/g, ' ').trim();
-      const visible = style.display !== 'none' && style.visibility !== 'hidden' && style.opacity !== '0';
+      // checkVisibility also honours hidden ancestors (e.g. a collapsed [hidden] panel).
+      const visible = htmlElement.checkVisibility({ checkOpacity: true, checkVisibilityCSS: true });
 
       if (
         mode === 'overflow' &&

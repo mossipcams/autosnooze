@@ -729,16 +729,6 @@ export class AutomationPauseCard extends LitElement {
                 >${pausedCount > 0 ? localize(this.hass, 'status.active_count', { count: pausedCount }) : ''}${pausedCount > 0 && scheduledCount > 0 ? ', ' : ''}${scheduledCount > 0 ? localize(this.hass, 'status.scheduled_count', { count: scheduledCount }) : ''}</span
               >`
             : ''}
-          <button
-            type="button"
-            class="hide-snoozed-toggle ${this._hideSnoozed ? 'active' : ''}"
-            @click=${() => this._toggleHideSnoozed()}
-            aria-pressed=${this._hideSnoozed}
-            aria-label="${localize(this.hass, 'a11y.hide_snoozed')}"
-            title="${localize(this.hass, 'filter.hide_snoozed')}"
-          >
-            <ha-icon icon=${this._hideSnoozed ? 'mdi:eye-off' : 'mdi:eye'} aria-hidden="true"></ha-icon>
-          </button>
         </div>
 
         ${!sensorAvailable
@@ -761,6 +751,7 @@ export class AutomationPauseCard extends LitElement {
             .pausedEntityIds=${this._pausedEntityIdsCache}
             .hideSnoozed=${this._hideSnoozed}
             @selection-change=${this._handleSelectionChange}
+            @hide-snoozed-change=${this._toggleHideSnoozed}
           ></autosnooze-automation-list>
 
           <autosnooze-duration-selector

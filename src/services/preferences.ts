@@ -4,6 +4,7 @@
 
 import { NOTIFICATION_LEAD_OPTIONS } from '../constants/index.js';
 import type { NotificationTrigger } from '../types/automation.js';
+import type { FilterTab } from '../types/card.js';
 
 const STORAGE_KEY = 'autosnooze_notification_preference';
 const TRIGGERS: readonly string[] = ['start', 'about_to_end', 'end'];
@@ -41,5 +42,25 @@ export function loadNotificationPreference(): NotificationPreference | null {
     return { trigger: data.trigger, leadMinutes: data.leadMinutes as number };
   } catch {
     return null;
+  }
+}
+
+const FILTER_TAB_KEY = 'autosnooze_filter_tab';
+const FILTER_TABS: readonly FilterTab[] = ['all', 'areas', 'categories', 'labels'];
+
+export function saveFilterTabPreference(tab: FilterTab): void {
+  try {
+    localStorage.setItem(FILTER_TAB_KEY, JSON.stringify(tab));
+  } catch {
+    // localStorage may be unavailable
+  }
+}
+
+export function loadFilterTabPreference(): FilterTab {
+  try {
+    const parsed: unknown = JSON.parse(localStorage.getItem(FILTER_TAB_KEY) ?? 'null');
+    return FILTER_TABS.find((tab) => tab === parsed) ?? 'all';
+  } catch {
+    return 'all';
   }
 }

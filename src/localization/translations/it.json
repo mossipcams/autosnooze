@@ -35,7 +35,6 @@
     "scheduled_pause_for": "Pausa programmata per {name}",
     "cancel_scheduled_for": "Annulla pausa programmata per {name}",
     "filter_tabs": "Filtra automazioni per",
-    "hide_snoozed": "Nascondi dalla lista le automazioni attualmente in snooze",
     "automation_count": "{count} automazioni",
     "area_count": "{count} aree",
     "category_count": "{count} categorie",
@@ -59,7 +58,8 @@
     "add_minutes": "Aggiungi {label}",
     "reduce_minutes": "Riduci di {label}",
     "adjust_group": "Modifica il tempo di pausa per {count} automazioni in questo gruppo",
-    "resume_group": "Riprendi {count} automazioni in questo gruppo"
+    "resume_group": "Riprendi {count} automazioni in questo gruppo",
+    "view_options": "Opzioni di visualizzazione"
   },
   "toast": {
     "error": {

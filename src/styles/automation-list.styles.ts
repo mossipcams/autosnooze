@@ -10,6 +10,75 @@ export const automationListStyles = css`
       display: block;
     }
 
+    .view-toggle {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      position: relative;
+      width: 40px;
+      min-height: 40px;
+      padding: 0;
+      border: 1px solid var(--divider-color);
+      border-radius: 8px;
+      background: var(--card-background-color);
+      color: var(--primary-text-color);
+      cursor: pointer;
+      --mdc-icon-size: 20px;
+    }
+    .view-toggle:focus-visible,
+    .hide-snoozed-toggle:focus-visible {
+      outline: 2px solid var(--primary-color);
+      outline-offset: 2px;
+    }
+    .view-toggle[aria-expanded='true'] {
+      border-color: var(--primary-color);
+    }
+    /* Dot: the list is grouped or filtered, so say so while the panel is closed. */
+    .view-toggle.active::after {
+      content: '';
+      position: absolute;
+      top: 5px;
+      right: 5px;
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--primary-color);
+    }
+    .view-panel {
+      margin-bottom: 12px;
+    }
+    .view-panel[hidden] {
+      display: none;
+    }
+    .view-panel .filter-tabs {
+      margin-bottom: 8px;
+    }
+    .hide-snoozed-toggle {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 10px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 0.85em;
+      font-family: inherit;
+      background: var(--card-background-color);
+      border: 1px solid var(--divider-color);
+      color: var(--primary-text-color);
+      min-height: 44px;
+      box-sizing: border-box;
+      transition: background 0.15s ease, border-color 0.15s ease;
+      --mdc-icon-size: 18px;
+    }
+    .hide-snoozed-toggle:hover {
+      background: color-mix(in srgb, var(--primary-color) 12%, var(--card-background-color));
+    }
+    .hide-snoozed-toggle.active {
+      background: color-mix(in srgb, var(--primary-color) 16%, var(--card-background-color));
+      border-color: var(--primary-color);
+    }
+
     /* Filter Tabs */
     .filter-tabs {
       display: flex;
