@@ -1,6 +1,7 @@
 /**
  * AutoSnooze Automation List child component.
- * Renders filter tabs, search input, selection actions, and grouped/flat automation list.
+ * Renders search, selection actions, a View panel (grouping tabs, hide snoozed),
+ * and the grouped/flat automation list.
  * Fires selection-change events instead of directly modifying parent state.
  */
 
@@ -17,6 +18,8 @@ import {
   getCategoryName,
   trackSelectionFeatureUsed,
   trackFilterTabSelected,
+  loadAutomationListFilterTab,
+  saveAutomationListFilterTab,
   type AutomationListViewModel,
 } from '../features/automation-list/index.js';
 import type { HomeAssistant, HassLabel, HassCategory } from '../types/hass.js';
@@ -54,7 +57,8 @@ export class AutoSnoozeAutomationList extends LitElement {
   @property({ type: Boolean })
   hideSnoozed: boolean = false;
 
-  @state() _filterTab: FilterTab = 'all';
+  @state() _filterTab: FilterTab = loadAutomationListFilterTab();
+  @state() _viewOpen: boolean = false;
   @state() _search: string = '';
   @state() _searchInput: string = '';
   @state() _expandedGroups: Record<string, boolean> = {};
@@ -93,6 +97,14 @@ export class AutoSnoozeAutomationList extends LitElement {
   private _fireSelectionChange(newSelected: string[]): void {
     this.dispatchEvent(new CustomEvent('selection-change', {
       detail: { selected: newSelected },
+      bubbles: true,
+      composed: true,
+    }));
+  }
+
+  private _fireHideSnoozedChange(hideSnoozed: boolean): void {
+    this.dispatchEvent(new CustomEvent('hide-snoozed-change', {
+      detail: { hideSnoozed },
       bubbles: true,
       composed: true,
     }));
@@ -251,6 +263,7 @@ export class AutoSnoozeAutomationList extends LitElement {
 
   private _selectFilterTab(tab: FilterTab): void {
     this._filterTab = tab;
+    saveAutomationListFilterTab(tab);
     if (this.hass) {
       trackFilterTabSelected(this.hass, tab);
     }
@@ -402,54 +415,8 @@ export class AutoSnoozeAutomationList extends LitElement {
     const hasSearchValue = this._searchInput.length > 0 || this._search.length > 0;
     const allVisibleSelected =
       filtered.length > 0 && filtered.every((a) => selectedIds.has(a.id));
+    const isDefaultView = this._filterTab === 'all' && !this.hideSnoozed;
     return html`
-      <div class="filter-tabs" role="tablist" aria-label="${localize(this.hass, 'a11y.filter_tabs')}">
-        <button
-          type="button"
-          class="tab ${this._filterTab === 'all' ? 'active' : ''}"
-          @click=${() => this._selectFilterTab('all')}
-          role="tab"
-          aria-selected=${this._filterTab === 'all'}
-          aria-controls="selection-list"
-        >
-          ${localize(this.hass, 'tab.all')}
-          <span class="tab-count" aria-label="${localize(this.hass, 'a11y.automation_count', { count: viewModel.filtered.length })}">${viewModel.filtered.length}</span>
-        </button>
-        <button
-          type="button"
-          class="tab ${this._filterTab === 'areas' ? 'active' : ''}"
-          @click=${() => this._selectFilterTab('areas')}
-          role="tab"
-          aria-selected=${this._filterTab === 'areas'}
-          aria-controls="selection-list"
-        >
-          ${localize(this.hass, 'tab.areas')}
-          <span class="tab-count" aria-label="${localize(this.hass, 'a11y.area_count', { count: viewModel.areaCount })}">${viewModel.areaCount}</span>
-        </button>
-        <button
-          type="button"
-          class="tab ${this._filterTab === 'categories' ? 'active' : ''}"
-          @click=${() => this._selectFilterTab('categories')}
-          role="tab"
-          aria-selected=${this._filterTab === 'categories'}
-          aria-controls="selection-list"
-        >
-          ${localize(this.hass, 'tab.categories')}
-          <span class="tab-count" aria-label="${localize(this.hass, 'a11y.category_count', { count: viewModel.categoryCount })}">${viewModel.categoryCount}</span>
-        </button>
-        <button
-          type="button"
-          class="tab ${this._filterTab === 'labels' ? 'active' : ''}"
-          @click=${() => this._selectFilterTab('labels')}
-          role="tab"
-          aria-selected=${this._filterTab === 'labels'}
-          aria-controls="selection-list"
-        >
-          ${localize(this.hass, 'tab.labels')}
-          <span class="tab-count" aria-label="${localize(this.hass, 'a11y.label_count', { count: viewModel.labelCount })}">${viewModel.labelCount}</span>
-        </button>
-      </div>
-
       <div class="search-row selection-actions">
         <div class="search-box">
           <input
@@ -474,6 +441,18 @@ export class AutoSnoozeAutomationList extends LitElement {
               `
             : ''}
         </div>
+
+        <button
+          type="button"
+          class="view-toggle ${isDefaultView ? '' : 'active'}"
+          @click=${() => { this._viewOpen = !this._viewOpen; }}
+          aria-expanded=${this._viewOpen}
+          aria-controls="view-panel"
+          aria-label="${localize(this.hass, 'a11y.view_options')}"
+          title="${localize(this.hass, 'a11y.view_options')}"
+        >
+          <ha-icon icon="mdi:tune-variant" aria-hidden="true"></ha-icon>
+        </button>
 
         ${filtered.length > 0
           ? html`
@@ -502,6 +481,64 @@ export class AutoSnoozeAutomationList extends LitElement {
                 : ''}
             `
           : ''}
+      </div>
+
+      <div id="view-panel" class="view-panel" ?hidden=${!this._viewOpen}>
+        <div class="filter-tabs" role="tablist" aria-label="${localize(this.hass, 'a11y.filter_tabs')}">
+          <button
+            type="button"
+            class="tab ${this._filterTab === 'all' ? 'active' : ''}"
+            @click=${() => this._selectFilterTab('all')}
+            role="tab"
+            aria-selected=${this._filterTab === 'all'}
+            aria-controls="selection-list"
+          >
+            ${localize(this.hass, 'tab.all')}
+            <span class="tab-count" aria-label="${localize(this.hass, 'a11y.automation_count', { count: viewModel.filtered.length })}">${viewModel.filtered.length}</span>
+          </button>
+          <button
+            type="button"
+            class="tab ${this._filterTab === 'areas' ? 'active' : ''}"
+            @click=${() => this._selectFilterTab('areas')}
+            role="tab"
+            aria-selected=${this._filterTab === 'areas'}
+            aria-controls="selection-list"
+          >
+            ${localize(this.hass, 'tab.areas')}
+            <span class="tab-count" aria-label="${localize(this.hass, 'a11y.area_count', { count: viewModel.areaCount })}">${viewModel.areaCount}</span>
+          </button>
+          <button
+            type="button"
+            class="tab ${this._filterTab === 'categories' ? 'active' : ''}"
+            @click=${() => this._selectFilterTab('categories')}
+            role="tab"
+            aria-selected=${this._filterTab === 'categories'}
+            aria-controls="selection-list"
+          >
+            ${localize(this.hass, 'tab.categories')}
+            <span class="tab-count" aria-label="${localize(this.hass, 'a11y.category_count', { count: viewModel.categoryCount })}">${viewModel.categoryCount}</span>
+          </button>
+          <button
+            type="button"
+            class="tab ${this._filterTab === 'labels' ? 'active' : ''}"
+            @click=${() => this._selectFilterTab('labels')}
+            role="tab"
+            aria-selected=${this._filterTab === 'labels'}
+            aria-controls="selection-list"
+          >
+            ${localize(this.hass, 'tab.labels')}
+            <span class="tab-count" aria-label="${localize(this.hass, 'a11y.label_count', { count: viewModel.labelCount })}">${viewModel.labelCount}</span>
+          </button>
+        </div>
+        <button
+          type="button"
+          class="hide-snoozed-toggle ${this.hideSnoozed ? 'active' : ''}"
+          @click=${() => this._fireHideSnoozedChange(!this.hideSnoozed)}
+          aria-pressed=${this.hideSnoozed}
+        >
+          <ha-icon icon=${this.hideSnoozed ? 'mdi:eye-off' : 'mdi:eye'} aria-hidden="true"></ha-icon>
+          ${localize(this.hass, 'filter.hide_snoozed')}
+        </button>
       </div>
 
       ${showRegistryWarning

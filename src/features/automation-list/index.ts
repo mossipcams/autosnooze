@@ -8,6 +8,7 @@ import type { FilterTab } from '../../types/card.js';
 import type { HassCategory, HassLabel, HomeAssistant } from '../../types/hass.js';
 import { formatRegistryId } from '../../utils/registry-formatting.js';
 import { reportTelemetry } from '../../services/telemetry.js';
+import { loadFilterTabPreference, saveFilterTabPreference } from '../../services/preferences.js';
 export { getAutomations } from '../../state/automations.js';
 
 export interface AutomationListViewModel {
@@ -49,6 +50,14 @@ export function trackSelectionFeatureUsed(hass: HomeAssistant, targetCount: numb
     properties: { target_count: targetCount },
     source: 'card',
   });
+}
+
+export function loadAutomationListFilterTab(): FilterTab {
+  return loadFilterTabPreference();
+}
+
+export function saveAutomationListFilterTab(tab: FilterTab): void {
+  saveFilterTabPreference(tab);
 }
 
 export function trackFilterTabSelected(

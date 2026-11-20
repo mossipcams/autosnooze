@@ -16,8 +16,13 @@ import {
   durationToMinutes,
   minutesToDuration,
 } from '../utils/duration-parsing.js';
-import { generateDateOptions, combineDateTime, getNextMorningFields } from '../utils/datetime.js';
-import { DEFAULT_DURATIONS, UNTIL_TOMORROW_HOUR } from '../constants/index.js';
+import {
+  generateDateOptions,
+  combineDateTime,
+  getNextMorningFields,
+  toLocalDateTimeFields,
+} from '../utils/datetime.js';
+import { DEFAULT_DURATIONS, TIME_MS, UNTIL_TOMORROW_HOUR } from '../constants/index.js';
 import type { ParsedDuration } from '../types/automation.js';
 import type { HomeAssistant } from '../types/hass.js';
 import {
@@ -26,6 +31,8 @@ import {
   type LastDurationData,
 } from '../features/card-shell/index.js';
 import { defineAutoSnoozeElement } from '../utils/custom-element-registration.js';
+
+const START_LATER_OFFSET_MINUTES = 5;
 
 export class AutoSnoozeDurationSelector extends LitElement {
   static styles = durationSelectorStyles;
@@ -108,7 +115,7 @@ export class AutoSnoozeDurationSelector extends LitElement {
     const { days, hours, minutes } = this.lastDuration.duration;
     const durationStr = formatDurationShort(days, hours, minutes).replace(/ /g, '');
     const currentMinutes = durationToMinutes(this.customDuration);
-    const isActive = !this.untilTomorrow && !this.showCustomInput && lastMinutes === currentMinutes;
+    const isActive = !this.scheduleMode && !this.untilTomorrow && !this.showCustomInput && lastMinutes === currentMinutes;
 
     return html`
       <button
@@ -228,66 +235,72 @@ export class AutoSnoozeDurationSelector extends LitElement {
     `;
   }
 
-  render(): TemplateResult {
-    if (this.scheduleMode) {
-      return html`
-        <div class="schedule-inputs">
-          <div class="datetime-field">
-            <label id="snooze-at-label">${localize(this.hass, 'schedule.snooze_at')}</label>
-            <div class="datetime-row">
-              <select
-                .value=${this.disableAtDate}
-                @change=${(e: Event) => this._fireScheduleFieldChange('disableAtDate', (e.target as HTMLSelectElement).value)}
-                aria-labelledby="snooze-at-label"
-              >
-                <option value="">${localize(this.hass, 'schedule.select_date')}</option>
-                ${this._renderDateOptions()}
-              </select>
-              <input
-                type="time"
-                .value=${this.disableAtTime}
-                @input=${(e: Event) => this._fireScheduleFieldChange('disableAtTime', (e.target as HTMLInputElement).value)}
-                aria-labelledby="snooze-at-label"
-              />
-            </div>
-            <span class="field-hint">${localize(this.hass, 'schedule.hint_immediate')}</span>
-          </div>
-          <div class="datetime-field">
-            <label id="resume-at-label">${localize(this.hass, 'schedule.resume_at')}</label>
-            <div class="datetime-row">
-              <select
-                .value=${this.resumeAtDate}
-                @change=${(e: Event) => this._fireScheduleFieldChange('resumeAtDate', (e.target as HTMLSelectElement).value)}
-                aria-labelledby="resume-at-label"
-              >
-                <option value="">${localize(this.hass, 'schedule.select_date')}</option>
-                ${this._renderDateOptions()}
-              </select>
-              <input
-                type="time"
-                .value=${this.resumeAtTime}
-                @input=${(e: Event) => this._fireScheduleFieldChange('resumeAtTime', (e.target as HTMLInputElement).value)}
-                aria-labelledby="resume-at-label"
-              />
-            </div>
-          </div>
-          ${this._renderScheduleSummary()}
-          <button
-            type="button"
-            class="schedule-link"
-            @click=${() => this._fireScheduleModeChange(false)}
+  private _toggleStartLater(): void {
+    const start = this.disableAtDate || this.disableAtTime
+      ? { date: '', time: '' }
+      : toLocalDateTimeFields(new Date(Date.now() + START_LATER_OFFSET_MINUTES * TIME_MS.MINUTE));
+    this._fireScheduleFieldChange('disableAtDate', start.date);
+    this._fireScheduleFieldChange('disableAtTime', start.time);
+  }
+
+  private _renderDateTimeField(
+    id: string,
+    label: string,
+    dateField: 'disableAtDate' | 'resumeAtDate',
+    timeField: 'disableAtTime' | 'resumeAtTime',
+  ): TemplateResult {
+    return html`
+      <div class="datetime-field">
+        <label id="${id}">${label}</label>
+        <div class="datetime-row">
+          <select
+            .value=${this[dateField]}
+            @change=${(e: Event) => this._fireScheduleFieldChange(dateField, (e.target as HTMLSelectElement).value)}
+            aria-labelledby="${id}"
           >
-            <ha-icon icon="mdi:timer-outline" aria-hidden="true"></ha-icon>
-            ${localize(this.hass, 'schedule.back_to_duration')}
-          </button>
+            <option value="">${localize(this.hass, 'schedule.select_date')}</option>
+            ${this._renderDateOptions()}
+          </select>
+          <input
+            type="time"
+            .value=${this[timeField]}
+            @input=${(e: Event) => this._fireScheduleFieldChange(timeField, (e.target as HTMLInputElement).value)}
+            aria-labelledby="${id}"
+          />
         </div>
-      `;
-    }
+      </div>
+    `;
+  }
+
+  private _renderScheduleInputs(): TemplateResult {
+    const hasStart = Boolean(this.disableAtDate || this.disableAtTime);
+    return html`
+      <div class="schedule-inputs">
+        ${this._renderDateTimeField('resume-at-label', localize(this.hass, 'schedule.resume_at'), 'resumeAtDate', 'resumeAtTime')}
+        <button
+          type="button"
+          class="start-later-toggle"
+          aria-expanded=${hasStart}
+          @click=${() => this._toggleStartLater()}
+        >
+          <ha-icon icon=${hasStart ? 'mdi:play-outline' : 'mdi:clock-start'} aria-hidden="true"></ha-icon>
+          ${localize(this.hass, hasStart ? 'schedule.start_now' : 'schedule.start_later')}
+        </button>
+        ${hasStart
+          ? this._renderDateTimeField('snooze-at-label', localize(this.hass, 'schedule.snooze_at'), 'disableAtDate', 'disableAtTime')
+          : ''}
+        ${this._renderScheduleSummary()}
+      </div>
+    `;
+  }
+
+  render(): TemplateResult {
     const pills = this._getDurationPills();
     const customPill = pills[pills.length - 1]!;
     const basePills = pills.slice(0, -1).filter(
       (d): d is { label: string; minutes: number } => d.minutes !== null
     );
+    const durationActive = !this.scheduleMode && !this.untilTomorrow;
 
     return html`
       <div class="duration-selector">
@@ -299,7 +312,7 @@ export class AutoSnoozeDurationSelector extends LitElement {
           ${basePills.map(
             (d) => {
               const currentMinutes = durationToMinutes(this.customDuration);
-              const isActive = !this.untilTomorrow && !this.showCustomInput && d.minutes === currentMinutes;
+              const isActive = durationActive && !this.showCustomInput && d.minutes === currentMinutes;
               return html`
                 <button
                   type="button"
@@ -329,18 +342,27 @@ export class AutoSnoozeDurationSelector extends LitElement {
           </button>
           <button
             type="button"
-            class="pill ${!this.untilTomorrow && this.showCustomInput ? 'active' : ''}"
+            class="pill ${durationActive && this.showCustomInput ? 'active' : ''}"
             @click=${() => {
               this.dispatchEvent(new CustomEvent('custom-input-toggle', {
-                detail: { show: !this.showCustomInput },
+                detail: { show: !this.showCustomInput || this.scheduleMode },
                 bubbles: true,
                 composed: true,
               }));
             }}
             role="radio"
-            aria-checked=${!this.untilTomorrow && this.showCustomInput}
+            aria-checked=${durationActive && this.showCustomInput}
           >
             ${customPill.label}
+          </button>
+          <button
+            type="button"
+            class="pill ${this.scheduleMode ? 'active' : ''}"
+            @click=${() => { if (!this.scheduleMode) this._fireScheduleModeChange(true); }}
+            role="radio"
+            aria-checked=${this.scheduleMode}
+          >
+            ${localize(this.hass, 'duration.datetime')}
           </button>
         </div>
 
@@ -348,7 +370,7 @@ export class AutoSnoozeDurationSelector extends LitElement {
           <div class="duration-preview" role="status" aria-live="polite">${this._renderUntilTomorrowPreview()}</div>
         ` : ''}
 
-        ${this.showCustomInput ? html`
+        ${durationActive && this.showCustomInput ? html`
           <div class="custom-duration-input">
             <input
               type="text"
@@ -366,14 +388,7 @@ export class AutoSnoozeDurationSelector extends LitElement {
           </div>
         ` : ''}
 
-        <button
-          type="button"
-          class="schedule-link schedule-link--enter"
-          @click=${() => this._fireScheduleModeChange(true)}
-        >
-          <ha-icon icon="mdi:calendar-clock" aria-hidden="true"></ha-icon>
-          ${localize(this.hass, 'schedule.pick_datetime')}
-        </button>
+        ${this.scheduleMode ? this._renderScheduleInputs() : ''}
       </div>
     `;
   }

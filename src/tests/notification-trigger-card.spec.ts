@@ -195,7 +195,7 @@ describe('Card notification trigger control', () => {
     }
   });
 
-  test('resets to off / end / default lead after a successful snooze', async () => {
+  test('keeps the chosen notification options after a successful snooze', async () => {
     const { raw, card } = makeCard();
     document.body.appendChild(raw);
     try {
@@ -208,9 +208,9 @@ describe('Card notification trigger control', () => {
       card._customDuration = { days: 0, hours: 0, minutes: 30 };
       await card._snooze();
 
-      expect(card._notificationsEnabled).toBe(false);
-      expect(card._notificationTrigger).toBe('end');
-      expect(card._notificationLeadMinutes).toBe(60);
+      expect(card._notificationsEnabled).toBe(true);
+      expect(card._notificationTrigger).toBe('about_to_end');
+      expect(card._notificationLeadMinutes).toBe(240);
     } finally {
       document.body.removeChild(raw);
     }

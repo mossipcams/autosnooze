@@ -111,7 +111,7 @@ export type ReportTelemetryInput =
         until_tomorrow: boolean;
       };
     } & WithSource)
-  | ({ event: 'wake_clicked'; properties: { scope: 'one' | 'all' } } & WithSource)
+  | ({ event: 'wake_clicked'; properties: { scope: 'one' | 'group' | 'all' } } & WithSource)
   | ({ event: 'adjust_opened'; properties: { scope: 'one' | 'group' } } & WithSource)
   | ({
       event: 'adjust_option_selected';

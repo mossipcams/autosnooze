@@ -239,6 +239,7 @@ def test_sanitize_rejects_canary_string_in_allowed_field() -> None:
             {},
         ),
         ("wake_clicked", {"scope": "all"}, {}),
+        ("wake_clicked", {"scope": "group"}, {}),
         ("adjust_opened", {"scope": "group"}, {}),
         (
             "adjust_option_selected",

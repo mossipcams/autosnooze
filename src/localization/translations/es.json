@@ -14,7 +14,9 @@
     "clear": "Limpiar",
     "snoozing": "Pausando...",
     "schedule_count": "Programar ({count})",
-    "snooze_count": "Pausar ({count})"
+    "snooze_count": "Pausar ({count})",
+    "resume_group": "Reanudar grupo",
+    "confirm_resume_group": "Confirmar"
   },
   "a11y": {
     "undo_action": "Deshacer última acción",
@@ -33,7 +35,6 @@
     "scheduled_pause_for": "Pausa programada para {name}",
     "cancel_scheduled_for": "Cancelar pausa programada para {name}",
     "filter_tabs": "Filtrar automatizaciones por",
-    "hide_snoozed": "Ocultar automatizaciones actualmente pospuestas de la lista",
     "automation_count": "{count} automatizaciones",
     "area_count": "{count} áreas",
     "category_count": "{count} categorías",
@@ -56,7 +57,10 @@
     "adjust_automation": "Ajustar tiempo de snooze para {name}",
     "add_minutes": "Agregar {label}",
     "reduce_minutes": "Reducir {label}",
-    "adjust_group": "Ajustar tiempo de pausa para {count} automatizaciones en este grupo"
+    "adjust_group": "Ajustar tiempo de pausa para {count} automatizaciones en este grupo",
+    "resume_group": "Reanudar {count} automatizaciones en este grupo",
+    "confirm_resume_group": "Confirmar reanudar {count} automatizaciones en este grupo",
+    "view_options": "Opciones de vista"
   },
   "toast": {
     "error": {
@@ -82,7 +86,8 @@
       "resumed": "Automatización reanudada correctamente",
       "resumed_all": "Todas las automatizaciones reanudadas correctamente",
       "cancelled": "Pausa programada cancelada correctamente",
-      "adjusted": "Tiempo de snooze ajustado"
+      "adjusted": "Tiempo de snooze ajustado",
+      "resumed_many": "{count} automatizaciones reanudadas"
     }
   },
   "list": {
@@ -91,19 +96,19 @@
   "schedule": {
     "snooze_at": "Pausar a las:",
     "select_date": "Seleccionar fecha",
-    "hint_immediate": "Dejar vacío para pausar inmediatamente",
     "resume_at": "Reanudar a las:",
-    "back_to_duration": "Volver a selección de duración",
-    "pick_datetime": "Elegir fecha/hora específica"
+    "start_later": "Empezar más tarde",
+    "start_now": "Empezar ahora"
   },
   "duration": {
-    "header": "Duración de la pausa",
+    "header": "Pausar hasta",
     "placeholder": "ej. 2h30m, 1.5h, 1d, 45m",
     "preview_label": "Duración:",
     "help": "Introducir duración: 30m, 2h, 1.5h, 4h30m, 1d, 1d2h",
     "last_used_tooltip": "Usar última duración: {duration}",
     "custom": "Personalizado",
-    "tomorrow": "Mañana"
+    "tomorrow": "Mañana",
+    "datetime": "Fecha/hora"
   },
   "section": {
     "snoozed_count": "Automatizaciones pausadas ({count})",
