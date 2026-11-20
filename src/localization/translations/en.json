@@ -63,6 +63,7 @@
     "reduce_minutes": "Reduce by {label}",
     "adjust_group": "Adjust snooze time for {count} automations in this group",
     "resume_group": "Resume {count} automations in this group",
+    "confirm_resume_group": "Confirm resuming {count} automations in this group",
     "view_options": "View options"
   },
   "toast": {

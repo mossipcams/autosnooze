@@ -59,6 +59,7 @@
     "reduce_minutes": "Um {label} reduzieren",
     "adjust_group": "Schlummerzeit für {count} Automatisierungen in dieser Gruppe anpassen",
     "resume_group": "{count} Automatisierungen in dieser Gruppe fortsetzen",
+    "confirm_resume_group": "Bestätigen: {count} Automatisierungen in dieser Gruppe fortsetzen",
     "view_options": "Ansichtsoptionen"
   },
   "toast": {

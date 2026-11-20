@@ -59,6 +59,7 @@
     "reduce_minutes": "Reducir {label}",
     "adjust_group": "Ajustar tiempo de pausa para {count} automatizaciones en este grupo",
     "resume_group": "Reanudar {count} automatizaciones en este grupo",
+    "confirm_resume_group": "Confirmar reanudar {count} automatizaciones en este grupo",
     "view_options": "Opciones de vista"
   },
   "toast": {

@@ -209,7 +209,7 @@ export class AutoSnoozeActivePauses extends LitElement {
       <button
         type="button"
         class="wake-btn wake-group-btn ${pending ? 'pending' : ''}"
-        aria-label="${localize(this.hass, 'a11y.resume_group', { count: group.automations.length })}"
+        aria-label="${localize(this.hass, pending ? 'a11y.confirm_resume_group' : 'a11y.resume_group', { count: group.automations.length })}"
         @click=${() => this._handleWakeGroup(group)}
       >
         ${localize(this.hass, pending ? 'button.confirm_resume_group' : 'button.resume_group')}

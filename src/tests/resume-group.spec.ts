@@ -100,6 +100,7 @@ describe('Resume Group', () => {
     expect(wakeEvents).toHaveLength(0);
     expect(groupButtons(el)[0]?.textContent?.trim()).toBe('Confirm');
     expect(groupButtons(el)[0]?.classList.contains('pending')).toBe(true);
+    expect(groupButtons(el)[0]?.getAttribute('aria-label')).toBe('Confirm resuming 2 automations in this group');
 
     groupButtons(el)[0]!.click();
     await el.updateComplete;
