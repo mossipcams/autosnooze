@@ -15,7 +15,6 @@ import {
   TIME_MS,
   UI_TIMING,
   DEFAULT_SNOOZE_MINUTES,
-  MAX_RESTORED_DURATION_MINUTES,
   NOTIFICATION_LEAD_OPTIONS,
   DEFAULT_NOTIFICATION_LEAD_MINUTES,
 } from '../constants/index.js';
@@ -28,7 +27,7 @@ import {
   loadCardRecentSnoozeIds,
   loadCardHideSnoozedPreference,
   saveCardHideSnoozedPreference,
-  loadCardNotificationPreference,
+  loadCardRestoredChoices,
   saveCardNotificationPreference,
   createScheduleModeState,
   syncAdjustModalWithPaused,
@@ -45,7 +44,7 @@ import {
   trackHideSnoozedToggled,
   type LastDurationData,
 } from '../features/card-shell/index.js';
-import { formatDateTime, formatDuration, formatDurationShort } from '../utils/time-formatting.js';
+import { formatDateTime, formatDuration } from '../utils/time-formatting.js';
 import { durationToMinutes, isDurationValid, minutesToDuration } from '../utils/duration-parsing.js';
 import { hapticFeedback } from '../utils/haptic.js';
 import { defineAutoSnoozeElement } from '../utils/custom-element-registration.js';
@@ -64,7 +63,6 @@ import { CardShellController } from '../features/card-shell/controller.js';
 import type { AutoSnoozeToast } from './autosnooze-toast.js';
 import './autosnooze-toast.js';
 import './autosnooze-scheduled-pauses.js';
-
 
 export class AutomationPauseCard extends LitElement {
   static styles = [sharedPausedStyles, cardStyles];
@@ -176,20 +174,15 @@ export class AutomationPauseCard extends LitElement {
     this._lastDuration = loadCardLastDuration();
     this._hideSnoozed = loadCardHideSnoozedPreference();
     this._refreshRecentSnoozeIds();
-    if (!this._preferencesRestored) {
-      this._preferencesRestored = true;
-      this._restorePreferences();
-    }
+    this._restorePreferences();
   }
 
   /** First connect only, so a reconnect never overwrites an in-progress choice. */
   private _restorePreferences(): void {
-    const last = this._lastDuration;
-    if (last && last.minutes <= MAX_RESTORED_DURATION_MINUTES) {
-      const { days, hours, minutes } = last.duration;
-      this._setDurationState(last.duration, formatDurationShort(days, hours, minutes));
-    }
-    const notification = loadCardNotificationPreference();
+    if (this._preferencesRestored) return;
+    this._preferencesRestored = true;
+    const { duration, notification } = loadCardRestoredChoices(this._lastDuration);
+    if (duration) this._setDurationState(duration.duration, duration.input);
     if (notification) {
       this._notificationsEnabled = true;
       this._notificationTrigger = notification.trigger;
@@ -249,7 +242,6 @@ export class AutomationPauseCard extends LitElement {
     return this.hass?.locale?.language;
   }
 
-
   private _hasResumeAt(): boolean {
     return Boolean(this._resumeAtDate && this._resumeAtTime);
   }
@@ -257,7 +249,6 @@ export class AutomationPauseCard extends LitElement {
   private _hasDisableAt(): boolean {
     return Boolean(this._disableAtDate && this._disableAtTime);
   }
-
 
   private _hapticFeedback(type: HapticFeedbackType = 'light'): void {
     hapticFeedback(type);
@@ -414,32 +405,25 @@ export class AutomationPauseCard extends LitElement {
     await this._wake(e.detail.entityId);
   }
 
-  private async _handleWakeGroupEvent(e: CustomEvent<{ entityIds: string[] }>): Promise<void> {
-    if (!this.hass) return;
-    trackWakeClicked(this.hass, 'group');
-    try {
-      await runWakeFeature(this.hass, e.detail.entityIds);
-      this._hapticFeedback('success');
-      if (this.isConnected && this.shadowRoot) {
-        this._showToast(localize(this.hass, 'toast.success.resumed_many', { count: e.detail.entityIds.length }));
-      }
-    } catch (err) {
-      console.error('Wake group failed:', err);
-      this._hapticFeedback('failure');
-    }
+  private _handleWakeGroupEvent(e: CustomEvent<{ entityIds: string[] }>): Promise<void> {
+    const { entityIds } = e.detail;
+    return this._bulkWake('group', (hass) => runWakeFeature(hass, entityIds),
+      (hass) => localize(hass, 'toast.success.resumed_many', { count: entityIds.length }));
   }
 
-  private async _handleWakeAllEvent(): Promise<void> {
+  private _handleWakeAllEvent(): Promise<void> {
+    return this._bulkWake('all', runWakeAllFeature, (hass) => localize(hass, 'toast.success.resumed_all'));
+  }
+
+  private async _bulkWake(scope: 'group' | 'all', run: (hass: HomeAssistant) => Promise<unknown>, toast: (hass: HomeAssistant) => string): Promise<void> {
     if (!this.hass) return;
-    trackWakeClicked(this.hass, 'all');
+    trackWakeClicked(this.hass, scope);
     try {
-      await runWakeAllFeature(this.hass);
+      await run(this.hass);
       this._hapticFeedback('success');
-      if (this.isConnected && this.shadowRoot) {
-        this._showToast(localize(this.hass, 'toast.success.resumed_all'));
-      }
+      if (this.isConnected && this.shadowRoot) this._showToast(toast(this.hass));
     } catch (e) {
-      console.error('Wake all failed:', e);
+      console.error(`Wake ${scope} failed:`, e);
       this._hapticFeedback('failure');
     }
   }
@@ -456,7 +440,6 @@ export class AutomationPauseCard extends LitElement {
       this._hapticFeedback('failure');
     }
   }
-
 
   private _handleAdjustAutomationEvent(e: CustomEvent<{ entityId: string; friendlyName: string; resumeAt: string }>): void {
     if (this.hass) {
@@ -594,20 +577,10 @@ export class AutomationPauseCard extends LitElement {
 
   private _handleScheduleFieldChange(e: CustomEvent<{ field: string; value: string }>): void {
     const { field, value } = e.detail;
-    switch (field) {
-      case 'disableAtDate':
-        this._disableAtDate = value;
-        break;
-      case 'disableAtTime':
-        this._disableAtTime = value;
-        break;
-      case 'resumeAtDate':
-        this._resumeAtDate = value;
-        break;
-      case 'resumeAtTime':
-        this._resumeAtTime = value;
-        break;
-    }
+    if (field === 'disableAtDate') this._disableAtDate = value;
+    else if (field === 'disableAtTime') this._disableAtTime = value;
+    else if (field === 'resumeAtDate') this._resumeAtDate = value;
+    else if (field === 'resumeAtTime') this._resumeAtTime = value;
   }
 
   private _handleCustomInputToggle(e: CustomEvent<{ show: boolean }>): void {
@@ -630,48 +603,29 @@ export class AutomationPauseCard extends LitElement {
     this._showCustomInput = false;
   }
 
-  private _saveNotificationPreference(): void {
-    saveCardNotificationPreference(this._notificationsEnabled
-      ? { trigger: this._notificationTrigger, leadMinutes: this._notificationLeadMinutes }
-      : null);
-  }
-
   private _handleNotificationsToggle(e: Event): void {
     this._notificationsEnabled = (e.target as HTMLInputElement).checked;
-    this._saveNotificationPreference();
-    if (this.hass) {
-      trackNotificationOptionsChanged(
-        this.hass,
-        this._notificationsEnabled ? this._notificationTrigger : 'none',
-        this._notificationsEnabled,
-        this._notificationLeadMinutes,
-      );
-    }
+    this._notificationOptionsChanged();
   }
 
   private _handleNotificationWhenChange(e: Event): void {
     this._notificationTrigger = (e.target as HTMLSelectElement).value as Exclude<NotificationTrigger, 'none'>;
-    this._saveNotificationPreference();
-    if (this.hass) {
-      trackNotificationOptionsChanged(
-        this.hass,
-        this._notificationTrigger,
-        this._notificationsEnabled,
-        this._notificationLeadMinutes,
-      );
-    }
+    this._notificationOptionsChanged();
   }
 
   private _handleNotificationLeadChange(e: Event): void {
     this._notificationLeadMinutes = Number((e.target as HTMLSelectElement).value);
-    this._saveNotificationPreference();
+    this._notificationOptionsChanged();
+  }
+
+  /** Remember explicitly enabled notification options and report the change. */
+  private _notificationOptionsChanged(): void {
+    const enabled = this._notificationsEnabled;
+    const trigger = this._notificationTrigger;
+    const leadMinutes = this._notificationLeadMinutes;
+    saveCardNotificationPreference(enabled ? { trigger, leadMinutes } : null);
     if (this.hass) {
-      trackNotificationOptionsChanged(
-        this.hass,
-        this._notificationTrigger,
-        this._notificationsEnabled,
-        this._notificationLeadMinutes,
-      );
+      trackNotificationOptionsChanged(this.hass, enabled ? trigger : 'none', enabled, leadMinutes);
     }
   }
 

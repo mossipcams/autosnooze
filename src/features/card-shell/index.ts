@@ -19,7 +19,7 @@ import {
   getPausedSensorEntity,
   getPausedSnapshot,
 } from '../../state/paused.js';
-import type { DurationPreset, PauseGroup } from '../../types/automation.js';
+import type { DurationPreset, ParsedDuration, PauseGroup } from '../../types/automation.js';
 import type {
   HomeAssistant,
   PausedAutomationAttribute,
@@ -27,6 +27,8 @@ import type {
 } from '../../types/hass.js';
 import type { CountdownState } from '../../utils/countdown-timer.js';
 import { toLocalDateTimeFields } from '../../utils/datetime.js';
+import { formatDurationShort } from '../../utils/time-formatting.js';
+import { MAX_RESTORED_DURATION_MINUTES } from '../../constants/index.js';
 import { reportTelemetry } from '../../services/telemetry.js';
 
 export type { LastDurationData, NotificationPreference };
@@ -125,8 +127,18 @@ export function saveCardHideSnoozedPreference(hideSnoozed: boolean): void {
   saveHideSnoozedPreference(hideSnoozed);
 }
 
-export function loadCardNotificationPreference(): NotificationPreference | null {
-  return loadNotificationPreference();
+/** Choices to preselect when a card loads: a reasonably short last duration and notification options. */
+export function loadCardRestoredChoices(lastDuration: LastDurationData | null): {
+  duration: { duration: ParsedDuration; input: string } | null;
+  notification: NotificationPreference | null;
+} {
+  const reusable = lastDuration && lastDuration.minutes <= MAX_RESTORED_DURATION_MINUTES ? lastDuration.duration : null;
+  return {
+    duration: reusable
+      ? { duration: reusable, input: formatDurationShort(reusable.days, reusable.hours, reusable.minutes) }
+      : null,
+    notification: loadNotificationPreference(),
+  };
 }
 
 export function saveCardNotificationPreference(preference: NotificationPreference | null): void {
