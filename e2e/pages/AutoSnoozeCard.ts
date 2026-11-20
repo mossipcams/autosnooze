@@ -725,7 +725,11 @@ export class AutoSnoozeCard extends BasePage {
         if (opts.disableAt) {
           if (!deepQuery(card, 'select[aria-labelledby="snooze-at-label"]')) {
             deepQuery(card, '.start-later-toggle')?.click();
-            await new Promise((resolve) => setTimeout(resolve, 100));
+            const deadline = Date.now() + 5000;
+            while (!deepQuery(card, 'select[aria-labelledby="snooze-at-label"]')) {
+              if (Date.now() > deadline) throw new Error('Start later fields did not appear');
+              await new Promise((resolve) => requestAnimationFrame(resolve));
+            }
           }
           const disableDate = deepQuery(card, 'select[aria-labelledby="snooze-at-label"]');
           const disableTime = deepQuery(card, 'input[type="time"][aria-labelledby="snooze-at-label"]');
