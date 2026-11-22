@@ -68,6 +68,7 @@
       "invalid_datetime": "Ungültiges Wiederaufnahmedatum/-zeit",
       "resume_time_past": "Wiederaufnahmezeit muss in der Zukunft liegen",
       "start_time_past": "Startzeit muss in der Zukunft liegen",
+      "notification_lead_too_long": "Die Zeit unter \"Wie lange vorher?\" ist länger als die Schlummerzeit",
       "snooze_before_resume": "Pausenzeit muss vor der Wiederaufnahmezeit liegen",
       "undo_failed": "Rückgängig machen fehlgeschlagen. Die Automatisierungen wurden möglicherweise bereits geändert.",
       "resume_failed": "Fortsetzen der Automatisierung fehlgeschlagen",

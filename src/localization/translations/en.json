@@ -72,6 +72,7 @@
       "invalid_datetime": "Invalid resume date/time",
       "resume_time_past": "Resume time must be in the future",
       "start_time_past": "Start time must be in the future",
+      "notification_lead_too_long": "The \"How long before?\" time is longer than the snooze",
       "snooze_before_resume": "Snooze time must be before resume time",
       "undo_failed": "Failed to undo. The automations may have already been modified.",
       "resume_failed": "Failed to resume automation",

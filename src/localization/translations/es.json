@@ -68,6 +68,7 @@
       "invalid_datetime": "Fecha/hora de reanudación inválida",
       "resume_time_past": "La hora de reanudación debe ser en el futuro",
       "start_time_past": "La hora de inicio debe ser en el futuro",
+      "notification_lead_too_long": "El tiempo de \"¿Cuánto antes?\" es más largo que la siesta",
       "snooze_before_resume": "La hora de pausa debe ser anterior a la hora de reanudación",
       "undo_failed": "Error al deshacer. Las automatizaciones pueden haber sido modificadas.",
       "resume_failed": "Error al reanudar la automatización",

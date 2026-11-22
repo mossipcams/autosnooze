@@ -92,13 +92,13 @@ describe('runPauseFeature threads notification trigger config', () => {
     await runPauseFeature({
       ...baseInput(),
       notificationTrigger: 'about_to_end',
-      notificationLeadMinutes: 120,
+      notificationLeadMinutes: 60,
     });
 
     expect(lastRequest()).toStrictEqual({
       ...durationRequestWithoutNotify,
       notification_trigger: 'about_to_end',
-      notification_lead_minutes: 120,
+      notification_lead_minutes: 60,
     });
   });
 
