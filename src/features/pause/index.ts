@@ -92,6 +92,9 @@ export function validateScheduledPauseInput(input: {
     ? combineDateTime(input.disableAtDate, input.disableAtTime)
     : null;
   const disableTime = toValidTimeMs(disableAt);
+  if (disableTime !== null && disableTime <= input.nowMs) {
+    return { status: 'error', message: 'Snooze start time must be in the future' };
+  }
   if ((input.disableAtDate && input.disableAtTime && disableAt === null)
       || (disableTime !== null && disableTime >= resumeTime)) {
     return { status: 'error', message: 'Snooze time must be before resume time' };
@@ -104,6 +107,9 @@ function validationToast(input: RunPauseFeatureInput, message: string): string {
     return localize(input.hass, input.resumeAtDate || input.resumeAtTime
       ? 'toast.error.invalid_datetime'
       : 'toast.error.resume_time_required');
+  }
+  if (message === 'Snooze start time must be in the future') {
+    return localize(input.hass, 'toast.error.start_time_past');
   }
   return localize(input.hass, message === 'Resume time must be in the future'
     ? 'toast.error.resume_time_past'

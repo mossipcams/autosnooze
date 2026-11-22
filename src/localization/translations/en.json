@@ -71,6 +71,7 @@
       "resume_time_required": "Please set a complete resume date and time",
       "invalid_datetime": "Invalid resume date/time",
       "resume_time_past": "Resume time must be in the future",
+      "start_time_past": "Start time must be in the future",
       "snooze_before_resume": "Snooze time must be before resume time",
       "undo_failed": "Failed to undo. The automations may have already been modified.",
       "resume_failed": "Failed to resume automation",

@@ -67,6 +67,7 @@
       "resume_time_required": "Bitte vollständiges Wiederaufnahmedatum und -zeit angeben",
       "invalid_datetime": "Ungültiges Wiederaufnahmedatum/-zeit",
       "resume_time_past": "Wiederaufnahmezeit muss in der Zukunft liegen",
+      "start_time_past": "Startzeit muss in der Zukunft liegen",
       "snooze_before_resume": "Pausenzeit muss vor der Wiederaufnahmezeit liegen",
       "undo_failed": "Rückgängig machen fehlgeschlagen. Die Automatisierungen wurden möglicherweise bereits geändert.",
       "resume_failed": "Fortsetzen der Automatisierung fehlgeschlagen",
