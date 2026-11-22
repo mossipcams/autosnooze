@@ -372,6 +372,7 @@ export class AutomationPauseCard extends LitElement {
       });
 
       this._setSelected([]);
+      this._scheduleMode = false;
       this._disableAtDate = '';
       this._disableAtTime = '';
       this._resumeAtDate = '';

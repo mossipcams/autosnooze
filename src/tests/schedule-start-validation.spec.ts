@@ -126,4 +126,24 @@ describe('date/time snooze start and reset', () => {
     expect(pauseAutomations).not.toHaveBeenCalled();
     expect(toasts).toEqual(['Start time must be in the future']);
   });
+
+  test('a successful date/time snooze returns the picker to the duration pills', async () => {
+    const card = await mountCard();
+    card._showToast = () => {};
+    card._selected = ['automation.a'];
+    await enterDateTime(card);
+
+    await card._snooze();
+    await card.updateComplete;
+    const selector = selectorOf(card);
+    await selector.updateComplete;
+
+    expect(pauseAutomations).toHaveBeenCalledTimes(1);
+    expect(card._scheduleMode).toBe(false);
+    expect(pill(selector.shadowRoot, 'Date/Time').getAttribute('aria-checked')).toBe('false');
+
+    card._selected = ['automation.b'];
+    await card.updateComplete;
+    expect(card.shadowRoot!.querySelector<HTMLButtonElement>('.snooze-btn')!.disabled).toBe(false);
+  });
 });
