@@ -1,7 +1,6 @@
 {
-  "name": "autosnooze-ha",
+  "name": "AutoSnooze",
   "image": "mcr.microsoft.com/devcontainers/python:3.14",
-  "runArgs": ["--name", "autosnooze-ha"],
   "workspaceFolder": "/workspaces/autosnooze",
   "workspaceMount": "source=${localWorkspaceFolder},target=/workspaces/autosnooze,type=bind",
   "features": {
