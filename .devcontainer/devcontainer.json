@@ -1,0 +1,16 @@
+{
+  "name": "AutoSnooze",
+  "image": "mcr.microsoft.com/devcontainers/python:3.14",
+  "workspaceFolder": "/workspaces/autosnooze",
+  "workspaceMount": "source=${localWorkspaceFolder},target=/workspaces/autosnooze,type=bind",
+  "features": {
+    "ghcr.io/devcontainers/features/node:1": {
+      "version": "lts"
+    }
+  },
+  "appPort": [
+    "8124:8124"
+  ],
+  "postCreateCommand": "pip install --user homeassistant -r requirements_test.txt && npm ci && mkdir -p config/custom_components && { [ -f config/configuration.yaml ] || printf 'default_config:\\nhttp:\\n  server_host: 0.0.0.0\\n  server_port: 8124\\n' > config/configuration.yaml; } && ln -sfn /workspaces/autosnooze/custom_components/autosnooze config/custom_components/autosnooze",
+  "postStartCommand": "nohup ~/.local/bin/hass -c config > /tmp/hass.log 2>&1 &"
+}
