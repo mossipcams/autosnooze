@@ -254,6 +254,30 @@ export const mountCardFixture = async (page: Page): Promise<void> => {
   }, CARD_ELEMENT_NAME);
 };
 
+export const isolateFixtureCard = async (page: Page): Promise<Locator> => {
+  await mountCardFixture(page);
+  await page.evaluate((cardElementName) => {
+    const host = document.querySelector('[data-autosnooze-visual-fixture="true"]') as HTMLElement;
+    Object.assign(host.style, {
+      position: 'fixed',
+      top: '0',
+      left: '0',
+      zIndex: '2147483647',
+      boxSizing: 'border-box',
+      width: '532px',
+      maxWidth: 'none',
+      margin: '0',
+      padding: '16px',
+      background: 'var(--primary-background-color)',
+    });
+    const card = host.querySelector(cardElementName) as HTMLElement & { hass?: unknown };
+    card.hass = (document.querySelector('home-assistant') as HTMLElement & { hass?: unknown }).hass;
+  }, CARD_ELEMENT_NAME);
+  const card = page.locator(`[data-autosnooze-visual-fixture="true"] ${CARD_ELEMENT_NAME}`);
+  await expect(card).toBeVisible();
+  return card;
+};
+
 export const expectCardReady = async (page: Page): Promise<Locator> => {
   await page.waitForLoadState('networkidle');
   await loadCardResource(page);

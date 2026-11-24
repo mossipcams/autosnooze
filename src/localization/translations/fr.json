@@ -67,6 +67,8 @@
       "resume_time_required": "Veuillez définir une date et heure de reprise complètes",
       "invalid_datetime": "Date/heure de reprise invalide",
       "resume_time_past": "L'heure de reprise doit être dans le futur",
+      "start_time_past": "L'heure de début doit être dans le futur",
+      "notification_lead_too_long": "Le délai « Combien de temps avant ? » est plus long que la sieste",
       "snooze_before_resume": "L'heure de pause doit être avant l'heure de reprise",
       "undo_failed": "Échec de l'annulation. Les automatisations ont peut-être déjà été modifiées.",
       "resume_failed": "Échec de la reprise de l'automatisation",

@@ -67,6 +67,8 @@
       "resume_time_required": "Imposta una data e ora di ripresa complete",
       "invalid_datetime": "Data/ora di ripresa non valida",
       "resume_time_past": "L'ora di ripresa deve essere nel futuro",
+      "start_time_past": "L'ora di inizio deve essere nel futuro",
+      "notification_lead_too_long": "Il tempo di \"Quanto tempo prima?\" è più lungo del posticipo",
       "snooze_before_resume": "L'ora di pausa deve essere prima dell'ora di ripresa",
       "undo_failed": "Annullamento fallito. Le automazioni potrebbero essere già state modificate.",
       "resume_failed": "Ripresa dell'automazione fallita",
