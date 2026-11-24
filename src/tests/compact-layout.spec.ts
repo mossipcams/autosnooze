@@ -111,4 +111,28 @@ describe('compact layout', () => {
     localStorage.setItem('autosnooze_filter_tab', '"bogus"');
     expect((await mountList())._filterTab).toBe('all');
   });
+
+  test('Notify me and its options sit above the Snooze button, which has its own row', async () => {
+    const card = document.createElement(CARD_TAG) as unknown as HTMLElement & {
+      hass: HomeAssistant;
+      updateComplete: Promise<unknown>;
+    };
+    card.hass = hass;
+    document.body.appendChild(card);
+    await card.updateComplete;
+    const root = card.shadowRoot!;
+
+    const toggle = root.querySelector('.notify-toggle input') as HTMLInputElement;
+    toggle.checked = true;
+    toggle.dispatchEvent(new Event('change'));
+    await card.updateComplete;
+
+    const section = root.querySelector('.notify-section');
+    const button = root.querySelector('.snooze-btn');
+    expect(section).not.toBeNull();
+    expect(button).not.toBeNull();
+    expect(section!.contains(button)).toBe(false);
+    expect(section!.querySelector('.notify-detail')).not.toBeNull();
+    expect(section!.compareDocumentPosition(button!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
 });

@@ -121,6 +121,8 @@ export class AutoSnoozeDurationSelector extends LitElement {
       <button
         type="button"
         class="last-duration-badge ${isActive ? 'active' : ''}"
+        role="radio"
+        aria-checked=${isActive}
         @click=${() => this._fireDurationChange(lastMinutes)}
       >
         <ha-icon icon="mdi:history" aria-hidden="true"></ha-icon>
@@ -306,7 +308,6 @@ export class AutoSnoozeDurationSelector extends LitElement {
       <div class="duration-selector">
         <div class="duration-header-row">
           <div class="duration-section-header" id="duration-header">${localize(this.hass, 'duration.header')}</div>
-          ${this._renderLastDurationBadge()}
         </div>
         <div class="duration-pills" role="radiogroup" aria-labelledby="duration-header">
           ${basePills.map(
@@ -331,6 +332,7 @@ export class AutoSnoozeDurationSelector extends LitElement {
               `;
             }
           )}
+          ${this._renderLastDurationBadge()}
           <button
             type="button"
             class="pill ${this.untilTomorrow ? 'active' : ''}"
