@@ -41,8 +41,11 @@ export class AutoSnoozeActivePauses extends LitElement {
   readonly: boolean = false;
 
   @state() private _wakeAllPending: boolean = false;
+  /** resumeAt of the group awaiting a confirming second tap. */
+  @state() private _wakeGroupPending: string | null = null;
 
   private _wakeAllTimeout: number | null = null;
+  private _wakeGroupTimeout: number | null = null;
   private _countdownState: CountdownState = { interval: null, syncTimeout: null };
 
   connectedCallback(): void {
@@ -63,6 +66,7 @@ export class AutoSnoozeActivePauses extends LitElement {
       clearTimeout(this._wakeAllTimeout);
       this._wakeAllTimeout = null;
     }
+    this._clearWakeGroupPending();
   }
 
   private _updateCountdownIfNeeded(): void {
@@ -118,6 +122,33 @@ export class AutoSnoozeActivePauses extends LitElement {
     }
   }
 
+  private _clearWakeGroupPending(): void {
+    if (this._wakeGroupTimeout !== null) {
+      clearTimeout(this._wakeGroupTimeout);
+      this._wakeGroupTimeout = null;
+    }
+    this._wakeGroupPending = null;
+  }
+
+  _handleWakeGroup(group: PauseGroup): void {
+    if (this._wakeGroupPending === group.resumeAt) {
+      this._clearWakeGroupPending();
+      this.dispatchEvent(new CustomEvent('wake-group', {
+        detail: { entityIds: group.automations.map((a) => a.entity_id) },
+        bubbles: true,
+        composed: true,
+      }));
+      return;
+    }
+    this._clearWakeGroupPending();
+    hapticFeedback('medium');
+    this._wakeGroupPending = group.resumeAt;
+    this._wakeGroupTimeout = window.setTimeout(() => {
+      this._wakeGroupPending = null;
+      this._wakeGroupTimeout = null;
+    }, UI_TIMING.WAKE_ALL_CONFIRM_MS);
+  }
+
   _fireWake(entityId: string): void {
     this.dispatchEvent(new CustomEvent('wake-automation', {
       detail: { entityId },
@@ -170,6 +201,22 @@ export class AutoSnoozeActivePauses extends LitElement {
     }));
   }
 
+  private _renderWakeGroupButton(group: PauseGroup) {
+    // One group is already covered by Resume All, one automation by its row.
+    if (this.readonly || this.pauseGroups.length < 2 || group.automations.length < 2) return '';
+    const pending = this._wakeGroupPending === group.resumeAt;
+    return html`
+      <button
+        type="button"
+        class="wake-btn wake-group-btn ${pending ? 'pending' : ''}"
+        aria-label="${localize(this.hass, pending ? 'a11y.confirm_resume_group' : 'a11y.resume_group', { count: group.automations.length })}"
+        @click=${() => this._handleWakeGroup(group)}
+      >
+        ${localize(this.hass, pending ? 'button.confirm_resume_group' : 'button.resume_group')}
+      </button>
+    `;
+  }
+
   render() {
     if (this.pausedCount === 0) return html``;
     const locale = this.hass?.locale?.language;
@@ -181,6 +228,7 @@ export class AutoSnoozeActivePauses extends LitElement {
         </div>
         ${this.pauseGroups.map((group) => html`
           <div class="pause-group" role="group">
+            <div class="pause-group-bar">
             ${this.readonly
               ? html`<div class="pause-group-header">
                   <ha-icon icon="mdi:timer-outline" aria-hidden="true"></ha-icon>
@@ -197,6 +245,8 @@ export class AutoSnoozeActivePauses extends LitElement {
                     ? html`${localize(this.hass, 'status.resumes')} ${formatDateTime(group.resumeAt, locale)}`
                     : html`<span class="countdown">${formatCountdown(group.resumeAt, localize(this.hass, 'status.resuming'))}</span>`}
                 </div>`}
+            ${this._renderWakeGroupButton(group)}
+            </div>
             ${group.automations.map((auto) => this.readonly
               ? html`<div class="paused-item">
                   <ha-icon class="paused-icon" icon="mdi:sleep" aria-hidden="true"></ha-icon>

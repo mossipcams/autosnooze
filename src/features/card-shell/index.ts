@@ -11,19 +11,27 @@ import {
   type LastDurationData,
 } from '../../services/storage.js';
 import {
+  loadNotificationPreference,
+  saveNotificationPreference,
+  type NotificationPreference,
+} from '../../services/preferences.js';
+import {
   getPausedSensorEntity,
   getPausedSnapshot,
 } from '../../state/paused.js';
-import type { DurationPreset, PauseGroup } from '../../types/automation.js';
+import type { DurationPreset, ParsedDuration, PauseGroup } from '../../types/automation.js';
 import type {
   HomeAssistant,
   PausedAutomationAttribute,
   ScheduledSnoozeAttribute,
 } from '../../types/hass.js';
 import type { CountdownState } from '../../utils/countdown-timer.js';
+import { toLocalDateTimeFields } from '../../utils/datetime.js';
+import { formatDurationShort } from '../../utils/time-formatting.js';
+import { MAX_RESTORED_DURATION_MINUTES } from '../../constants/index.js';
 import { reportTelemetry } from '../../services/telemetry.js';
 
-export type { LastDurationData };
+export type { LastDurationData, NotificationPreference };
 
 interface AdjustModalState {
   adjustModalOpen: boolean;
@@ -32,19 +40,6 @@ interface AdjustModalState {
   adjustModalResumeAt: string;
   adjustModalEntityIds: string[];
   adjustModalFriendlyNames: string[];
-}
-
-function formatLocalDate(value: Date): string {
-  const year = value.getFullYear();
-  const month = String(value.getMonth() + 1).padStart(2, '0');
-  const day = String(value.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
-}
-
-function formatLocalTime(value: Date): string {
-  const hours = String(value.getHours()).padStart(2, '0');
-  const minutes = String(value.getMinutes()).padStart(2, '0');
-  return `${hours}:${minutes}`;
 }
 
 export function createScheduleModeState(input: {
@@ -68,13 +63,15 @@ export function createScheduleModeState(input: {
     };
   }
 
-  const resumeDate = new Date(input.now.getTime() + (input.resumeMinutes * 60 * 1000));
+  // No start time: a prefilled "now" is already past when submitted, so the
+  // backend pauses immediately while the card would treat it as scheduled.
+  const resume = toLocalDateTimeFields(new Date(input.now.getTime() + (input.resumeMinutes * 60 * 1000)));
   return {
     scheduleMode: true,
-    disableAtDate: formatLocalDate(input.now),
-    disableAtTime: formatLocalTime(input.now),
-    resumeAtDate: formatLocalDate(resumeDate),
-    resumeAtTime: formatLocalTime(resumeDate),
+    disableAtDate: '',
+    disableAtTime: '',
+    resumeAtDate: resume.date,
+    resumeAtTime: resume.time,
   };
 }
 
@@ -128,6 +125,24 @@ export function loadCardHideSnoozedPreference(): boolean {
 
 export function saveCardHideSnoozedPreference(hideSnoozed: boolean): void {
   saveHideSnoozedPreference(hideSnoozed);
+}
+
+/** Choices to preselect when a card loads: a reasonably short last duration and notification options. */
+export function loadCardRestoredChoices(lastDuration: LastDurationData | null): {
+  duration: { duration: ParsedDuration; input: string } | null;
+  notification: NotificationPreference | null;
+} {
+  const reusable = lastDuration && lastDuration.minutes <= MAX_RESTORED_DURATION_MINUTES ? lastDuration.duration : null;
+  return {
+    duration: reusable
+      ? { duration: reusable, input: formatDurationShort(reusable.days, reusable.hours, reusable.minutes) }
+      : null,
+    notification: loadNotificationPreference(),
+  };
+}
+
+export function saveCardNotificationPreference(preference: NotificationPreference | null): void {
+  saveNotificationPreference(preference);
 }
 
 export function trackHideSnoozedToggled(hass: HomeAssistant, enabled: boolean): void {
@@ -191,7 +206,7 @@ export function trackSnoozeButtonClicked(
   });
 }
 
-export function trackWakeClicked(hass: HomeAssistant, scope: 'one' | 'all'): void {
+export function trackWakeClicked(hass: HomeAssistant, scope: 'one' | 'group' | 'all'): void {
   reportTelemetry(hass, { event: 'wake_clicked', properties: { scope }, source: 'card' });
 }
 

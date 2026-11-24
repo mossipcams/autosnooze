@@ -10,7 +10,7 @@ import { getPausedSensorEntity } from '../../state/paused.js';
 import type { AutomationItem, NotificationTrigger, ParsedDuration, PauseServiceParams } from '../../types/automation.js';
 import type { HassLabel, HomeAssistant } from '../../types/hass.js';
 import { combineDateTime, getNextMorningFields } from '../../utils/datetime.js';
-import { UNTIL_TOMORROW_HOUR } from '../../constants/index.js';
+import { TIME_MS, UNTIL_TOMORROW_HOUR } from '../../constants/index.js';
 import { durationToMinutes } from '../../utils/duration-parsing.js';
 import { formatDateTime, formatDuration } from '../../utils/time-formatting.js';
 import { appendNotificationTrigger } from '../../utils/notification-trigger-request.js';
@@ -92,6 +92,9 @@ export function validateScheduledPauseInput(input: {
     ? combineDateTime(input.disableAtDate, input.disableAtTime)
     : null;
   const disableTime = toValidTimeMs(disableAt);
+  if (disableTime !== null && disableTime <= input.nowMs) {
+    return { status: 'error', message: 'Snooze start time must be in the future' };
+  }
   if ((input.disableAtDate && input.disableAtTime && disableAt === null)
       || (disableTime !== null && disableTime >= resumeTime)) {
     return { status: 'error', message: 'Snooze time must be before resume time' };
@@ -104,6 +107,9 @@ function validationToast(input: RunPauseFeatureInput, message: string): string {
     return localize(input.hass, input.resumeAtDate || input.resumeAtTime
       ? 'toast.error.invalid_datetime'
       : 'toast.error.resume_time_required');
+  }
+  if (message === 'Snooze start time must be in the future') {
+    return localize(input.hass, 'toast.error.start_time_past');
   }
   return localize(input.hass, message === 'Resume time must be in the future'
     ? 'toast.error.resume_time_past'
@@ -257,6 +263,17 @@ function normalizePauseFeatureInput(input: RunPauseFeatureInput): RunPauseFeatur
   return input;
 }
 
+function leadFitsSnooze(input: RunPauseFeatureInput): boolean {
+  if (input.notificationTrigger !== 'about_to_end' || input.notificationLeadMinutes === undefined) return true;
+  const leadMs = input.notificationLeadMinutes * TIME_MS.MINUTE;
+  if (!input.scheduleMode) return durationToMinutes(input.customDuration) * TIME_MS.MINUTE >= leadMs;
+  const resumeMs = toValidTimeMs(combineDateTime(input.resumeAtDate, input.resumeAtTime));
+  const startMs = toValidTimeMs(input.disableAtDate && input.disableAtTime
+    ? combineDateTime(input.disableAtDate, input.disableAtTime)
+    : null) ?? input.nowMs ?? 0;
+  return resumeMs === null || resumeMs - startMs >= leadMs;
+}
+
 export async function runPauseFeature(input: RunPauseFeatureInput): Promise<RunPauseFeatureResult> {
   const normalized = normalizePauseFeatureInput(input);
   if (normalized.scheduleMode) {
@@ -267,6 +284,9 @@ export async function runPauseFeature(input: RunPauseFeatureInput): Promise<RunP
     if (validation.status === 'error') {
       return { status: 'validation_error', toastMessage: validationToast(normalized, validation.message) };
     }
+  }
+  if (!leadFitsSnooze(normalized)) {
+    return { status: 'validation_error', toastMessage: localize(normalized.hass, 'toast.error.notification_lead_too_long') };
   }
   if (!normalized.forceConfirm && normalized.automations && requiresPauseConfirmation({
     selected: normalized.selected,

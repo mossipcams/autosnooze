@@ -34,24 +34,23 @@ export function combineDateTime(date: string, time: string): string | null {
 }
 
 /**
+ * Format a Date as local date/time strings compatible with combineDateTime
+ * (YYYY-MM-DD and HH:MM).
+ */
+export function toLocalDateTimeFields(value: Date): { date: string; time: string } {
+  const month = String(value.getMonth() + 1).padStart(2, '0');
+  const day = String(value.getDate()).padStart(2, '0');
+  const hours = String(value.getHours()).padStart(2, '0');
+  const minutes = String(value.getMinutes()).padStart(2, '0');
+  return { date: `${value.getFullYear()}-${month}-${day}`, time: `${hours}:${minutes}` };
+}
+
+/**
  * Return the next calendar day at the given local hour as date/time strings
  * compatible with combineDateTime (YYYY-MM-DD and HH:00).
  */
 export function getNextMorningFields(now: Date, hour: number): { date: string; time: string } {
-  const tomorrow = new Date(
-    now.getFullYear(),
-    now.getMonth(),
-    now.getDate() + 1,
-    hour,
-    0,
-  );
-  const year = tomorrow.getFullYear();
-  const month = String(tomorrow.getMonth() + 1).padStart(2, '0');
-  const day = String(tomorrow.getDate()).padStart(2, '0');
-  return {
-    date: `${year}-${month}-${day}`,
-    time: `${String(hour).padStart(2, '0')}:00`,
-  };
+  return toLocalDateTimeFields(new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, hour, 0));
 }
 
 /**

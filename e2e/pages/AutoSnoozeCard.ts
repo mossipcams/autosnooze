@@ -685,9 +685,10 @@ export class AutoSnoozeCard extends BasePage {
       (() => {
         ${findAutosnoozeCard}
         const card = findAutosnoozeCard();
-        const link = deepQuery(card, '.schedule-link');
-        if (link?.textContent?.includes('Pick specific')) {
-          link.click();
+        const pills = deepQueryAll(card, '.duration-pills .pill');
+        const dateTime = Array.from(pills || []).find((p) => p.textContent?.trim() === 'Date/Time');
+        if (dateTime?.getAttribute('aria-checked') !== 'true') {
+          dateTime?.click();
         }
       })()
       `
@@ -701,10 +702,8 @@ export class AutoSnoozeCard extends BasePage {
       (() => {
         ${findAutosnoozeCard}
         const card = findAutosnoozeCard();
-        const link = deepQuery(card, '.schedule-link');
-        if (link?.textContent?.includes('Back to duration')) {
-          link.click();
-        }
+        // Any other "Snooze until" pill leaves date/time mode.
+        deepQuery(card, '.duration-pills .pill')?.click();
       })()
       `
     );
@@ -718,12 +717,20 @@ export class AutoSnoozeCard extends BasePage {
     const opts = JSON.stringify(options);
     await this.page.evaluate(
       `
-      (() => {
+      (async () => {
         ${findAutosnoozeCard}
         const card = findAutosnoozeCard();
         const opts = ${opts};
 
         if (opts.disableAt) {
+          if (!deepQuery(card, 'select[aria-labelledby="snooze-at-label"]')) {
+            deepQuery(card, '.start-later-toggle')?.click();
+            const deadline = Date.now() + 5000;
+            while (!deepQuery(card, 'select[aria-labelledby="snooze-at-label"]')) {
+              if (Date.now() > deadline) throw new Error('Start later fields did not appear');
+              await new Promise((resolve) => requestAnimationFrame(resolve));
+            }
+          }
           const disableDate = deepQuery(card, 'select[aria-labelledby="snooze-at-label"]');
           const disableTime = deepQuery(card, 'input[type="time"][aria-labelledby="snooze-at-label"]');
           if (disableDate) {

@@ -14,7 +14,9 @@
     "clear": "Effacer",
     "snoozing": "Mise en pause...",
     "schedule_count": "Programmer ({count})",
-    "snooze_count": "Pause ({count})"
+    "snooze_count": "Pause ({count})",
+    "resume_group": "Reprendre le groupe",
+    "confirm_resume_group": "Confirmer"
   },
   "a11y": {
     "undo_action": "Annuler la dernière action",
@@ -33,7 +35,6 @@
     "scheduled_pause_for": "Pause programmée pour {name}",
     "cancel_scheduled_for": "Annuler la pause programmée pour {name}",
     "filter_tabs": "Filtrer les automatisations par",
-    "hide_snoozed": "Masquer les automatisations actuellement en pause de la liste",
     "automation_count": "{count} automatisations",
     "area_count": "{count} zones",
     "category_count": "{count} catégories",
@@ -56,13 +57,18 @@
     "adjust_automation": "Ajuster la mise en veille pour {name}",
     "add_minutes": "Ajouter {label}",
     "reduce_minutes": "Réduire de {label}",
-    "adjust_group": "Ajuster le temps de pause pour {count} automatisations dans ce groupe"
+    "adjust_group": "Ajuster le temps de pause pour {count} automatisations dans ce groupe",
+    "resume_group": "Reprendre {count} automatisations dans ce groupe",
+    "confirm_resume_group": "Confirmer la reprise de {count} automatisations dans ce groupe",
+    "view_options": "Options d'affichage"
   },
   "toast": {
     "error": {
       "resume_time_required": "Veuillez définir une date et heure de reprise complètes",
       "invalid_datetime": "Date/heure de reprise invalide",
       "resume_time_past": "L'heure de reprise doit être dans le futur",
+      "start_time_past": "L'heure de début doit être dans le futur",
+      "notification_lead_too_long": "Le délai « Combien de temps avant ? » est plus long que la sieste",
       "snooze_before_resume": "L'heure de pause doit être avant l'heure de reprise",
       "undo_failed": "Échec de l'annulation. Les automatisations ont peut-être déjà été modifiées.",
       "resume_failed": "Échec de la reprise de l'automatisation",
@@ -82,7 +88,8 @@
       "resumed": "Automatisation reprise avec succès",
       "resumed_all": "Toutes les automatisations ont été reprises avec succès",
       "cancelled": "Pause programmée annulée avec succès",
-      "adjusted": "Durée de mise en veille ajustée"
+      "adjusted": "Durée de mise en veille ajustée",
+      "resumed_many": "{count} automatisations reprises"
     }
   },
   "list": {
@@ -91,19 +98,19 @@
   "schedule": {
     "snooze_at": "Pause à :",
     "select_date": "Sélectionner la date",
-    "hint_immediate": "Laisser vide pour mettre en pause immédiatement",
     "resume_at": "Reprendre à :",
-    "back_to_duration": "Retour à la sélection de durée",
-    "pick_datetime": "Choisir une date/heure spécifique"
+    "start_later": "Commencer plus tard",
+    "start_now": "Commencer maintenant"
   },
   "duration": {
-    "header": "Durée de la pause",
+    "header": "Pause jusqu'à",
     "placeholder": "ex. 2h30m, 1.5h, 1j, 45m",
     "preview_label": "Durée :",
     "help": "Entrer la durée : 30m, 2h, 1.5h, 4h30m, 1j, 1j2h",
     "last_used_tooltip": "Utiliser la dernière durée : {duration}",
     "custom": "Personnalisé",
-    "tomorrow": "Demain"
+    "tomorrow": "Demain",
+    "datetime": "Date/heure"
   },
   "section": {
     "snoozed_count": "Automatisations en pause ({count})",

@@ -93,7 +93,7 @@ Version fields are **not** duplicated on the event body.
 | `operation_failed` | `operation`, `error_code`, `strategy`, `target_count` |
 | `confirmation_result` | `target_count` |
 | `snooze_button_clicked` | `target_count`, `schedule_mode`, `until_tomorrow` |
-| `wake_clicked` | `scope` |
+| `wake_clicked` | `scope` (`one`, `group`, or `all`) |
 | `adjust_opened` | `scope` |
 | `adjust_option_selected` | `direction`, `delta_minutes` |
 | `scheduled_cancel_clicked` | `target_count` |

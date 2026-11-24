@@ -17,7 +17,9 @@
     "continue": "Continue",
     "snoozing": "Snoozing...",
     "schedule_count": "Schedule ({count})",
-    "snooze_count": "Snooze ({count})"
+    "snooze_count": "Snooze ({count})",
+    "resume_group": "Resume group",
+    "confirm_resume_group": "Confirm"
   },
   "a11y": {
     "undo_action": "Undo last action",
@@ -36,7 +38,6 @@
     "scheduled_pause_for": "Scheduled pause for {name}",
     "cancel_scheduled_for": "Cancel scheduled pause for {name}",
     "filter_tabs": "Filter automations by",
-    "hide_snoozed": "Hide currently snoozed automations from the list",
     "automation_count": "{count} automations",
     "area_count": "{count} areas",
     "category_count": "{count} categories",
@@ -60,13 +61,18 @@
     "adjust_automation": "Adjust snooze time for {name}",
     "add_minutes": "Add {label}",
     "reduce_minutes": "Reduce by {label}",
-    "adjust_group": "Adjust snooze time for {count} automations in this group"
+    "adjust_group": "Adjust snooze time for {count} automations in this group",
+    "resume_group": "Resume {count} automations in this group",
+    "confirm_resume_group": "Confirm resuming {count} automations in this group",
+    "view_options": "View options"
   },
   "toast": {
     "error": {
       "resume_time_required": "Please set a complete resume date and time",
       "invalid_datetime": "Invalid resume date/time",
       "resume_time_past": "Resume time must be in the future",
+      "start_time_past": "Start time must be in the future",
+      "notification_lead_too_long": "The \"How long before?\" time is longer than the snooze",
       "snooze_before_resume": "Snooze time must be before resume time",
       "undo_failed": "Failed to undo. The automations may have already been modified.",
       "resume_failed": "Failed to resume automation",
@@ -86,7 +92,8 @@
       "resumed": "Automation resumed successfully",
       "resumed_all": "All automations resumed successfully",
       "cancelled": "Scheduled snooze cancelled successfully",
-      "adjusted": "Snooze time adjusted"
+      "adjusted": "Snooze time adjusted",
+      "resumed_many": "Resumed {count} automations"
     }
   },
   "list": {
@@ -96,22 +103,22 @@
   "schedule": {
     "snooze_at": "Snooze at:",
     "select_date": "Select date",
-    "hint_immediate": "Leave empty to snooze immediately",
     "resume_at": "Resume at:",
-    "back_to_duration": "Back to duration selection",
-    "pick_datetime": "Pick specific date/time instead",
     "summary_immediate": "Will pause immediately and resume {resume}",
     "summary_with_disable": "Will pause {disable} and resume {resume}",
-    "summary_invalid_order": "Pause time must be before resume time"
+    "summary_invalid_order": "Pause time must be before resume time",
+    "start_later": "Start later",
+    "start_now": "Start now"
   },
   "duration": {
-    "header": "Snooze Duration",
+    "header": "Snooze until",
     "placeholder": "e.g. 2h30m, 1.5h, 1d, 45m",
     "preview_label": "Duration:",
     "help": "Enter duration: 30m, 2h, 1.5h, 4h30m, 1d, 1d2h",
     "last_used_tooltip": "Use last duration: {duration}",
     "custom": "Custom",
-    "tomorrow": "Tomorrow"
+    "tomorrow": "Tomorrow",
+    "datetime": "Date/Time"
   },
   "section": {
     "snoozed_count": "Snoozed Automations ({count})",

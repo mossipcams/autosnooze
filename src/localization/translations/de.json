@@ -14,7 +14,9 @@
     "clear": "Löschen",
     "snoozing": "Pausiere...",
     "schedule_count": "Planen ({count})",
-    "snooze_count": "Pausieren ({count})"
+    "snooze_count": "Pausieren ({count})",
+    "resume_group": "Gruppe fortsetzen",
+    "confirm_resume_group": "Bestätigen"
   },
   "a11y": {
     "undo_action": "Letzte Aktion rückgängig machen",
@@ -33,7 +35,6 @@
     "scheduled_pause_for": "Geplante Pause für {name}",
     "cancel_scheduled_for": "Geplante Pause für {name} abbrechen",
     "filter_tabs": "Automatisierungen filtern nach",
-    "hide_snoozed": "Aktuell pausierte Automatisierungen aus der Liste ausblenden",
     "automation_count": "{count} Automatisierungen",
     "area_count": "{count} Bereiche",
     "category_count": "{count} Kategorien",
@@ -56,13 +57,18 @@
     "adjust_automation": "Schlummerzeit anpassen für {name}",
     "add_minutes": "{label} hinzufügen",
     "reduce_minutes": "Um {label} reduzieren",
-    "adjust_group": "Schlummerzeit für {count} Automatisierungen in dieser Gruppe anpassen"
+    "adjust_group": "Schlummerzeit für {count} Automatisierungen in dieser Gruppe anpassen",
+    "resume_group": "{count} Automatisierungen in dieser Gruppe fortsetzen",
+    "confirm_resume_group": "Bestätigen: {count} Automatisierungen in dieser Gruppe fortsetzen",
+    "view_options": "Ansichtsoptionen"
   },
   "toast": {
     "error": {
       "resume_time_required": "Bitte vollständiges Wiederaufnahmedatum und -zeit angeben",
       "invalid_datetime": "Ungültiges Wiederaufnahmedatum/-zeit",
       "resume_time_past": "Wiederaufnahmezeit muss in der Zukunft liegen",
+      "start_time_past": "Startzeit muss in der Zukunft liegen",
+      "notification_lead_too_long": "Die Zeit unter \"Wie lange vorher?\" ist länger als die Schlummerzeit",
       "snooze_before_resume": "Pausenzeit muss vor der Wiederaufnahmezeit liegen",
       "undo_failed": "Rückgängig machen fehlgeschlagen. Die Automatisierungen wurden möglicherweise bereits geändert.",
       "resume_failed": "Fortsetzen der Automatisierung fehlgeschlagen",
@@ -82,7 +88,8 @@
       "resumed": "Automatisierung erfolgreich fortgesetzt",
       "resumed_all": "Alle Automatisierungen erfolgreich fortgesetzt",
       "cancelled": "Geplante Pause erfolgreich abgebrochen",
-      "adjusted": "Schlummerzeit angepasst"
+      "adjusted": "Schlummerzeit angepasst",
+      "resumed_many": "{count} Automatisierungen fortgesetzt"
     }
   },
   "list": {
@@ -91,19 +98,19 @@
   "schedule": {
     "snooze_at": "Pausieren um:",
     "select_date": "Datum wählen",
-    "hint_immediate": "Leer lassen für sofortige Pause",
     "resume_at": "Fortsetzen um:",
-    "back_to_duration": "Zurück zur Dauerauswahl",
-    "pick_datetime": "Stattdessen bestimmtes Datum/Zeit wählen"
+    "start_later": "Später starten",
+    "start_now": "Sofort starten"
   },
   "duration": {
-    "header": "Pausendauer",
+    "header": "Pausieren bis",
     "placeholder": "z.B. 2h30m, 1.5h, 1d, 45m",
     "preview_label": "Dauer:",
     "help": "Dauer eingeben: 30m, 2h, 1.5h, 4h30m, 1d, 1d2h",
     "last_used_tooltip": "Letzte Dauer verwenden: {duration}",
     "custom": "Benutzerdefiniert",
-    "tomorrow": "Morgen"
+    "tomorrow": "Morgen",
+    "datetime": "Datum/Zeit"
   },
   "section": {
     "snoozed_count": "Pausierte Automatisierungen ({count})",

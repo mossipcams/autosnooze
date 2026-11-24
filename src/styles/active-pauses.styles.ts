@@ -21,15 +21,29 @@ export const activePausesStyles = css`
       border-radius: 8px;
       margin-bottom: 8px;
     }
+    .pause-group-bar {
+      display: flex;
+      align-items: center;
+      border-bottom: 1px solid var(--divider-color);
+    }
     .pause-group-header {
+      flex: 1;
       display: flex;
       align-items: center;
       gap: 8px;
       padding: 8px 12px;
       color: var(--primary-text-color);
       font-size: 0.85em;
-      border-bottom: 1px solid var(--divider-color);
       cursor: pointer;
+    }
+    .wake-group-btn {
+      margin-right: 12px;
+      flex-shrink: 0;
+    }
+    .wake-group-btn.pending {
+      background: var(--warning-color, #ff9800);
+      border-color: var(--warning-color, #ff9800);
+      color: white;
     }
     .pause-group-header:hover {
       background: var(--secondary-background-color, rgba(0, 0, 0, 0.03));

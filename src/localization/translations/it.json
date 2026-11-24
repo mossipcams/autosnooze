@@ -14,7 +14,9 @@
     "clear": "Cancella",
     "snoozing": "Messa in pausa...",
     "schedule_count": "Programma ({count})",
-    "snooze_count": "Pausa ({count})"
+    "snooze_count": "Pausa ({count})",
+    "resume_group": "Riprendi gruppo",
+    "confirm_resume_group": "Conferma"
   },
   "a11y": {
     "undo_action": "Annulla ultima azione",
@@ -33,7 +35,6 @@
     "scheduled_pause_for": "Pausa programmata per {name}",
     "cancel_scheduled_for": "Annulla pausa programmata per {name}",
     "filter_tabs": "Filtra automazioni per",
-    "hide_snoozed": "Nascondi dalla lista le automazioni attualmente in snooze",
     "automation_count": "{count} automazioni",
     "area_count": "{count} aree",
     "category_count": "{count} categorie",
@@ -56,13 +57,18 @@
     "adjust_automation": "Modifica tempo di snooze per {name}",
     "add_minutes": "Aggiungi {label}",
     "reduce_minutes": "Riduci di {label}",
-    "adjust_group": "Modifica il tempo di pausa per {count} automazioni in questo gruppo"
+    "adjust_group": "Modifica il tempo di pausa per {count} automazioni in questo gruppo",
+    "resume_group": "Riprendi {count} automazioni in questo gruppo",
+    "confirm_resume_group": "Conferma ripresa di {count} automazioni in questo gruppo",
+    "view_options": "Opzioni di visualizzazione"
   },
   "toast": {
     "error": {
       "resume_time_required": "Imposta una data e ora di ripresa complete",
       "invalid_datetime": "Data/ora di ripresa non valida",
       "resume_time_past": "L'ora di ripresa deve essere nel futuro",
+      "start_time_past": "L'ora di inizio deve essere nel futuro",
+      "notification_lead_too_long": "Il tempo di \"Quanto tempo prima?\" è più lungo del posticipo",
       "snooze_before_resume": "L'ora di pausa deve essere prima dell'ora di ripresa",
       "undo_failed": "Annullamento fallito. Le automazioni potrebbero essere già state modificate.",
       "resume_failed": "Ripresa dell'automazione fallita",
@@ -82,7 +88,8 @@
       "resumed": "Automazione ripresa con successo",
       "resumed_all": "Tutte le automazioni riprese con successo",
       "cancelled": "Pausa programmata annullata con successo",
-      "adjusted": "Tempo di snooze modificato"
+      "adjusted": "Tempo di snooze modificato",
+      "resumed_many": "{count} automazioni riprese"
     }
   },
   "list": {
@@ -91,19 +98,19 @@
   "schedule": {
     "snooze_at": "Pausa alle:",
     "select_date": "Seleziona data",
-    "hint_immediate": "Lascia vuoto per mettere in pausa immediatamente",
     "resume_at": "Riprendi alle:",
-    "back_to_duration": "Torna alla selezione durata",
-    "pick_datetime": "Scegli data/ora specifica"
+    "start_later": "Inizia più tardi",
+    "start_now": "Inizia ora"
   },
   "duration": {
-    "header": "Durata pausa",
+    "header": "Pausa fino a",
     "placeholder": "es. 2h30m, 1.5h, 1g, 45m",
     "preview_label": "Durata:",
     "help": "Inserisci durata: 30m, 2h, 1.5h, 4h30m, 1g, 1g2h",
     "last_used_tooltip": "Usa ultima durata: {duration}",
     "custom": "Personalizzato",
-    "tomorrow": "Domani"
+    "tomorrow": "Domani",
+    "datetime": "Data/ora"
   },
   "section": {
     "snoozed_count": "Automazioni in pausa ({count})",

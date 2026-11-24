@@ -2,7 +2,9 @@
  * README
  *
  * Covers AutoSnooze card registration, card resource loading, card-origin console/page errors,
- * layout integrity, and the baseline loaded-card visual snapshot on the existing HA dashboard.
+ * layout integrity, and the baseline loaded-card visual snapshot. The card must load on the
+ * existing HA dashboard; layout and the snapshot use an isolated fixed-width copy so neighbouring
+ * dashboard cards cannot change the baseline.
  *
  * Update snapshots with:
  * npm run e2e:visual -- --update-snapshots e2e/tests/card-load.visual.spec.ts
@@ -17,6 +19,7 @@ import {
   ensureCardResourceRegistered,
   expectCardReady,
   installCardErrorListeners,
+  isolateFixtureCard,
   loadCardResource,
   setState,
   verifyCardResource,
@@ -59,12 +62,13 @@ test.describe('Card registration and load @visual @critical', () => {
     });
 
     const card = await test.step('wait for the visible AutoSnooze card', async () => {
-      const loadedCard = await expectCardReady(page);
+      await expectCardReady(page);
       await setState(page, AUTOSNOOZE_STATUS_ENTITY_ID, 'idle', {
         friendly_name: 'AutoSnooze Status',
       });
-      await expect(loadedCard.locator('.sensor-health-banner')).toHaveCount(0);
-      return loadedCard;
+      const isolatedCard = await isolateFixtureCard(page);
+      await expect(isolatedCard.locator('.sensor-health-banner')).toHaveCount(0);
+      return isolatedCard;
     });
 
     await test.step('assert card-local layout integrity', async () => {

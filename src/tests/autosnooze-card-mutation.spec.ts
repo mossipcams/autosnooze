@@ -503,12 +503,12 @@ describe('AutomationPauseCard mutation boundaries', () => {
 
     card._handleScheduleModeChange(new CustomEvent('schedule-mode-change', { detail: { enabled: true } }));
     expect(card._scheduleMode).toBe(true);
-    expect(card._disableAtDate).toBe('2026-04-29');
-    expect(card._disableAtTime).toBe('12:00');
+    expect(card._disableAtDate).toBe('');
+    expect(card._disableAtTime).toBe('');
     expect(card._resumeAtDate).toBe('2026-04-29');
     expect(card._resumeAtTime).toBe('12:45');
     expect(card._hasResumeAt()).toBe(true);
-    expect(card._hasDisableAt()).toBe(true);
+    expect(card._hasDisableAt()).toBe(false);
 
     card._handleScheduleFieldChange(new CustomEvent('schedule-field-change', {
       detail: { field: 'resumeAtTime', value: '13:15' },
@@ -521,7 +521,7 @@ describe('AutomationPauseCard mutation boundaries', () => {
 
     card._handleScheduleModeChange(new CustomEvent('schedule-mode-change', { detail: { enabled: false } }));
     expect(card._scheduleMode).toBe(false);
-    expect(card._resumeAtTime).toBe('13:15');
+    expect(card._resumeAtTime).toBe('');
 
     card._handleCustomInputToggle(new CustomEvent('custom-input-toggle', { detail: { show: false } }));
     expect(card._showCustomInput).toBe(false);
@@ -804,8 +804,16 @@ describe('AutomationPauseCard mutation boundaries', () => {
     await card.updateComplete;
     const scheduleDisabled = card.shadowRoot?.querySelector<HTMLButtonElement>('.snooze-btn');
     expect(scheduleDisabled?.disabled).toBe(true);
+    expect(scheduleDisabled?.getAttribute('aria-label')).toBe('Snooze 1 automations');
+    expect(getText(scheduleDisabled)).toBe('Snooze (1)');
+
+    card._disableAtDate = '2026-04-29';
+    card._disableAtTime = '12:30';
+    await card.updateComplete;
     expect(scheduleDisabled?.getAttribute('aria-label')).toBe('Schedule snooze for 1 automations');
     expect(getText(scheduleDisabled)).toBe('Schedule (1)');
+    card._disableAtDate = '';
+    card._disableAtTime = '';
 
     card._resumeAtDate = '2026-04-29';
     card._resumeAtTime = '13:00';

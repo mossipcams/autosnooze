@@ -238,47 +238,38 @@ describe('duration selector mutation boundaries', () => {
     expect(equalTimes.shadowRoot?.querySelector('.schedule-summary')?.classList.contains('invalid')).toBe(true);
   });
 
-  test('schedule input controls emit field changes and back-to-duration emits disabled schedule mode', async () => {
+  test('schedule input controls emit field changes with resume first and start time after', async () => {
     const element = await connectSelector((selector) => {
       selector.scheduleMode = true;
+      selector.disableAtDate = '2026-04-29';
+      selector.disableAtTime = '12:00';
     });
     const fieldEvents: CustomEvent[] = [];
-    const modeEvents: CustomEvent[] = [];
     element.addEventListener('schedule-field-change', (event) => fieldEvents.push(event as CustomEvent));
-    element.addEventListener('schedule-mode-change', (event) => modeEvents.push(event as CustomEvent));
 
     const selects = element.shadowRoot?.querySelectorAll('select') ?? [];
     const inputs = element.shadowRoot?.querySelectorAll('input[type="time"]') ?? [];
 
-    (selects[0] as HTMLSelectElement).value = '2026-04-29';
+    (selects[0] as HTMLSelectElement).value = '2026-04-30';
     selects[0]?.dispatchEvent(new Event('change'));
-    (inputs[0] as HTMLInputElement).value = '12:30';
+    (inputs[0] as HTMLInputElement).value = '13:45';
     inputs[0]?.dispatchEvent(new Event('input'));
-    (selects[1] as HTMLSelectElement).value = '2026-04-30';
+    (selects[1] as HTMLSelectElement).value = '2026-04-29';
     selects[1]?.dispatchEvent(new Event('change'));
-    (inputs[1] as HTMLInputElement).value = '13:45';
+    (inputs[1] as HTMLInputElement).value = '12:30';
     inputs[1]?.dispatchEvent(new Event('input'));
 
-    (element.shadowRoot?.querySelector('.schedule-link') as HTMLButtonElement).click();
-
     expect(fieldEvents.map((event) => event.detail)).toEqual([
-      { field: 'disableAtDate', value: '2026-04-29' },
-      { field: 'disableAtTime', value: '12:30' },
       { field: 'resumeAtDate', value: '2026-04-30' },
       { field: 'resumeAtTime', value: '13:45' },
+      { field: 'disableAtDate', value: '2026-04-29' },
+      { field: 'disableAtTime', value: '12:30' },
     ]);
-    expect(modeEvents[0]?.detail).toEqual({ enabled: false });
     expect(fieldEvents.every((event) => event.bubbles && event.composed)).toBe(true);
-    expect(modeEvents[0]?.bubbles).toBe(true);
-    expect(modeEvents[0]?.composed).toBe(true);
     expect(getText(element.shadowRoot?.querySelector('#snooze-at-label'))).toBe('Snooze at:');
     expect(getText(element.shadowRoot?.querySelector('#resume-at-label'))).toBe('Resume at:');
-    expect(getText(element.shadowRoot?.querySelector('.field-hint'))).toBe(
-      'Leave empty to snooze immediately'
-    );
-    expect(getText(element.shadowRoot?.querySelector('.schedule-link'))).toBe(
-      'Back to duration selection'
-    );
+    expect(getText(element.shadowRoot?.querySelector('.start-later-toggle'))).toBe('Start now');
+    expect(element.shadowRoot?.querySelector('.start-later-toggle')?.getAttribute('aria-expanded')).toBe('true');
     expect(getText(selects[0]?.querySelector('option[value=""]') ?? null)).toBe('Select date');
     expect(getText(selects[1]?.querySelector('option[value=""]') ?? null)).toBe('Select date');
   });
@@ -297,7 +288,7 @@ describe('duration selector mutation boundaries', () => {
     expect(activePills).toHaveLength(1);
     expect(getText(activePills[0] ?? null)).toBe('1h');
 
-    const customPill = pills[pills.length - 1];
+    const customPill = pills.find((pill) => getText(pill) === 'Custom');
     customPill?.click();
     expect(customEvents[0]?.detail).toEqual({ show: true });
     expect(customEvents[0]?.bubbles).toBe(true);
@@ -325,7 +316,7 @@ describe('duration selector mutation boundaries', () => {
 
     expect(activePills).toHaveLength(1);
     expect(getText(activePills[0] ?? null)).toBe('Custom');
-    expect(pills.slice(0, -1).every((pill) => !pill.classList.contains('active'))).toBe(true);
+    expect(pills.filter((pill) => getText(pill) !== 'Custom').every((pill) => !pill.classList.contains('active'))).toBe(true);
   });
 
   test('custom duration input renders preview for valid input and help for invalid input', async () => {
@@ -374,10 +365,11 @@ describe('duration selector mutation boundaries', () => {
     });
   });
 
-  test('duration mode schedule link label and header remain localized', async () => {
+  test('duration mode date/time pill label and header remain localized', async () => {
     const element = await connectSelector();
 
-    expect(getText(element.shadowRoot?.querySelector('.duration-section-header'))).toBe('Snooze Duration');
-    expect(getText(element.shadowRoot?.querySelector('.schedule-link'))).toBe('Pick specific date/time instead');
+    expect(getText(element.shadowRoot?.querySelector('.duration-section-header'))).toBe('Snooze until');
+    const pills = Array.from(element.shadowRoot?.querySelectorAll('.pill') ?? []);
+    expect(getText(pills[pills.length - 1] ?? null)).toBe('Date/Time');
   });
 });

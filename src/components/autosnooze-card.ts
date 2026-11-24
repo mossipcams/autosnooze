@@ -27,6 +27,8 @@ import {
   loadCardRecentSnoozeIds,
   loadCardHideSnoozedPreference,
   saveCardHideSnoozedPreference,
+  loadCardRestoredChoices,
+  saveCardNotificationPreference,
   createScheduleModeState,
   syncAdjustModalWithPaused,
   trackCardViewed,
@@ -61,7 +63,6 @@ import { CardShellController } from '../features/card-shell/controller.js';
 import type { AutoSnoozeToast } from './autosnooze-toast.js';
 import './autosnooze-toast.js';
 import './autosnooze-scheduled-pauses.js';
-
 
 export class AutomationPauseCard extends LitElement {
   static styles = [sharedPausedStyles, cardStyles];
@@ -101,6 +102,7 @@ export class AutomationPauseCard extends LitElement {
   @state() private _hideSnoozed: boolean = false;
 
   private _pausedEntityIdsCache: string[] = [];
+  private _preferencesRestored = false;
 
   static getConfigElement(): HTMLElement {
     return document.createElement('autosnooze-card-editor');
@@ -172,6 +174,20 @@ export class AutomationPauseCard extends LitElement {
     this._lastDuration = loadCardLastDuration();
     this._hideSnoozed = loadCardHideSnoozedPreference();
     this._refreshRecentSnoozeIds();
+    this._restorePreferences();
+  }
+
+  /** First connect only, so a reconnect never overwrites an in-progress choice. */
+  private _restorePreferences(): void {
+    if (this._preferencesRestored) return;
+    this._preferencesRestored = true;
+    const { duration, notification } = loadCardRestoredChoices(this._lastDuration);
+    if (duration) this._setDurationState(duration.duration, duration.input);
+    if (notification) {
+      this._notificationsEnabled = true;
+      this._notificationTrigger = notification.trigger;
+      this._notificationLeadMinutes = notification.leadMinutes;
+    }
   }
 
   disconnectedCallback(): void {
@@ -226,7 +242,6 @@ export class AutomationPauseCard extends LitElement {
     return this.hass?.locale?.language;
   }
 
-
   private _hasResumeAt(): boolean {
     return Boolean(this._resumeAtDate && this._resumeAtTime);
   }
@@ -234,7 +249,6 @@ export class AutomationPauseCard extends LitElement {
   private _hasDisableAt(): boolean {
     return Boolean(this._disableAtDate && this._disableAtTime);
   }
-
 
   private _hapticFeedback(type: HapticFeedbackType = 'light'): void {
     hapticFeedback(type);
@@ -358,9 +372,7 @@ export class AutomationPauseCard extends LitElement {
       });
 
       this._setSelected([]);
-      this._notificationsEnabled = false;
-      this._notificationTrigger = 'end';
-      this._notificationLeadMinutes = DEFAULT_NOTIFICATION_LEAD_MINUTES;
+      this._scheduleMode = false;
       this._disableAtDate = '';
       this._disableAtTime = '';
       this._resumeAtDate = '';
@@ -394,17 +406,25 @@ export class AutomationPauseCard extends LitElement {
     await this._wake(e.detail.entityId);
   }
 
-  private async _handleWakeAllEvent(): Promise<void> {
+  private _handleWakeGroupEvent(e: CustomEvent<{ entityIds: string[] }>): Promise<void> {
+    const { entityIds } = e.detail;
+    return this._bulkWake('group', (hass) => runWakeFeature(hass, entityIds),
+      (hass) => localize(hass, 'toast.success.resumed_many', { count: entityIds.length }));
+  }
+
+  private _handleWakeAllEvent(): Promise<void> {
+    return this._bulkWake('all', runWakeAllFeature, (hass) => localize(hass, 'toast.success.resumed_all'));
+  }
+
+  private async _bulkWake(scope: 'group' | 'all', run: (hass: HomeAssistant) => Promise<unknown>, toast: (hass: HomeAssistant) => string): Promise<void> {
     if (!this.hass) return;
-    trackWakeClicked(this.hass, 'all');
+    trackWakeClicked(this.hass, scope);
     try {
-      await runWakeAllFeature(this.hass);
+      await run(this.hass);
       this._hapticFeedback('success');
-      if (this.isConnected && this.shadowRoot) {
-        this._showToast(localize(this.hass, 'toast.success.resumed_all'));
-      }
+      if (this.isConnected && this.shadowRoot) this._showToast(toast(this.hass));
     } catch (e) {
-      console.error('Wake all failed:', e);
+      console.error(`Wake ${scope} failed:`, e);
       this._hapticFeedback('failure');
     }
   }
@@ -421,7 +441,6 @@ export class AutomationPauseCard extends LitElement {
       this._hapticFeedback('failure');
     }
   }
-
 
   private _handleAdjustAutomationEvent(e: CustomEvent<{ entityId: string; friendlyName: string; resumeAt: string }>): void {
     if (this.hass) {
@@ -523,6 +542,7 @@ export class AutomationPauseCard extends LitElement {
 
   private _handleDurationChange(e: CustomEvent<{ minutes: number; duration: ParsedDuration; input: string; showCustomInput?: boolean }>): void {
     const { duration, input, showCustomInput } = e.detail;
+    this._exitScheduleMode();
     this._untilTomorrow = false;
     this._setDurationState(duration, input);
     if (showCustomInput !== undefined) {
@@ -536,6 +556,7 @@ export class AutomationPauseCard extends LitElement {
     }
     if (e.detail.enabled) {
       this._untilTomorrow = false;
+      this._showCustomInput = false;
     }
     const scheduleState = createScheduleModeState({
       enabled: e.detail.enabled,
@@ -543,31 +564,24 @@ export class AutomationPauseCard extends LitElement {
       resumeMinutes: this._lastDuration?.minutes ?? DEFAULT_SNOOZE_MINUTES,
     });
     this._scheduleMode = scheduleState.scheduleMode;
-    if (!e.detail.enabled) {
-      return;
-    }
     this._disableAtDate = scheduleState.disableAtDate;
     this._disableAtTime = scheduleState.disableAtTime;
     this._resumeAtDate = scheduleState.resumeAtDate;
     this._resumeAtTime = scheduleState.resumeAtTime;
   }
 
+  /** Picking any other "Snooze until" option leaves date/time mode. */
+  private _exitScheduleMode(): void {
+    if (!this._scheduleMode) return;
+    this._handleScheduleModeChange(new CustomEvent('schedule-mode-change', { detail: { enabled: false } }));
+  }
+
   private _handleScheduleFieldChange(e: CustomEvent<{ field: string; value: string }>): void {
     const { field, value } = e.detail;
-    switch (field) {
-      case 'disableAtDate':
-        this._disableAtDate = value;
-        break;
-      case 'disableAtTime':
-        this._disableAtTime = value;
-        break;
-      case 'resumeAtDate':
-        this._resumeAtDate = value;
-        break;
-      case 'resumeAtTime':
-        this._resumeAtTime = value;
-        break;
-    }
+    if (field === 'disableAtDate') this._disableAtDate = value;
+    else if (field === 'disableAtTime') this._disableAtTime = value;
+    else if (field === 'resumeAtDate') this._resumeAtDate = value;
+    else if (field === 'resumeAtTime') this._resumeAtTime = value;
   }
 
   private _handleCustomInputToggle(e: CustomEvent<{ show: boolean }>): void {
@@ -576,6 +590,7 @@ export class AutomationPauseCard extends LitElement {
     }
     this._showCustomInput = e.detail.show;
     if (e.detail.show) {
+      this._exitScheduleMode();
       this._untilTomorrow = false;
     }
   }
@@ -584,43 +599,34 @@ export class AutomationPauseCard extends LitElement {
     if (this.hass) {
       trackUntilTomorrowSelected(this.hass);
     }
+    this._exitScheduleMode();
     this._untilTomorrow = true;
     this._showCustomInput = false;
   }
 
   private _handleNotificationsToggle(e: Event): void {
     this._notificationsEnabled = (e.target as HTMLInputElement).checked;
-    if (this.hass) {
-      trackNotificationOptionsChanged(
-        this.hass,
-        this._notificationsEnabled ? this._notificationTrigger : 'none',
-        this._notificationsEnabled,
-        this._notificationLeadMinutes,
-      );
-    }
+    this._notificationOptionsChanged();
   }
 
   private _handleNotificationWhenChange(e: Event): void {
     this._notificationTrigger = (e.target as HTMLSelectElement).value as Exclude<NotificationTrigger, 'none'>;
-    if (this.hass) {
-      trackNotificationOptionsChanged(
-        this.hass,
-        this._notificationTrigger,
-        this._notificationsEnabled,
-        this._notificationLeadMinutes,
-      );
-    }
+    this._notificationOptionsChanged();
   }
 
   private _handleNotificationLeadChange(e: Event): void {
     this._notificationLeadMinutes = Number((e.target as HTMLSelectElement).value);
+    this._notificationOptionsChanged();
+  }
+
+  /** Remember explicitly enabled notification options and report the change. */
+  private _notificationOptionsChanged(): void {
+    const enabled = this._notificationsEnabled;
+    const trigger = this._notificationTrigger;
+    const leadMinutes = this._notificationLeadMinutes;
+    saveCardNotificationPreference(enabled ? { trigger, leadMinutes } : null);
     if (this.hass) {
-      trackNotificationOptionsChanged(
-        this.hass,
-        this._notificationTrigger,
-        this._notificationsEnabled,
-        this._notificationLeadMinutes,
-      );
+      trackNotificationOptionsChanged(this.hass, enabled ? trigger : 'none', enabled, leadMinutes);
     }
   }
 
@@ -666,6 +672,7 @@ export class AutomationPauseCard extends LitElement {
     const scheduledCount = Object.keys(scheduled).length;
     const automations = this._getAutomations();
     const sensorAvailable = this._isSnoozeSensorAvailable();
+    const isScheduled = this._scheduleMode && this._hasDisableAt();
 
     return html`
       <ha-card>
@@ -677,16 +684,6 @@ export class AutomationPauseCard extends LitElement {
                 >${pausedCount > 0 ? localize(this.hass, 'status.active_count', { count: pausedCount }) : ''}${pausedCount > 0 && scheduledCount > 0 ? ', ' : ''}${scheduledCount > 0 ? localize(this.hass, 'status.scheduled_count', { count: scheduledCount }) : ''}</span
               >`
             : ''}
-          <button
-            type="button"
-            class="hide-snoozed-toggle ${this._hideSnoozed ? 'active' : ''}"
-            @click=${() => this._toggleHideSnoozed()}
-            aria-pressed=${this._hideSnoozed}
-            aria-label="${localize(this.hass, 'a11y.hide_snoozed')}"
-            title="${localize(this.hass, 'filter.hide_snoozed')}"
-          >
-            <ha-icon icon=${this._hideSnoozed ? 'mdi:eye-off' : 'mdi:eye'} aria-hidden="true"></ha-icon>
-          </button>
         </div>
 
         ${!sensorAvailable
@@ -709,6 +706,7 @@ export class AutomationPauseCard extends LitElement {
             .pausedEntityIds=${this._pausedEntityIdsCache}
             .hideSnoozed=${this._hideSnoozed}
             @selection-change=${this._handleSelectionChange}
+            @hide-snoozed-change=${this._toggleHideSnoozed}
           ></autosnooze-automation-list>
 
           <autosnooze-duration-selector
@@ -765,7 +763,7 @@ export class AutomationPauseCard extends LitElement {
                       @change=${this._handleNotificationLeadChange}
                     >
                       ${NOTIFICATION_LEAD_OPTIONS.map(
-                        (m) => html`<option value=${String(m)}>${this._formatLeadLabel(m)}</option>`
+                        (m) => html`<option value=${String(m)} ?selected=${m === this._notificationLeadMinutes}>${this._formatLeadLabel(m)}</option>`
                       )}
                     </select>
                   </label>
@@ -799,14 +797,14 @@ export class AutomationPauseCard extends LitElement {
             @click=${() => this._snooze()}
             aria-label="${this._loading
               ? localize(this.hass, 'a11y.snoozing')
-              : this._scheduleMode
+              : isScheduled
                 ? localize(this.hass, 'a11y.schedule_snooze', { count: this._selected.length })
                 : localize(this.hass, 'a11y.snooze_count', { count: this._selected.length })}"
             aria-busy=${this._loading}
           >
             ${this._loading
               ? localize(this.hass, 'button.snoozing')
-              : this._scheduleMode
+              : isScheduled
                 ? localize(this.hass, 'button.schedule_count', { count: this._selected.length })
                 : localize(this.hass, 'button.snooze_count', { count: this._selected.length })}
           </button>
@@ -818,6 +816,7 @@ export class AutomationPauseCard extends LitElement {
               .pauseGroups=${pausedSnapshot.groups}
               .pausedCount=${pausedCount}
               @wake-automation=${this._handleWakeEvent}
+              @wake-group=${this._handleWakeGroupEvent}
               @wake-all=${this._handleWakeAllEvent}
               @clear-notification=${this._handleClearNotificationEvent}
               @adjust-automation=${this._handleAdjustAutomationEvent}

@@ -7,22 +7,27 @@ test.describe('Schedule Mode Snooze', () => {
     // Fixture auto-executes: cancels all snoozes, clears labels, and resets automations
   });
 
-  test('switch to schedule mode shows datetime inputs', async ({ autosnoozeCard }) => {
+  test('switch to schedule mode shows resume inputs and Start later reveals start inputs', async ({ autosnoozeCard }) => {
     await autosnoozeCard.switchToScheduleMode();
 
-    const hasScheduleInputs = await autosnoozeCard.page.evaluate(
+    const inputs = await autosnoozeCard.page.evaluate(
       `
-      (() => {
+      (async () => {
         ${findCardScript}
         const card = findAutosnoozeCard();
-        const disableDate = deepQuery(card, 'select[aria-labelledby="snooze-at-label"]');
-        const resumeDate = deepQuery(card, 'select[aria-labelledby="resume-at-label"]');
-        return disableDate !== null && resumeDate !== null;
+        const before = {
+          resume: deepQuery(card, 'select[aria-labelledby="resume-at-label"]') !== null,
+          disable: deepQuery(card, 'select[aria-labelledby="snooze-at-label"]') !== null,
+        };
+        deepQuery(card, '.start-later-toggle')?.click();
+        await new Promise((resolve) => setTimeout(resolve, 100));
+        return { before, disableAfter: deepQuery(card, 'select[aria-labelledby="snooze-at-label"]') !== null };
       })()
       `
     );
 
-    expect(hasScheduleInputs).toBe(true);
+    expect(inputs.before).toEqual({ resume: true, disable: false });
+    expect(inputs.disableAfter).toBe(true);
   });
 
   test('schedule immediate snooze until future time', async ({ autosnoozeCard, getState }) => {
@@ -125,34 +130,31 @@ test.describe('Schedule Mode Snooze', () => {
     expect(selectedCount).toBe(1);
   });
 
-  test('schedule link text changes based on mode', async ({ autosnoozeCard }) => {
-    // In duration mode, link should mention "schedule"
-    const durationModeLink = await autosnoozeCard.page.evaluate(
+  test('date/time is a "Snooze until" pill that stays visible in schedule mode', async ({ autosnoozeCard }) => {
+    const readPill = () => autosnoozeCard.page.evaluate(
       `
       (() => {
         ${findCardScript}
         const card = findAutosnoozeCard();
-        const link = deepQuery(card, '.schedule-link');
-        return link?.textContent?.trim() ?? '';
+        const pills = Array.from(deepQueryAll(card, '.duration-pills .pill') || []);
+        const dateTime = pills.find((p) => p.textContent?.trim() === 'Date/Time');
+        return {
+          checked: dateTime?.getAttribute('aria-checked') ?? null,
+          pillCount: pills.length,
+          hasLegacyLink: deepQuery(card, '.schedule-link') !== null,
+        };
       })()
       `
     );
-    expect(durationModeLink.toLowerCase()).toContain('pick');
 
-    // Switch to schedule mode
+    const durationMode = await readPill();
+    expect(durationMode.checked).toBe('false');
+    expect(durationMode.hasLegacyLink).toBe(false);
+
     await autosnoozeCard.switchToScheduleMode();
 
-    // Link should now mention going back
-    const scheduleModeLink = await autosnoozeCard.page.evaluate(
-      `
-      (() => {
-        ${findCardScript}
-        const card = findAutosnoozeCard();
-        const link = deepQuery(card, '.schedule-link');
-        return link?.textContent?.trim() ?? '';
-      })()
-      `
-    );
-    expect(scheduleModeLink.toLowerCase()).toContain('back');
+    const scheduleMode = await readPill();
+    expect(scheduleMode.checked).toBe('true');
+    expect(scheduleMode.pillCount).toBe(durationMode.pillCount);
   });
 });

@@ -1862,10 +1862,15 @@ describe('Schedule Mode UI', () => {
     const scheduleInputs = queryInDurationSelector(card, '.schedule-inputs');
     expect(scheduleInputs).not.toBeNull();
 
-    const selects = scheduleInputs.querySelectorAll('select');
-    const timeInputs = scheduleInputs.querySelectorAll('input[type="time"]');
-    expect(selects.length).toBe(2);
-    expect(timeInputs.length).toBe(2);
+    // Resume fields only; start fields stay behind "Start later".
+    expect(scheduleInputs.querySelectorAll('select').length).toBe(1);
+    expect(scheduleInputs.querySelectorAll('input[type="time"]').length).toBe(1);
+
+    ds.disableAtDate = '2026-01-14';
+    ds.disableAtTime = '10:30';
+    await ds.updateComplete;
+    expect(scheduleInputs.querySelectorAll('select').length).toBe(2);
+    expect(scheduleInputs.querySelectorAll('input[type="time"]').length).toBe(2);
   });
 
   test('renders duration selector when schedule mode is disabled', async () => {
@@ -1906,8 +1911,8 @@ describe('Schedule Mode UI', () => {
     }));
     await card.updateComplete;
 
-    expect(card._disableAtDate).toBe('2026-01-14');
-    expect(card._disableAtTime).toBe('10:15');
+    expect(card._disableAtDate).toBe('');
+    expect(card._disableAtTime).toBe('');
     expect(card._resumeAtDate).toBe('2026-01-14');
     expect(card._resumeAtTime).toBe('11:45');
 
