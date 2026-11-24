@@ -113,6 +113,25 @@ describe('unified Snooze until picker', () => {
     expect(el.shadowRoot?.querySelector('.duration-section-header')?.textContent?.trim()).toBe('Snooze until');
   });
 
+  test('the last-used duration is a choice in the Snooze until group, after the presets', async () => {
+    const last = { minutes: 120, duration: { days: 0, hours: 2, minutes: 0 }, timestamp: Date.now() };
+    const el = await mountSelector((s) => {
+      s.lastDuration = last;
+      s.customDuration = { days: 0, hours: 2, minutes: 0 };
+    });
+    const group = el.shadowRoot!.querySelector('[role="radiogroup"]')!;
+    const badge = group.querySelector('.last-duration-badge')!;
+    expect(badge).not.toBeNull();
+    expect(badge.getAttribute('role')).toBe('radio');
+    expect(badge.getAttribute('aria-checked')).toBe('true');
+    expect(badge.previousElementSibling?.textContent?.trim()).toBe('1h');
+    expect(pill(el.shadowRoot, '30m').getAttribute('aria-checked')).toBe('false');
+
+    el.customDuration = { days: 0, hours: 0, minutes: 30 };
+    await el.updateComplete;
+    expect(badge.getAttribute('aria-checked')).toBe('false');
+  });
+
   test('date/time pill fires schedule-mode-change enabled', async () => {
     const el = await mountSelector();
     const events: CustomEvent[] = [];

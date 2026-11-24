@@ -16,8 +16,8 @@ export const automationListStyles = css`
       justify-content: center;
       flex-shrink: 0;
       position: relative;
-      width: 40px;
-      min-height: 40px;
+      width: 36px;
+      min-height: 36px;
       padding: 0;
       border: 1px solid var(--divider-color);
       border-radius: 8px;
@@ -135,11 +135,11 @@ export const automationListStyles = css`
       align-items: center;
       gap: 8px;
       row-gap: 8px;
-      margin-bottom: 12px;
+      margin-bottom: 8px;
       flex-wrap: nowrap;
       min-width: 0;
       background: var(--secondary-background-color);
-      padding: 8px;
+      padding: 6px;
       border-radius: 10px;
     }
     .search-box {
@@ -156,7 +156,7 @@ export const automationListStyles = css`
       color: var(--primary-text-color);
       box-sizing: border-box;
       font-size: 0.9em;
-      min-height: 40px;
+      min-height: 36px;
       transition: border-color 0.15s ease, box-shadow 0.15s ease;
     }
     .search-clear-btn {
@@ -199,11 +199,11 @@ export const automationListStyles = css`
 
     /* Selection List */
     .selection-list {
-      max-height: 300px;
+      max-height: 242px;
       overflow-y: auto;
       border: 1px solid var(--divider-color);
       border-radius: 8px;
-      margin-bottom: 12px;
+      margin-bottom: 10px;
     }
     .list-empty {
       padding: 20px;
@@ -215,12 +215,12 @@ export const automationListStyles = css`
       display: flex;
       align-items: center;
       gap: 10px;
-      padding: 12px;
+      padding: 8px 12px;
       cursor: pointer;
       border: none;
       border-bottom: 1px solid var(--divider-color);
       transition: background 0.2s;
-      min-height: 48px;
+      min-height: 40px;
       width: 100%;
       background: transparent;
       text-align: left;
@@ -460,7 +460,7 @@ export const automationListStyles = css`
 
       .search-row {
         gap: 6px;
-        margin-bottom: 14px;
+        margin-bottom: 10px;
         flex-wrap: nowrap;
       }
 
@@ -546,7 +546,7 @@ export const automationListStyles = css`
       /* --- Selection List: Card-style items with depth --- */
       .selection-list {
         max-height: min(252px, calc(35dvh + 52px));
-        margin-bottom: 16px;
+        margin-bottom: 10px;
         border-radius: 12px;
         border: 1.5px solid color-mix(in srgb, var(--divider-color) 60%, transparent);
         background: var(--card-background-color);
@@ -556,9 +556,9 @@ export const automationListStyles = css`
       }
 
       .list-item {
-        padding: 14px;
+        padding: 10px 14px;
         gap: 12px;
-        min-height: 52px;
+        min-height: 44px;
         border-bottom: 1px solid color-mix(in srgb, var(--divider-color) 50%, transparent);
         transition: background 0.15s ease, transform 0.1s ease;
         touch-action: manipulation;

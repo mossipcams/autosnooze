@@ -728,50 +728,6 @@ export class AutomationPauseCard extends LitElement {
             @until-tomorrow-select=${this._handleUntilTomorrowSelect}
           ></autosnooze-duration-selector>
 
-          <div class="notify-section">
-            <label class="notify-toggle">
-              <input
-                type="checkbox"
-                .checked=${this._notificationsEnabled}
-                @change=${this._handleNotificationsToggle}
-              />
-              <ha-icon icon="mdi:bell-outline" aria-hidden="true"></ha-icon>
-              <span class="notify-toggle-text">
-                ${localize(this.hass, 'notify.toggle_label')}
-              </span>
-            </label>
-
-            ${this._notificationsEnabled ? html`
-              <div class="notify-detail">
-                <label class="notify-field">
-                  <span class="notify-field-label visually-hidden">${localize(this.hass, 'notify.when_label')}</span>
-                  <select
-                    .value=${this._notificationTrigger}
-                    @change=${this._handleNotificationWhenChange}
-                  >
-                    <option value="start">${localize(this.hass, 'notify.when.start')}</option>
-                    <option value="about_to_end">${localize(this.hass, 'notify.when.about_to_end')}</option>
-                    <option value="end">${localize(this.hass, 'notify.when.end')}</option>
-                  </select>
-                </label>
-
-                ${this._notificationTrigger === 'about_to_end' ? html`
-                  <label class="notify-field">
-                    <span class="notify-field-label visually-hidden">${localize(this.hass, 'notify.lead_label')}</span>
-                    <select
-                      .value=${String(this._notificationLeadMinutes)}
-                      @change=${this._handleNotificationLeadChange}
-                    >
-                      ${NOTIFICATION_LEAD_OPTIONS.map(
-                        (m) => html`<option value=${String(m)} ?selected=${m === this._notificationLeadMinutes}>${this._formatLeadLabel(m)}</option>`
-                      )}
-                    </select>
-                  </label>
-                ` : ''}
-              </div>
-            ` : ''}
-          </div>
-
           ${this._guardrailConfirmOpen ? html`
             <div class="guardrail-confirm" role="alertdialog" aria-live="polite">
               <div class="guardrail-title">${localize(this.hass, 'guardrail.confirm_title')}</div>
@@ -787,27 +743,70 @@ export class AutomationPauseCard extends LitElement {
             </div>
           ` : ''}
 
-          <button
-            type="button"
-            class="snooze-btn"
-            ?disabled=${this._selected.length === 0 ||
-            (!this._scheduleMode && !this._untilTomorrow && !isDurationValid(this._customDurationInput)) ||
-            (this._scheduleMode && !this._hasResumeAt()) ||
-            this._loading}
-            @click=${() => this._snooze()}
-            aria-label="${this._loading
-              ? localize(this.hass, 'a11y.snoozing')
-              : isScheduled
-                ? localize(this.hass, 'a11y.schedule_snooze', { count: this._selected.length })
-                : localize(this.hass, 'a11y.snooze_count', { count: this._selected.length })}"
-            aria-busy=${this._loading}
-          >
-            ${this._loading
-              ? localize(this.hass, 'button.snoozing')
-              : isScheduled
-                ? localize(this.hass, 'button.schedule_count', { count: this._selected.length })
-                : localize(this.hass, 'button.snooze_count', { count: this._selected.length })}
-          </button>
+          <div class="action-row">
+            <label class="notify-toggle">
+              <input
+                type="checkbox"
+                .checked=${this._notificationsEnabled}
+                @change=${this._handleNotificationsToggle}
+              />
+              <ha-icon icon="mdi:bell-outline" aria-hidden="true"></ha-icon>
+              <span class="notify-toggle-text">
+                ${localize(this.hass, 'notify.toggle_label')}
+              </span>
+            </label>
+            <button
+              type="button"
+              class="snooze-btn"
+              ?disabled=${this._selected.length === 0 ||
+              (!this._scheduleMode && !this._untilTomorrow && !isDurationValid(this._customDurationInput)) ||
+              (this._scheduleMode && !this._hasResumeAt()) ||
+              this._loading}
+              @click=${() => this._snooze()}
+              aria-label="${this._loading
+                ? localize(this.hass, 'a11y.snoozing')
+                : isScheduled
+                  ? localize(this.hass, 'a11y.schedule_snooze', { count: this._selected.length })
+                  : localize(this.hass, 'a11y.snooze_count', { count: this._selected.length })}"
+              aria-busy=${this._loading}
+            >
+              ${this._loading
+                ? localize(this.hass, 'button.snoozing')
+                : isScheduled
+                  ? localize(this.hass, 'button.schedule_count', { count: this._selected.length })
+                  : localize(this.hass, 'button.snooze_count', { count: this._selected.length })}
+            </button>
+          </div>
+
+          ${this._notificationsEnabled ? html`
+            <div class="notify-detail">
+              <label class="notify-field">
+                <span class="notify-field-label visually-hidden">${localize(this.hass, 'notify.when_label')}</span>
+                <select
+                  .value=${this._notificationTrigger}
+                  @change=${this._handleNotificationWhenChange}
+                >
+                  <option value="start">${localize(this.hass, 'notify.when.start')}</option>
+                  <option value="about_to_end">${localize(this.hass, 'notify.when.about_to_end')}</option>
+                  <option value="end">${localize(this.hass, 'notify.when.end')}</option>
+                </select>
+              </label>
+
+              ${this._notificationTrigger === 'about_to_end' ? html`
+                <label class="notify-field">
+                  <span class="notify-field-label visually-hidden">${localize(this.hass, 'notify.lead_label')}</span>
+                  <select
+                    .value=${String(this._notificationLeadMinutes)}
+                    @change=${this._handleNotificationLeadChange}
+                  >
+                    ${NOTIFICATION_LEAD_OPTIONS.map(
+                      (m) => html`<option value=${String(m)} ?selected=${m === this._notificationLeadMinutes}>${this._formatLeadLabel(m)}</option>`
+                    )}
+                  </select>
+                </label>
+              ` : ''}
+            </div>
+          ` : ''}
         </div>
 
         ${pausedCount > 0

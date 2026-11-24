@@ -12,7 +12,7 @@ export const cardStyles = css`
     ha-card {
       background: var(--card-background-color);
       color: var(--primary-text-color);
-      padding: 16px;
+      padding: 12px;
     }
 
     /* Header */
@@ -20,7 +20,7 @@ export const cardStyles = css`
       display: flex;
       align-items: center;
       gap: 8px;
-      margin-bottom: 16px;
+      margin-bottom: 12px;
       font-size: 1.2em;
       font-weight: 500;
       color: var(--primary-text-color);
@@ -51,21 +51,18 @@ export const cardStyles = css`
     }
 
     /* Section A: Snooze Setup */
-    .snooze-setup {
-      margin-bottom: 20px;
-    }
-
-    .notify-section {
+    /* Notify me sits beside the Snooze button; its options open below the row. */
+    .action-row {
       display: flex;
-      flex-wrap: wrap;
       align-items: center;
-      gap: 8px 12px;
-      margin: 12px 0;
+      gap: 12px;
     }
     .notify-toggle {
       display: flex;
       align-items: center;
       gap: 8px;
+      min-height: 40px;
+      flex-shrink: 0;
       cursor: pointer;
       font-size: 0.9em;
       color: var(--primary-text-color);
@@ -93,7 +90,7 @@ export const cardStyles = css`
       flex-wrap: wrap;
       align-items: center;
       gap: 8px;
-      margin: 0;
+      margin: 8px 0 0;
     }
     .notify-field {
       display: flex;
@@ -103,6 +100,7 @@ export const cardStyles = css`
       color: var(--secondary-text-color);
     }
     .notify-field select {
+      min-height: 36px;
       padding: 6px 8px;
       border-radius: 8px;
       border: 1px solid var(--divider-color);
@@ -124,7 +122,7 @@ export const cardStyles = css`
 
     /* Snooze Button */
     .guardrail-confirm {
-      margin-top: 10px;
+      margin-bottom: 10px;
       padding: 12px;
       border-radius: 10px;
       border: 1px solid color-mix(in srgb, var(--warning-color, #ff9800) 40%, var(--divider-color));
@@ -162,8 +160,9 @@ export const cardStyles = css`
       color: var(--text-primary-color);
     }
     .snooze-btn {
-      width: 100%;
-      padding: 14px;
+      flex: 1;
+      min-width: 0;
+      padding: 8px 16px;
       border: none;
       border-radius: 8px;
       background: var(--primary-color);
@@ -172,7 +171,7 @@ export const cardStyles = css`
       font-weight: 500;
       cursor: pointer;
       transition: opacity 0.2s;
-      min-height: 48px;
+      min-height: 40px;
     }
     .snooze-btn:hover:not(:disabled) {
       opacity: 0.9;
@@ -292,7 +291,7 @@ export const cardStyles = css`
     /* Mobile Responsive Styles - Refined Utility Aesthetic */
     @media (max-width: 480px) {
       ha-card {
-        padding: 14px;
+        padding: 12px;
         background: linear-gradient(
           180deg,
           var(--card-background-color) 0%,
@@ -304,8 +303,8 @@ export const cardStyles = css`
       .header {
         font-size: 1.05em;
         font-weight: 600;
-        margin-bottom: 18px;
-        padding-bottom: 12px;
+        margin-bottom: 12px;
+        padding-bottom: 10px;
         border-bottom: 1px solid color-mix(in srgb, var(--divider-color) 60%, transparent);
         letter-spacing: -0.01em;
       }
@@ -326,18 +325,16 @@ export const cardStyles = css`
       }
 
 
-      /* --- Section Separator --- */
-      .snooze-setup {
-        margin-bottom: 0;
-        padding-bottom: 0;
-        border-bottom: none;
+      /* --- Main Action Button: Prominent with depth --- */
+      .notify-toggle,
+      .notify-field select {
+        min-height: 44px;
       }
 
-      /* --- Main Action Button: Prominent with depth --- */
       .snooze-btn {
-        padding: 16px;
+        padding: 12px 16px;
         font-size: 1em;
-        min-height: 56px;
+        min-height: 48px;
         font-weight: 700;
         border-radius: 12px;
         letter-spacing: 0.01em;
