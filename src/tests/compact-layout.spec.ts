@@ -112,33 +112,27 @@ describe('compact layout', () => {
     expect((await mountList())._filterTab).toBe('all');
   });
 
-  test('Notify me shares one row with the Snooze button; its options open below that row', async () => {
+  test('Notify me and its options sit above the Snooze button, which has its own row', async () => {
     const card = document.createElement(CARD_TAG) as unknown as HTMLElement & {
       hass: HomeAssistant;
       updateComplete: Promise<unknown>;
-      _guardrailConfirmOpen: boolean;
     };
     card.hass = hass;
     document.body.appendChild(card);
     await card.updateComplete;
     const root = card.shadowRoot!;
 
-    const row = root.querySelector('.action-row');
-    expect(row).not.toBeNull();
-    expect(row!.querySelector('.notify-toggle input[type="checkbox"]')).not.toBeNull();
-    expect(row!.querySelector('.snooze-btn')).not.toBeNull();
-
     const toggle = root.querySelector('.notify-toggle input') as HTMLInputElement;
     toggle.checked = true;
     toggle.dispatchEvent(new Event('change'));
     await card.updateComplete;
-    const detail = root.querySelector('.notify-detail');
-    expect(detail).not.toBeNull();
-    expect(row!.contains(detail)).toBe(false);
-    expect(row!.nextElementSibling).toBe(detail);
 
-    card._guardrailConfirmOpen = true;
-    await card.updateComplete;
-    expect(root.querySelector('.guardrail-confirm')?.nextElementSibling).toBe(row);
+    const section = root.querySelector('.notify-section');
+    const button = root.querySelector('.snooze-btn');
+    expect(section).not.toBeNull();
+    expect(button).not.toBeNull();
+    expect(section!.contains(button)).toBe(false);
+    expect(section!.querySelector('.notify-detail')).not.toBeNull();
+    expect(section!.compareDocumentPosition(button!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 });

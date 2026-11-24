@@ -5,7 +5,7 @@ function e(e,t,o,a){var i,s=arguments.length,r=s<3?t:null===a?a=Object.getOwnPro
     ha-card {
       background: var(--card-background-color);
       color: var(--primary-text-color);
-      padding: 12px;
+      padding: 16px;
     }
 
     /* Header */
@@ -13,7 +13,7 @@ function e(e,t,o,a){var i,s=arguments.length,r=s<3?t:null===a?a=Object.getOwnPro
       display: flex;
       align-items: center;
       gap: 8px;
-      margin-bottom: 12px;
+      margin-bottom: 16px;
       font-size: 1.2em;
       font-weight: 500;
       color: var(--primary-text-color);
@@ -44,18 +44,18 @@ function e(e,t,o,a){var i,s=arguments.length,r=s<3?t:null===a?a=Object.getOwnPro
     }
 
     /* Section A: Snooze Setup */
-    /* Notify me sits beside the Snooze button; its options open below the row. */
-    .action-row {
+    .notify-section {
       display: flex;
+      flex-wrap: wrap;
       align-items: center;
-      gap: 12px;
+      gap: 8px 12px;
+      margin: 12px 0;
     }
     .notify-toggle {
       display: flex;
       align-items: center;
       gap: 8px;
-      min-height: 40px;
-      flex-shrink: 0;
+      min-height: 36px;
       cursor: pointer;
       font-size: 0.9em;
       color: var(--primary-text-color);
@@ -83,7 +83,7 @@ function e(e,t,o,a){var i,s=arguments.length,r=s<3?t:null===a?a=Object.getOwnPro
       flex-wrap: wrap;
       align-items: center;
       gap: 8px;
-      margin: 8px 0 0;
+      margin: 0;
     }
     .notify-field {
       display: flex;
@@ -115,7 +115,7 @@ function e(e,t,o,a){var i,s=arguments.length,r=s<3?t:null===a?a=Object.getOwnPro
 
     /* Snooze Button */
     .guardrail-confirm {
-      margin-bottom: 10px;
+      margin-top: 10px;
       padding: 12px;
       border-radius: 10px;
       border: 1px solid color-mix(in srgb, var(--warning-color, #ff9800) 40%, var(--divider-color));
@@ -153,9 +153,8 @@ function e(e,t,o,a){var i,s=arguments.length,r=s<3?t:null===a?a=Object.getOwnPro
       color: var(--text-primary-color);
     }
     .snooze-btn {
-      flex: 1;
-      min-width: 0;
-      padding: 8px 16px;
+      width: 100%;
+      padding: 10px 16px;
       border: none;
       border-radius: 8px;
       background: var(--primary-color);
@@ -164,7 +163,7 @@ function e(e,t,o,a){var i,s=arguments.length,r=s<3?t:null===a?a=Object.getOwnPro
       font-weight: 500;
       cursor: pointer;
       transition: opacity 0.2s;
-      min-height: 40px;
+      min-height: 44px;
     }
     .snooze-btn:hover:not(:disabled) {
       opacity: 0.9;
@@ -284,7 +283,7 @@ function e(e,t,o,a){var i,s=arguments.length,r=s<3?t:null===a?a=Object.getOwnPro
     /* Mobile Responsive Styles - Refined Utility Aesthetic */
     @media (max-width: 480px) {
       ha-card {
-        padding: 12px;
+        padding: 14px;
         background: linear-gradient(
           180deg,
           var(--card-background-color) 0%,
@@ -296,8 +295,8 @@ function e(e,t,o,a){var i,s=arguments.length,r=s<3?t:null===a?a=Object.getOwnPro
       .header {
         font-size: 1.05em;
         font-weight: 600;
-        margin-bottom: 12px;
-        padding-bottom: 10px;
+        margin-bottom: 18px;
+        padding-bottom: 12px;
         border-bottom: 1px solid color-mix(in srgb, var(--divider-color) 60%, transparent);
         letter-spacing: -0.01em;
       }
@@ -318,12 +317,19 @@ function e(e,t,o,a){var i,s=arguments.length,r=s<3?t:null===a?a=Object.getOwnPro
       }
 
 
-      /* --- Main Action Button: Prominent with depth --- */
+      /* --- Section Separator --- */
+      .snooze-setup {
+        margin-bottom: 0;
+        padding-bottom: 0;
+        border-bottom: none;
+      }
+
       .notify-toggle,
       .notify-field select {
         min-height: 44px;
       }
 
+      /* --- Main Action Button: Prominent with depth --- */
       .snooze-btn {
         padding: 12px 16px;
         font-size: 1em;
@@ -599,6 +605,48 @@ function e(e,t,o,a){var i,s=arguments.length,r=s<3?t:null===a?a=Object.getOwnPro
             @until-tomorrow-select=${this._handleUntilTomorrowSelect}
           ></autosnooze-duration-selector>
 
+          <div class="notify-section">
+            <label class="notify-toggle">
+              <input
+                type="checkbox"
+                .checked=${this._notificationsEnabled}
+                @change=${this._handleNotificationsToggle}
+              />
+              <ha-icon icon="mdi:bell-outline" aria-hidden="true"></ha-icon>
+              <span class="notify-toggle-text">
+                ${_e(this.hass,"notify.toggle_label")}
+              </span>
+            </label>
+
+            ${this._notificationsEnabled?H`
+              <div class="notify-detail">
+                <label class="notify-field">
+                  <span class="notify-field-label visually-hidden">${_e(this.hass,"notify.when_label")}</span>
+                  <select
+                    .value=${this._notificationTrigger}
+                    @change=${this._handleNotificationWhenChange}
+                  >
+                    <option value="start">${_e(this.hass,"notify.when.start")}</option>
+                    <option value="about_to_end">${_e(this.hass,"notify.when.about_to_end")}</option>
+                    <option value="end">${_e(this.hass,"notify.when.end")}</option>
+                  </select>
+                </label>
+
+                ${"about_to_end"===this._notificationTrigger?H`
+                  <label class="notify-field">
+                    <span class="notify-field-label visually-hidden">${_e(this.hass,"notify.lead_label")}</span>
+                    <select
+                      .value=${String(this._notificationLeadMinutes)}
+                      @change=${this._handleNotificationLeadChange}
+                    >
+                      ${Re.map(e=>H`<option value=${String(e)} ?selected=${e===this._notificationLeadMinutes}>${this._formatLeadLabel(e)}</option>`)}
+                    </select>
+                  </label>
+                `:""}
+              </div>
+            `:""}
+          </div>
+
           ${this._guardrailConfirmOpen?H`
             <div class="guardrail-confirm" role="alertdialog" aria-live="polite">
               <div class="guardrail-title">${_e(this.hass,"guardrail.confirm_title")}</div>
@@ -614,57 +662,16 @@ function e(e,t,o,a){var i,s=arguments.length,r=s<3?t:null===a?a=Object.getOwnPro
             </div>
           `:""}
 
-          <div class="action-row">
-            <label class="notify-toggle">
-              <input
-                type="checkbox"
-                .checked=${this._notificationsEnabled}
-                @change=${this._handleNotificationsToggle}
-              />
-              <ha-icon icon="mdi:bell-outline" aria-hidden="true"></ha-icon>
-              <span class="notify-toggle-text">
-                ${_e(this.hass,"notify.toggle_label")}
-              </span>
-            </label>
-            <button
-              type="button"
-              class="snooze-btn"
-              ?disabled=${0===this._selected.length||!this._scheduleMode&&!this._untilTomorrow&&!Lt(this._customDurationInput)||this._scheduleMode&&!this._hasResumeAt()||this._loading}
-              @click=${()=>this._snooze()}
-              aria-label="${this._loading?_e(this.hass,"a11y.snoozing"):_e(this.hass,n?"a11y.schedule_snooze":"a11y.snooze_count",{count:this._selected.length})}"
-              aria-busy=${this._loading}
-            >
-              ${this._loading?_e(this.hass,"button.snoozing"):_e(this.hass,n?"button.schedule_count":"button.snooze_count",{count:this._selected.length})}
-            </button>
-          </div>
-
-          ${this._notificationsEnabled?H`
-            <div class="notify-detail">
-              <label class="notify-field">
-                <span class="notify-field-label visually-hidden">${_e(this.hass,"notify.when_label")}</span>
-                <select
-                  .value=${this._notificationTrigger}
-                  @change=${this._handleNotificationWhenChange}
-                >
-                  <option value="start">${_e(this.hass,"notify.when.start")}</option>
-                  <option value="about_to_end">${_e(this.hass,"notify.when.about_to_end")}</option>
-                  <option value="end">${_e(this.hass,"notify.when.end")}</option>
-                </select>
-              </label>
-
-              ${"about_to_end"===this._notificationTrigger?H`
-                <label class="notify-field">
-                  <span class="notify-field-label visually-hidden">${_e(this.hass,"notify.lead_label")}</span>
-                  <select
-                    .value=${String(this._notificationLeadMinutes)}
-                    @change=${this._handleNotificationLeadChange}
-                  >
-                    ${Re.map(e=>H`<option value=${String(e)} ?selected=${e===this._notificationLeadMinutes}>${this._formatLeadLabel(e)}</option>`)}
-                  </select>
-                </label>
-              `:""}
-            </div>
-          `:""}
+          <button
+            type="button"
+            class="snooze-btn"
+            ?disabled=${0===this._selected.length||!this._scheduleMode&&!this._untilTomorrow&&!Lt(this._customDurationInput)||this._scheduleMode&&!this._hasResumeAt()||this._loading}
+            @click=${()=>this._snooze()}
+            aria-label="${this._loading?_e(this.hass,"a11y.snoozing"):_e(this.hass,n?"a11y.schedule_snooze":"a11y.snooze_count",{count:this._selected.length})}"
+            aria-busy=${this._loading}
+          >
+            ${this._loading?_e(this.hass,"button.snoozing"):_e(this.hass,n?"button.schedule_count":"button.snooze_count",{count:this._selected.length})}
+          </button>
         </div>
 
         ${o>0?H`<autosnooze-active-pauses
@@ -1085,29 +1092,33 @@ function e(e,t,o,a){var i,s=arguments.length,r=s<3?t:null===a?a=Object.getOwnPro
       display: block;
     }
 
-    /* The pills speak for themselves; aria-labelledby still names them from this hidden label. */
     .duration-header-row {
-      display: none;
+      margin-bottom: 8px;
+    }
+    .duration-section-header {
+      font-size: 0.9em;
+      font-weight: 500;
+      color: var(--secondary-text-color);
     }
 
     /* Duration Pills */
     .duration-selector {
-      margin-bottom: 10px;
+      margin-bottom: 14px;
     }
     .duration-pills {
       display: flex;
-      gap: 6px;
+      gap: 8px;
       flex-wrap: wrap;
     }
     .pill {
-      padding: 6px 14px;
+      padding: 8px 16px;
       border-radius: 20px;
       border: 1px solid var(--divider-color);
       background: var(--card-background-color);
       cursor: pointer;
       font-size: 0.9em;
       transition: all 0.2s;
-      min-height: 36px;
+      min-height: 40px;
       box-sizing: border-box;
       color: var(--primary-text-color);
     }
@@ -1132,8 +1143,8 @@ function e(e,t,o,a){var i,s=arguments.length,r=s<3?t:null===a?a=Object.getOwnPro
       display: inline-flex;
       align-items: center;
       gap: 6px;
-      padding: 6px 12px;
-      min-height: 36px;
+      padding: 8px 12px;
+      min-height: 40px;
       border-radius: 20px;
       border: 1px solid var(--divider-color);
       background: var(--card-background-color);
@@ -1321,6 +1332,14 @@ function e(e,t,o,a){var i,s=arguments.length,r=s<3?t:null===a?a=Object.getOwnPro
 
     /* Mobile Responsive Styles */
     @media (max-width: 480px) {
+      .duration-section-header {
+        font-size: 0.8em;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        opacity: 0.7;
+      }
+
       /* --- Duration Selector: Pill-style chips --- */
       .duration-pills {
         gap: 6px;
@@ -1759,7 +1778,7 @@ function e(e,t,o,a){var i,s=arguments.length,r=s<3?t:null===a?a=Object.getOwnPro
       align-items: center;
       gap: 8px;
       row-gap: 8px;
-      margin-bottom: 8px;
+      margin-bottom: 10px;
       flex-wrap: nowrap;
       min-width: 0;
       background: var(--secondary-background-color);
@@ -1823,11 +1842,11 @@ function e(e,t,o,a){var i,s=arguments.length,r=s<3?t:null===a?a=Object.getOwnPro
 
     /* Selection List */
     .selection-list {
-      max-height: 242px;
+      max-height: 270px;
       overflow-y: auto;
       border: 1px solid var(--divider-color);
       border-radius: 8px;
-      margin-bottom: 10px;
+      margin-bottom: 14px;
     }
     .list-empty {
       padding: 20px;
@@ -1839,12 +1858,12 @@ function e(e,t,o,a){var i,s=arguments.length,r=s<3?t:null===a?a=Object.getOwnPro
       display: flex;
       align-items: center;
       gap: 10px;
-      padding: 8px 12px;
+      padding: 10px 12px;
       cursor: pointer;
       border: none;
       border-bottom: 1px solid var(--divider-color);
       transition: background 0.2s;
-      min-height: 40px;
+      min-height: 44px;
       width: 100%;
       background: transparent;
       text-align: left;
@@ -2170,7 +2189,7 @@ function e(e,t,o,a){var i,s=arguments.length,r=s<3?t:null===a?a=Object.getOwnPro
       /* --- Selection List: Card-style items with depth --- */
       .selection-list {
         max-height: min(252px, calc(35dvh + 52px));
-        margin-bottom: 10px;
+        margin-bottom: 14px;
         border-radius: 12px;
         border: 1.5px solid color-mix(in srgb, var(--divider-color) 60%, transparent);
         background: var(--card-background-color);
@@ -2180,9 +2199,9 @@ function e(e,t,o,a){var i,s=arguments.length,r=s<3?t:null===a?a=Object.getOwnPro
       }
 
       .list-item {
-        padding: 10px 14px;
+        padding: 12px 14px;
         gap: 12px;
-        min-height: 44px;
+        min-height: 48px;
         border-bottom: 1px solid color-mix(in srgb, var(--divider-color) 50%, transparent);
         transition: background 0.15s ease, transform 0.1s ease;
         touch-action: manipulation;

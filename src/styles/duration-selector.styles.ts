@@ -10,29 +10,33 @@ export const durationSelectorStyles = css`
       display: block;
     }
 
-    /* The pills speak for themselves; aria-labelledby still names them from this hidden label. */
     .duration-header-row {
-      display: none;
+      margin-bottom: 8px;
+    }
+    .duration-section-header {
+      font-size: 0.9em;
+      font-weight: 500;
+      color: var(--secondary-text-color);
     }
 
     /* Duration Pills */
     .duration-selector {
-      margin-bottom: 10px;
+      margin-bottom: 14px;
     }
     .duration-pills {
       display: flex;
-      gap: 6px;
+      gap: 8px;
       flex-wrap: wrap;
     }
     .pill {
-      padding: 6px 14px;
+      padding: 8px 16px;
       border-radius: 20px;
       border: 1px solid var(--divider-color);
       background: var(--card-background-color);
       cursor: pointer;
       font-size: 0.9em;
       transition: all 0.2s;
-      min-height: 36px;
+      min-height: 40px;
       box-sizing: border-box;
       color: var(--primary-text-color);
     }
@@ -57,8 +61,8 @@ export const durationSelectorStyles = css`
       display: inline-flex;
       align-items: center;
       gap: 6px;
-      padding: 6px 12px;
-      min-height: 36px;
+      padding: 8px 12px;
+      min-height: 40px;
       border-radius: 20px;
       border: 1px solid var(--divider-color);
       background: var(--card-background-color);
@@ -246,6 +250,14 @@ export const durationSelectorStyles = css`
 
     /* Mobile Responsive Styles */
     @media (max-width: 480px) {
+      .duration-section-header {
+        font-size: 0.8em;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        opacity: 0.7;
+      }
+
       /* --- Duration Selector: Pill-style chips --- */
       .duration-pills {
         gap: 6px;

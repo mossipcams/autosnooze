@@ -1,13 +1,13 @@
 /**
  * The idle card stays compact without shrinking tap targets below comfortable sizes:
- * 44px on phones, 36px with a mouse.
+ * 44px on phones, 36px with a mouse. The "Snooze until" label stays visible.
  */
 import { authenticatedVisualTest as test, expect } from '../helpers/fixtures';
 import { EXISTING_DASHBOARD_PATH, expectCardReady } from '../helpers/ha';
 
 const VIEWPORTS = [
-  { name: 'desktop', width: 1280, height: 1600, maxCardHeight: 480, minTarget: 36 },
-  { name: 'mobile', width: 411, height: 1600, maxCardHeight: 520, minTarget: 44 },
+  { name: 'desktop', width: 1280, height: 1600, maxCardHeight: 600, minTarget: 36 },
+  { name: 'mobile', width: 411, height: 1600, maxCardHeight: 615, minTarget: 44 },
 ] as const;
 
 for (const viewport of VIEWPORTS) {
@@ -38,6 +38,6 @@ for (const viewport of VIEWPORTS) {
     for (const target of ['row', 'pill', 'notify', 'snooze'] as const) {
       expect(heights[target], `${target} tap target`).toBeGreaterThanOrEqual(viewport.minTarget);
     }
-    expect(heights.label, 'the "Snooze until" label names the pills without taking space').toBeLessThanOrEqual(1);
+    expect(heights.label, 'the "Snooze until" label is visible').toBeGreaterThan(0);
   });
 }
