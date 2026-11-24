@@ -8,7 +8,6 @@ __pycache__/
 # Claude Code
 .claude/
 CLAUDE.md
-.devcontainer/
 docs/ROADMAP.md
 docs/mermaid.md
 
