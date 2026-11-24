@@ -763,7 +763,7 @@ export class AutomationPauseCard extends LitElement {
                       @change=${this._handleNotificationLeadChange}
                     >
                       ${NOTIFICATION_LEAD_OPTIONS.map(
-                        (m) => html`<option value=${String(m)}>${this._formatLeadLabel(m)}</option>`
+                        (m) => html`<option value=${String(m)} ?selected=${m === this._notificationLeadMinutes}>${this._formatLeadLabel(m)}</option>`
                       )}
                     </select>
                   </label>

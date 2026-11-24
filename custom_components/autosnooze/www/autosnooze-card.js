@@ -636,7 +636,7 @@ function e(e,t,o,a){var i,s=arguments.length,r=s<3?t:null===a?a=Object.getOwnPro
                       .value=${String(this._notificationLeadMinutes)}
                       @change=${this._handleNotificationLeadChange}
                     >
-                      ${Re.map(e=>H`<option value=${String(e)}>${this._formatLeadLabel(e)}</option>`)}
+                      ${Re.map(e=>H`<option value=${String(e)} ?selected=${e===this._notificationLeadMinutes}>${this._formatLeadLabel(e)}</option>`)}
                     </select>
                   </label>
                 `:""}
@@ -1524,7 +1524,7 @@ function e(e,t,o,a){var i,s=arguments.length,r=s<3?t:null===a?a=Object.getOwnPro
         padding: 9px 10px;
       }
     }
-`;class vo extends ne{constructor(){super(...arguments),this.scheduleMode=!1,this.customDuration={days:0,hours:0,minutes:30},this.customDurationInput="30m",this.showCustomInput=!1,this.untilTomorrow=!1,this.lastDuration=null,this.disableAtDate="",this.disableAtTime="",this.resumeAtDate="",this.resumeAtTime=""}_getBasePresets(){const e=function(e){const t=ut(e)?.attributes?.duration_presets;return t?.length?t:null}(this.hass);return e?.length?e.filter(e=>null!==e.minutes):Pe.filter(e=>null!==e.minutes)}_getDurationPills(){return[...this._getBasePresets(),{label:_e(this.hass,"duration.custom"),minutes:null}]}_getDurationPreview(){const e=It(this.customDurationInput);return e?ft(e.days,e.hours,e.minutes):""}_isDurationValid(){return Lt(this.customDurationInput)}_renderDateOptions(){const e=function(e=365,t){const o=[],a=new Date,i=a.getFullYear();for(let s=0;s<e;s++){const e=new Date(a);e.setDate(e.getDate()+s);const r=e.getFullYear(),n=`${r}-${String(e.getMonth()+1).padStart(2,"0")}-${String(e.getDate()).padStart(2,"0")}`,l=e.toLocaleDateString(t,{weekday:"short"}),d=e.toLocaleDateString(t,{month:"short"}),u=e.getDate(),c=r!==i?`${l}, ${d} ${u}, ${r}`:`${l}, ${d} ${u}`;o.push({value:n,label:c})}return o}(365,this.hass?.locale?.language);return e.map(e=>H`<option value="${e.value}">${e.label}</option>`)}_renderLastDurationBadge(){if(!this.lastDuration)return"";const e=this._getBasePresets(),t=this.lastDuration.minutes,o=!e.some(e=>e.minutes===t);if(!o)return"";const{days:a,hours:i,minutes:s}=this.lastDuration.duration,r=yt(a,i,s).replace(/ /g,""),n=Nt(this.customDuration),l=!this.scheduleMode&&!this.untilTomorrow&&!this.showCustomInput&&t===n;return H`
+`;class vo extends ne{constructor(){super(...arguments),this.scheduleMode=!1,this.customDuration={days:0,hours:0,minutes:30},this.customDurationInput="30m",this.showCustomInput=!1,this.untilTomorrow=!1,this.lastDuration=null,this.disableAtDate="",this.disableAtTime="",this.resumeAtDate="",this.resumeAtTime=""}_getBasePresets(){const e=function(e){const t=ut(e)?.attributes?.duration_presets;return t?.length?t:null}(this.hass);return e?.length?e.filter(e=>null!==e.minutes):Pe.filter(e=>null!==e.minutes)}_getDurationPills(){return[...this._getBasePresets(),{label:_e(this.hass,"duration.custom"),minutes:null}]}_getDurationPreview(){const e=It(this.customDurationInput);return e?ft(e.days,e.hours,e.minutes):""}_isDurationValid(){return Lt(this.customDurationInput)}_renderDateOptions(e){const t=function(e=365,t){const o=[],a=new Date,i=a.getFullYear();for(let s=0;s<e;s++){const e=new Date(a);e.setDate(e.getDate()+s);const r=e.getFullYear(),n=`${r}-${String(e.getMonth()+1).padStart(2,"0")}-${String(e.getDate()).padStart(2,"0")}`,l=e.toLocaleDateString(t,{weekday:"short"}),d=e.toLocaleDateString(t,{month:"short"}),u=e.getDate(),c=r!==i?`${l}, ${d} ${u}, ${r}`:`${l}, ${d} ${u}`;o.push({value:n,label:c})}return o}(365,this.hass?.locale?.language);return t.map(t=>H`<option value="${t.value}" ?selected=${t.value===e}>${t.label}</option>`)}_renderLastDurationBadge(){if(!this.lastDuration)return"";const e=this._getBasePresets(),t=this.lastDuration.minutes,o=!e.some(e=>e.minutes===t);if(!o)return"";const{days:a,hours:i,minutes:s}=this.lastDuration.duration,r=yt(a,i,s).replace(/ /g,""),n=Nt(this.customDuration),l=!this.scheduleMode&&!this.untilTomorrow&&!this.showCustomInput&&t===n;return H`
       <button
         type="button"
         class="last-duration-badge ${l?"active":""}"
@@ -1555,7 +1555,7 @@ function e(e,t,o,a){var i,s=arguments.length,r=s<3?t:null===a?a=Object.getOwnPro
             aria-labelledby="${e}"
           >
             <option value="">${_e(this.hass,"schedule.select_date")}</option>
-            ${this._renderDateOptions()}
+            ${this._renderDateOptions(this[o])}
           </select>
           <input
             type="time"

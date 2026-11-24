@@ -95,10 +95,10 @@ export class AutoSnoozeDurationSelector extends LitElement {
     return isDurationValid(this.customDurationInput);
   }
 
-  _renderDateOptions(): TemplateResult[] {
+  _renderDateOptions(selected: string): TemplateResult[] {
     const options = generateDateOptions(365, this.hass?.locale?.language);
     return options.map(
-      (opt) => html`<option value="${opt.value}">${opt.label}</option>`
+      (opt) => html`<option value="${opt.value}" ?selected=${opt.value === selected}>${opt.label}</option>`
     );
   }
 
@@ -259,7 +259,7 @@ export class AutoSnoozeDurationSelector extends LitElement {
             aria-labelledby="${id}"
           >
             <option value="">${localize(this.hass, 'schedule.select_date')}</option>
-            ${this._renderDateOptions()}
+            ${this._renderDateOptions(this[dateField])}
           </select>
           <input
             type="time"
