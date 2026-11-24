@@ -23,7 +23,7 @@ export const activePausesStyles = css`
     }
     .pause-group-bar {
       display: flex;
-      align-items: center;
+      align-items: stretch;
       border-bottom: 1px solid var(--divider-color);
     }
     .pause-group-header {
@@ -36,11 +36,28 @@ export const activePausesStyles = css`
       font-size: 0.85em;
       cursor: pointer;
     }
-    .wake-group-btn {
-      margin-right: 12px;
+    /* Sized to the slim group bar and tinted like Resume All, which it scopes down. */
+    .wake-btn.wake-group-btn {
+      display: inline-grid;
+      place-items: center;
       flex-shrink: 0;
+      align-self: center;
+      margin: 4px 12px 4px 0;
+      border-color: var(--warning-color, #ff9800);
+      background: transparent;
+      color: var(--warning-color, #ff9800);
     }
-    .wake-group-btn.pending {
+    /* The other label reserves its width, so the button doesn't jump when it turns into Confirm. */
+    .wake-group-btn > span,
+    .wake-group-btn::after {
+      grid-area: 1 / 1;
+    }
+    .wake-group-btn::after {
+      content: attr(data-alt);
+      visibility: hidden;
+    }
+    .wake-btn.wake-group-btn:hover,
+    .wake-btn.wake-group-btn.pending {
       background: var(--warning-color, #ff9800);
       border-color: var(--warning-color, #ff9800);
       color: white;
@@ -84,15 +101,16 @@ export const activePausesStyles = css`
       white-space: nowrap;
     }
     .wake-btn {
-      padding: 6px 12px;
+      padding: 6px 14px;
       border: 1px solid var(--divider-color);
-      border-radius: 6px;
+      border-radius: 8px;
       background: var(--card-background-color);
       color: var(--primary-text-color);
       cursor: pointer;
       font-size: 0.85em;
+      font-weight: 500;
       transition: all 0.2s;
-      min-height: 44px;
+      min-height: 36px;
       box-sizing: border-box;
     }
     .wake-btn:hover {
@@ -127,14 +145,14 @@ export const activePausesStyles = css`
       width: 100%;
       padding: 10px;
       border: 1px solid var(--warning-color, #ff9800);
-      border-radius: 6px;
+      border-radius: 8px;
       background: transparent;
       color: var(--warning-color, #ff9800);
       cursor: pointer;
       font-size: 0.9em;
       font-weight: 500;
       transition: all 0.2s;
-      min-height: 44px;
+      min-height: 40px;
     }
     .wake-all:hover {
       background: var(--warning-color, #ff9800);
@@ -178,11 +196,13 @@ export const activePausesStyles = css`
         box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
         border: 1px solid color-mix(in srgb, var(--divider-color) 50%, transparent);
       }
+      .pause-group-bar {
+        background: var(--secondary-background-color);
+      }
       .pause-group-header {
         padding: 12px 14px;
         font-size: 0.85em;
         font-weight: 600;
-        background: var(--secondary-background-color);
       }
       .pause-group-header:active {
         background: color-mix(in srgb, var(--secondary-background-color) 80%, transparent);
@@ -222,35 +242,26 @@ export const activePausesStyles = css`
         margin-top: 2px;
       }
       .wake-btn {
-        padding: 8px 14px;
-        font-size: 0.82em;
-        font-weight: 600;
         min-height: 44px;
         flex-shrink: 0;
         align-self: center;
-        border-radius: 8px;
-        border: 1.5px solid color-mix(in srgb, var(--success-color, #4caf50) 60%, var(--divider-color));
-        background: var(--card-background-color);
-        color: var(--success-color, #4caf50);
-        transition: all 0.15s ease;
+        border-radius: 10px;
         touch-action: manipulation;
         -webkit-tap-highlight-color: transparent;
       }
       .wake-btn:active {
         transform: scale(0.95);
       }
-      .wake-btn:hover {
-        background: var(--success-color, #4caf50);
-        color: white;
-        border-color: var(--success-color, #4caf50);
+      .wake-btn.wake-group-btn {
+        margin-right: 14px;
       }
       .wake-all {
-        padding: 14px;
+        padding: 10px;
         font-size: 0.9em;
         font-weight: 600;
-        min-height: 50px;
+        min-height: 48px;
         margin-top: 12px;
-        border-radius: 12px;
+        border-radius: 10px;
         border: 2px solid var(--warning-color, #ff9800);
         transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
       }
