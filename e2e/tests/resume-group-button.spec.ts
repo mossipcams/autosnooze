@@ -1,6 +1,6 @@
 /**
- * Resume group sits in the slim group bar: it stays compact, doesn't change size when it
- * turns into Confirm, and Confirm keeps its warning fill while the pointer is still on it.
+ * Resume group sits in the slim group bar: it stays compact, matches the row Resume buttons,
+ * doesn't change size when it turns into Confirm, and Confirm keeps its warning fill while hovered.
  */
 import { Page } from '@playwright/test';
 import { authenticatedVisualTest as test, expect } from '../helpers/fixtures';
@@ -37,6 +37,12 @@ for (const vp of [
       const before = await btn.boundingBox();
       expect(before!.height).toBeGreaterThanOrEqual(vp.min);
       expect(before!.height).toBeLessThanOrEqual(vp.max);
+
+      // Row Resume buttons match the group button, so the list reads as one set of controls.
+      const rowResume = card.locator('autosnooze-active-pauses .paused-item .wake-btn').first();
+      expect((await rowResume.boundingBox())!.height).toBeCloseTo(before!.height, 0);
+      const radius = (l: typeof btn) => l.evaluate((el) => getComputedStyle(el).borderRadius);
+      expect(await radius(rowResume)).toBe(await radius(btn));
 
       await btn.click();
       await expect(btn).toHaveClass(/pending/);

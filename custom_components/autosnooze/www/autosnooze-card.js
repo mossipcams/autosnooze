@@ -797,12 +797,9 @@ function e(e,t,o,a){var i,s=arguments.length,r=s<3?t:null===a?a=Object.getOwnPro
       flex-shrink: 0;
       align-self: center;
       margin: 4px 12px 4px 0;
-      min-height: 36px;
-      padding: 4px 12px;
       border-color: var(--warning-color, #ff9800);
       background: transparent;
       color: var(--warning-color, #ff9800);
-      font-weight: 500;
     }
     /* The other label reserves its width, so the button doesn't jump when it turns into Confirm. */
     .wake-group-btn > span,
@@ -858,15 +855,16 @@ function e(e,t,o,a){var i,s=arguments.length,r=s<3?t:null===a?a=Object.getOwnPro
       white-space: nowrap;
     }
     .wake-btn {
-      padding: 6px 12px;
+      padding: 6px 14px;
       border: 1px solid var(--divider-color);
-      border-radius: 6px;
+      border-radius: 8px;
       background: var(--card-background-color);
       color: var(--primary-text-color);
       cursor: pointer;
       font-size: 0.85em;
+      font-weight: 500;
       transition: all 0.2s;
-      min-height: 44px;
+      min-height: 36px;
       box-sizing: border-box;
     }
     .wake-btn:hover {
@@ -901,14 +899,14 @@ function e(e,t,o,a){var i,s=arguments.length,r=s<3?t:null===a?a=Object.getOwnPro
       width: 100%;
       padding: 10px;
       border: 1px solid var(--warning-color, #ff9800);
-      border-radius: 6px;
+      border-radius: 8px;
       background: transparent;
       color: var(--warning-color, #ff9800);
       cursor: pointer;
       font-size: 0.9em;
       font-weight: 500;
       transition: all 0.2s;
-      min-height: 44px;
+      min-height: 40px;
     }
     .wake-all:hover {
       background: var(--warning-color, #ff9800);
@@ -998,39 +996,26 @@ function e(e,t,o,a){var i,s=arguments.length,r=s<3?t:null===a?a=Object.getOwnPro
         margin-top: 2px;
       }
       .wake-btn {
-        padding: 8px 14px;
-        font-size: 0.82em;
-        font-weight: 600;
         min-height: 44px;
         flex-shrink: 0;
         align-self: center;
-        border-radius: 8px;
-        border: 1.5px solid color-mix(in srgb, var(--success-color, #4caf50) 60%, var(--divider-color));
-        background: var(--card-background-color);
-        color: var(--success-color, #4caf50);
-        transition: all 0.15s ease;
+        border-radius: 10px;
         touch-action: manipulation;
         -webkit-tap-highlight-color: transparent;
       }
       .wake-btn:active {
         transform: scale(0.95);
       }
-      .wake-btn:hover {
-        background: var(--success-color, #4caf50);
-        color: white;
-        border-color: var(--success-color, #4caf50);
-      }
       .wake-btn.wake-group-btn {
-        min-height: 44px;
         margin-right: 14px;
       }
       .wake-all {
-        padding: 14px;
+        padding: 10px;
         font-size: 0.9em;
         font-weight: 600;
-        min-height: 50px;
+        min-height: 48px;
         margin-top: 12px;
-        border-radius: 12px;
+        border-radius: 10px;
         border: 2px solid var(--warning-color, #ff9800);
         transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
       }
