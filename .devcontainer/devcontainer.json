@@ -4,7 +4,7 @@
   "workspaceFolder": "/workspaces/autosnooze",
   "workspaceMount": "source=${localWorkspaceFolder},target=/workspaces/autosnooze,type=bind",
   "features": {
-    "ghcr.io/devcontainers/features/node:1": {
+    "ghcr.io/devcontainers/features/node:2": {
       "version": "lts"
     }
   },
