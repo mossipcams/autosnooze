@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.5.0](https://github.com/mossipcams/autosnooze/compare/v0.4.1...v0.5.0) (2026-11-25)
+
+
+### Features
+
+* compact the card while keeping comfortable tap targets ([#565](https://github.com/mossipcams/autosnooze/issues/565)) ([24f70ce](https://github.com/mossipcams/autosnooze/commit/24f70cebc4771fcf40532526c72fa115d63954fa))
+* streamline the snooze flow ([#562](https://github.com/mossipcams/autosnooze/issues/562)) ([ea80109](https://github.com/mossipcams/autosnooze/commit/ea8010913d0a88070b689676f9e801c7d0c728b7))
+
+
+### Bug Fixes
+
+* tidy the Resume group and Confirm buttons ([#567](https://github.com/mossipcams/autosnooze/issues/567)) ([1ee8b44](https://github.com/mossipcams/autosnooze/commit/1ee8b44a9474dc0589fe9a5dca391970686ca567))
+
 ## [0.4.1](https://github.com/mossipcams/autosnooze/compare/v0.4.0...v0.4.1) (2026-08-25)
 
 
