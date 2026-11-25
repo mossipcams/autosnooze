@@ -44,4 +44,4 @@ jobs:
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
       - name: Hassfest validation
-        uses: home-assistant/actions/hassfest@a7c616ce81ccda50150bf1595786c71b1883fabb # master
+        uses: home-assistant/actions/hassfest@9e9565e68f5a70d874202871f4c4064d23814235 # master
