@@ -1,9 +1,9 @@
 # Test dependencies for AutoSnooze
 # pytest-homeassistant-custom-component provides Home Assistant test fixtures
 
-pytest==9.0.3
-pytest-asyncio==1.4.0
-pytest-homeassistant-custom-component>=0.13.364,<0.13.365
+pytest==9.2.0
+pytest-asyncio==1.5.0
+pytest-homeassistant-custom-component>=0.13.375,<0.13.376
 pytest-cov==7.1.0
 
 # Linting and formatting (ruff handles both)

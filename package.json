@@ -79,22 +79,22 @@
   },
   "overrides": {
     "underscore": "1.13.8",
-    "flatted": "3.4.2",
-    "picomatch": "4.0.4",
+    "flatted": "3.4.4",
+    "picomatch": "4.0.7",
     "@anthropic-ai/claude-agent-sdk": {
       "@anthropic-ai/sdk": "1.14.0"
     },
     "micromatch": {
-      "picomatch": "2.3.2"
+      "picomatch": "4.0.7"
     }
   },
   "optionalDependencies": {
-    "@oxc-parser/binding-darwin-arm64": "0.149.0",
-    "@oxc-parser/binding-linux-x64-gnu": "0.149.0",
+    "@oxc-parser/binding-darwin-arm64": "0.160.0",
+    "@oxc-parser/binding-linux-x64-gnu": "0.160.0",
     "@oxc-resolver/binding-darwin-arm64": "11.24.2",
     "@oxc-resolver/binding-linux-x64-gnu": "11.24.2",
-    "@rollup/rollup-darwin-arm64": "4.63.1",
-    "@rollup/rollup-linux-x64-gnu": "4.63.1"
+    "@rollup/rollup-darwin-arm64": "4.68.8",
+    "@rollup/rollup-linux-x64-gnu": "4.68.8"
   },
   "lint-staged": {
     "src/**/*.ts": [
