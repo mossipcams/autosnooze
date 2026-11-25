@@ -1,5 +1,4 @@
 import { defineConfig } from 'vitest/config';
-import { VitestReporter } from 'tdd-guard-vitest';
 
 export default defineConfig({
   define: {
@@ -12,10 +11,6 @@ export default defineConfig({
     exclude: ['**/node_modules/**', '**/e2e/**', '**/mutants/**'],
     setupFiles: ['./tests/vitest.setup.ts'],
     globals: true,
-    reporters: [
-      'default',
-      new VitestReporter(process.cwd()),
-    ],
     coverage: {
       provider: 'istanbul',
       include: ['src/**/*.ts'],
