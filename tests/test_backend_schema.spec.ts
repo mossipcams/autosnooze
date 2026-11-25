@@ -1985,17 +1985,15 @@ describe('Selector Correctness', () => {
       document.body.appendChild(card);
       await card.updateComplete;
 
-      // Look for countdown text - should contain hours or time indication
-      const cardText = card.shadowRoot.textContent;
+      // Countdown renders inside the active-pauses child's own shadow root
+      const activePauses = card.shadowRoot.querySelector('autosnooze-active-pauses');
+      expect(activePauses).not.toBeNull();
+      await activePauses.updateComplete;
 
-      // Should show some time indicator (hours, h, :, or similar)
-      const hasTimeIndicator =
-        cardText.includes('h') ||
-        cardText.includes(':') ||
-        cardText.includes('hour') ||
-        cardText.includes('min');
-
-      expect(hasTimeIndicator).toBe(true);
+      const countdown = activePauses.shadowRoot.querySelector('.countdown');
+      expect(countdown).not.toBeNull();
+      // ~2h remaining: "1h 59m 59s" or "2h 0m 0s"
+      expect(countdown.textContent.trim()).toMatch(/^(1h 59m|2h 0m) \d+s$/);
     });
   });
 });
