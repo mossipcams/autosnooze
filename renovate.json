@@ -15,6 +15,18 @@
       "platformAutomerge": true
     },
     {
+      "description": "pytest/pytest-asyncio/pytest-cov are pinned by pytest-homeassistant-custom-component; bump them together and review (ci_contracts pins these).",
+      "matchManagers": ["pip_requirements"],
+      "groupName": "python test fixture",
+      "automerge": false
+    },
+    {
+      "description": "Devcontainer Python must match the CI Python that the HA fixture supports.",
+      "matchDepNames": ["mcr.microsoft.com/devcontainers/python"],
+      "groupName": "python test fixture",
+      "automerge": false
+    },
+    {
       "matchManagers": ["github-actions"],
       "pinDigests": true,
       "automerge": false
